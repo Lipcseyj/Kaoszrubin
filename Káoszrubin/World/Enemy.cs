@@ -82,6 +82,8 @@ public abstract class Enemy(Position position) : WorldObject(position)
     public int CurrentMana { get; private set; }
     public IReadOnlyDictionary<string, int> RemainingAbilityCharges => _remainingAbilityCharges;
     public string? PreparedWeaponId { get; private set; }
+    public string? PreparedAbilityId { get; private set; }
+    public int PreparedAbilityTurnsRemaining { get; private set; }
     public IReadOnlyList<string> CarriedWeaponIds
     {
         get
@@ -114,8 +116,17 @@ public abstract class Enemy(Position position) : WorldObject(position)
     }
 
     public bool IsAbilityReady(string abilityId) => _abilityCooldowns.GetValueOrDefault(abilityId) <= 0;
+    public bool IsAbilityReady(MonsterAbilityDefinition ability) => IsAbilityReady(ability.Id) &&
+        (string.IsNullOrWhiteSpace(ability.AbilityGroup) ||
+         _abilityCooldowns.GetValueOrDefault(AbilityGroupCooldownId(ability.AbilityGroup)) <= 0);
     public bool IsWeaponReady(string weaponId) => _weaponCooldowns.GetValueOrDefault(weaponId) <= 0;
     public void StartAbilityCooldown(string abilityId, int turns) => SetCooldown(_abilityCooldowns, abilityId, turns);
+    public void StartAbilityCooldown(MonsterAbilityDefinition ability)
+    {
+        StartAbilityCooldown(ability.Id, ability.Cooldown);
+        if (!string.IsNullOrWhiteSpace(ability.AbilityGroup))
+            SetCooldown(_abilityCooldowns, AbilityGroupCooldownId(ability.AbilityGroup), ability.Cooldown);
+    }
     public void StartWeaponCooldown(string weaponId, int turns) => SetCooldown(_weaponCooldowns, weaponId, turns);
     public bool IsSpellReady(string spellId) => _spellCooldowns.GetValueOrDefault(spellId) <= 0;
     public void StartSpellCooldown(string spellId, int turns) => SetCooldown(_spellCooldowns, spellId, turns);
@@ -137,6 +148,20 @@ public abstract class Enemy(Position position) : WorldObject(position)
         string.Equals(PreparedWeaponId, weaponId, StringComparison.OrdinalIgnoreCase);
     public void PrepareWeapon(string weaponId) => PreparedWeaponId = weaponId;
     public void ClearPreparedWeapon() => PreparedWeaponId = null;
+    public bool IsAbilityPrepared(string abilityId) =>
+        string.Equals(PreparedAbilityId, abilityId, StringComparison.OrdinalIgnoreCase);
+    public bool IsPreparedAbilityReady(string abilityId) =>
+        IsAbilityPrepared(abilityId) && PreparedAbilityTurnsRemaining <= 0;
+    public void PrepareAbility(string abilityId, int turns)
+    {
+        PreparedAbilityId = abilityId;
+        PreparedAbilityTurnsRemaining = Math.Max(1, turns);
+    }
+    public void ClearPreparedAbility()
+    {
+        PreparedAbilityId = null;
+        PreparedAbilityTurnsRemaining = 0;
+    }
     public void PrepareAbilityCharges(IEnumerable<MonsterAbilityDefinition> abilities)
     {
         _remainingAbilityCharges.Clear();
@@ -153,13 +178,16 @@ public abstract class Enemy(Position position) : WorldObject(position)
     }
     public void RestoreCombatCooldowns(IEnumerable<KeyValuePair<string, int>> abilityCooldowns,
         IEnumerable<KeyValuePair<string, int>> weaponCooldowns, string? preparedWeaponId = null,
-        IEnumerable<KeyValuePair<string, int>>? remainingAbilityCharges = null)
+        IEnumerable<KeyValuePair<string, int>>? remainingAbilityCharges = null,
+        string? preparedAbilityId = null, int preparedAbilityTurnsRemaining = 0)
     {
         _abilityCooldowns.Clear();
         _weaponCooldowns.Clear();
         foreach (var item in abilityCooldowns.Where(item => item.Value > 0)) _abilityCooldowns[item.Key] = item.Value;
         foreach (var item in weaponCooldowns.Where(item => item.Value > 0)) _weaponCooldowns[item.Key] = item.Value;
         PreparedWeaponId = string.IsNullOrWhiteSpace(preparedWeaponId) ? null : preparedWeaponId;
+        PreparedAbilityId = string.IsNullOrWhiteSpace(preparedAbilityId) ? null : preparedAbilityId;
+        PreparedAbilityTurnsRemaining = PreparedAbilityId is null ? 0 : Math.Max(0, preparedAbilityTurnsRemaining);
         _remainingAbilityCharges.Clear();
         foreach (var item in remainingAbilityCharges?.Where(item => item.Value >= 0) ?? [])
             _remainingAbilityCharges[item.Key] = item.Value;
@@ -170,7 +198,11 @@ public abstract class Enemy(Position position) : WorldObject(position)
         AdvanceCooldowns(_abilityCooldowns);
         AdvanceCooldowns(_weaponCooldowns);
         AdvanceCooldowns(_spellCooldowns);
+        if (PreparedAbilityId is not null && PreparedAbilityTurnsRemaining > 0)
+            PreparedAbilityTurnsRemaining--;
     }
+
+    private static string AbilityGroupCooldownId(string group) => $"@group:{group.Trim()}";
 
     private static void SetCooldown(IDictionary<string, int> cooldowns, string id, int turns)
     {

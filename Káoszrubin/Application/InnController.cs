@@ -1132,7 +1132,9 @@ internal sealed class InnController
                     MonsterAbilityTrigger.Passive => $"állandó, érték {ability.ValueDisplay}",
                     MonsterAbilityTrigger.TurnStart => $"kör elején, érték {ability.ValueDisplay}",
                     MonsterAbilityTrigger.Active => $"aktív, {ability.Range} mező, {ability.Cooldown} kör lehűlés" +
-                        (ability.ChargesPerBattle > 0 ? $", {ability.ChargesPerBattle} használat/csata" : string.Empty),
+                        (ability.ChargesPerBattle > 0 ? $", {ability.ChargesPerBattle} használat/csata" : string.Empty) +
+                        (ability.PreparationTurns > 0 ? $", {ability.PreparationTurns} akció előkészítés" : string.Empty) +
+                        (ability.AttackCount > 1 ? $", {ability.AttackCount} támadás" : string.Empty),
                     _ => $"találatkor {ability.ChancePercent}% esély, érték {ability.ValueDisplay}"
                 };
                 var extraEffects = ability.AdditionalEffects is { Count: > 0 }

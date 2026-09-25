@@ -217,7 +217,27 @@ public sealed partial class Game
             .OrderBy(character => TacticalDistance.Between(enemy.Position, GetCasterPosition(character))).ToArray();
         var closestDistance = livingTargets.Length == 0 ? int.MaxValue :
             TacticalDistance.Between(enemy.Position, GetCasterPosition(livingTargets[0]));
-        var spellPlan = enemy.PreparedWeaponId is null
+        var preparedAbility = _battleSystem.PreparedEnemyAbility(enemy);
+        if (preparedAbility is not null && !enemy.IsPreparedAbilityReady(preparedAbility.Id))
+        {
+            PresentBattleEntries([new BattleLogEntry(
+                $"⚠️ {enemy.Name} tovább készül: {preparedAbility.Name} " +
+                $"({enemy.PreparedAbilityTurnsRemaining} akció van hátra).",
+                BattleLogKind.Information)]);
+            AdvanceBattleTurn(battle);
+            return;
+        }
+        if (preparedAbility is not null && !livingTargets.Any(target =>
+                EnemyAbilityCanTarget(enemy, target, preparedAbility)))
+        {
+            enemy.ClearPreparedAbility();
+            PresentBattleEntries([new BattleLogEntry(
+                $"⚠️ {enemy.Name} előkészített képessége célpont nélkül megszakad: {preparedAbility.Name}.",
+                BattleLogKind.Information)]);
+            preparedAbility = null;
+        }
+
+        var spellPlan = enemy.PreparedWeaponId is null && preparedAbility is null
             ? _enemySpellcastingService.SelectSpell(enemy,
                 battle.Enemies.Where(candidate => candidate.CurrentHitPoints > 0).ToArray(),
                 livingTargets.Select(target => (target, GetCasterPosition(target))).ToArray(),
@@ -235,33 +255,53 @@ public sealed partial class Game
             AdvanceBattleTurn(battle);
             return;
         }
-        var activeAbility = enemy.PreparedWeaponId is null
+        var activeAbility = preparedAbility ?? (enemy.PreparedWeaponId is null
             ? _battleSystem.SelectEnemyActiveAbility(enemy, closestDistance, ability =>
                 (!ability.UsesRangedAttackRoll || !battle.IsEngaged(enemy) ||
                  enemy.AttackWeapons.All(weapon => weapon.IsRanged)) &&
                 livingTargets.Any(target => EnemyAbilityCanTarget(enemy, target, ability)))
-            : null;
+            : null);
         if (activeAbility is not null)
         {
             var abilityTargets = livingTargets.Where(character => EnemyAbilityCanTarget(enemy, character,
                     activeAbility))
                 .Take(activeAbility.MaximumTargets).ToArray();
             if (abilityTargets.Length > 0) battle.FaceEnemyToward(enemy, abilityTargets[0]);
-            var abilityEntries = abilityTargets.Select((target, index) =>
+            var wasPrepared = enemy.IsPreparedAbilityReady(activeAbility.Id);
+            if (!wasPrepared && activeAbility.PreparationTurns > 0)
             {
-                var entry = _battleSystem.ResolveEnemyAbility(enemy, target, battle.RuntimeFor(target), activeAbility,
-                    consumeResources: index == 0,
-                    targetDistance: TacticalDistance.Between(enemy.Position, GetCasterPosition(target)));
-                if (entry.Kind != BattleLogKind.Information &&
-                    activeAbility.Effects.FirstOrDefault(effect => effect.Effect == MonsterAbilityEffect.Stagger)
-                        is { } stagger)
+                PresentBattleEntries([_battleSystem.PrepareEnemyAbility(enemy, activeAbility)]);
+                AdvanceBattleTurn(battle);
+                return;
+            }
+            if (wasPrepared) enemy.ClearPreparedAbility();
+            var abilityEntries = new List<BattleLogEntry>();
+            for (var targetIndex = 0; targetIndex < abilityTargets.Length; targetIndex++)
+            {
+                var target = abilityTargets[targetIndex];
+                for (var attackIndex = 0;
+                     attackIndex < activeAbility.AttackCount && target.IsAlive;
+                     attackIndex++)
                 {
-                    battle.StaggerCharacter(target, stagger.Value >= 3 ? StaggerSeverity.Heavy :
-                        stagger.Value >= 2 ? StaggerSeverity.Normal : StaggerSeverity.Light);
-                    entry = entry with { Message = entry.Message + $" {target.Name} meginog." };
+                    var entry = _battleSystem.ResolveEnemyAbility(enemy, target, battle.RuntimeFor(target), activeAbility,
+                        consumeResources: targetIndex == 0 && attackIndex == 0,
+                        targetDistance: TacticalDistance.Between(enemy.Position, GetCasterPosition(target)));
+                    if (entry.Kind != BattleLogKind.Information &&
+                        activeAbility.Effects.FirstOrDefault(effect => effect.Effect == MonsterAbilityEffect.Stagger)
+                            is { } stagger)
+                    {
+                        battle.StaggerCharacter(target, stagger.Value >= 3 ? StaggerSeverity.Heavy :
+                            stagger.Value >= 2 ? StaggerSeverity.Normal : StaggerSeverity.Light);
+                        entry = entry with { Message = entry.Message + $" {target.Name} meginog." };
+                    }
+                    if (activeAbility.AttackCount > 1)
+                        entry = entry with
+                        {
+                            Message = $"🎯 {attackIndex + 1}/{activeAbility.AttackCount}. {entry.Message}"
+                        };
+                    abilityEntries.Add(entry);
                 }
-                return entry;
-            }).ToArray();
+            }
             PresentBattleEntries(abilityEntries);
             battle.RecordAttack(BattleSide.Hostile);
             foreach (var target in abilityTargets.Where(target => !target.IsAlive))

@@ -87,6 +87,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             .Select(id => _monsterAbilities[id]);
         enemy.PrepareAbilityCharges(abilities);
         enemy.ClearPreparedWeapon();
+        enemy.ClearPreparedAbility();
     }
 
     public void BeginCharacterTurn(LiveCharacter character)
@@ -278,6 +279,14 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             entries.Add(new BattleLogEntry($"{enemy.Name} varázshatás miatt kihagyja az akcióját.", BattleLogKind.Information));
             return new EnemyTurnStartResult(false, entries);
         }
+        if (enemy.PreparedAbilityId is not null && enemy.PreparedAbilityTurnsRemaining > 0)
+        {
+            entries.Add(new BattleLogEntry(
+                $"⚠️ {enemy.Name} tovább készül az előkészített képességére " +
+                $"({enemy.PreparedAbilityTurnsRemaining} akció van hátra).",
+                BattleLogKind.Information));
+            return new EnemyTurnStartResult(false, entries);
+        }
         return new EnemyTurnStartResult(true, entries);
     }
 
@@ -287,7 +296,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var candidates = enemy.Definition.AbilityIds.Where(_monsterAbilities.ContainsKey)
             .Select(id => _monsterAbilities[id])
             .Where(ability => ability.Trigger == MonsterAbilityTrigger.Active &&
-                              enemy.IsAbilityReady(ability.Id) && enemy.HasAbilityCharge(ability) &&
+                              enemy.IsAbilityReady(ability) && enemy.HasAbilityCharge(ability) &&
                               targetDistance <= ability.Range && (canUse?.Invoke(ability) ?? true))
             .ToArray();
         if (candidates.Length == 0) return null;
@@ -306,7 +315,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
     {
         if (consumeResources)
         {
-            attacker.StartAbilityCooldown(ability.Id, ability.Cooldown);
+            attacker.StartAbilityCooldown(ability);
             attacker.ConsumeAbilityCharge(ability);
         }
         if (ability.UsesRangedAttackRoll)
@@ -370,6 +379,26 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         CharacterBattleChoices defenderRuntime, MonsterAbilityDefinition ability,
         bool consumeResources, int targetDistance) => ResolveEnemyAbility(attacker, defender,
         defenderRuntime.Context, ability, consumeResources, targetDistance);
+
+    public MonsterAbilityDefinition? PreparedEnemyAbility(Enemy enemy)
+    {
+        if (enemy.PreparedAbilityId is not { } abilityId) return null;
+        if (_monsterAbilities.TryGetValue(abilityId, out var ability) &&
+            enemy.Definition.AbilityIds.Contains(abilityId, StringComparer.OrdinalIgnoreCase)) return ability;
+        enemy.ClearPreparedAbility();
+        return null;
+    }
+
+    public BattleLogEntry PrepareEnemyAbility(Enemy enemy, MonsterAbilityDefinition ability)
+    {
+        enemy.PrepareAbility(ability.Id, ability.PreparationTurns);
+        return new BattleLogEntry(
+            $"⚠️ {enemy.Name} előkészíti: {ability.Name}. " +
+            (ability.PreparationTurns == 1
+                ? "A következő saját körében végrehajtja!"
+                : $"{ability.PreparationTurns} akción át készül rá."),
+            BattleLogKind.Information);
+    }
 
     public void MarkEnemyWeaponUsed(Enemy enemy, WeaponDefinition? weapon)
     {
@@ -1874,12 +1903,12 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         foreach (var ability in enemy.Definition.AbilityIds.Where(_monsterAbilities.ContainsKey)
                      .Select(abilityId => _monsterAbilities[abilityId])
                      .Where(ability => ability.Trigger == MonsterAbilityTrigger.TurnStart &&
-                                       enemy.IsAbilityReady(ability.Id) && enemy.HasAbilityCharge(ability)))
+                                       enemy.IsAbilityReady(ability) && enemy.HasAbilityCharge(ability)))
         {
             if (ability.ChancePercent <= 0 ||
                 ability.ChancePercent < 100 && _random.Next(100) >= ability.ChancePercent) continue;
             enemy.ConsumeAbilityCharge(ability);
-            enemy.StartAbilityCooldown(ability.Id, ability.Cooldown);
+            enemy.StartAbilityCooldown(ability);
             foreach (var component in ability.Effects.Where(component => component.Effect == effect))
             {
                 var resolved = ResolveMonsterAbilityComponent(component, null);
@@ -1899,13 +1928,13 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                      .Select(abilityId => _monsterAbilities[abilityId])
                      .Where(ability => ability.Trigger == MonsterAbilityTrigger.OnHit &&
                                        AppliesToWeapon(ability, weapon) &&
-                                       enemyInstance.IsAbilityReady(ability.Id) &&
+                                       enemyInstance.IsAbilityReady(ability) &&
                                        enemyInstance.HasAbilityCharge(ability)))
         {
             var roll = _random.Next(100);
             if (roll >= ability.ChancePercent) continue;
             enemyInstance.ConsumeAbilityCharge(ability);
-            enemyInstance.StartAbilityCooldown(ability.Id, ability.Cooldown);
+            enemyInstance.StartAbilityCooldown(ability);
             calculation?.Add($"✨ {ability.Name} aktiválódott ({ability.ChancePercent}%, dobás {roll + 1})");
             foreach (var component in ability.Effects)
             {

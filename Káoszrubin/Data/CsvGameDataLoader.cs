@@ -1470,7 +1470,7 @@ public static class CsvGameDataLoader
             MonsterAbilityEffect.InitiativeBonus => component.Value * 2,
             MonsterAbilityEffect.Stagger => Math.Max(2, component.Value * 3),
             _ => 1
-        }) * Math.Max(1, ability.MaximumTargets));
+        }) * Math.Max(1, ability.MaximumTargets) * Math.Max(1, ability.AttackCount));
 
     private static void ValidateShields(IEnumerable<WeaponDefinition> weapons)
     {
@@ -1671,6 +1671,9 @@ public static class CsvGameDataLoader
                     (MonsterAbilityResolutionMode.WeaponAttack or MonsterAbilityResolutionMode.AbilityAttack))
                 throw new InvalidDataException(
                     $"A(z) '{ability.Id}' többszörös támadásához támadódobásos végrehajtás szükséges.");
+            if (ability.AttackCount > 1 && ability.MaximumTargets > 1)
+                throw new InvalidDataException(
+                    $"A(z) '{ability.Id}' többszörös támadása csak egyetlen célpontra irányulhat.");
             if (ability.Targeting is MonsterAbilityTargeting.Self or MonsterAbilityTargeting.SingleEnemy &&
                 ability.MaximumTargets != 1)
                 throw new InvalidDataException(

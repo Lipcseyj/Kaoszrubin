@@ -327,8 +327,12 @@ public sealed class BattleEncounter
         return true;
     }
 
-    public bool StaggerEnemy(Enemy enemy, StaggerSeverity severity = StaggerSeverity.Normal) =>
-        enemy.CurrentHitPoints > 0 && ApplyStagger(CombatantId.ForEnemy(enemy.Id), severity);
+    public bool StaggerEnemy(Enemy enemy, StaggerSeverity severity = StaggerSeverity.Normal)
+    {
+        var applied = enemy.CurrentHitPoints > 0 && ApplyStagger(CombatantId.ForEnemy(enemy.Id), severity);
+        if (applied) enemy.ClearPreparedAbility();
+        return applied;
+    }
 
     public bool TryBeginStrengthContest(Enemy enemy)
     {

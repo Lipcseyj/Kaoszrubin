@@ -71,7 +71,8 @@ internal sealed class GameStateMapper
                 enemy.CurrentMana,
                 enemy.SpellCooldowns.ToDictionary(item => item.Key, item => item.Value,
                     StringComparer.OrdinalIgnoreCase),
-                enemy.BossHitPointBonusPercent)).ToList(),
+                enemy.BossHitPointBonusPercent,
+                enemy.PreparedAbilityId, enemy.PreparedAbilityTurnsRemaining)).ToList(),
             Corpses = maze.Corpses.Select(corpse => new CorpseSaveData(corpse.Position, corpse.FormerName,
                 corpse is PartyMemberCorpse partyCorpse ? CharacterIndex(partyCorpse.Character) : null,
                 (corpse as MonsterCorpse)?.EnemyDefinitionId, (corpse as MonsterCorpse)?.IsSearched ?? false,
@@ -216,7 +217,8 @@ internal sealed class GameStateMapper
                     : null);
             enemy.ConfigureGuaranteedLoot(savedEnemy.GuaranteedLootIds ?? []);
             enemy.RestoreCombatCooldowns(savedEnemy.AbilityCooldowns ?? [], savedEnemy.WeaponCooldowns ?? [],
-                savedEnemy.PreparedWeaponId, savedEnemy.RemainingAbilityCharges);
+                savedEnemy.PreparedWeaponId, savedEnemy.RemainingAbilityCharges,
+                savedEnemy.PreparedAbilityId, savedEnemy.PreparedAbilityTurnsRemaining);
             enemy.RestoreSpellcasting(savedEnemy.CurrentMana ?? enemy.MaximumMana, savedEnemy.SpellCooldowns);
             foreach (var effect in savedEnemy.ActiveSpellEffects ?? []) enemy.RestoreSpellEffect(effect);
             maze.AddEnemy(enemy);

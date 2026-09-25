@@ -615,7 +615,7 @@ E012;Ogre;O;12;320;5;3;900;3;MA005|MA007;;4;;;igen;W019|WN003;nem;0;0;0;0;0;0;0;
 E013;Troll;T;14;500;6;4;1200;3;MA008|MA007;;5;;;igen;WN012|WN011;nem;1;1;1;-7;1;0;0;3;;5
 E014;Minotaurusz;Ñ;11;300;7;5;1000;3;;;5;;;igen;W017|WN009;nem;0;0;0;0;0;0;0;6;;0
 E015;Múmia;m;9;250;7;3;1400;3;MA003;Undead;4;;;nem;WN003;nem;-2;1;0;-5;0;3;0;5;;15
-E016;Medúza;Ƶ;11;250;6;6;1500;3;MA002|MA006|MA011;;6;;;igen;W001|WN021;nem;0;0;0;0;1;1;1;2;;
+E016;Medúza;Ƶ;11;250;6;6;1500;3;MA002|MA006|MA011|MA018;;6;;;igen;W001|WN021;nem;0;0;0;0;1;1;1;2;;
 E036;Ettin;E;15;720;8;3;1700;3;MA005|MA007;;5;;;igen;W017|W019;nem;0;0;0;0;0;0;0;3;;0
 E037;Wight;Ŵ;13;560;7;6;1650;3;;Undead;6;;;nem;W023;nem;2;3;-2;0;0;4;1;7;;
 E038;Wyvern;Y;14;620;6;8;1850;3;MA002;Flying;7;;;igen;WN011|WN010;nem;3;2;1;0;2;0;0;6;;
@@ -624,7 +624,7 @@ E040;Éji banya;ñ;13;320;1;8;1900;3;MA003|MA006;;6;2;1;igen;WN002|WN031;nem;0;0
 E061;Élőholt pátriárka;Ɨ;8;180;6;4;700;3;;Undead;5;;;nem;W006|W007|W008;igen;2;3;-2;0;0;3;1;7;W028;
 E063;Ork törzsfő;Ø;11;360;8;5;1350;3;MA005;;6;;;igen;W009|W017;igen;0;0;0;0;0;0;0;3;;0
 E068;Barlangi troll;Ť;16;550;8;5;2000;3;MA008|MA007;;6;;;igen;WN012|WN011;nem;2;2;1;-9;1;0;0;4;;10
-E073;Sötételf orgyilkos;æ;11;220;5;9;1250;3;MA006|MA017;;7;3;1;igen;W022|W043;nem;0;0;0;0;0;0;0;6;;
+E073;Sötételf orgyilkos;æ;11;220;5;9;1250;3;MA006|MA017|MA018;;7;3;1;igen;W022|W043;nem;0;0;0;0;0;0;0;6;;
 E074;Nekromanta;Ɲ;6;130;1;6;2100;3;MA013;;7;2;1;nem;W022;nem;0;0;0;0;0;5;2;5;;35
 E075;Gargoyle;Γ;11;350;9;6;2200;3;MA007;Flying;6;1;2;nem;WN002|WN009;nem;4;4;-5;2;3;3;2;4;;40
 E076;Óriásskorpió;ϟ;13;460;7;7;1800;3;MA002|MA007;;5;1;2;igen;WN010|WN018;nem;2;3;2;-3;4;-3;0;2;;
@@ -698,12 +698,13 @@ MA006;Villámgyors;A szörny 2 pont bónuszt kap a kezdeményezéséhez.;Passive
 MA007;Vastag bőr;A szörny 2 pont állandó páncélbónuszt kap.;Passive;Automatic;Self;100;0;1;1;100;;0;nem;0;1;;0
 MA008;Regeneráció;A szörny minden saját köre elején legfeljebb 20 HP-t gyógyul.;TurnStart;Automatic;Self;100;0;1;1;100;;0;nem;0;1;;0
 MA011;Dermesztő tekintet;A Medúza tekintete Egészség-próba ellenében rövid időre kődermedtséget okozhat.;Active;SavingThrow;SingleEnemy;100;3;3;1;45;;2;igen;0;1;;0
-MA012;Bénító sugár;A mágikus tekintet megmerevíti és sebzi az áldozatot.;Active;Automatic;SingleEnemy;55;3;4;1;50;;2;igen;0;1;;0
-MA013;Rémületkeltés;A természetfeletti jelenlét rettegést és nekrotikus fájdalmat kelt.;Active;Automatic;MultipleEnemies;60;4;3;2;35;;1;nem;0;1;;0
-MA014;Menekülő lövés;A goblin kapkodva lő, majd megpróbál hátrálni.;Active;AbilityAttack;SingleEnemy;100;3;4;1;45;;2;igen;0;1;;1
-MA015;Csonthegyű nyíl;A csontváz recés nyílhegye súlyos sebet tép.;Active;AbilityAttack;SingleEnemy;100;4;4;1;40;;1;igen;0;1;;0
-MA016;Megakasztó lövés;Az ork nehéz nyila megtorpasztja a célpontot.;Active;AbilityAttack;SingleEnemy;100;4;5;1;45;;2;igen;0;1;;0
+MA012;Bénító sugár;A mágikus tekintet megmerevíti és sebzi az áldozatot.;Active;Automatic;SingleEnemy;55;3;4;1;50;;2;igen;0;1;Szemsugár;0
+MA013;Rémületkeltés;A természetfeletti jelenlét rettegést és nekrotikus fájdalmat kelt.;Active;Automatic;MultipleEnemies;60;4;3;2;35;;1;nem;0;1;Szemsugár;0
+MA014;Menekülő lövés;A goblin kapkodva lő, majd megpróbál hátrálni.;Active;AbilityAttack;SingleEnemy;100;3;4;1;45;;2;igen;0;1;Íjász-különleges;1
+MA015;Csonthegyű nyíl;A csontváz recés nyílhegye súlyos sebet tép.;Active;AbilityAttack;SingleEnemy;100;4;4;1;40;;1;igen;0;1;Íjász-különleges;0
+MA016;Megakasztó lövés;Az ork egy akción át készíti elő a megtorpasztó nehéz nyilat.;Active;AbilityAttack;SingleEnemy;100;4;5;1;45;;2;igen;1;1;Íjász-különleges;0
 MA017;Mérgezett célbalövés;Az orgyilkos gondosan célzott mérgezett lövedéket indít.;Active;AbilityAttack;SingleEnemy;100;5;4;1;50;;1;igen;0;1;;0
+MA018;Dupla lövés;Az íjász két gyors lövést ad le ugyanarra a célpontra.;Active;AbilityAttack;SingleEnemy;100;4;4;1;35;;2;igen;0;2;Íjász-különleges;0
 
 #Szörnyképesség-hatások
 KépességId;Sorrend;Hatás;Érték;Dobás;ÁllapotId;Sebzéstípus;Esély;Ellenállás;Nehézség;Időtartam
@@ -726,6 +727,7 @@ MA016;1;ExtraDamage;7;;;szúrás;100;None;0;0
 MA016;2;Stagger;1;;;;100;None;0;0
 MA017;1;ExtraDamage;5;;;szúrás;100;None;0;0
 MA017;2;ApplyStatus;0;;STATUS003;;100;None;0;0
+MA018;1;ExtraDamage;3;;;szúrás;100;None;0;0
 
 #Zsákmány paraméterek
 Id;Érték
