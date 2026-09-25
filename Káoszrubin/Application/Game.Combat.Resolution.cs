@@ -337,12 +337,14 @@ public sealed partial class Game
                     if (activeAbility.ResolutionMode == MonsterAbilityResolutionMode.WeaponAttack &&
                         abilityWeapon?.IsRanged != true && targetDistance <= 1)
                         battle.Engage(target, enemy);
+                    var packAttack = EnemyPackAttack(battle, enemy, target, abilityWeapon);
                     var weaponResolution = activeAbility.ResolutionMode == MonsterAbilityResolutionMode.WeaponAttack
                         ? _battleSystem.ResolveEnemyActionDetailed(enemy, target, battle.RuntimeFor(target),
                             abilityWeapon, advanceAttackerEffects: targetIndex == 0 && attackIndex == 0,
                             alliedGuardDefense: TacticalBattleCoordinator.AlliedGuardDefense(
                                 battle, target, GetCasterPosition),
-                            rangedHitModifier: EnemyRangedHitModifier(abilityWeapon, targetDistance))
+                            rangedHitModifier: EnemyRangedHitModifier(abilityWeapon, targetDistance),
+                            packAttackBonus: packAttack.Bonus, packSize: packAttack.Size)
                         : null;
                     var entry = weaponResolution?.Entry ??
                                 _battleSystem.ResolveEnemyAbility(enemy, target, battle.RuntimeFor(target), activeAbility,
@@ -476,12 +478,14 @@ public sealed partial class Game
             var meleeAttack = attackWeapon?.IsRanged != true &&
                               TacticalDistance.IsMeleeAdjacent(enemy.Position, GetCasterPosition(target));
             if (meleeAttack) battle.Engage(target, enemy);
+            var packAttack = EnemyPackAttack(battle, enemy, target, attackWeapon);
             var resolution = _battleSystem.ResolveEnemyActionDetailed(enemy, target, battle.RuntimeFor(target),
                 attackWeapon, advanceAttackerEffects: index == 0,
                 alliedGuardDefense: TacticalBattleCoordinator.AlliedGuardDefense(
                     battle, target, GetCasterPosition),
                 rangedHitModifier: EnemyRangedHitModifier(attackWeapon,
-                    TacticalDistance.Between(enemy.Position, GetCasterPosition(target))));
+                    TacticalDistance.Between(enemy.Position, GetCasterPosition(target))),
+                packAttackBonus: packAttack.Bonus, packSize: packAttack.Size);
 
             if (_gameSettings.Settings.CombatSpeed == CombatSpeed.PauseAfterHit && resolution.Hit)
             {
@@ -529,6 +533,18 @@ public sealed partial class Game
         _preparedBattleTurnId = 0;
     }
 
+    private (int Bonus, int Size) EnemyPackAttack(BattleEncounter battle, Enemy attacker,
+        LiveCharacter target, WeaponDefinition? weapon)
+    {
+        if (weapon?.IsRanged == true || !_battleSystem.EnemyUsesPackAttack(attacker) ||
+            !TacticalDistance.IsMeleeAdjacent(attacker.Position, GetCasterPosition(target)))
+            return (0, 1);
+        var size = battle.Enemies.Count(candidate => candidate.CurrentHitPoints > 0 &&
+            _battleSystem.EnemyUsesPackAttack(candidate) &&
+            TacticalDistance.IsMeleeAdjacent(candidate.Position, GetCasterPosition(target)));
+        return (_battleSystem.EnemyPackAttackBonus(attacker, size), Math.Max(1, size));
+    }
+
     private void ExecuteRetreat(BattleEncounter battle, LiveCharacter character)
     {
         if (character != PartyLeader || battle.Turns.Cycle <= 1)
@@ -545,9 +561,11 @@ public sealed partial class Game
                     GetCasterPosition(retreatingCharacter)))
                 .OrderByDescending(enemy => enemy.EffectiveSpeed).FirstOrDefault();
             if (attacker is null) continue;
+            var packAttack = EnemyPackAttack(battle, attacker, retreatingCharacter, null);
             var entry = _battleSystem.ResolveEnemyAttackOnRetreatingCharacter(attacker, retreatingCharacter,
                 battle.RuntimeFor(retreatingCharacter),
-                TacticalDistance.Between(attacker.Position, GetCasterPosition(retreatingCharacter)));
+                TacticalDistance.Between(attacker.Position, GetCasterPosition(retreatingCharacter)),
+                packAttack.Bonus, packAttack.Size);
             PresentBattleEntries([entry]);
             if (!retreatingCharacter.IsAlive) ResolveCharacterDefeat(battle, retreatingCharacter);
         }

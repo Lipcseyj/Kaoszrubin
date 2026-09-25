@@ -56,7 +56,8 @@ public enum MonsterAbilityEffect
     Push,
     ThickHide,
     OpeningMovementBonus,
-    FirstMeleeDefenseBonus
+    FirstMeleeDefenseBonus,
+    PackAttack
 }
 
 public enum MonsterAbilityResolutionMode
@@ -102,4 +103,5 @@ public static class MonsterAbilityIds
     public const string Flying = "MA009";
     public const string DoubleAttack = "MA018";
     public const string CyclopsBoulder = "MA019";
+    public const string PackAttack = "MA020";
 }

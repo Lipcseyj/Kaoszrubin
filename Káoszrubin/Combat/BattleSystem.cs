@@ -90,6 +90,13 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
     public int EnemyFirstMeleeDefenseBonus(Enemy enemy) =>
         MonsterAbilityValue(enemy.Definition, MonsterAbilityEffect.FirstMeleeDefenseBonus);
 
+    public bool EnemyUsesPackAttack(Enemy enemy) =>
+        MonsterAbilityValue(enemy.Definition, MonsterAbilityEffect.PackAttack) > 0;
+
+    public int EnemyPackAttackBonus(Enemy enemy, int packSize) => Math.Min(
+        MonsterAbilityValue(enemy.Definition, MonsterAbilityEffect.PackAttack),
+        Math.Max(0, packSize - 1));
+
     public void PrepareEnemyForBattle(Enemy enemy)
     {
         var abilities = enemy.Definition.AbilityIds.Where(_monsterAbilities.ContainsKey)
@@ -471,7 +478,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
 
     public EnemyAttackResolution ResolveEnemyActionDetailed(Enemy attacker, LiveCharacter defender,
         CharacterBattleChoices defenderRuntime, WeaponDefinition? attackWeapon = null,
-        bool advanceAttackerEffects = true, int alliedGuardDefense = 0, int rangedHitModifier = 0)
+        bool advanceAttackerEffects = true, int alliedGuardDefense = 0, int rangedHitModifier = 0,
+        int packAttackBonus = 0, int packSize = 1)
     {
         ArgumentNullException.ThrowIfNull(attacker);
         ArgumentNullException.ThrowIfNull(defender);
@@ -479,7 +487,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         attackWeapon ??= SelectEnemyAttackWeapon(attacker);
         var attack = ResolveEnemyWeaponAttack(attacker, defender, defenderRuntime.Context,
             new EnemyAttackOptions(AttackWeapon: attackWeapon, AllowWeaponFallback: false,
-                AlliedGuardDefense: alliedGuardDefense, RangedHitModifier: rangedHitModifier));
+                AlliedGuardDefense: alliedGuardDefense, RangedHitModifier: rangedHitModifier,
+                PackAttackBonus: packAttackBonus, PackSize: packSize));
         var vitalityBefore = defender.CurrentVitality;
         var survival = attack.Hit ? ApplyEnemyDamage(defender, attack.Damage, defenderRuntime.Context) : DamageApplicationResult.Empty;
         var entry = new BattleLogEntry(
@@ -630,7 +639,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         };
 
     public BattleLogEntry ResolveEnemyAttackOnRetreatingCharacter(Enemy attacker, LiveCharacter defender,
-        CharacterBattleChoices defenderRuntime, int targetDistance = 1)
+        CharacterBattleChoices defenderRuntime, int targetDistance = 1,
+        int packAttackBonus = 0, int packSize = 1)
     {
         ArgumentNullException.ThrowIfNull(attacker);
         ArgumentNullException.ThrowIfNull(defender);
@@ -645,7 +655,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             new EnemyAttackOptions(AttackWeapon: opportunityWeapon, AllowWeaponFallback: false,
                 RangedHitModifier: opportunityWeapon is { IsRanged: true } && targetDistance <= 1
                     ? RangedWeaponRules.CloseRangeHitPenalty
-                    : 0));
+                    : 0, PackAttackBonus: packAttackBonus, PackSize: packSize));
         var survival = attack.Hit ? ApplyEnemyDamage(defender, attack.Damage, defenderRuntime.Context) : DamageApplicationResult.Empty;
         return new BattleLogEntry(
             $"↪️ {FormatAttackSummary(attacker.Name, defender.Name, [attack],
@@ -1473,6 +1483,10 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var attackWeapon = options.AttackWeapon;
         var allowWeaponFallback = options.AllowWeaponFallback;
         var alliedGuardDefense = options.AlliedGuardDefense;
+        var packAttackBonus = attackWeapon?.IsRanged == true ? 0 : Math.Max(0, options.PackAttackBonus);
+        var packAttackEffects = packAttackBonus > 0
+            ? new[] { $"🐺 FALKATÁMADÁS: +{packAttackBonus} TALÁLAT ({Math.Max(2, options.PackSize)} TAG)" }
+            : [];
         // ============================================================
         // RÉSZLETES HARCI INFORMÁCIÓK GYŰJTŐI
         // ============================================================
@@ -1562,7 +1576,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
 
         var spellHitModifier = attacker.SpellEffectValue(ActiveSpellEffectType.HitBonus);
         var rangedHitModifier = options.RangedHitModifier;
-        var hitModifier = spellHitModifier + rangedHitModifier;
+        var hitModifier = spellHitModifier + rangedHitModifier + packAttackBonus;
         var hit = HitRoll(attackerSpeed, defender.EffectiveAbilities.Dexterity, hitModifier, false);
         hitDescription = hit.Description;
 
@@ -1588,6 +1602,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         hitCalculations.Add($"🎯 Összes módosító: {totalHitModifier:+#;-#;0}");
         Modifier(hitCalculations, "🎯 Varázshatás", spellHitModifier);
         Modifier(hitCalculations, "🎯 Közeli lövés", rangedHitModifier);
+        Modifier(hitCalculations, $"🐺 Falkatámadás ({Math.Max(1, options.PackSize)} tag)", packAttackBonus);
         // ============================================================
 
 
@@ -1617,7 +1632,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         if (!hit.Hit)
         {
             calculationSummary.Add($"🎲 Kritikus: {criticalChance:0.##}% → nem");
-            return Detailed(AttackResult.Miss($"találat: {hit.Description} → 💨."));
+            return Detailed(AttackResult.Miss($"találat: {hit.Description} → 💨.", packAttackEffects));
         }
 
         if (criticalMultiplier == 1 && defender.HasPerk(PerkIds.ThiefEvasion) && _random.NextDouble() < 0.15)
@@ -1627,7 +1642,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             return Detailed(AttackResult.Miss("💨 Kitérés: a találat elkerülve." +
                                               (context.ShadowStepReady
                                                   ? " Árnyéklépés aktiválva."
-                                                  : string.Empty)));
+                                                  : string.Empty), packAttackEffects));
         }
 
 
@@ -1800,6 +1815,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var compactEffects = damage > 0
             ? onHit.CompactEffects.ToList()
             : new List<string>();
+        compactEffects.InsertRange(0, packAttackEffects);
         if (damage > 0)
         {
             foreach (var pending in onHit.PendingStatuses)
@@ -2363,7 +2379,9 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         WeaponDefinition? AttackWeapon = null,
         bool AllowWeaponFallback = true,
         int AlliedGuardDefense = 0,
-        int RangedHitModifier = 0);
+        int RangedHitModifier = 0,
+        int PackAttackBonus = 0,
+        int PackSize = 1);
 
     private sealed record InitiativeRoll(int Total, string ModifierText);
     private sealed record HitRollResult(bool Hit, int NaturalRoll, string Description);
@@ -2381,7 +2399,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         public IReadOnlyList<BattleLogNotice> DurabilityNotices => WearNotices ?? [];
         public ShieldBlockResult ShieldBlock => BlockResult ?? ShieldBlockResult.NotAttempted;
         public IReadOnlyList<string> CombatLogEffects => CompactEffects ?? [];
-        public static AttackResult Miss(string message) => new(false, 0, message, false);
+        public static AttackResult Miss(string message, IReadOnlyList<string>? compactEffects = null) =>
+            new(false, 0, message, false, CompactEffects: compactEffects);
         public static AttackResult ThickHideSlip(string message) =>
             new(false, 0, message, false, SlippedByThickHide: true);
         public static AttackResult HitFor(int damage, string message, bool critical = false,

@@ -1474,6 +1474,7 @@ public static class CsvGameDataLoader
             MonsterAbilityEffect.ThickHide => 8,
             MonsterAbilityEffect.OpeningMovementBonus => component.Value * 2,
             MonsterAbilityEffect.FirstMeleeDefenseBonus => component.Value * 3,
+            MonsterAbilityEffect.PackAttack => component.Value * 3,
             _ => 1
         }) * Math.Max(1, ability.MaximumTargets) * Math.Max(1, ability.AttackCount));
 
