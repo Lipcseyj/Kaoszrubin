@@ -856,18 +856,6 @@ TR006;Káoszpecsét;✹;Alert;14;13;13;4;9;100;135;405;A felhasadó pecsét ener
 TR007;Lélektű;♦;Poison;18;15;15;8;14;75;200;600;Árnyékból formált tű sebzi meg a testet és mérgezi meg a lelket.
 TR008;Koromfelhő;☁;Darkness;5;9;9;0;0;100;50;150;Sűrű fekete korom borítja el az áldozat látását.
 
-#Quest ládák
-Id;Név;Arany;Térképjel;Előtérszín;Háttérszín
-RODERIC_ORDER_RELICS;Az Ezüst Eskü ereklyeládája;0;◈;White;DarkBlue
-
-#Quest láda tartalom
-Id;TárgyId;Darab
-RODERIC_ORDER_RELICS;T027;1
-RODERIC_ORDER_RELICS;T012;12
-RODERIC_ORDER_RELICS;T004;10
-RODERIC_ORDER_RELICS;T006;8
-RODERIC_ORDER_RELICS;T002;16
-
 #Varázslatok
 Id;Név;Szint;Manna;Leírás;Célzás;Hatótáv;Terület;Látóvonal;HasználatiMód;BecsapódásSzín;BecsapódásIdőMs;CsakEllenség
 S001;Mágikus lövedék;1;6;Biztosan célba találó arkán lövedék amely a varázsló erejével növekszik.;Enemy;8;0;igen;Both;Blue;700;
@@ -1416,6 +1404,7 @@ NPC018;Káoszzarándok;C005;Neutral;Guarded;nem;nem
 NPC019;Óriásvadász;C001;Neutral;Aggressive;nem;nem
 NPC020;Elira Ezüstág;C004;Neutral;Guarded;igen;igen;R003;ELIRA_RESCUE
 NPC021;Sir Roderic;C003;Neutral;Guarded;igen;igen;R001;RODERIC_OATH
+NPC022;Aurelios küldötte;C006;Friendly;Friendly;nem;nem
 
 #Egyedi NPC karakterlap
 NpcId;Szint;Erő;Ügyesség;Egészség;Intelligencia;Alkalmazkodó;ÉleterőBónusz;MannaBónusz;Szín;HarciViselkedés;SpecializációId;TehetségId-k;Fegyver1Id;Fegyver2Id;PáncélId;VarázstárgyId-k;HátizsákId-k;FegyverjártasságId-k
@@ -1453,6 +1442,76 @@ NPCE026;NPC018;20;10;23
 NPCE027;NPC018;21;10;23
 NPCE028;NPC020;2;8;18
 NPCE029;NPC021;5;1;50;RODERIC_MEETING
+NPCE030;NPC022;1;5;13
+
+#Quest ládák
+Id;Név;Arany;Térképjel;Előtérszín;Háttérszín
+RODERIC_ORDER_RELICS;Az Ezüst Eskü ereklyeládája;0;◈;White;DarkBlue
+AURELIOS_HELP;Aurelios máguskirály küldöttének ládája;200;◈;Yellow;DarkMagenta
+
+#Quest láda tartalom
+Id;TárgyId;Darab
+RODERIC_ORDER_RELICS;T027;1
+RODERIC_ORDER_RELICS;T012;12
+RODERIC_ORDER_RELICS;T004;10
+RODERIC_ORDER_RELICS;T006;8
+RODERIC_ORDER_RELICS;T002;16
+AURELIOS_HELP;T001;8
+AURELIOS_HELP;T002;8
+AURELIOS_HELP;T009;2
+AURELIOS_HELP;T020;2
+AURELIOS_HELP;T003;2
+AURELIOS_HELP;T011;3
+AURELIOS_HELP;T014;3
+AURELIOS_HELP;MS007;1
+AURELIOS_HELP;MS008;1
+
+#NPC küldetések
+Id;NpcId;Típus;CélId;Darabszám;XP;Cím;Leírás;FixJutalomId;FixJutalomDarab;VéletlenJutalomDarab;SzükségesTörténetÁllapot
+NPCQ001;NPC001;Collect;T011;3;810;Gyógyító készlet;Gyűjts össze három kis gyógyitalt a füvesasszonynak.;T018;2;0
+NPCQ002;NPC002;Kill;E003;4;1170;Goblinvadászat;Ölj meg négy goblint a szörnyvadász megbízásából.
+NPCQ003;NPC003;Collect;T001;5;1440;Útravaló a mélybe;Szerezz öt útravalót a kincskereső következő útjához.
+NPCQ004;NPC004;Kill;E004;3;2160;A csontok éneke;Győzz le három csontvázat a dalnok balladájához.
+NPCQ005;NPC001;Collect;T019;2;990;Tiszta kötések;Vigyél két kötést a füvesasszonynak a sebesültek ellátásához.
+NPCQ006;NPC002;Kill;E003;6;1620;Vérdíj a zöldfülűekre;Győzz le hat goblint és bizonyítsd a szörnyvadásznak hogy értesz a mesterséghez.
+NPCQ007;NPC003;Collect;T003;2;1350;A lezárt út;Szerezz két kulcsot a kincskeresőnek egy lezárt mellékjárathoz.
+NPCQ008;NPC004;Collect;T023;1;1080;A dalnok hangja;Vigyél egy mézsört a dalnoknak hogy visszatérjen a hangja.
+NPCQ009;NPC005;Kill;E001;5;720;A járatok megtisztítása;Ölj meg öt óriáspatkányt a patkányvadász megbízásából.
+NPCQ010;NPC006;Kill;E002;4;990;Nincs visszaút;Győzz le négy koboldot hogy a szökevény üldözői ne érhessék utol.
+NPCQ011;NPC007;Kill;E003;5;1350;Az elveszett őrjárat;Ölj meg öt goblint a határőr elesett társaiért.
+NPCQ012;NPC008;Kill;E004;5;1980;Csend a sírokban;Győzz le öt csontvázat hogy a katakombák halottai megnyugodhassanak.
+NPCQ013;NPC008;Kill;E006;3;1755;A nyugtalan testek;Pusztíts el három zombit a remete szertartásához.
+NPCQ014;NPC009;Kill;E007;5;2520;Törött agyar;Győzz le öt orkot és gyengítsd meg a dezertőr egykori törzsét.
+NPCQ015;NPC009;Kill;E008;3;2790;A hadúr testőrei;Győzz le három hobgoblint az ork hadúr elitjéből.
+NPCQ016;NPC010;Kill;E009;4;2430;Méregmirigyek;Győzz le négy óriáspókot az alkimista kísérleteihez.
+NPCQ017;NPC010;Collect;T017;2;1890;Biztos ellenszer;Vigyél két ellenmérget a barlangi alkimistának összehasonlító mintának.
+NPCQ018;NPC011;Kill;E031;2;3060;A tábor szemei;Győzz le két bugbeart és vakítsd meg az ork tábor felderítőit.
+NPCQ019;NPC012;Explore;EXIT;1;3240;Az elveszett sírjel;Fedezd fel a kijáratot és térj vissza a sírok őrzőjéhez.
+NPCQ020;NPC012;Disarm;ANY;2;3420;Megszentségtelenített pecsétek;Hatástalaníts két csapdát hogy a sírok útja újra biztonságos legyen.
+NPCQ021;NPC013;OpenChest;ANY;2;3960;A pikkelyes zárak;Nyiss ki két kincsesládát a sárkánykutató feljegyzéseihez.
+NPCQ022;NPC013;Explore;EXIT;1;4230;A hamu útja;Fedezd fel a kijáratot és jelentsd a sárkánykutatónak.
+NPCQ023;NPC014;Explore;EXIT;1;4410;Száraz út a lápban;Találd meg a kijáratot a mocsári révész számára.
+NPCQ024;NPC014;Disarm;ANY;2;4680;Elsüllyedt kelepcék;Hatástalaníts két csapdát a mocsár járható ösvényein.;;;2
+NPCQ025;NPC015;OpenChest;ANY;3;5310;A kristályzár titka;Nyiss ki három kincsesládát a kristálymérnök kutatásához.;;;2
+NPCQ026;NPC015;Disarm;ANY;2;5580;A hibás szerkezetek;Hatástalaníts két csapdát és mutasd meg a szerkezetüket a mérnöknek.;;;2
+NPCQ027;NPC016;Explore;EXIT;1;6210;Menekülés az örökéjből;Fedezd fel a kijáratot és térj vissza az éji menekülthöz.;;;2
+NPCQ028;NPC016;OpenChest;ANY;2;5940;Elkobzott örökség;Nyiss ki két ládát amelyekben a menekült elkobzott holmija lehet.;;;2
+NPCQ029;NPC017;Kill;E045;3;7560;A hálók felégetése;Győzz le három démonpókot a démonvadász oldalán.;;;2
+NPCQ030;NPC017;Kill;E023;4;8280;A pokol lovagjai;Győzz le négy démonlovagot és gyengítsd meg a Vértrónust.;;;2
+NPCQ031;NPC018;Explore;EXIT;1;9900;A lehetetlen ösvény;Fedezd fel a kijáratot a káosz szívében és térj vissza.;;;3
+NPCQ032;NPC018;OpenChest;ANY;3;9450;A Rubin visszhangjai;Nyiss ki három ládát amelyekben a Káoszrubin energiája visszhangzik.;;;3
+NPCQ033;NPC019;Kill;E012;3;3690;Nagyvad;Győzz le három ogrét az óriásvadász megbízásából.
+NPCQ042;NPC022;OpenQuestChest;AURELIOS_HELP;1;900;Uralkodód ezt a segítséget küldi;Találd meg Aurelios máguskirály küldöttének ládáját.;MW001;1;0
+
+NPCQ034;NPC020;Escort;EXIT;1;1890;Ezüstág kimenekítése;Kísérd el Elirát élve a pálya kijáratáig.;T017;2;1
+NPCQ035;NPC020;Collect;T019;1;720;Elszakadt kötés;Adj Elirának egy tiszta kötést hogy a sérült bokája bírja az utat.;T011;2;0
+NPCQ036;NPC020;Kill;E001;4;1080;A nyomunkban;Győzz le négy óriáspatkányt amelyek Elira vérnyomát követik.;;;1
+
+NPCQ037;NPC021;Collect;T026;3;1500;Az elesettek jelvényei;Szerezd vissza Roderic három elesett bajtársának jelvényét.;;;1
+NPCQ038;NPC021;Kill;E061;2;1950;A pátriárkák árnyai;Győzzétek le a két élőholt pátriárkát Roderic oldalán.;;;1
+NPCQ039;NPC021;Kill;E053;1;3600;Az esküszegő;Győzzétek le Sir Malrecet Roderic oldalán a bukott lovag sírkápolnájában.;;;1;MALREC_APPROACH
+NPCQ040;NPC021;KillWithTraits;MA001;8;1560;Egy oldalon harcolunk;Győzz le nyolc élőholtat hogy bizonyítsd Rodericnek: közös az ellenségetek.;;;1
+NPCQ041;NPC021;OpenQuestChest;RODERIC_ORDER_RELICS;1;2250;A rend ereklyéi;Nyisd ki az Ezüst Eskü ereklyeládáját Roderickel.;;;0
 
 #NPC párbeszédek
 Id;NpcId;MinimumBarátságosság;MaximumBarátságosság;Szöveg
@@ -1548,6 +1607,9 @@ NPCD067;NPC019;0;3;"Egy hatalmas termetű vadász ül egy kőtömbön, mellette 
 NPCD068;NPC019;4;7;"Az óriásvadász három mély nyomra mutat a porban. ""Három ogre járja ezt a vidéket. Erősek, de minden ütés előtt ugyanoda néznek. Vadásszátok le mind a hármat, és ne próbáljátok erőből legyőzni azt, amit ésszel is el lehet."""
 NPCD069;NPC019;8;10;"Az óriásvadász elégedetten nézi a távolban fekvő hatalmas testeket. ""Három ogre. Szép nagyvad volt. A hegy sokáig emlékezni fog arra, amikor lezuhantak róla."""
 
+NPCD070;NPC022;0;10;"A labirintus egyik csendes termében különös, aranyszegélyű köpenyt viselő férfi vár rátok, mintha pontosan tudta volna, mikor érkeztek. ""Ne rántsatok fegyvert, Aurelios máguskirály küldötte vagyok, és miattatok tettem meg ezt a hosszú utat."" Elmondja, hogy ura messziről figyeli a labirintus mélyén zajló eseményeket, és tudomást szerzett arról is, hogy a Káoszrubint keresitek. Aurelios azonban nem bízza támogatását akárkire, ezért egy próbát készített számotokra. A küldött egy ládát rejtett el a környék veszélyes járatainak egyikében, amelybe a máguskirály olyan felszereléseket és készleteket helyezett, amelyek segítségetekre lehetnek az előttetek álló úton. ""Keressétek meg, nyissátok fel, és használjátok bölcsen azt, amit benne találtok."" Figyelmeztet benneteket, hogy a ládához vezető út sem véletlenül veszélyes, mert Aurelios látni akarja, mennyi elszántság és leleményesség lakozik bennetek. ""Ha visszatértek hozzám a láda tartalmával, tudni fogom, hogy valóban érdemesek vagytok arra, hogy tovább haladjatok a Káoszrubin felé."""
+NPCD071;NPC022;0;10;"Amikor visszatértek hozzá, a küldött elégedetten végigmér benneteket, majd halvány mosollyal bólint. ""Megtaláltátok a ládát, és ami ennél is fontosabb: élve tértetek vissza onnan, ahová Aurelios nem küldene közönséges kalandorokat."" Köpenye alól elővesz egy vörösen izzó, sötét fából készült varázspálcát, amelynek végén apró lángok táncolnak. ""Fogadjátok el ezt a Parázspálcát is: az Égő kéz varázslat erejét őrzi, és úgy látom, nálatok jobb kezekben aligha lehetne."" ""Aurelios nevében kívánok szerencsét nektek — most már én is hiszem, hogy talán valóban ti lehettek azok, akik megszerzik a Káoszrubint."""
+
 #NPC történeti választások
 Id;TörténetId;ÁllapotId;Mondat;Sorrend;Válasz;ViszonyVáltozás;KövetkezőÁllapotId;Reakció;Hatás;HatásParaméter;Folytatás;MinimumViszony;MaximumViszony
 NSC001;RODERIC_OATH;INITIAL;Roderic: Állj! Még egy lépés és úgy veszlek benneteket mint a többi sírrablót.;1;Nem sírokat fosztogatni jöttünk.;2;INTRODUCTION;Roderic: Ezt mondaná egy sírrabló is.|Te: És mit mondana az aki tényleg nem sírrabló?|Roderic: Valószínűleg pontosan ezt. Egy pont nektek.;None;;Igen
@@ -1618,53 +1680,6 @@ ADHR017;RODERIC_OATH;ADHOC_5_START;Roderic: A küldetésetek elején azt hittem 
 ADHR018;RODERIC_OATH;ADHOC_5_START;Roderic: A küldetésetek elején azt hittem vakmerők vagytok. Most már csak részben gondolom ezt.;2;Mi változtatta meg a véleményed?;0;ADHOC_5_FOLLOWUP;Roderic: Hogy visszafordultatok egymásért akkor is amikor az út előre könnyebb lett volna.;None;;Igen
 ADHR019;RODERIC_OATH;ADHOC_5_FOLLOWUP;Roderic: Ha elérjük a Káoszrubint a küldetés nem ér véget. Ott kezdődik majd a legnehezebb döntés.;1;Maradj mellettünk akkor is.;0;ADHOC_5_END;Roderic: Erre már tudok esküt tenni. A döntésig és azon túl is mellettetek állok.;None;;Nem
 ADHR020;RODERIC_OATH;ADHOC_5_FOLLOWUP;Roderic: Ha elérjük a Káoszrubint a küldetés nem ér véget. Ott kezdődik majd a legnehezebb döntés.;2;Emlékeztess minket miért indultunk.;0;ADHOC_5_END;Roderic: Minden kulcsnál megteszem ha kell. Vhar-Zult megállítani és nem a helyére állni.;None;;Nem
-
-
-#NPC küldetések
-Id;NpcId;Típus;CélId;Darabszám;XP;Cím;Leírás;FixJutalomId;FixJutalomDarab;VéletlenJutalomDarab;SzükségesTörténetÁllapot
-NPCQ001;NPC001;Collect;T011;3;810;Gyógyító készlet;Gyűjts össze három kis gyógyitalt a füvesasszonynak.;T018;2;0
-NPCQ002;NPC002;Kill;E003;4;1170;Goblinvadászat;Ölj meg négy goblint a szörnyvadász megbízásából.
-NPCQ003;NPC003;Collect;T001;5;1440;Útravaló a mélybe;Szerezz öt útravalót a kincskereső következő útjához.
-NPCQ004;NPC004;Kill;E004;3;2160;A csontok éneke;Győzz le három csontvázat a dalnok balladájához.
-NPCQ005;NPC001;Collect;T019;2;990;Tiszta kötések;Vigyél két kötést a füvesasszonynak a sebesültek ellátásához.
-NPCQ006;NPC002;Kill;E003;6;1620;Vérdíj a zöldfülűekre;Győzz le hat goblint és bizonyítsd a szörnyvadásznak hogy értesz a mesterséghez.
-NPCQ007;NPC003;Collect;T003;2;1350;A lezárt út;Szerezz két kulcsot a kincskeresőnek egy lezárt mellékjárathoz.
-NPCQ008;NPC004;Collect;T023;1;1080;A dalnok hangja;Vigyél egy mézsört a dalnoknak hogy visszatérjen a hangja.
-NPCQ009;NPC005;Kill;E001;5;720;A járatok megtisztítása;Ölj meg öt óriáspatkányt a patkányvadász megbízásából.
-NPCQ010;NPC006;Kill;E002;4;990;Nincs visszaút;Győzz le négy koboldot hogy a szökevény üldözői ne érhessék utol.
-NPCQ011;NPC007;Kill;E003;5;1350;Az elveszett őrjárat;Ölj meg öt goblint a határőr elesett társaiért.
-NPCQ012;NPC008;Kill;E004;5;1980;Csend a sírokban;Győzz le öt csontvázat hogy a katakombák halottai megnyugodhassanak.
-NPCQ013;NPC008;Kill;E006;3;1755;A nyugtalan testek;Pusztíts el három zombit a remete szertartásához.
-NPCQ014;NPC009;Kill;E007;5;2520;Törött agyar;Győzz le öt orkot és gyengítsd meg a dezertőr egykori törzsét.
-NPCQ015;NPC009;Kill;E008;3;2790;A hadúr testőrei;Győzz le három hobgoblint az ork hadúr elitjéből.
-NPCQ016;NPC010;Kill;E009;4;2430;Méregmirigyek;Győzz le négy óriáspókot az alkimista kísérleteihez.
-NPCQ017;NPC010;Collect;T017;2;1890;Biztos ellenszer;Vigyél két ellenmérget a barlangi alkimistának összehasonlító mintának.
-NPCQ018;NPC011;Kill;E031;2;3060;A tábor szemei;Győzz le két bugbeart és vakítsd meg az ork tábor felderítőit.
-NPCQ019;NPC012;Explore;EXIT;1;3240;Az elveszett sírjel;Fedezd fel a kijáratot és térj vissza a sírok őrzőjéhez.
-NPCQ020;NPC012;Disarm;ANY;2;3420;Megszentségtelenített pecsétek;Hatástalaníts két csapdát hogy a sírok útja újra biztonságos legyen.
-NPCQ021;NPC013;OpenChest;ANY;2;3960;A pikkelyes zárak;Nyiss ki két kincsesládát a sárkánykutató feljegyzéseihez.
-NPCQ022;NPC013;Explore;EXIT;1;4230;A hamu útja;Fedezd fel a kijáratot és jelentsd a sárkánykutatónak.
-NPCQ023;NPC014;Explore;EXIT;1;4410;Száraz út a lápban;Találd meg a kijáratot a mocsári révész számára.
-NPCQ024;NPC014;Disarm;ANY;2;4680;Elsüllyedt kelepcék;Hatástalaníts két csapdát a mocsár járható ösvényein.;;;2
-NPCQ025;NPC015;OpenChest;ANY;3;5310;A kristályzár titka;Nyiss ki három kincsesládát a kristálymérnök kutatásához.;;;2
-NPCQ026;NPC015;Disarm;ANY;2;5580;A hibás szerkezetek;Hatástalaníts két csapdát és mutasd meg a szerkezetüket a mérnöknek.;;;2
-NPCQ027;NPC016;Explore;EXIT;1;6210;Menekülés az örökéjből;Fedezd fel a kijáratot és térj vissza az éji menekülthöz.;;;2
-NPCQ028;NPC016;OpenChest;ANY;2;5940;Elkobzott örökség;Nyiss ki két ládát amelyekben a menekült elkobzott holmija lehet.;;;2
-NPCQ029;NPC017;Kill;E045;3;7560;A hálók felégetése;Győzz le három démonpókot a démonvadász oldalán.;;;2
-NPCQ030;NPC017;Kill;E023;4;8280;A pokol lovagjai;Győzz le négy démonlovagot és gyengítsd meg a Vértrónust.;;;2
-NPCQ031;NPC018;Explore;EXIT;1;9900;A lehetetlen ösvény;Fedezd fel a kijáratot a káosz szívében és térj vissza.;;;3
-NPCQ032;NPC018;OpenChest;ANY;3;9450;A Rubin visszhangjai;Nyiss ki három ládát amelyekben a Káoszrubin energiája visszhangzik.;;;3
-NPCQ033;NPC019;Kill;E012;3;3690;Nagyvad;Győzz le három ogrét az óriásvadász megbízásából.
-
-NPCQ034;NPC020;Escort;EXIT;1;1890;Ezüstág kimenekítése;Kísérd el Elirát élve a pálya kijáratáig.;T017;2;1
-NPCQ035;NPC020;Collect;T019;1;720;Elszakadt kötés;Adj Elirának egy tiszta kötést hogy a sérült bokája bírja az utat.;T011;2;0
-NPCQ036;NPC020;Kill;E001;4;1080;A nyomunkban;Győzz le négy óriáspatkányt amelyek Elira vérnyomát követik.;;;1
-
-NPCQ037;NPC021;Collect;T026;3;1500;Az elesettek jelvényei;Szerezd vissza Roderic három elesett bajtársának jelvényét.;;;1
-NPCQ038;NPC021;Kill;E061;2;1950;A pátriárkák árnyai;Győzzétek le a két élőholt pátriárkát Roderic oldalán.;;;1
-NPCQ039;NPC021;Kill;E053;1;3600;Az esküszegő;Győzzétek le Sir Malrecet Roderic oldalán a bukott lovag sírkápolnájában.;;;1;MALREC_APPROACH
-NPCQ040;NPC021;KillWithTraits;MA001;8;1560;Egy oldalon harcolunk;Győzz le nyolc élőholtat hogy bizonyítsd Rodericnek: közös az ellenségetek.;;;1
-NPCQ041;NPC021;OpenQuestChest;RODERIC_ORDER_RELICS;1;2250;A rend ereklyéi;Nyisd ki az Ezüst Eskü ereklyeládáját Roderickel.;;;0
 
 #Szituációk
 Id;Név

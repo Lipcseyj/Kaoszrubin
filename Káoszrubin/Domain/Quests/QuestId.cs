@@ -91,5 +91,8 @@ public enum QuestId
     RodericOathbreakerKnight,
     // A megőrzött azonosító ma a nyolc élőholt elleni bizonyítást jelöli.
     RodericTheDeadAreNotPrey,
-    RodericOrderRelics
+    RodericOrderRelics,
+    
+    // NPC022 - Aurelios küldötte
+    AureliosEmissaryChest
 }
