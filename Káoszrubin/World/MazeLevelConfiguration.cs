@@ -30,48 +30,53 @@ public enum EnemyEncounterBehavior { Default, Horde }
 public sealed record EnemyEncounterConfiguration(IntRange GroupCount,
     IReadOnlyList<EnemyGroupMemberConfiguration> Members,
     EnemyMovementProfile? MovementProfile = null,
-    EnemyEncounterBehavior Behavior = EnemyEncounterBehavior.Default);
+    EnemyEncounterBehavior Behavior = EnemyEncounterBehavior.Default,
+    int? ScreenNumber = null);
 public sealed record ResolvedEnemyGroupMember(EnemyDefinition Definition, IntRange Count, EnemyGroupRole Role);
 public sealed record ResolvedEnemyEncounter(IntRange GroupCount,
     IReadOnlyList<ResolvedEnemyGroupMember> Members, EnemyMovementProfile? MovementProfile,
-    EnemyEncounterBehavior Behavior = EnemyEncounterBehavior.Default);
+    EnemyEncounterBehavior Behavior = EnemyEncounterBehavior.Default,
+    int? ScreenNumber = null);
 public sealed record QuestRoomEnemyEncounterConfiguration(string RoomId, string EnemyId, int Count,
     string? GuaranteedItemId = null);
 
 public static class Encounters
 {
     public static EnemyEncounterConfiguration Same(string enemyId, Amount groups, Amount size,
-        EnemyMovementProfile? movement = EnemyMovementProfile.Stationary) =>
-        new(groups.Range(), [new(enemyId, size.Range())], movement);
+        EnemyMovementProfile? movement = EnemyMovementProfile.Stationary, int? screen = null) =>
+        new(groups.Range(), [new(enemyId, size.Range())], movement, ScreenNumber: screen);
 
     public static EnemyEncounterConfiguration Solo(string enemyId, Amount count,
-        EnemyMovementProfile? movement = null) =>
-        new(count.Range(), [new(enemyId, Amount.One.Range())], movement);
+        EnemyMovementProfile? movement = null, int? screen = null) =>
+        new(count.Range(), [new(enemyId, Amount.One.Range())], movement, ScreenNumber: screen);
 
     public static EnemyEncounterConfiguration Mixed(string firstEnemyId, Amount firstCount,
         string secondEnemyId, Amount secondCount, Amount groups,
-        EnemyMovementProfile? movement = EnemyMovementProfile.Stationary) =>
-        new(groups.Range(), [new(firstEnemyId, firstCount.Range()), new(secondEnemyId, secondCount.Range())], movement);
+        EnemyMovementProfile? movement = EnemyMovementProfile.Stationary, int? screen = null) =>
+        new(groups.Range(), [new(firstEnemyId, firstCount.Range()), new(secondEnemyId, secondCount.Range())], movement,
+            ScreenNumber: screen);
 
     public static EnemyEncounterConfiguration LeaderGroup(string leaderId, string followerId,
-        Amount groups, Amount followers, EnemyMovementProfile? movement = EnemyMovementProfile.Stationary) =>
+        Amount groups, Amount followers, EnemyMovementProfile? movement = EnemyMovementProfile.Stationary,
+        int? screen = null) =>
         new(groups.Range(),
-            [new(leaderId, Amount.One.Range(), EnemyGroupRole.Leader), new(followerId, followers.Range())], movement);
+            [new(leaderId, Amount.One.Range(), EnemyGroupRole.Leader), new(followerId, followers.Range())], movement,
+            ScreenNumber: screen);
 
-    public static EnemyEncounterConfiguration Horde(string enemyId, Amount groups, Amount size) =>
+    public static EnemyEncounterConfiguration Horde(string enemyId, Amount groups, Amount size, int? screen = null) =>
         new(groups.Range(), [new(enemyId, size.Range())], EnemyMovementProfile.Wander,
-            EnemyEncounterBehavior.Horde);
+            EnemyEncounterBehavior.Horde, screen);
 
     public static EnemyEncounterConfiguration MixedHorde(string firstEnemyId, Amount firstCount,
-        string secondEnemyId, Amount secondCount, Amount groups) =>
+        string secondEnemyId, Amount secondCount, Amount groups, int? screen = null) =>
         new(groups.Range(), [new(firstEnemyId, firstCount.Range()), new(secondEnemyId, secondCount.Range())],
-            EnemyMovementProfile.Wander, EnemyEncounterBehavior.Horde);
+            EnemyMovementProfile.Wander, EnemyEncounterBehavior.Horde, screen);
 
     public static EnemyEncounterConfiguration LeaderHorde(string leaderId, string followerId,
-        Amount groups, Amount followers) =>
+        Amount groups, Amount followers, int? screen = null) =>
         new(groups.Range(),
             [new(leaderId, Amount.One.Range(), EnemyGroupRole.Leader), new(followerId, followers.Range())],
-            EnemyMovementProfile.Wander, EnemyEncounterBehavior.Horde);
+            EnemyMovementProfile.Wander, EnemyEncounterBehavior.Horde, screen);
 }
 
 public sealed class MazeLevelConfiguration
