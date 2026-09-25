@@ -1,5 +1,24 @@
 internal static partial class Program
 {
+    static void NpcThiefTrapCommandAcceptsTemporaryFollowers()
+    {
+        var leaderPosition = new Position(5, 5);
+        var thief = CreateCharacter("Tolvaj", characterClassId: CharacterClassIds.Tolvaj);
+        var permanent = new PartyMemberAvatar(new Position(7, 5), thief);
+        var followerNpc = new WorldNpc(new Position(6, 5), "NPC-THIEF", thief,
+            NpcDisposition.Friendly, recruitable: false, isQuestNpc: false, "Próba");
+        var follower = new PartyMemberAvatar(followerNpc.Position, thief, followerNpc);
+
+        Assert(!Game.IsNpcThiefTrapDisarmCandidate(permanent, new HashSet<CharacterId>(), leaderPosition) &&
+               Game.IsNpcThiefTrapDisarmCandidate(permanent, new HashSet<CharacterId> { thief.Id }, leaderPosition) &&
+               Game.IsNpcThiefTrapDisarmCandidate(follower, new HashSet<CharacterId>(), leaderPosition),
+            "A parancs nem különbözteti meg helyesen a kézzel irányított karaktert, az NPC-társat és a követőt.");
+
+        follower.MoveTo(new Position(10, 5));
+        Assert(!Game.IsNpcThiefTrapDisarmCandidate(follower, new HashSet<CharacterId>(), leaderPosition),
+            "A parancs a négymezős hatótávon kívüli követőt is kiválasztotta.");
+    }
+
     static void RestLimitIsTrackedPerScreen()
     {
         var rests = new DungeonRestState();

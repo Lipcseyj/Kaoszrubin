@@ -91,6 +91,7 @@ internal static partial class Program
     ("Az emberi vendég ráléphet a kincsesláda mezőjére", RemotePlayerCanStepOntoTreasureChest),
     ("A bejáraton vagy kijáraton mentett partitárs visszaállítható", PartyMemberCanBeRestoredOnEntranceOrExit),
     ("A semleges NPC nem állja el a mozgó szereplők útját", NeutralWorldNpcIsPassable),
+    ("A csapdahatástalanító parancs az NPC-tolvaj társat és követőt is elfogadja", NpcThiefTrapCommandAcceptsTemporaryFollowers),
     ("Alakzat-összeálláskor két barátságos avatar atomian helyet cserél", FormationAssemblySwapsFriendlyAvatars),
     ("A visszatérő expedíció harminc százalékos szörnyállományt céloz", ReturnExpeditionPopulationIsLimited),
     ("A vendég visszaveheti a coop mentésben foglalt karakterét", RemotePlayerCanReclaimSavedCharacter),

@@ -979,7 +979,7 @@ public sealed class MainMenu
             Hotkey("F9", "💾 A teljes játékállás mentése a mentések mappába."),
             Blank(),
             Hotkey("K", "🔎 Felfedezett szomszédos csapda hatástalanítása; egyébként az aktuális mező átkutatása."),
-            Hotkey("C", "🧰 A vezér melletti felfedezett csapda hatástalanítására utasít egy közeli, NPC-ként irányított tolvaj társat."),
+            Hotkey("C", "🧰 A vezér melletti felfedezett csapda hatástalanítására utasít egy közeli NPC-tolvaj társat vagy ideiglenes követőt."),
             Hotkey("N", "🚪 A melletted levő ajtó kinyitása; zárt alakzatban bármelyik partitag melletti ajtó választható. Ha tolvaj partitárssal akarod a nyitást megcsináltatni, legyen a társ 2 mezős közelségben."),
             Hotkey("Z", "🔒 Nyitott ajtó becsukása, csukott ajtó kulcsra zárása; zárt alakzatban bármelyik partitag melletti ajtó választható. Ha tolvaj partitárssal akarod a zárást megcsináltatni, legyen a társ 2 mezős közelségben."),
             Hotkey("B", "🚪 A legerősebb élő partitag megpróbálja betörni a vezérhez legközelebbi, legfeljebb 4 mezőre levő kulcsra zárt ajtót."),

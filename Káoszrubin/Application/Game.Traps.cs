@@ -76,21 +76,26 @@ public sealed partial class Game
             .Where(control => control.ControllerKind == CharacterControllerKind.Npc)
             .Select(control => control.CharacterId).ToHashSet();
         var thief = _maze.PartyMembers
-            .Where(member => member.Character.IsAlive && npcControlledIds.Contains(member.Character.Id) &&
-                             CharacterClassRules.IsThief(member.Character.CharacterClass.Id) &&
-                             Manhattan(member.Position, _player.Position) <= 4)
+            .Where(member => IsNpcThiefTrapDisarmCandidate(member, npcControlledIds, _player.Position))
             .OrderBy(member => Manhattan(member.Position, trap.Position))
             .ThenBy(member => member.Character.Name, StringComparer.CurrentCulture)
             .FirstOrDefault();
         if (thief is null)
         {
-            ReportTrapOrder("🧰 Nincs elég közel élő, NPC-ként irányított tolvaj társ. Gyűjtsd a vezér köré a partit.",
+            ReportTrapOrder("🧰 Nincs elég közel élő NPC-tolvaj társ vagy követő. Gyűjtsd a vezér köré a csapatot.",
                 ConsoleColor.DarkYellow);
             return;
         }
 
         TryDisarmTrap(thief.Character, trap);
     }
+
+    internal static bool IsNpcThiefTrapDisarmCandidate(PartyMemberAvatar member,
+        IReadOnlySet<CharacterId> npcControlledIds, Position leaderPosition) =>
+        member.Character.IsAlive &&
+        (member.IsTemporaryFollower || npcControlledIds.Contains(member.Character.Id)) &&
+        CharacterClassRules.IsThief(member.Character.CharacterClass.Id) &&
+        Manhattan(member.Position, leaderPosition) <= 4;
 
     private bool TryDisarmTrap(LiveCharacter character, MazeTrap trap)
     {
