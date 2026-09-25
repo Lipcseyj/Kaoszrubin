@@ -104,7 +104,7 @@ internal static partial class Program
         Assert(medusa.AbilityIds.Contains("MA011") &&
                gaze.Trigger == MonsterAbilityTrigger.Active && gaze.Cooldown == 3 &&
                gaze.Range == 3 && gaze.StatusId == "STATUS006" &&
-               troll.AbilityIds.Contains("MA008") &&
+               troll.AbilityIds.Contains(MonsterAbilityIds.StrongRegeneration) &&
                dragon.HasTrait(EnemyTraits.Flying) &&
                data.GetEnemy("E004").HasTrait(EnemyTraits.Undead) &&
                !data.GetEnemy("E004").AbilityIds.Contains(MonsterAbilityIds.Undead) &&
@@ -184,8 +184,38 @@ internal static partial class Program
         troll.SetCurrentHitPoints(400);
         var battle = new BattleSystem(new Random(7), data.MonsterAbilities, data.Statuses, data.StrengthHitBonuses);
         var start = battle.BeginEnemyTurn(troll);
-        Assert(troll.CurrentHitPoints == 420 && start.Entries.Any(entry => entry.Message.Contains("regenerálódik")),
-            "A Troll kör eleji regenerációja nem működik.");
+        Assert(troll.CurrentHitPoints == 450 && start.Entries.Any(entry => entry.Message.Contains("regenerálódik")),
+            "A Troll maximum HP-alapú erős regenerációja nem működik.");
+        troll.SetCurrentHitPoints(400);
+        troll.SuppressRegeneration(DamageType.Fire);
+        var suppressed = battle.BeginEnemyTurn(troll);
+        Assert(troll.CurrentHitPoints == 400 && suppressed.Entries.All(entry =>
+                   !entry.Message.Contains("regenerálódik", StringComparison.OrdinalIgnoreCase)),
+            "A tűzsebzés nem állította le egy saját körre a regenerációt.");
+        battle.BeginEnemyTurn(troll);
+        Assert(troll.CurrentHitPoints == 450, "A regeneráció nem indult újra a tiltott saját kör után.");
+        troll.SetCurrentHitPoints(troll.MaximumHitPoints);
+        Assert(battle.BeginEnemyTurn(troll).Entries.All(entry =>
+                   !entry.Message.Contains("regenerálódik", StringComparison.OrdinalIgnoreCase)),
+            "A teljes HP-jú szörny felesleges regenerációs naplóbejegyzést kapott.");
+
+        var hydra = new ConfiguredEnemy(new Position(1, 1), data.GetEnemy("E043"));
+        hydra.SetCurrentHitPoints(1000);
+        battle.BeginEnemyTurn(hydra);
+        Assert(hydra.CurrentHitPoints == 1030,
+            "A sima regeneráció nem a maximum HP 5%-os, 30 HP-ban korlátozott értékét használja.");
+
+        var vampire = new ConfiguredEnemy(new Position(1, 1), data.GetEnemy("E019"));
+        vampire.SetCurrentHitPoints(100);
+        var victim = CreateCharacter("Vércél", vitality: 1000);
+        var victimRuntime = battle.PrepareCharacter(victim).Runtime;
+        EnemyAttackResolution? drain = null;
+        for (var attempt = 0; attempt < 20 && drain is not { Hit: true }; attempt++)
+            drain = battle.ResolveEnemyActionDetailed(vampire, victim, victimRuntime, data.GetWeapon("WN019"));
+        Assert(drain is { Hit: true, DamageDealt: > 0 } &&
+               vampire.CurrentHitPoints == 100 + drain.DamageDealt / 2 &&
+               drain.Entry.Message.Contains("ÉLETSZÍVÁS", StringComparison.Ordinal),
+            "Az életszívás nem a ténylegesen elvesztett HP 50%-át gyógyította vissza.");
 
         var dragon = new ConfiguredEnemy(new Position(1, 1), data.GetEnemy("E021"));
         var breath = data.GetWeapon("WN006");

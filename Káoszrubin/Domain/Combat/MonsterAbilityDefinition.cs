@@ -51,6 +51,8 @@ public enum MonsterAbilityEffect
     InitiativeBonus,
     ArmorBonus,
     Regeneration,
+    StrongRegeneration,
+    LifeDrain,
     ApplyStatus,
     Stagger,
     Push,
@@ -104,4 +106,6 @@ public static class MonsterAbilityIds
     public const string DoubleAttack = "MA018";
     public const string CyclopsBoulder = "MA019";
     public const string PackAttack = "MA020";
+    public const string StrongRegeneration = "MA021";
+    public const string LifeDrain = "MA022";
 }

@@ -75,6 +75,7 @@ public abstract class Enemy(Position position) : WorldObject(position)
     private readonly Dictionary<string, int> _weaponCooldowns = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, int> _spellCooldowns = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, int> _remainingAbilityCharges = new(StringComparer.OrdinalIgnoreCase);
+    private int _regenerationSuppressedTurns;
     public IReadOnlyDictionary<string, int> AbilityCooldowns => _abilityCooldowns;
     public IReadOnlyDictionary<string, int> WeaponCooldowns => _weaponCooldowns;
     public IReadOnlyDictionary<string, int> SpellCooldowns => _spellCooldowns;
@@ -114,6 +115,19 @@ public abstract class Enemy(Position position) : WorldObject(position)
         var before = CurrentHitPoints;
         CurrentHitPoints = Math.Min(MaximumHitPoints, CurrentHitPoints + Math.Max(0, amount));
         return CurrentHitPoints - before;
+    }
+
+    public void SuppressRegeneration(DamageType damageType)
+    {
+        if (damageType is DamageType.Fire or DamageType.Acid)
+            _regenerationSuppressedTurns = Math.Max(_regenerationSuppressedTurns, 1);
+    }
+
+    public bool ConsumeRegenerationSuppression()
+    {
+        if (_regenerationSuppressedTurns <= 0) return false;
+        _regenerationSuppressedTurns--;
+        return true;
     }
 
     public bool IsAbilityReady(string abilityId) => _abilityCooldowns.GetValueOrDefault(abilityId) <= 0;
