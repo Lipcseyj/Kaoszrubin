@@ -246,6 +246,26 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                (breaths.Length > 0 ? breaths[_random.Next(breaths.Length)].Weapon : ready[_random.Next(ready.Length)]);
     }
 
+    public WeaponDefinition? SelectEnemyAbilityWeapon(Enemy attacker, MonsterAbilityDefinition ability,
+        int targetDistance)
+    {
+        ArgumentNullException.ThrowIfNull(attacker);
+        ArgumentNullException.ThrowIfNull(ability);
+        IEnumerable<WeaponDefinition> weapons = attacker.EquippedWeapon is { } equipped
+            ? [equipped]
+            : attacker.AttackWeapons;
+        if (ability.WeaponIds is { Count: > 0 })
+            weapons = weapons.Where(weapon => ability.WeaponIds.Contains(weapon.Id,
+                StringComparer.OrdinalIgnoreCase));
+        return weapons.Where(weapon => attacker.IsWeaponReady(weapon.Id) &&
+                                       (weapon.IsRanged
+                                           ? RangedWeaponRules.CanReach(weapon, targetDistance)
+                                           : targetDistance <= 1))
+            .OrderByDescending(weapon => targetDistance <= 1 ? !weapon.IsRanged : weapon.IsRanged)
+            .ThenByDescending(weapon => weapon.Damage?.Maximum ?? 0)
+            .FirstOrDefault();
+    }
+
     public static bool IsTelegraphedWeapon(WeaponDefinition? weapon) =>
         weapon is { MaximumTargets: > 1 } && !weapon.DamageType.IsPhysical();
 
@@ -389,15 +409,23 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         return null;
     }
 
-    public BattleLogEntry PrepareEnemyAbility(Enemy enemy, MonsterAbilityDefinition ability)
+    public BattleLogEntry PrepareEnemyAbility(Enemy enemy, MonsterAbilityDefinition ability,
+        Position? targetPosition = null)
     {
-        enemy.PrepareAbility(ability.Id, ability.PreparationTurns);
+        enemy.PrepareAbility(ability.Id, ability.PreparationTurns, targetPosition);
         return new BattleLogEntry(
             $"⚠️ {enemy.Name} előkészíti: {ability.Name}. " +
             (ability.PreparationTurns == 1
                 ? "A következő saját körében végrehajtja!"
-                : $"{ability.PreparationTurns} akción át készül rá."),
+                : $"{ability.PreparationTurns} akción át készül rá.") +
+            (targetPosition is { } target ? $" Célterület: ({target.X}, {target.Y})." : string.Empty),
             BattleLogKind.Information);
+    }
+
+    public void ConsumeEnemyAbility(Enemy enemy, MonsterAbilityDefinition ability)
+    {
+        enemy.StartAbilityCooldown(ability);
+        enemy.ConsumeAbilityCharge(ability);
     }
 
     public void MarkEnemyWeaponUsed(Enemy enemy, WeaponDefinition? weapon)

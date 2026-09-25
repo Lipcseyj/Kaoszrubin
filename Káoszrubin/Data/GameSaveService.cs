@@ -98,7 +98,7 @@ public sealed class GameSaveService
 public static class GameSaveFormat
 {
     public const int OldestSupportedVersion = 1;
-    public const int CurrentVersion = 29;
+    public const int CurrentVersion = 30;
 
     public static GameSaveData MigrateToCurrent(GameSaveData state)
     {
@@ -139,10 +139,17 @@ public static class GameSaveFormat
                 26 => MigrateVersion26To27(state),
                 27 => MigrateVersion27To28(state),
                 28 => MigrateVersion28To29(state),
+                29 => MigrateVersion29To30(state),
                 _ => throw new InvalidOperationException($"Hiányzó mentésmigráció a(z) {state.Version}. verzióhoz.")
             };
         }
         if (state.SuspendedCampaign is { } suspended) MigrateToCurrent(suspended);
+        return state;
+    }
+
+    private static GameSaveData MigrateVersion29To30(GameSaveData state)
+    {
+        state.Version = 30;
         return state;
     }
 
@@ -484,7 +491,8 @@ public sealed record EnemySaveData(Position Position, string DefinitionId, int C
     Dictionary<string, int>? SpellCooldowns = null,
     int BossHitPointBonusPercent = 0,
     string? PreparedAbilityId = null,
-    int PreparedAbilityTurnsRemaining = 0);
+    int PreparedAbilityTurnsRemaining = 0,
+    Position? PreparedAbilityTargetPosition = null);
 public sealed record EnemyEquipmentSaveData(string? WeaponId, string? ShieldId);
 public sealed record CorpseSaveData(Position Position, string FormerName, int? PartyCharacterIndex,
     string? EnemyDefinitionId = null, bool IsSearched = false, List<string>? GuaranteedLootIds = null,

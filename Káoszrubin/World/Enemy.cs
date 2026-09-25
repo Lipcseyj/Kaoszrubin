@@ -84,6 +84,7 @@ public abstract class Enemy(Position position) : WorldObject(position)
     public string? PreparedWeaponId { get; private set; }
     public string? PreparedAbilityId { get; private set; }
     public int PreparedAbilityTurnsRemaining { get; private set; }
+    public Position? PreparedAbilityTargetPosition { get; private set; }
     public IReadOnlyList<string> CarriedWeaponIds
     {
         get
@@ -152,15 +153,17 @@ public abstract class Enemy(Position position) : WorldObject(position)
         string.Equals(PreparedAbilityId, abilityId, StringComparison.OrdinalIgnoreCase);
     public bool IsPreparedAbilityReady(string abilityId) =>
         IsAbilityPrepared(abilityId) && PreparedAbilityTurnsRemaining <= 0;
-    public void PrepareAbility(string abilityId, int turns)
+    public void PrepareAbility(string abilityId, int turns, Position? targetPosition = null)
     {
         PreparedAbilityId = abilityId;
         PreparedAbilityTurnsRemaining = Math.Max(1, turns);
+        PreparedAbilityTargetPosition = targetPosition;
     }
     public void ClearPreparedAbility()
     {
         PreparedAbilityId = null;
         PreparedAbilityTurnsRemaining = 0;
+        PreparedAbilityTargetPosition = null;
     }
     public void PrepareAbilityCharges(IEnumerable<MonsterAbilityDefinition> abilities)
     {
@@ -179,7 +182,8 @@ public abstract class Enemy(Position position) : WorldObject(position)
     public void RestoreCombatCooldowns(IEnumerable<KeyValuePair<string, int>> abilityCooldowns,
         IEnumerable<KeyValuePair<string, int>> weaponCooldowns, string? preparedWeaponId = null,
         IEnumerable<KeyValuePair<string, int>>? remainingAbilityCharges = null,
-        string? preparedAbilityId = null, int preparedAbilityTurnsRemaining = 0)
+        string? preparedAbilityId = null, int preparedAbilityTurnsRemaining = 0,
+        Position? preparedAbilityTargetPosition = null)
     {
         _abilityCooldowns.Clear();
         _weaponCooldowns.Clear();
@@ -188,6 +192,7 @@ public abstract class Enemy(Position position) : WorldObject(position)
         PreparedWeaponId = string.IsNullOrWhiteSpace(preparedWeaponId) ? null : preparedWeaponId;
         PreparedAbilityId = string.IsNullOrWhiteSpace(preparedAbilityId) ? null : preparedAbilityId;
         PreparedAbilityTurnsRemaining = PreparedAbilityId is null ? 0 : Math.Max(0, preparedAbilityTurnsRemaining);
+        PreparedAbilityTargetPosition = PreparedAbilityId is null ? null : preparedAbilityTargetPosition;
         _remainingAbilityCharges.Clear();
         foreach (var item in remainingAbilityCharges?.Where(item => item.Value >= 0) ?? [])
             _remainingAbilityCharges[item.Key] = item.Value;

@@ -227,8 +227,12 @@ public sealed partial class Game
             AdvanceBattleTurn(battle);
             return;
         }
-        if (preparedAbility is not null && !livingTargets.Any(target =>
-                EnemyAbilityCanTarget(enemy, target, preparedAbility)))
+        if (preparedAbility is not null &&
+            (preparedAbility.Targeting != MonsterAbilityTargeting.Area &&
+             !livingTargets.Any(target => EnemyAbilityCanTarget(enemy, target, preparedAbility)) ||
+             preparedAbility.Targeting == MonsterAbilityTargeting.Area &&
+             (enemy.PreparedAbilityTargetPosition is not { } preparedAim ||
+              !EnemyAbilityCanAimAtPosition(enemy, preparedAim, preparedAbility))))
         {
             enemy.ClearPreparedAbility();
             PresentBattleEntries([new BattleLogEntry(
@@ -259,23 +263,52 @@ public sealed partial class Game
             ? _battleSystem.SelectEnemyActiveAbility(enemy, closestDistance, ability =>
                 (!ability.UsesRangedAttackRoll || !battle.IsEngaged(enemy) ||
                  enemy.AttackWeapons.All(weapon => weapon.IsRanged)) &&
-                livingTargets.Any(target => EnemyAbilityCanTarget(enemy, target, ability)))
+                (ability.Targeting == MonsterAbilityTargeting.Area
+                    ? SelectEnemyAbilityAim(enemy, ability, livingTargets) is not null
+                    : livingTargets.Any(target => EnemyAbilityCanTarget(enemy, target, ability))))
             : null);
         if (activeAbility is not null)
         {
-            var abilityTargets = livingTargets.Where(character => EnemyAbilityCanTarget(enemy, character,
-                    activeAbility))
-                .Take(activeAbility.MaximumTargets).ToArray();
+            var abilityAim = activeAbility.Targeting == MonsterAbilityTargeting.Area
+                ? enemy.PreparedAbilityTargetPosition ?? SelectEnemyAbilityAim(enemy, activeAbility, livingTargets)
+                : null;
+            var abilityTargets = activeAbility.Targeting == MonsterAbilityTargeting.Area && abilityAim is { } areaAim
+                ? livingTargets.Where(character =>
+                        TacticalDistance.Between(areaAim, GetCasterPosition(character)) <= activeAbility.AreaRadius)
+                    .OrderBy(character => TacticalDistance.Between(areaAim, GetCasterPosition(character)))
+                    .Take(activeAbility.MaximumTargets).ToArray()
+                : livingTargets.Where(character => EnemyAbilityCanTarget(enemy, character, activeAbility))
+                    .Take(activeAbility.MaximumTargets).ToArray();
             if (abilityTargets.Length > 0) battle.FaceEnemyToward(enemy, abilityTargets[0]);
             var wasPrepared = enemy.IsPreparedAbilityReady(activeAbility.Id);
             if (!wasPrepared && activeAbility.PreparationTurns > 0)
             {
-                PresentBattleEntries([_battleSystem.PrepareEnemyAbility(enemy, activeAbility)]);
+                PresentBattleEntries([_battleSystem.PrepareEnemyAbility(enemy, activeAbility, abilityAim)]);
                 AdvanceBattleTurn(battle);
                 return;
             }
             if (wasPrepared) enemy.ClearPreparedAbility();
             var abilityEntries = new List<BattleLogEntry>();
+            var abilityDistance = TacticalDistance.Between(enemy.Position,
+                abilityAim ?? (abilityTargets.Length > 0 ? GetCasterPosition(abilityTargets[0]) : enemy.Position));
+            var abilityWeapon = activeAbility.ResolutionMode == MonsterAbilityResolutionMode.WeaponAttack
+                ? _battleSystem.SelectEnemyAbilityWeapon(enemy, activeAbility, abilityDistance)
+                : null;
+            if (activeAbility.ResolutionMode == MonsterAbilityResolutionMode.WeaponAttack && abilityWeapon is null)
+            {
+                PresentBattleEntries([new BattleLogEntry(
+                    $"⚠️ {enemy.Name} nem tudja végrehajtani: {activeAbility.Name}, nincs használható fegyvere.",
+                    BattleLogKind.Information)]);
+                AdvanceBattleTurn(battle);
+                return;
+            }
+            if (activeAbility.ResolutionMode == MonsterAbilityResolutionMode.WeaponAttack)
+                _battleSystem.ConsumeEnemyAbility(enemy, activeAbility);
+            if (abilityTargets.Length == 0)
+                abilityEntries.Add(new BattleLogEntry(
+                    $"💥 {enemy.Name} végrehajtja: {activeAbility.Name}, de a kijelölt terület már üres.",
+                    BattleLogKind.Information));
+            var pushedFormation = false;
             for (var targetIndex = 0; targetIndex < abilityTargets.Length; targetIndex++)
             {
                 var target = abilityTargets[targetIndex];
@@ -283,9 +316,44 @@ public sealed partial class Game
                      attackIndex < activeAbility.AttackCount && target.IsAlive;
                      attackIndex++)
                 {
-                    var entry = _battleSystem.ResolveEnemyAbility(enemy, target, battle.RuntimeFor(target), activeAbility,
-                        consumeResources: targetIndex == 0 && attackIndex == 0,
-                        targetDistance: TacticalDistance.Between(enemy.Position, GetCasterPosition(target)));
+                    var targetDistance = TacticalDistance.Between(enemy.Position, GetCasterPosition(target));
+                    if (activeAbility.ResolutionMode == MonsterAbilityResolutionMode.WeaponAttack &&
+                        abilityWeapon?.IsRanged != true && targetDistance <= 1)
+                        battle.Engage(target, enemy);
+                    var weaponResolution = activeAbility.ResolutionMode == MonsterAbilityResolutionMode.WeaponAttack
+                        ? _battleSystem.ResolveEnemyActionDetailed(enemy, target, battle.RuntimeFor(target),
+                            abilityWeapon, advanceAttackerEffects: targetIndex == 0 && attackIndex == 0,
+                            alliedGuardDefense: TacticalBattleCoordinator.AlliedGuardDefense(
+                                battle, target, GetCasterPosition),
+                            rangedHitModifier: EnemyRangedHitModifier(abilityWeapon, targetDistance))
+                        : null;
+                    var entry = weaponResolution?.Entry ??
+                                _battleSystem.ResolveEnemyAbility(enemy, target, battle.RuntimeFor(target), activeAbility,
+                                    consumeResources: targetIndex == 0 && attackIndex == 0,
+                                    targetDistance: targetDistance);
+                    if (weaponResolution is { Hit: true } &&
+                        activeAbility.Effects.FirstOrDefault(effect => effect.Effect == MonsterAbilityEffect.Push)
+                            is { } push && !pushedFormation)
+                    {
+                        var pushOrigin = abilityAim is { } center && center != GetCasterPosition(target)
+                            ? center
+                            : enemy.Position;
+                        if (TryPushBattleTargetFrom(battle, pushOrigin, target, out var movedFormation))
+                        {
+                            pushedFormation = movedFormation;
+                            entry = entry with { Message = entry.Message + $" {target.Name} hátralökődik." };
+                        }
+                        else
+                        {
+                            battle.StaggerCharacter(target, push.Value >= 2
+                                ? StaggerSeverity.Heavy
+                                : StaggerSeverity.Normal);
+                            entry = entry with
+                            {
+                                Message = entry.Message + $" Nincs hely a hátralökéshez, ezért {target.Name} meginog."
+                            };
+                        }
+                    }
                     if (entry.Kind != BattleLogKind.Information &&
                         activeAbility.Effects.FirstOrDefault(effect => effect.Effect == MonsterAbilityEffect.Stagger)
                             is { } stagger)
@@ -297,8 +365,11 @@ public sealed partial class Game
                     if (activeAbility.AttackCount > 1)
                         entry = entry with
                         {
-                            Message = $"🎯 {attackIndex + 1}/{activeAbility.AttackCount}. {entry.Message}"
+                            Message = $"🎯 {activeAbility.Name} {attackIndex + 1}/{activeAbility.AttackCount}. " +
+                                      entry.Message
                         };
+                    else if (activeAbility.ResolutionMode == MonsterAbilityResolutionMode.WeaponAttack)
+                        entry = entry with { Message = $"🎯 {activeAbility.Name}. {entry.Message}" };
                     abilityEntries.Add(entry);
                 }
             }
@@ -838,9 +909,39 @@ public sealed partial class Game
     private bool EnemyAbilityCanTarget(Enemy enemy, LiveCharacter target, MonsterAbilityDefinition ability)
     {
         var targetPosition = GetCasterPosition(target);
-        return TacticalDistance.Between(enemy.Position, targetPosition) <= ability.Range &&
+        return EnemyAbilityCanAimAtPosition(enemy, targetPosition, ability);
+    }
+
+    private bool EnemyAbilityCanAimAtPosition(Enemy enemy, Position targetPosition,
+        MonsterAbilityDefinition ability)
+    {
+        var distance = TacticalDistance.Between(enemy.Position, targetPosition);
+        return distance <= ability.Range &&
                (!ability.RequiresLineOfSight ||
-                HasBattleLineOfSight(enemy.Position, targetPosition, ability.Range));
+                HasBattleLineOfSight(enemy.Position, targetPosition, ability.Range)) &&
+               (ability.ResolutionMode != MonsterAbilityResolutionMode.WeaponAttack ||
+                _battleSystem.SelectEnemyAbilityWeapon(enemy, ability, distance) is not null);
+    }
+
+    private Position? SelectEnemyAbilityAim(Enemy enemy, MonsterAbilityDefinition ability,
+        IReadOnlyList<LiveCharacter> targets)
+    {
+        if (ability.Targeting != MonsterAbilityTargeting.Area) return null;
+        return targets.Select(GetCasterPosition)
+            .Where(position => EnemyAbilityCanAimAtPosition(enemy, position, ability))
+            .Distinct()
+            .Select(position => new
+            {
+                Position = position,
+                Targets = targets.Count(target =>
+                    TacticalDistance.Between(position, GetCasterPosition(target)) <= ability.AreaRadius)
+            })
+            .OrderByDescending(candidate => candidate.Targets)
+            .ThenBy(candidate => TacticalDistance.Between(enemy.Position, candidate.Position))
+            .ThenBy(candidate => candidate.Position.Y)
+            .ThenBy(candidate => candidate.Position.X)
+            .Select(candidate => (Position?)candidate.Position)
+            .FirstOrDefault();
     }
 
     private static int EnemyRangedHitModifier(WeaponDefinition? weapon, int distance) =>
@@ -991,9 +1092,13 @@ public sealed partial class Game
 
     private bool TryPushBattleTarget(BattleEncounter battle, Enemy enemy, LiveCharacter target,
         out bool pushedFormation)
+        => TryPushBattleTargetFrom(battle, enemy.Position, target, out pushedFormation);
+
+    private bool TryPushBattleTargetFrom(BattleEncounter battle, Position source, LiveCharacter target,
+        out bool pushedFormation)
     {
         pushedFormation = false;
-        var direction = StrengthPushDirection(enemy.Position, battle.PositionOf(target));
+        var direction = StrengthPushDirection(source, battle.PositionOf(target));
         if (battle.HasActiveFormation && battle.FormationSlotFor(target) is not null)
         {
             var destinations = battle.FormationDestinations(direction);

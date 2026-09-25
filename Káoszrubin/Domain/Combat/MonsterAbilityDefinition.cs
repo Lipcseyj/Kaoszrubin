@@ -9,6 +9,7 @@ public sealed record MonsterAbilityDefinition(string Id, string Name, string Des
     int MaximumTargets = 1, int AiWeight = 100, IReadOnlyList<string>? WeaponIds = null,
     int ChargesPerBattle = 0, bool RequiresLineOfSight = false, int PreparationTurns = 0,
     int AttackCount = 1, string? AbilityGroup = null, int RetreatStepsAfterUse = 0,
+    int AreaRadius = 0,
     IReadOnlyList<MonsterAbilityComponent>? ConfiguredEffects = null) : IGameDefinition
 {
     public IReadOnlyList<MonsterAbilityComponent> Effects => ConfiguredEffects ?? [];
@@ -51,7 +52,8 @@ public enum MonsterAbilityEffect
     ArmorBonus,
     Regeneration,
     ApplyStatus,
-    Stagger
+    Stagger,
+    Push
 }
 
 public enum MonsterAbilityResolutionMode
@@ -95,4 +97,6 @@ public static class MonsterAbilityIds
     public const string Undead = "MA001";
     public const string Demonic = "MA010";
     public const string Flying = "MA009";
+    public const string DoubleAttack = "MA018";
+    public const string CyclopsBoulder = "MA019";
 }

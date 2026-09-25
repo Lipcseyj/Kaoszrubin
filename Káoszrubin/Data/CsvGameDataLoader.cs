@@ -499,7 +499,8 @@ public static class CsvGameDataLoader
                     Math.Max(0, Integer(cells, 12) ?? 0), IsYes(cells, 13),
                     Math.Clamp(Integer(cells, 14) ?? 0, 0, 3),
                     Math.Clamp(Integer(cells, 15) ?? 1, 1, 4), EmptyAsNull(Cell(cells, 16)),
-                    Math.Clamp(Integer(cells, 17) ?? 0, 0, 3)));
+                    Math.Clamp(Integer(cells, 17) ?? 0, 0, 3),
+                    Math.Clamp(Integer(cells, 18) ?? 0, 0, 4)));
                 break;
             case DataSection.WeaponTypes:
                 weaponTypes.Add(new WeaponTypeDefinition(id, name));
@@ -1469,6 +1470,7 @@ public static class CsvGameDataLoader
             MonsterAbilityEffect.ArmorBonus => component.Value * 3,
             MonsterAbilityEffect.InitiativeBonus => component.Value * 2,
             MonsterAbilityEffect.Stagger => Math.Max(2, component.Value * 3),
+            MonsterAbilityEffect.Push => Math.Max(3, component.Value * 4),
             _ => 1
         }) * Math.Max(1, ability.MaximumTargets) * Math.Max(1, ability.AttackCount));
 
@@ -1681,6 +1683,12 @@ public static class CsvGameDataLoader
             if (ability.Targeting == MonsterAbilityTargeting.MultipleEnemies && ability.MaximumTargets < 2)
                 throw new InvalidDataException(
                     $"A(z) '{ability.Id}' többcélpontos célzásához legalább 2 MaxCélpont szükséges.");
+            if (ability.Targeting == MonsterAbilityTargeting.Area && ability.AreaRadius <= 0)
+                throw new InvalidDataException(
+                    $"A(z) '{ability.Id}' területi célzásához pozitív Területsugár szükséges.");
+            if (ability.Targeting != MonsterAbilityTargeting.Area && ability.AreaRadius != 0)
+                throw new InvalidDataException(
+                    $"A(z) '{ability.Id}' Területsugár értéke csak területi célzásnál használható.");
             if (ability.ResolutionMode == MonsterAbilityResolutionMode.SavingThrow &&
                 !ability.Effects.Any(component => component.ResistanceAbility != MonsterResistanceAbility.None))
                 throw new InvalidDataException(
@@ -1721,6 +1729,10 @@ public static class CsvGameDataLoader
                          component.Effect == MonsterAbilityEffect.Stagger))
                 if (component.Value is < 1 or > 3 || ability.Trigger != MonsterAbilityTrigger.Active)
                     throw new InvalidDataException($"A(z) '{ability.Id}' megingása aktív képességnél 1 és 3 közötti legyen.");
+            foreach (var component in ability.Effects.Where(component =>
+                         component.Effect == MonsterAbilityEffect.Push))
+                if (component.Value is < 1 or > 3 || ability.Trigger != MonsterAbilityTrigger.Active)
+                    throw new InvalidDataException($"A(z) '{ability.Id}' hátralökése aktív képességnél 1 és 3 közötti legyen.");
         }
     }
 
