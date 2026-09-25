@@ -864,16 +864,22 @@ public sealed partial class Game
     {
         var enemy = _gameData.GetEnemy(corpse.EnemyDefinitionId);
         var rules = _gameData.LootRules;
-        var keyChance = _isReturnExpedition ? 0 : AdjustedSearchChance(character, rules.KeyChancePercent);
-        var goldChance = AdjustedSearchChance(character, rules.GoldChancePercent);
         var equipmentDefinition = _gameData.GetMonsterLoot(enemy.Id);
+        // A #Szörny zsákmány sor a teljes normál zsákmány engedélyezése. A táblából kihagyott
+        // állatok, férgek és hasonló lények nem rejtenek aranyat vagy kulcsot sem.
+        // A küldetések garantált tárgyai ettől függetlenül mindig megmaradnak.
+        var hasStandardLoot = equipmentDefinition is not null;
+        var keyChance = hasStandardLoot && !_isReturnExpedition
+            ? AdjustedSearchChance(character, rules.KeyChancePercent)
+            : 0;
+        var goldChance = hasStandardLoot ? AdjustedSearchChance(character, rules.GoldChancePercent) : 0;
         var equipmentChance = equipmentDefinition is null
             ? 0
             : AdjustedSearchChance(character, equipmentDefinition.EquipmentChancePercent);
-        var carriedWeaponChance = corpse.CarriedWeaponIds.Count == 0
+        var carriedWeaponChance = !hasStandardLoot || corpse.CarriedWeaponIds.Count == 0
             ? 0
             : AdjustedSearchChance(character, rules.CarriedWeaponChancePercent);
-        var ammunitionChance = _lootService.HasCarriedAmmunition(corpse.CarriedWeaponIds)
+        var ammunitionChance = hasStandardLoot && _lootService.HasCarriedAmmunition(corpse.CarriedWeaponIds)
             ? AdjustedSearchChance(character, LootAndInventoryService.CarriedAmmunitionChancePercent)
             : 0;
         messages.Add($"esélyek: 🔑 {keyChance}%, {ConsoleRenderer.MoneyIcon} {goldChance}%" +

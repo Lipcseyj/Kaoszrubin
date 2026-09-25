@@ -280,6 +280,23 @@ internal static partial class Program
             "Az ideiglenes követő nem alakítható végleges partitaggá.");
     }
 
+    static void MonsterLootTableMatchesCreatureRoles()
+    {
+        var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
+        var intentionallyLootless = new[]
+        {
+            "E001", "E005", "E009", "E017", "E026", "E027", "E029", "E030", "E038", "E039", "E043",
+            "E045", "E064", "E075", "E076", "E077", "E084", "E085", "E086", "E087"
+        };
+        Assert(intentionallyLootless.All(id => catalog.GetMonsterLoot(id) is null),
+            "Állati, szerkezeti vagy felszerelést nem hordó lény került a normál zsákmánytáblába.");
+        Assert(catalog.GetMonsterLoot("E082") is { CanDropWeapon: true, CanDropArmor: true } &&
+               catalog.GetMonsterLoot("E083") is { CanDropWeapon: true, CanDropArmor: true, CanDropMagicItem: true } &&
+               catalog.GetMonsterLoot("E081") is
+                   { CanDropWeapon: false, CanDropArmor: true, CanDropMagicItem: false },
+            "A martalóc, káoszlovag vagy élő páncél zsákmányprofilja nem illik a felszereléséhez.");
+    }
+
     static void NonRecruitableFriendlyNpcShowsUsableActions()
     {
         var actions = ConsoleRenderer.WorldNpcRecruitmentActions(canJoin: false);

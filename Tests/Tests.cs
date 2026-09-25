@@ -116,6 +116,7 @@ internal static partial class Program
     ("A varázsmemória osztályonként eltérően fejlődik", SpellMemorizationCapacityUsesClassFormula),
     ("A kasztok CSV-ből módosítják a HP- és mannanövekedést", ClassResourceGrowthLoadsFromCsv),
     ("Az NPC-k és első küldetéseik CSV-ből töltődnek", NpcDefinitionsLoadFromCsv),
+    ("A szörnyzsákmány-tábla csak a felszerelést vagy kincset hordó lényeket engedi", MonsterLootTableMatchesCreatureRoles),
     ("Az NPC-életciklus működik saját questállapot nélkül", NpcLifecycleHasNoQuestState),
     ("A nem toborozható barátságos NPC találkozása is kiírja és kezeli a gombokat", NonRecruitableFriendlyNpcShowsUsableActions),
     ("A típusos quest aktiválását a történeti kapu szabályozza", QuestManagerTests.ActivationHonorsStoryGate),
