@@ -123,4 +123,23 @@ internal static partial class Program
                 $"A(z) {level}. szinten túl nagy tömegben kerültek kísérőszerepbe casterek.");
         }
     }
+
+    static void EnemyActionSelectionUsesScoredShortlist()
+    {
+        var clearlyBest = new ScoredAction("varázslat", 100);
+        var closeAlternative = new ScoredAction("fegyver", 94);
+        var weakAlternative = new ScoredAction("rossz képesség", 60);
+        var candidates = new[] { clearlyBest, closeAlternative, weakAlternative };
+        var selectedNames = Enumerable.Range(0, 100)
+            .Select(seed => EnemyActionSelectionPolicy.Select(candidates, candidate => candidate.Score,
+                new Random(seed))!.Name)
+            .ToHashSet();
+
+        Assert(selectedNames.Contains(clearlyBest.Name) && selectedNames.Contains(closeAlternative.Name),
+            "A közeli értékű akciók között nincs meg a tervezett kis változatosság.");
+        Assert(!selectedNames.Contains(weakAlternative.Name),
+            "A 10%-os eltérés egy egyértelműen gyengébb akciót is kiválaszthatott.");
+    }
+
+    private sealed record ScoredAction(string Name, double Score);
 }

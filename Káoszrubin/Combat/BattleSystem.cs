@@ -342,16 +342,20 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
     public MonsterAbilityDefinition? SelectEnemyActiveAbility(Enemy enemy, int targetDistance,
         Func<MonsterAbilityDefinition, bool>? canUse = null)
     {
-        var candidates = enemy.Definition.AbilityIds.Where(_monsterAbilities.ContainsKey)
+        var candidates = EnemyActiveAbilities(enemy, targetDistance, canUse);
+        if (candidates.Count == 0) return null;
+        var selected = candidates[_random.Next(candidates.Count)];
+        return _random.Next(100) < selected.AiWeight ? selected : null;
+    }
+
+    public IReadOnlyList<MonsterAbilityDefinition> EnemyActiveAbilities(Enemy enemy, int targetDistance,
+        Func<MonsterAbilityDefinition, bool>? canUse = null) => enemy.Definition.AbilityIds
+            .Where(_monsterAbilities.ContainsKey)
             .Select(id => _monsterAbilities[id])
             .Where(ability => ability.Trigger == MonsterAbilityTrigger.Active &&
                               enemy.IsAbilityReady(ability) && enemy.HasAbilityCharge(ability) &&
                               targetDistance <= ability.Range && (canUse?.Invoke(ability) ?? true))
             .ToArray();
-        if (candidates.Length == 0) return null;
-        var selected = candidates[_random.Next(candidates.Length)];
-        return _random.Next(100) < selected.AiWeight ? selected : null;
-    }
 
     public BattleLogEntry ResolveEnemyAbility(Enemy attacker, LiveCharacter defender,
         CharacterBattleChoices defenderRuntime, MonsterAbilityDefinition ability,

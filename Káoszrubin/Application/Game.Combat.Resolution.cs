@@ -264,6 +264,41 @@ public sealed partial class Game
                 livingTargets.Select(target => (target, GetCasterPosition(target))).ToArray(),
                 (origin, target, range) => FogOfWar.CanSee(_maze, origin, target, range))
             : null;
+        var usableAbilities = enemy.PreparedWeaponId is null && preparedAbility is null
+            ? _battleSystem.EnemyActiveAbilities(enemy, closestDistance, ability =>
+                (_gameData.GetMonsterSummonForAbility(ability.Id) is { } summon
+                    ? CanEnemySummon(battle, enemy, summon)
+                    : (!ability.UsesRangedAttackRoll || !battle.IsEngaged(enemy) ||
+                       enemy.AttackWeapons.All(weapon => weapon.IsRanged)) &&
+                      (ability.Targeting == MonsterAbilityTargeting.Area
+                          ? SelectEnemyAbilityAim(enemy, ability, livingTargets) is not null
+                          : livingTargets.Any(target => EnemyAbilityCanTarget(enemy, target, ability)))))
+            : [];
+        var selectedWeapon = _battleSystem.SelectEnemyAttackWeapon(enemy, weapon =>
+            TacticalBattleCoordinator.EnemyAttackTargets(battle, enemy, weapon, GetCasterPosition,
+                HasBattleLineOfSight).Count, closestDistance);
+        var weaponTargets = TacticalBattleCoordinator.EnemyAttackTargets(battle, enemy, selectedWeapon,
+            GetCasterPosition, HasBattleLineOfSight);
+
+        if (preparedAbility is null && enemy.PreparedWeaponId is null)
+        {
+            var candidates = new List<EnemyTacticalAction>();
+            if (spellPlan is not null)
+                candidates.Add(new EnemyTacticalAction(
+                    ScoreEnemySpell(enemy, spellPlan, battle.IsEngaged(enemy)), spellPlan, null, null));
+            foreach (var ability in usableAbilities)
+                candidates.Add(new EnemyTacticalAction(
+                    ScoreEnemyAbility(battle, enemy, ability, livingTargets), null, ability, null));
+            if (selectedWeapon is not null && weaponTargets.Count > 0)
+                candidates.Add(new EnemyTacticalAction(
+                    ScoreEnemyWeapon(enemy, selectedWeapon, weaponTargets, battle.IsEngaged(enemy)),
+                    null, null, selectedWeapon));
+
+            var selected = EnemyActionSelectionPolicy.Select(candidates, candidate => candidate.Score, _random);
+            spellPlan = selected?.Spell;
+            preparedAbility = selected?.Ability;
+            selectedWeapon = selected?.Weapon;
+        }
         if (spellPlan is not null)
         {
             if (spellPlan.HostileTargets.Count > 0) battle.FaceEnemyToward(enemy, spellPlan.HostileTargets[0]);
@@ -276,16 +311,7 @@ public sealed partial class Game
             AdvanceBattleTurn(battle);
             return;
         }
-        var activeAbility = preparedAbility ?? (enemy.PreparedWeaponId is null
-            ? _battleSystem.SelectEnemyActiveAbility(enemy, closestDistance, ability =>
-                (_gameData.GetMonsterSummonForAbility(ability.Id) is { } summon
-                    ? CanEnemySummon(battle, enemy, summon)
-                    : (!ability.UsesRangedAttackRoll || !battle.IsEngaged(enemy) ||
-                 enemy.AttackWeapons.All(weapon => weapon.IsRanged)) &&
-                (ability.Targeting == MonsterAbilityTargeting.Area
-                    ? SelectEnemyAbilityAim(enemy, ability, livingTargets) is not null
-                    : livingTargets.Any(target => EnemyAbilityCanTarget(enemy, target, ability)))))
-            : null);
+        var activeAbility = preparedAbility;
         if (activeAbility is not null)
         {
             var abilityAim = activeAbility.Targeting == MonsterAbilityTargeting.Area
@@ -455,7 +481,7 @@ public sealed partial class Game
             return;
         }
 
-        var attackWeapon = _battleSystem.SelectEnemyAttackWeapon(enemy, weapon =>
+        var attackWeapon = selectedWeapon ?? _battleSystem.SelectEnemyAttackWeapon(enemy, weapon =>
             TacticalBattleCoordinator.EnemyAttackTargets(battle, enemy, weapon, GetCasterPosition,
                 HasBattleLineOfSight).Count, closestDistance);
         if (attackWeapon?.IsRanged == true && !battle.IsEngaged(enemy) &&
@@ -1521,6 +1547,78 @@ public sealed partial class Game
     private bool CanEnemySummon(BattleEncounter battle, Enemy caster, MonsterSummonDefinition summon) =>
         battle.Enemies.Count(enemy => enemy.CurrentHitPoints > 0 && enemy.SummonerId == caster.Id) <
         summon.MaximumLivingSummons && SummonPositions(battle, caster, summon).Any();
+
+    private sealed record EnemyTacticalAction(double Score, EnemySpellPlan? Spell,
+        MonsterAbilityDefinition? Ability, WeaponDefinition? Weapon);
+
+    private static double ScoreEnemySpell(Enemy enemy, EnemySpellPlan plan, bool engaged)
+    {
+        double score = plan.Score;
+        if (engaged)
+            score -= enemy.Definition.SpellcasterProfile?.Style == EnemySpellcastingStyle.BattleMage ? 20 : 45;
+        if (enemy.CurrentHitPoints * 100 <= enemy.MaximumHitPoints * 30 && plan.HostileTargets.Count > 0)
+            score -= 15;
+        return score;
+    }
+
+    private double ScoreEnemyWeapon(Enemy enemy, WeaponDefinition weapon,
+        IReadOnlyList<LiveCharacter> targets, bool engaged)
+    {
+        var averageDamage = (weapon.Damage?.Minimum + weapon.Damage?.Maximum) / 2d ?? 1d;
+        averageDamage += Math.Max(0, enemy.EffectiveStrength - weapon.MinimumStrength) / 2d;
+        var score = averageDamage * (targets.Count == 0 ? 0 : 1 + Math.Max(0, targets.Count - 1) * .75);
+        if (targets.Any(target => target.CurrentVitality <= averageDamage)) score += 45;
+        if (engaged) score += weapon.IsRanged ? -35 : 18;
+        if (weapon.IsRanged && weapon.UsesAmmunition) score -= 2;
+        return score;
+    }
+
+    private double ScoreEnemyAbility(BattleEncounter battle, Enemy enemy, MonsterAbilityDefinition ability,
+        IReadOnlyList<LiveCharacter> livingTargets)
+    {
+        if (_gameData.GetMonsterSummonForAbility(ability.Id) is { } summon)
+        {
+            var living = battle.Enemies.Count(candidate => candidate.CurrentHitPoints > 0 &&
+                                                           candidate.SummonerId == enemy.Id);
+            var available = Math.Max(0, summon.MaximumLivingSummons - living);
+            var expected = Math.Min(available, (summon.MinimumCount + summon.MaximumCount) / 2d);
+            var summonScore = 24d * expected - ability.PreparationTurns * 8;
+            if (enemy.Definition.SpellcasterProfile?.Style == EnemySpellcastingStyle.Necromancer)
+                summonScore *= 1.3;
+            return summonScore;
+        }
+
+        var targets = ability.Targeting == MonsterAbilityTargeting.Area
+            ? SelectEnemyAbilityAim(enemy, ability, livingTargets) is { } aim
+                ? livingTargets.Where(target =>
+                    TacticalDistance.Between(aim, GetCasterPosition(target)) <= ability.AreaRadius).ToArray()
+                : []
+            : livingTargets.Where(target => EnemyAbilityCanTarget(enemy, target, ability))
+                .Take(ability.MaximumTargets).ToArray();
+        var targetCount = Math.Max(1, Math.Min(ability.MaximumTargets, targets.Length));
+        var effectDamage = ability.Effects.Where(effect => effect.Effect == MonsterAbilityEffect.ExtraDamage)
+            .Sum(effect => effect.AverageValue);
+        var abilityDistance = targets.Length == 0 ? 1 :
+            TacticalDistance.Between(enemy.Position, GetCasterPosition(targets[0]));
+        var abilityWeapon = ability.ResolutionMode == MonsterAbilityResolutionMode.WeaponAttack
+            ? _battleSystem.SelectEnemyAbilityWeapon(enemy, ability, abilityDistance)
+            : null;
+        var weaponDamage = abilityWeapon?.Damage is { } weaponDice
+            ? (weaponDice.Minimum + weaponDice.Maximum) / 2d +
+              Math.Max(0, enemy.EffectiveStrength - abilityWeapon.MinimumStrength) / 2d
+            : 0;
+        var damage = (effectDamage + weaponDamage) * Math.Max(1, ability.AttackCount) * targetCount;
+        var control = ability.Effects.Where(effect => effect.Effect is MonsterAbilityEffect.ApplyStatus or
+                MonsterAbilityEffect.Stagger or MonsterAbilityEffect.Push)
+            .Sum(effect => effect.Effect == MonsterAbilityEffect.ApplyStatus && effect.StatusId is { } statusId &&
+                           targets.All(target => target.HasStatus(statusId)) ? 0 : 25) * targetCount;
+        double score = damage + control + ability.AttackCount * 6 + targetCount * 5;
+        if (damage > 0 && targets.Any(target => target.CurrentVitality <= damage / targetCount)) score += 45;
+        score = score * ability.ChancePercent / 100d * ability.AiWeight / 100d;
+        score -= ability.PreparationTurns * 8 + (ability.ChargesPerBattle > 0 ? 5 : 0);
+        if (battle.IsEngaged(enemy) && ability.UsesRangedAttackRoll) score -= 30;
+        return score;
+    }
 
     private IEnumerable<Position> SummonPositions(BattleEncounter battle, Enemy caster,
         MonsterSummonDefinition summon)

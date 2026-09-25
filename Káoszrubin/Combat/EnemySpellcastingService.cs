@@ -16,7 +16,7 @@ public sealed class EnemySpellcastingService(GameDataCatalog gameData, Random ra
         Func<Position, Position, int, bool>? canSee = null)
     {
         var profile = caster.Definition.SpellcasterProfile;
-        if (profile is null || hostiles.Count == 0 || random.Next(100) >= profile.CastingChancePercent) return null;
+        if (profile is null || hostiles.Count == 0) return null;
 
         var reserve = profile.MaximumMana * profile.ManaReservePercent / 100;
         var candidates = new List<EnemySpellPlan>();
@@ -29,7 +29,10 @@ public sealed class EnemySpellcastingService(GameDataCatalog gameData, Random ra
             plan = plan with { Score = ApplyStyle(profile.Style, spell, plan.Score) };
             var urgent = plan.Score >= 140;
             if (!urgent && caster.CurrentMana - spell.ManaCost < reserve) continue;
-            candidates.Add(plan with { Score = plan.Score * random.Next(85, 116) / 100 });
+            candidates.Add(plan with
+            {
+                Score = plan.Score * profile.CastingChancePercent / 100 - spell.ManaCost
+            });
         }
         return candidates.OrderByDescending(candidate => candidate.Score).FirstOrDefault();
     }
@@ -92,7 +95,8 @@ public sealed class EnemySpellcastingService(GameDataCatalog gameData, Random ra
         if (spell.TargetType is SpellTargetType.Enemy)
         {
             var target = hostiles.Where(item => InRange(item.Position))
-                .OrderBy(item => item.Character.CurrentVitality)
+                .OrderBy(item => HasAllHarmfulEffects(item.Character, effects))
+                .ThenBy(item => item.Character.CurrentVitality)
                 .ThenByDescending(item => item.Character.EffectiveAbilities.Intelligence).FirstOrDefault();
             return target.Character is null ? null : new EnemySpellPlan(spell, target.Position,
                 [target.Character], [], Score(effects, 1, target.Character.CurrentVitality));
@@ -270,4 +274,12 @@ public sealed class EnemySpellcastingService(GameDataCatalog gameData, Random ra
     private static bool HasAllEffects(Enemy ally, IReadOnlyList<SpellEffectDefinition> effects) => effects
         .Where(effect => TryActiveType(effect, out _)).All(effect =>
             TryActiveType(effect, out var type) && ally.ActiveSpellEffects.Any(active => active.Type == type));
+
+    private static bool HasAllHarmfulEffects(LiveCharacter target,
+        IReadOnlyList<SpellEffectDefinition> effects)
+    {
+        var activeEffects = effects.Where(effect => TryActiveType(effect, out _)).ToArray();
+        return activeEffects.Length > 0 && activeEffects.All(effect =>
+            TryActiveType(effect, out var type) && target.ActiveSpellEffects.Any(active => active.Type == type));
+    }
 }
