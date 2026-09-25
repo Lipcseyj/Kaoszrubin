@@ -479,7 +479,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
     public EnemyAttackResolution ResolveEnemyActionDetailed(Enemy attacker, LiveCharacter defender,
         CharacterBattleChoices defenderRuntime, WeaponDefinition? attackWeapon = null,
         bool advanceAttackerEffects = true, int alliedGuardDefense = 0, int rangedHitModifier = 0,
-        int packAttackBonus = 0, int packSize = 1)
+        int packAttackBonus = 0, int packSize = 1, int damagePercent = 100,
+        string damageScaleName = "Többcélú mellékcélpont")
     {
         ArgumentNullException.ThrowIfNull(attacker);
         ArgumentNullException.ThrowIfNull(defender);
@@ -489,6 +490,24 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             new EnemyAttackOptions(AttackWeapon: attackWeapon, AllowWeaponFallback: false,
                 AlliedGuardDefense: alliedGuardDefense, RangedHitModifier: rangedHitModifier,
                 PackAttackBonus: packAttackBonus, PackSize: packSize));
+        if (attack.Hit && damagePercent != 100)
+        {
+            var clampedPercent = Math.Clamp(damagePercent, 1, 100);
+            var scaledDamage = attack.Damage == 0 ? 0 : Math.Max(1, attack.Damage * clampedPercent / 100);
+            attack = attack with
+            {
+                Damage = scaledDamage,
+                Message = $"{attack.Message} {damageScaleName}: ×{clampedPercent / 100d:0.##}.",
+                Details = attack.Details is { } detail
+                    ? detail with
+                    {
+                        Damage = scaledDamage,
+                        Calculation = detail.Calculation.Append(
+                            $"🌀 {damageScaleName}: ×{clampedPercent / 100d:0.##}").ToArray()
+                    }
+                    : null
+            };
+        }
         var vitalityBefore = defender.CurrentVitality;
         var survival = attack.Hit ? ApplyEnemyDamage(defender, attack.Damage, defenderRuntime.Context) : DamageApplicationResult.Empty;
         var entry = new BattleLogEntry(

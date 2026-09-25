@@ -10,7 +10,7 @@ using KaoszRubin.UI;
 namespace KaoszRubin.Combat;
 
 public enum TacticalAttackArc { Front, Flank, Rear }
-public enum WeaponAttackPattern { Single, Arc, Line, Compact }
+public enum WeaponAttackPattern { Single, Arc, Line, Compact, Cone }
 
 public sealed record TacticalAttackAdvantage(TacticalAttackArc Arc, int HitBonus)
 {
@@ -132,7 +132,9 @@ public sealed class TacticalBattleCoordinator
     }
 
     public static WeaponAttackPattern AttackPattern(WeaponDefinition? weapon) =>
-        WeaponFamilies.ForWeapon(weapon) switch
+        weapon?.AttackShape == WeaponAttackShape.Cone
+            ? WeaponAttackPattern.Cone
+            : WeaponFamilies.ForWeapon(weapon) switch
         {
             WeaponFamilies.Polearm when weapon?.MaximumTargets > 1 => WeaponAttackPattern.Line,
             WeaponFamilies.Axe when weapon?.MaximumTargets > 1 => WeaponAttackPattern.Arc,
@@ -228,6 +230,11 @@ public sealed class TacticalBattleCoordinator
         WeaponDefinition? weapon, Func<LiveCharacter, Position> getCharacterPosition,
         Func<Position, Position, int, bool>? canSee = null)
     {
+        var maximumTargets = Math.Clamp(weapon?.MaximumTargets ?? 1, 1, 4);
+        var pattern = AttackPattern(weapon);
+        if (pattern == WeaponAttackPattern.Cone)
+            return EnemyConeTargets(battle, enemy, weapon!, maximumTargets, getCharacterPosition, canSee);
+
         bool InRange(LiveCharacter character)
         {
             var position = getCharacterPosition(character);
@@ -244,8 +251,10 @@ public sealed class TacticalBattleCoordinator
         if (directCandidates.Length == 0) return [];
 
         var targets = new List<LiveCharacter> { directCandidates[0] };
-        var maximumTargets = Math.Clamp(weapon?.MaximumTargets ?? 1, 1, 4);
         if (maximumTargets == 1) return targets;
+        var primaryPosition = getCharacterPosition(targets[0]);
+        var directionX = Math.Sign(primaryPosition.X - enemy.Position.X);
+        var directionY = Math.Sign(primaryPosition.Y - enemy.Position.Y);
         var nearbyCandidates = battle.Characters.Where(character => character.IsAlive && character != targets[0])
             .OrderBy(character => battle.IsProtectedRearTarget(character, enemy.Position))
             .ThenBy(character => TacticalDistance.Between(getCharacterPosition(targets[0]),
@@ -253,12 +262,63 @@ public sealed class TacticalBattleCoordinator
             .ToArray();
         foreach (var candidate in nearbyCandidates)
         {
-            if (!targets.Any(target => AreNeighboringTargets(getCharacterPosition(target),
-                    getCharacterPosition(candidate)))) continue;
+            var candidatePosition = getCharacterPosition(candidate);
+            var inPattern = pattern switch
+            {
+                WeaponAttackPattern.Line => candidatePosition == new Position(
+                    primaryPosition.X + directionX, primaryPosition.Y + directionY),
+                WeaponAttackPattern.Arc => TacticalDistance.IsMeleeAdjacent(enemy.Position, candidatePosition) &&
+                                           TacticalDistance.IsMeleeAdjacent(primaryPosition, candidatePosition),
+                WeaponAttackPattern.Compact => TacticalDistance.IsMeleeAdjacent(primaryPosition, candidatePosition),
+                _ => targets.Any(target => AreNeighboringTargets(getCharacterPosition(target), candidatePosition))
+            };
+            if (!inPattern) continue;
             targets.Add(candidate);
             if (targets.Count == maximumTargets) break;
         }
         return targets;
+    }
+
+    private static IReadOnlyList<LiveCharacter> EnemyConeTargets(BattleEncounter battle, Enemy enemy,
+        WeaponDefinition weapon, int maximumTargets, Func<LiveCharacter, Position> getCharacterPosition,
+        Func<Position, Position, int, bool>? canSee)
+    {
+        var directions = new[]
+        {
+            new Position(enemy.Position.X - 1, enemy.Position.Y - 1),
+            new Position(enemy.Position.X, enemy.Position.Y - 1),
+            new Position(enemy.Position.X + 1, enemy.Position.Y - 1),
+            new Position(enemy.Position.X + 1, enemy.Position.Y),
+            new Position(enemy.Position.X + 1, enemy.Position.Y + 1),
+            new Position(enemy.Position.X, enemy.Position.Y + 1),
+            new Position(enemy.Position.X - 1, enemy.Position.Y + 1),
+            new Position(enemy.Position.X - 1, enemy.Position.Y)
+        };
+        return directions.Select(direction => battle.Characters.Where(character => character.IsAlive &&
+                    IsInWeaponCone(enemy.Position, getCharacterPosition(character), direction) &&
+                    (canSee is null || canSee(enemy.Position, getCharacterPosition(character),
+                        Math.Max(2, weapon.MaximumRange))))
+                .OrderBy(character => TacticalDistance.Between(enemy.Position, getCharacterPosition(character)))
+                .ThenBy(character => (double)character.CurrentVitality / Math.Max(1, character.MaximumVitality))
+                .Take(maximumTargets).ToArray())
+            .Where(targets => targets.Length > 0)
+            .OrderByDescending(targets => targets.Length)
+            .ThenBy(targets => targets.Sum(target => target.CurrentVitality))
+            .FirstOrDefault() ?? [];
+    }
+
+    private static bool IsInWeaponCone(Position origin, Position position, Position direction)
+    {
+        var directionX = Math.Sign(direction.X - origin.X);
+        var directionY = Math.Sign(direction.Y - origin.Y);
+        var relativeX = position.X - origin.X;
+        var relativeY = position.Y - origin.Y;
+        var depth = Math.Max(Math.Abs(relativeX), Math.Abs(relativeY));
+        if (depth is < 1 or > 2) return false;
+        var forward = relativeX * directionX + relativeY * directionY;
+        if (forward <= 0) return false;
+        var lateral = Math.Abs(relativeX * directionY - relativeY * directionX);
+        return lateral <= depth - 1;
     }
 
     private static bool AreNeighboringTargets(Position first, Position second) =>

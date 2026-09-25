@@ -795,6 +795,47 @@ internal static partial class Program
                TacticalBattleCoordinator.AttackPattern(data.GetWeapon("W013")) == WeaponAttackPattern.Compact,
             "A kétkezes pöröly nem kis összefüggő területen hatott.");
 
+        IReadOnlyList<LiveCharacter> MonsterTargets(string weaponId, Position secondaryPosition,
+            Position decoyPosition)
+        {
+            var system = CreateBattleSystem(1810);
+            var primary = CreateCharacter($"{weaponId}-P", 100);
+            var secondary = CreateCharacter($"{weaponId}-S", 100);
+            var decoy = CreateCharacter($"{weaponId}-D", 100);
+            var characters = new[] { primary, secondary, decoy };
+            var positions = new[] { new Position(3, 2), secondaryPosition, decoyPosition };
+            var preparations = characters.Select(system.PrepareCharacter).ToArray();
+            var monster = CreateEnemyAt(new Position(3, 3), $"{weaponId}-MONSTER");
+            var battle = new BattleEncounter(monster.Position,
+                characters.Select((character, index) => new BattleCharacterParticipant(character, positions[index],
+                    TacticalParticipantKind.PartyMember, preparations[index].Initiative, 3, 1,
+                    preparations[index].Runtime)),
+                [new BattleEnemyParticipant(monster, 5, 2, 1)], primary.Id, monster.Id);
+            return TacticalBattleCoordinator.EnemyAttackTargets(battle, monster, data.GetWeapon(weaponId),
+                character => positions[Array.IndexOf(characters, character)]);
+        }
+
+        var monsterLine = MonsterTargets("W011", new Position(3, 1), new Position(4, 2));
+        var monsterArc = MonsterTargets("W017", new Position(4, 2), new Position(3, 1));
+        var monsterImpact = MonsterTargets("W013", new Position(4, 1), new Position(2, 3));
+        Assert(monsterLine.Count == 2 && monsterLine[1].Name.EndsWith("-S", StringComparison.Ordinal) &&
+               monsterArc.Count == 2 && monsterArc[1].Name.EndsWith("-S", StringComparison.Ordinal) &&
+               monsterImpact.Count == 2 && monsterImpact[1].Name.EndsWith("-S", StringComparison.Ordinal),
+            "A szörnyek kétkezes fegyverei nem a fegyvercsalád szerinti vonal/ív/terület alakzatot használják.");
+
+        var damageSystem = CreateMaximumBattleSystem();
+        var fullTarget = CreateCharacter("Teljes sebzés", 100);
+        var reducedTarget = CreateCharacter("Melléksebzés", 100);
+        var fullRuntime = damageSystem.PrepareCharacter(fullTarget).Runtime;
+        var reducedRuntime = damageSystem.PrepareCharacter(reducedTarget).Runtime;
+        var damageEnemy = CreateEnemy(100, 5);
+        var fullDamage = damageSystem.ResolveEnemyActionDetailed(damageEnemy, fullTarget, fullRuntime,
+            data.GetWeapon("W013"), damagePercent: 100).DamageDealt;
+        var secondaryDamage = damageSystem.ResolveEnemyActionDetailed(damageEnemy, reducedTarget, reducedRuntime,
+            data.GetWeapon("W013"), damagePercent: 75).DamageDealt;
+        Assert(fullDamage > 0 && secondaryDamage == Math.Max(1, fullDamage * 75 / 100),
+            $"A szörnyfegyver mellékcélpontja nem 75%-os sebzést kapott ({fullDamage} -> {secondaryDamage}).");
+
         var sentinel = CreateCharacter("Feltartóztató", characterClassId: CharacterClassIds.Harcos);
         Assert(sentinel.EquipWeapon(0, data.GetWeapon("W011") with { MinimumStrength = 1 }) &&
                sentinel.TryAdvanceWeaponProficiency(WeaponFamilies.Polearm) &&
@@ -1242,7 +1283,7 @@ internal static partial class Program
         var chaosBreath = data.GetWeapon("WN017");
         var targetSystem = CreateBattleSystem(21);
         var breathTargets = Enumerable.Range(0, 4).Select(index => CreateCharacter($"Leheletcél {index}", 100)).ToArray();
-        var targetPositions = new[] { new Position(3, 2), new Position(4, 3), new Position(3, 4), new Position(2, 3) };
+        var targetPositions = new[] { new Position(3, 2), new Position(2, 1), new Position(3, 1), new Position(4, 1) };
         var targetPreparations = breathTargets.Select(targetSystem.PrepareCharacter).ToArray();
         var breathEnemy = new ConfiguredEnemy(new(3, 3), data.GetEnemy("E050"));
         var breathBattle = new BattleEncounter(new(3, 3), breathTargets.Select((character, index) =>

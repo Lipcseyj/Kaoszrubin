@@ -345,7 +345,7 @@ WT002;Ügyesség
 WT003;Védelem
 
 #Fegyverek
-Id;Név;Típus;Sebzés;MinimumErő;Kétkezes;Tolvaj;Pap;Mágus;Jellemzés;Ár;Kategória;AlapId;MágikusErő;Súly;Sebzéstípus;MaxCélpont;HátsóSor;Fegyvercsalád;MaxTartósság;PajzsTier;Támadásmód;MinHatótáv;MaxHatótáv;LőszerId;Páncéltörés%;EngedélyezettKasztIds
+Id;Név;Típus;Sebzés;MinimumErő;Kétkezes;Tolvaj;Pap;Mágus;Jellemzés;Ár;Kategória;AlapId;MágikusErő;Súly;Sebzéstípus;MaxCélpont;HátsóSor;Fegyvercsalád;MaxTartósság;PajzsTier;Támadásmód;MinHatótáv;MaxHatótáv;LőszerId;Páncéltörés%;EngedélyezettKasztIds;TámadásAlakzat
 W001;tőr;WT002;2-5;1;nem;igen;nem;igen;Könnyű és gyors penge közelharcra vagy váratlan támadáshoz.;35;;;;1;szúrás;1;nem;DAGGER
 W002;rövid kard;WT002;3-7;3;nem;igen;nem;nem;Fordulékony egykezes kard amely szűk helyen is jól használható.;70;;;;2;szúrás;1;nem;SWORD
 W003;katana;WT002;5-10;4;igen;igen;nem;nem;Kiválóan kiegyensúlyozott ívelt penge a fürge harcosok kezébe.;420;;;;4;vágás;1;nem;SWORD
@@ -379,7 +379,7 @@ WN002;karmok;WT001;4-10;1;nem;nem;nem;nem;Természetes karmolás.;0;;;;1;vágás
 WN003;ököl;WT001;5-12;1;nem;nem;nem;nem;Nehéz természetes ütés.;0;;;;1;zúzás;1;nem;NATURAL
 WN004;sárkányfogak;WT001;10-24;1;nem;nem;nem;nem;Hatalmas agyarak.;0;;;;1;szúrás;1;nem;NATURAL
 WN005;farokcsapás;WT001;9-18;1;nem;nem;nem;nem;Súlyos természetes farokcsapás.;0;;;;1;zúzás;1;nem;NATURAL
-WN006;sárkánytűz;WT001;12-26;1;nem;nem;nem;nem;Lángoló sárkánylehelet.;0;;;;1;tűz;3;nem;NATURAL
+WN006;sárkánytűz;WT001;12-26;1;nem;nem;nem;nem;Lángoló sárkánylehelet.;0;;;;1;tűz;3;nem;NATURAL;0;0;Melee;1;2;;;;Cone
 WN007;agyarak;WT001;4-10;1;nem;nem;nem;nem;Hosszú hegyes agyarakkal végrehajtott harapás.;0;;;;1;szúrás;1;nem;NATURAL
 WN008;csőr;WT001;3-8;1;nem;nem;nem;nem;Éles csőrrel végrehajtott gyors támadás.;0;;;;1;szúrás;1;nem;NATURAL
 WN009;szarvöklelés;WT001;7-15;1;nem;nem;nem;nem;Nagy erővel végrehajtott roham és szarvdöfés.;0;;;;2;szúrás;1;nem;NATURAL
@@ -388,9 +388,9 @@ WN011;erős harapás;WT001;6-14;1;nem;nem;nem;nem;Erőteljes állkapoccsal végr
 WN012;óriáskarmok;WT001;7-16;1;nem;nem;nem;nem;Hatalmas karmokkal végrehajtott tépő támadás.;0;;;;2;vágás;1;nem;NATURAL
 WN013;csápütés;WT001;5-12;1;nem;nem;nem;nem;Hosszú végtaggal vagy csáppal végrehajtott súlyos csapás.;0;;;;1;zúzás;1;nem;NATURAL
 WN014;sokfejű harapás;WT001;10-22;1;nem;nem;nem;nem;Több fej egyszerre csap le különböző áldozatokra.;0;;;;3;szúrás;2;nem;NATURAL
-WN015;savas lehelet;WT001;12-26;1;nem;nem;nem;nem;Maró savfelhőt okádó sárkánylehelet.;0;;;;1;sav;2;nem;NATURAL
-WN016;nekrotikus lehelet;WT001;13-28;1;nem;nem;nem;nem;Életerőt elsorvasztó holt sárkánylehelet.;0;;;;1;nekrotikus;2;nem;NATURAL
-WN017;káoszlehelet;WT001;15-30;1;nem;nem;nem;nem;A valóságot szaggató kiszámíthatatlan káoszenergia.;0;;;;1;káosz;4;nem;NATURAL
+WN015;savas lehelet;WT001;12-26;1;nem;nem;nem;nem;Maró savfelhőt okádó sárkánylehelet.;0;;;;1;sav;2;nem;NATURAL;0;0;Melee;1;2;;;;Cone
+WN016;nekrotikus lehelet;WT001;13-28;1;nem;nem;nem;nem;Életerőt elsorvasztó holt sárkánylehelet.;0;;;;1;nekrotikus;2;nem;NATURAL;0;0;Melee;1;2;;;;Cone
+WN017;káoszlehelet;WT001;15-30;1;nem;nem;nem;nem;A valóságot szaggató kiszámíthatatlan káoszenergia.;0;;;;1;káosz;4;nem;NATURAL;0;0;Melee;1;2;;;;Cone
 WN018;méregfogak;WT001;6-13;1;nem;nem;nem;nem;Méregmirigyekhez kapcsolódó hosszú fogak.;0;;;;1;szúrás;1;nem;NATURAL
 WN019;vámpírfogak;WT001;7-15;1;nem;nem;nem;nem;Hosszú szemfogak az áldozat vérének kiszívására.;0;;;;1;szúrás;1;nem;NATURAL
 WN020;kőököl;WT001;9-20;1;nem;nem;nem;nem;Tömör kőből formált hatalmas ököl.;0;;;;4;zúzás;1;nem;NATURAL

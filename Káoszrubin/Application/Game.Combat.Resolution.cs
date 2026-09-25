@@ -476,6 +476,7 @@ public sealed partial class Game
         {
             var target = targets[index];
             var meleeAttack = attackWeapon?.IsRanged != true &&
+                              attackWeapon?.AttackShape != WeaponAttackShape.Cone &&
                               TacticalDistance.IsMeleeAdjacent(enemy.Position, GetCasterPosition(target));
             if (meleeAttack) battle.Engage(target, enemy);
             var packAttack = EnemyPackAttack(battle, enemy, target, attackWeapon);
@@ -485,7 +486,11 @@ public sealed partial class Game
                     battle, target, GetCasterPosition),
                 rangedHitModifier: EnemyRangedHitModifier(attackWeapon,
                     TacticalDistance.Between(enemy.Position, GetCasterPosition(target))),
-                packAttackBonus: packAttack.Bonus, packSize: packAttack.Size);
+                packAttackBonus: packAttack.Bonus, packSize: packAttack.Size,
+                damagePercent: index == 0 ? 100 : 75,
+                damageScaleName: attackWeapon?.AttackShape == WeaponAttackShape.Cone
+                    ? "Tölcsér mellékcélpontja"
+                    : "Söprési mellékcélpont");
 
             if (_gameSettings.Settings.CombatSpeed == CombatSpeed.PauseAfterHit && resolution.Hit)
             {
@@ -536,7 +541,8 @@ public sealed partial class Game
     private (int Bonus, int Size) EnemyPackAttack(BattleEncounter battle, Enemy attacker,
         LiveCharacter target, WeaponDefinition? weapon)
     {
-        if (weapon?.IsRanged == true || !_battleSystem.EnemyUsesPackAttack(attacker) ||
+        if (weapon?.IsRanged == true || weapon?.AttackShape == WeaponAttackShape.Cone ||
+            !_battleSystem.EnemyUsesPackAttack(attacker) ||
             !TacticalDistance.IsMeleeAdjacent(attacker.Position, GetCasterPosition(target)))
             return (0, 1);
         var size = battle.Enemies.Count(candidate => candidate.CurrentHitPoints > 0 &&

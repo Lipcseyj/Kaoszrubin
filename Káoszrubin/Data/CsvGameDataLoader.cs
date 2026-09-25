@@ -385,6 +385,15 @@ public static class CsvGameDataLoader
             : throw new InvalidDataException($"Ismeretlen fegyveres támadásmód: '{value}'.");
     }
 
+    private static WeaponAttackShape ParseWeaponAttackShape(string[] cells, int index)
+    {
+        var value = Cell(cells, index);
+        if (string.IsNullOrWhiteSpace(value)) return WeaponAttackShape.Automatic;
+        return Enum.TryParse<WeaponAttackShape>(value, true, out var shape)
+            ? shape
+            : throw new InvalidDataException($"Ismeretlen fegyveres támadási alakzat: '{value}'.");
+    }
+
     private static int RequiredWeaponRange(string[] cells, int index, int fallback, string id, string fieldName)
     {
         var value = Integer(cells, index) ?? fallback;
@@ -518,7 +527,8 @@ public static class CsvGameDataLoader
                     RequiredWeaponRange(cells, 22, 1, id, "minimum hatótáv"),
                     RequiredWeaponRange(cells, 23,
                         attackMode == WeaponAttackMode.Melee && IsYes(cells, 17) ? 2 : 1, id, "maximum hatótáv"),
-                    EmptyAsNull(Cell(cells, 24)), WeaponArmorPenetration(cells, twoHanded)));
+                    EmptyAsNull(Cell(cells, 24)), WeaponArmorPenetration(cells, twoHanded),
+                    ParseWeaponAttackShape(cells, 27)));
                 break;
             case DataSection.Armors:
                 armors.Add(new ArmorDefinition(id, name, ValueRangeFrom(cells, 2),
@@ -1523,6 +1533,9 @@ public static class CsvGameDataLoader
             }
             if (weapon.AttackMode == WeaponAttackMode.NaturalRanged && weapon.AmmunitionItemId is not null)
                 throw new InvalidDataException($"A(z) {weapon.Id} természetes távolsági fegyver nem használhat tárgyi lőszert.");
+            if (weapon.AttackShape == WeaponAttackShape.Cone && weapon.MaximumTargets < 2)
+                throw new InvalidDataException(
+                    $"A(z) {weapon.Id} tölcséres támadásának legalább 2 MaxCélpont szükséges.");
         }
     }
 
