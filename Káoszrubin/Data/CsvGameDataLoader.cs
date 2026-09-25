@@ -688,7 +688,8 @@ public static class CsvGameDataLoader
                     Cell(cells, 3), Math.Max(1, Integer(cells, 4) ?? 1),
                     Math.Max(0, Integer(cells, 5) ?? 0), Cell(cells, 6), Cell(cells, 7),
                     EmptyAsNull(Cell(cells, 8)), Math.Max(0, Integer(cells, 9) ?? 0),
-                    Math.Clamp(Integer(cells, 10) ?? 1, 0, 5), EmptyAsNull(Cell(cells, 11))));
+                    Math.Clamp(Integer(cells, 10) ?? 1, 0, 5), EmptyAsNull(Cell(cells, 11)),
+                    EmptyAsNull(Cell(cells, 12))));
                 break;
             case DataSection.NpcStoryChoices:
                 npcStoryChoices.Add(new NpcStoryChoiceDefinition(id, Cell(cells, 1), Cell(cells, 2),
@@ -1032,6 +1033,17 @@ public static class CsvGameDataLoader
                 throw new InvalidDataException($"A(z) '{quest.Id}' küldetés jutalomtárgya nem található: '{rewardItemId}'.");
             if (quest.RewardItemId is null && quest.RewardItemCount != 0)
                 throw new InvalidDataException($"A(z) '{quest.Id}' küldetés jutalomdarabszámához nincs tárgy megadva.");
+            if (quest.CompletionDialogueId is { } completionDialogueId)
+            {
+                var dialogue = dialogues.SingleOrDefault(value =>
+                    string.Equals(value.Id, completionDialogueId, StringComparison.OrdinalIgnoreCase));
+                if (dialogue is null)
+                    throw new InvalidDataException(
+                        $"A(z) '{quest.Id}' küldetés lezáró párbeszéde nem található: '{completionDialogueId}'.");
+                if (!string.Equals(dialogue.NpcId, quest.NpcId, StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidDataException(
+                        $"A(z) '{quest.Id}' küldetés lezáró párbeszéde másik NPC-hez tartozik: '{completionDialogueId}'.");
+            }
         }
     }
 

@@ -69,8 +69,15 @@ internal sealed class QuestCatalogBuilder
                 source.RandomRewardCount,
             ActivationKind: id is QuestId.RodericTheDeadAreNotPrey or
                 QuestId.RodericFallenComradesInsignia or QuestId.RodericOathbreakerKnight or QuestId.RodericOrderRelics
-                    ? QuestActivationKind.Story : QuestActivationKind.Offered);
+                    ? QuestActivationKind.Story : QuestActivationKind.Offered,
+            CompletionDialogue: ResolveCompletionDialogue(source));
     }
+
+    private NpcDialogueDefinition? ResolveCompletionDialogue(QuestImportRow source) =>
+        string.IsNullOrWhiteSpace(source.CompletionDialogueId)
+            ? null
+            : _gameData.NpcDialogues.Single(dialogue =>
+                string.Equals(dialogue.Id, source.CompletionDialogueId, StringComparison.OrdinalIgnoreCase));
 
     // A történeti választás a hatás végrehajtása ELŐTT állítja át az NPC állapotát.
     // A Malrec-küldetés a helyszínre induláskor nyílik meg, nem már TRUSTED állapotban.

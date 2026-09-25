@@ -2181,21 +2181,28 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
         }
 
         lines.Add((string.Empty, ConsoleColor.Gray));
-        var actions = canJoin ? "Enter: csatlakozzon ingyen   " : string.Empty;
-        if (npc.Disposition == NpcDisposition.Neutral) actions += "Enter: tovább   ";
-        actions += canJoin ? "Esc: most nem" : "";
-        lines.Add((actions, ConsoleColor.Yellow));
+        lines.Add((WorldNpcRecruitmentActions(canJoin), ConsoleColor.Yellow));
         using var background = SaveCenteredFrameBackground(LevelUpWindow.ChoiceWidth(LevelUpPromptKind.SpecializationChoice), lines, FramedWindow.QuestOffer);
         DrawCenteredFrame(WorldNpcRecruitmentFrameWidth, lines, FramedWindow.QuestOffer);
         while (true)
         {
             var key = Console.ReadKey(intercept: true).Key;
-            if (key == ConsoleKey.Enter && canJoin) return WorldNpcInteractionResult.Join;
-            if (key == ConsoleKey.Enter && npc.Disposition == NpcDisposition.Neutral)
-                return WorldNpcInteractionResult.Continue;
-            if (key == ConsoleKey.Escape) return WorldNpcInteractionResult.Leave;
+            if (WorldNpcRecruitmentResult(key, canJoin) is { } result) return result;
         }
     }
+
+    internal static string WorldNpcRecruitmentActions(bool canJoin) => canJoin
+        ? "Enter: csatlakozzon ingyen   Esc: most nem"
+        : "Enter / Esc: tovább";
+
+    internal static WorldNpcInteractionResult? WorldNpcRecruitmentResult(ConsoleKey key, bool canJoin) =>
+        key switch
+        {
+            ConsoleKey.Enter when canJoin => WorldNpcInteractionResult.Join,
+            ConsoleKey.Enter => WorldNpcInteractionResult.Continue,
+            ConsoleKey.Escape => WorldNpcInteractionResult.Leave,
+            _ => null
+        };
 
     public UniqueNpcConversationResult DrawUniqueNpcConversation(WorldNpc npc)
     {

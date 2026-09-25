@@ -19,7 +19,8 @@ public sealed record QuestDefinition(
     IItemDefinition? FixedRewardItem = null,
     int FixedRewardItemCount = 0,
     int RandomRewardCount = 0,
-    QuestActivationKind ActivationKind = QuestActivationKind.Offered);
+    QuestActivationKind ActivationKind = QuestActivationKind.Offered,
+    NpcDialogueDefinition? CompletionDialogue = null);
 
 public enum QuestActivationKind
 {

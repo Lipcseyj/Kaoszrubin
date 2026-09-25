@@ -15,9 +15,15 @@ public static class QuestCompletionWindow
             (string.Empty, ConsoleColor.Gray),
             (quest.Title, ConsoleColor.Yellow),
             ($"Megbízó: {quest.QuestGiverName}", ConsoleColor.DarkYellow),
-            (string.Empty, ConsoleColor.Gray),
-            ("🎁 JUTALOM", ConsoleColor.Cyan)
+            (string.Empty, ConsoleColor.Gray)
         };
+        if (!string.IsNullOrWhiteSpace(quest.CompletionDialogueText))
+        {
+            lines.AddRange(MessageTextLayout.Wrap($"„{quest.CompletionDialogueText}”", 78)
+                .Select(text => (text, ConsoleColor.White)));
+            lines.Add((string.Empty, ConsoleColor.Gray));
+        }
+        lines.Add(("🎁 JUTALOM", ConsoleColor.Cyan));
         lines.AddRange(MessageTextLayout.Wrap(
             $"⭐ Tapasztalat: {quest.CompletionExperienceSummary ?? $"{quest.ExperienceReward} XP"}", 78)
             .Select(text => (text, ConsoleColor.Cyan)));

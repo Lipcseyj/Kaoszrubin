@@ -131,7 +131,8 @@ public sealed class QuestSaveAdapter
                         QuestState.Failed => QuestJournalStatus.Abandoned,
                         _ => QuestJournalStatus.Active
                     }, state.Progress, _catalog.Get(state.QuestId).Objective.RequiredCount, saved.ExperienceReward,
-                    saved.CompletionExperienceSummary, saved.CompletionItemRewardSummary);
+                    saved.CompletionExperienceSummary, saved.CompletionItemRewardSummary,
+                    _catalog.Get(state.QuestId).CompletionDialogue?.Text);
             }).ToArray();
 
     private QuestRuntimeSaveData WriteState(QuestStateSnapshot state)

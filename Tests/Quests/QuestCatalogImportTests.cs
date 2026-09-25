@@ -19,7 +19,7 @@ internal static class QuestCatalogImportTests
         var data = CsvGameDataLoader.Load(DataPath);
         var rows = File.ReadLines(DataPath).Where(line => line.StartsWith("NPCQ", StringComparison.Ordinal))
             .Select(line => line.Split(';')).ToArray();
-        Require(rows.Length == 41 && data.Quests.Count == 41 && data.Npcs.Count == 21,
+        Require(rows.Length == 42 && data.Quests.Count == 42 && data.Npcs.Count == 22,
             "A teljes quest/NPC katalógus hiányos.");
         Require(data.Quests.All.Select(q => q.Id).ToHashSet().SetEquals(
             Enum.GetValues<QuestId>().Where(id => id != QuestId.None)), "Hiányzó vagy duplikált questmapping.");
@@ -44,7 +44,9 @@ internal static class QuestCatalogImportTests
                 quest.RepeatPolicy == QuestRepeatPolicy.Once, $"Eltérő questdefiníció: {row[0]}.");
             Require(quest.FixedRewardItem?.Id == (Cell(8) == "" ? null : Cell(8)) &&
                 quest.FixedRewardItemCount == (Cell(9) == "" ? 0 : int.Parse(Cell(9))) &&
-                quest.RandomRewardCount == (Cell(10) == "" ? 1 : int.Parse(Cell(10))),
+                quest.RandomRewardCount == (Cell(10) == "" ? 1 : int.Parse(Cell(10))) &&
+                quest.CompletionDialogue?.Id == (Cell(12) == "" ? null : Cell(12)) &&
+                quest.CompletionDialogue?.NpcId == row[1],
                 $"Eltérő jutalom: {row[0]}.");
             var objectiveMatches = (row[2], quest.Objective) switch
             {
@@ -80,6 +82,10 @@ internal static class QuestCatalogImportTests
             (";T018;2;0", ";MISSING_REWARD;2;0"),
             (";T018;2;0", ";T018;0;0"),
             (";810;Gyógyító készlet;", ";810;;"),
+            ("NPCQ001;NPC001;Collect;T011;3;810;Gyógyító készlet;Gyűjts össze három kis gyógyitalt a füvesasszonynak.;T018;2;0;;NPCD072",
+                "NPCQ001;NPC001;Collect;T011;3;810;Gyógyító készlet;Gyűjts össze három kis gyógyitalt a füvesasszonynak.;T018;2;0;;MISSING_COMPLETION_DIALOGUE"),
+            ("NPCQ001;NPC001;Collect;T011;3;810;Gyógyító készlet;Gyűjts össze három kis gyógyitalt a füvesasszonynak.;T018;2;0;;NPCD072",
+                "NPCQ001;NPC001;Collect;T011;3;810;Gyógyító készlet;Gyűjts össze három kis gyógyitalt a füvesasszonynak.;T018;2;0;;NPCD073"),
             ("NPCQ005;NPC001", "NPCQ001;NPC001")
         })
         {

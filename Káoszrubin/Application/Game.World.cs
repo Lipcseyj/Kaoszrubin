@@ -1342,7 +1342,12 @@ public sealed partial class Game
                     PartyLeader.Level, CharacterRoster.Characters.Select(character => character.Name).ToArray());
             CharacterRoster.Add(recruit);
             var friendliness = definition.Unique ? 4 : RollNpcFriendliness(definition);
+            var completionDialogueIds = _gameData.Quests.All
+                .Select(quest => quest.CompletionDialogue?.Id)
+                .Where(id => id is not null)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
             var dialogue = _gameData.GetNpcDialogues(definition.Id)
+                .Where(value => !completionDialogueIds.Contains(value.Id))
                 .Where(value => friendliness >= value.MinimumFriendliness && friendliness <= value.MaximumFriendliness)
                 .OrderBy(_ => _random.Next()).FirstOrDefault()?.Text ?? "Az idegen óvatosan végigmér benneteket.";
             var isQuestNpc = _gameData.Quests.GetByGiver(LegacyNpcIdMap.ToQuestNpcId(definition.Id)).Count > 0;

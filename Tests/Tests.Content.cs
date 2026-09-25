@@ -221,20 +221,20 @@ internal static partial class Program
     static void NpcDefinitionsLoadFromCsv()
     {
         var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
-        Assert(catalog.Npcs.Count == 21 && catalog.NpcEncounters.Count == 29 &&
+        Assert(catalog.Npcs.Count == 22 && catalog.NpcEncounters.Count == 30 &&
                Enumerable.Range(1, MazeLevelConfigurations.FinalLevel).All(level =>
                    catalog.NpcEncounters.Any(encounter => encounter.MazeLevel == level)),
             "Az NPC-definíciók vagy valamelyik pálya találkozása hiányzik.");
-        Assert(catalog.NpcDialogues.Count == 69,
-            $"Az NPC-párbeszédek száma hibás: várt 69, tényleges {catalog.NpcDialogues.Count}.");
+        Assert(catalog.NpcDialogues.Count == 112,
+            $"Az NPC-párbeszédek száma hibás: várt 112, tényleges {catalog.NpcDialogues.Count}.");
         Assert(catalog.NpcStoryChoices.Count == 67,
             $"Az NPC történeti választások száma hibás: várt 67, tényleges {catalog.NpcStoryChoices.Count}.");
-        Assert(catalog.Quests.Count == 41,
-            $"Az NPC-küldetések száma hibás: várt 41, tényleges {catalog.Quests.Count}.");
+        Assert(catalog.Quests.Count == 42,
+            $"Az NPC-küldetések száma hibás: várt 42, tényleges {catalog.Quests.Count}.");
         foreach (var (type, expected) in new[]
         {
         (typeof(QuestObjective.CollectItem), 8), (typeof(QuestObjective.KillEnemy), 18), (typeof(QuestObjective.KillEnemyWithTraits), 1),
-        (typeof(QuestObjective.ExploreLocation), 5), (typeof(QuestObjective.DisarmTraps), 3), (typeof(QuestObjective.OpenChests), 4), (typeof(QuestObjective.EscortNpc), 1), (typeof(QuestObjective.OpenQuestChest), 1)
+        (typeof(QuestObjective.ExploreLocation), 5), (typeof(QuestObjective.DisarmTraps), 3), (typeof(QuestObjective.OpenChests), 4), (typeof(QuestObjective.EscortNpc), 1), (typeof(QuestObjective.OpenQuestChest), 2)
     })
         {
             var actual = catalog.Quests.All.Count(quest => quest.Objective.GetType() == type);
@@ -278,6 +278,22 @@ internal static partial class Program
         follower.MakePermanent();
         Assert(!follower.IsTemporaryFollower,
             "Az ideiglenes követő nem alakítható végleges partitaggá.");
+    }
+
+    static void NonRecruitableFriendlyNpcShowsUsableActions()
+    {
+        var actions = ConsoleRenderer.WorldNpcRecruitmentActions(canJoin: false);
+        Assert(actions.Contains("Enter", StringComparison.Ordinal) &&
+               actions.Contains("Esc", StringComparison.Ordinal) &&
+               ConsoleRenderer.WorldNpcRecruitmentResult(ConsoleKey.Enter, canJoin: false) ==
+                   WorldNpcInteractionResult.Continue &&
+               ConsoleRenderer.WorldNpcRecruitmentResult(ConsoleKey.Escape, canJoin: false) ==
+                   WorldNpcInteractionResult.Leave,
+            "A nem toborozható NPC ablakából hiányzik a továbblépés, vagy a kiírt gomb nem működik.");
+        Assert(ConsoleRenderer.WorldNpcRecruitmentActions(canJoin: true).Contains("csatlakozzon", StringComparison.Ordinal) &&
+               ConsoleRenderer.WorldNpcRecruitmentResult(ConsoleKey.Enter, canJoin: true) ==
+                   WorldNpcInteractionResult.Join,
+            "A javítás elrontotta a toborozható NPC csatlakozási műveletét.");
     }
 
     static void AdHocFollowerConversationsAreConfigured()
@@ -578,9 +594,11 @@ internal static partial class Program
     static void WorldNpcGenerationExcludesWhiteColor()
     {
         Assert(CharacterColors.Selectable.Contains(ConsoleColor.White) &&
+               CharacterColors.Selectable.Contains(ConsoleColor.Yellow) &&
                !CharacterColors.WorldNpcSelectable.Contains(ConsoleColor.White) &&
-               CharacterColors.WorldNpcSelectable.Count == CharacterColors.Selectable.Count - 1,
-            "A world-NPC színpaletta nem pontosan a fehér karakterszínt zárja ki.");
+               !CharacterColors.WorldNpcSelectable.Contains(ConsoleColor.Yellow) &&
+               CharacterColors.WorldNpcSelectable.Count == CharacterColors.Selectable.Count - 2,
+            "A world-NPC színpaletta nem pontosan a fehér és sárga karakterszínt zárja ki.");
 
         var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
         var generator = new RandomCharacterGenerator(catalog, new Random(7281));
@@ -755,6 +773,18 @@ internal static partial class Program
                lines.Any(line => line.Text.Contains("Befejezve — Elira (+420 XP)", StringComparison.Ordinal)) &&
                lines.Any(line => line.Text.Contains("× Feladva — Elira", StringComparison.Ordinal)),
             "A küldetésnapló kerete vagy aktív/teljesített/feladott tartalma hibás.");
+    }
+
+    static void QuestCompletionShowsDialogueBeforeRewards()
+    {
+        var entry = new QuestJournalEntrySnapshot(new(KaoszRubin.Domain.Quests.QuestId.HerbalistHealingSupplies),
+            "Gyógyító készlet", "Leírás", "Füvesasszony", QuestJournalStatus.Completed, 3, 3, 810,
+            "810 XP", "2 tárgy", "A sebesültek ma megérik a reggelt.");
+        var lines = QuestCompletionWindow.Build(entry).Select(line => line.Text).ToArray();
+        var dialogueIndex = Array.FindIndex(lines, line => line.Contains("megérik a reggelt", StringComparison.Ordinal));
+        var rewardIndex = Array.FindIndex(lines, line => line.Contains("JUTALOM", StringComparison.Ordinal));
+        Assert(dialogueIndex >= 0 && rewardIndex > dialogueIndex,
+            "A quest lezáró párbeszéde nem a jutalomösszegzés előtt jelenik meg.");
     }
 
 
