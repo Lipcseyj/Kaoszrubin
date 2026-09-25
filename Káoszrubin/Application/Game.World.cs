@@ -828,7 +828,8 @@ public sealed partial class Game
             encounter.Members.Select(member => new ResolvedEnemyGroupMember(
                 _gameData.GetEnemy(member.EnemyId), member.Count, member.Role)).ToList(),
             encounter.MovementProfile,
-            encounter.Behavior);
+            encounter.Behavior,
+            encounter.ScreenNumber);
 
         var layout = configuration.Layout ??
                      new ClassicMazeLayoutConfiguration(configuration.DoubleWidthCorridorChance);
@@ -839,8 +840,8 @@ public sealed partial class Game
         var areaCount = layout is WideMazeLayoutConfiguration wide ? wide.AreaCount.Roll(_random) : 1;
         if (areaCount <= 0) throw new InvalidOperationException("A szint területszáma nem lehet nulla.");
 
-        var roomBuckets = DistributeEncounters(configuration.RoomEncounters.Select(ResolveEncounter), areaCount);
-        var corridorBuckets = DistributeEncounters(configuration.CorridorEncounters.Select(ResolveEncounter), areaCount);
+        var roomBuckets = DistributeEncounters(configuration.RoomEncounters.Select(ResolveEncounter), areaCount, _random);
+        var corridorBuckets = DistributeEncounters(configuration.CorridorEncounters.Select(ResolveEncounter), areaCount, _random);
         var rolledSettings = configuration.CreateGenerationSettings(_random);
         var areas = new List<DungeonArea>(areaCount);
         for (var index = 0; index < areaCount; index++)
@@ -872,15 +873,29 @@ public sealed partial class Game
         return new DungeonLevel(areas, areas[0].Id);
     }
 
-    private List<ResolvedEnemyEncounter>[] DistributeEncounters(
-        IEnumerable<ResolvedEnemyEncounter> encounters, int areaCount)
+    internal static List<ResolvedEnemyEncounter>[] DistributeEncounters(
+        IEnumerable<ResolvedEnemyEncounter> encounters, int areaCount, Random random)
     {
-        if (areaCount == 1) return [encounters.ToList()];
+        ArgumentNullException.ThrowIfNull(random);
+        if (areaCount < 1) throw new ArgumentOutOfRangeException(nameof(areaCount));
+        var materialized = encounters.ToList();
+        var invalid = materialized.FirstOrDefault(encounter =>
+            encounter.ScreenNumber is { } number && (number < 1 || number > areaCount));
+        if (invalid?.ScreenNumber is { } invalidScreen)
+            throw new InvalidOperationException(
+                $"Az encounter képernyőszáma {invalidScreen}, de a pályának {areaCount} képernyője van.");
+        if (areaCount == 1) return [materialized];
         var result = Enumerable.Range(0, areaCount).Select(_ => new List<ResolvedEnemyEncounter>()).ToArray();
-        foreach (var encounter in encounters)
+        foreach (var encounter in materialized)
         {
-            var total = encounter.GroupCount.Roll(_random);
-            var offset = _random.Next(areaCount);
+            var total = encounter.GroupCount.Roll(random);
+            if (encounter.ScreenNumber is { } screenNumber)
+            {
+                for (var group = 0; group < total; group++)
+                    result[screenNumber - 1].Add(encounter with { GroupCount = new IntRange(1, 1) });
+                continue;
+            }
+            var offset = random.Next(areaCount);
             for (var group = 0; group < total; group++)
                 result[(offset + group) % areaCount].Add(encounter with { GroupCount = new IntRange(1, 1) });
         }
@@ -941,7 +956,8 @@ public sealed partial class Game
             encounter.Members.Select(member => new ResolvedEnemyGroupMember(
                 _gameData.GetEnemy(member.EnemyId), member.Count, member.Role)).ToList(),
             encounter.MovementProfile,
-            encounter.Behavior);
+            encounter.Behavior,
+            encounter.ScreenNumber);
         _generator = new MazeGenerator(configuration.CreateGenerationSettings(_random),
             configuration.RoomEncounters.Select(ResolveEncounter).ToList(),
             configuration.CorridorEncounters.Select(ResolveEncounter).ToList());

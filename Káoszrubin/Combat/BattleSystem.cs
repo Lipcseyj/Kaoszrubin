@@ -190,7 +190,11 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         if (attacks.Count == 0)
             return new BattleLogEntry($"{attacker.Name} nem tud lőni: elfogyott a lőszere.",
                 BattleLogKind.Information);
+        var hitPointsBefore = defender.CurrentHitPoints;
         defender.SetCurrentHitPoints(target.CurrentHitPoints);
+        if (defender.CurrentHitPoints < hitPointsBefore &&
+            resolvedWeapon?.DamageType is DamageType.Fire or DamageType.Acid)
+            defender.SuppressRegeneration(resolvedWeapon.DamageType);
         var statusText = finishAction ? FinishCharacterAction(attacker, runtime) : string.Empty;
             return new BattleLogEntry(
                 $"{FormatAttackSummary(attacker.Name, defender.Name, attacks,
@@ -298,17 +302,25 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         ArgumentNullException.ThrowIfNull(enemy);
         enemy.AdvanceCombatCooldowns();
         var entries = new List<BattleLogEntry>();
+        var burningAtTurnStart = enemy.ActiveSpellEffects.Any(effect => effect.Type == ActiveSpellEffectType.Burning);
         var spellTick = enemy.AdvanceSpellEffects(_random);
-        if (spellTick.Damage > 0) enemy.ReceiveSpellDamage(spellTick.Damage);
+        if (spellTick.Damage > 0)
+        {
+            enemy.ReceiveSpellDamage(spellTick.Damage);
+            if (burningAtTurnStart) enemy.SuppressRegeneration(DamageType.Fire);
+        }
         if (spellTick.Notes.Count > 0)
             entries.Add(new BattleLogEntry($"{enemy.Name}: {string.Join(", ", spellTick.Notes)}.", BattleLogKind.Information));
         if (enemy.CurrentHitPoints > 0)
         {
-            var regeneration = ResolveMonsterTurnStartValue(enemy, MonsterAbilityEffect.Regeneration);
-            var restored = enemy.RestoreHitPoints(regeneration);
-            if (restored > 0)
-                entries.Add(new BattleLogEntry($"♻️ {enemy.Name} regenerálódik: +{restored} HP " +
-                    $"({enemy.CurrentHitPoints}/{enemy.MaximumHitPoints}).", BattleLogKind.Information));
+            var regenerationSuppressed = enemy.ConsumeRegenerationSuppression();
+            if (!regenerationSuppressed && enemy.CurrentHitPoints < enemy.MaximumHitPoints)
+            {
+                var restored = enemy.RestoreHitPoints(MonsterRegenerationAmount(enemy));
+                if (restored > 0)
+                    entries.Add(new BattleLogEntry($"♻️ {enemy.Name} regenerálódik: +{restored} HP " +
+                        $"({enemy.CurrentHitPoints}/{enemy.MaximumHitPoints}).", BattleLogKind.Information));
+            }
         }
         if (enemy.CurrentHitPoints <= 0) return new EnemyTurnStartResult(false, entries);
         if (spellTick.SkipAction)
@@ -330,16 +342,20 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
     public MonsterAbilityDefinition? SelectEnemyActiveAbility(Enemy enemy, int targetDistance,
         Func<MonsterAbilityDefinition, bool>? canUse = null)
     {
-        var candidates = enemy.Definition.AbilityIds.Where(_monsterAbilities.ContainsKey)
+        var candidates = EnemyActiveAbilities(enemy, targetDistance, canUse);
+        if (candidates.Count == 0) return null;
+        var selected = candidates[_random.Next(candidates.Count)];
+        return _random.Next(100) < selected.AiWeight ? selected : null;
+    }
+
+    public IReadOnlyList<MonsterAbilityDefinition> EnemyActiveAbilities(Enemy enemy, int targetDistance,
+        Func<MonsterAbilityDefinition, bool>? canUse = null) => enemy.Definition.AbilityIds
+            .Where(_monsterAbilities.ContainsKey)
             .Select(id => _monsterAbilities[id])
             .Where(ability => ability.Trigger == MonsterAbilityTrigger.Active &&
                               enemy.IsAbilityReady(ability) && enemy.HasAbilityCharge(ability) &&
                               targetDistance <= ability.Range && (canUse?.Invoke(ability) ?? true))
             .ToArray();
-        if (candidates.Length == 0) return null;
-        var selected = candidates[_random.Next(candidates.Length)];
-        return _random.Next(100) < selected.AiWeight ? selected : null;
-    }
 
     public BattleLogEntry ResolveEnemyAbility(Enemy attacker, LiveCharacter defender,
         CharacterBattleChoices defenderRuntime, MonsterAbilityDefinition ability,
@@ -443,9 +459,10 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
     }
 
     public BattleLogEntry PrepareEnemyAbility(Enemy enemy, MonsterAbilityDefinition ability,
-        Position? targetPosition = null)
+        Position? targetPosition = null, bool interruptionRequiresHeavyStagger = false)
     {
-        enemy.PrepareAbility(ability.Id, ability.PreparationTurns, targetPosition);
+        enemy.PrepareAbility(ability.Id, ability.PreparationTurns, targetPosition,
+            interruptionRequiresHeavyStagger);
         return new BattleLogEntry(
             $"⚠️ {enemy.Name} előkészíti: {ability.Name}. " +
             (ability.PreparationTurns == 1
@@ -479,7 +496,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
     public EnemyAttackResolution ResolveEnemyActionDetailed(Enemy attacker, LiveCharacter defender,
         CharacterBattleChoices defenderRuntime, WeaponDefinition? attackWeapon = null,
         bool advanceAttackerEffects = true, int alliedGuardDefense = 0, int rangedHitModifier = 0,
-        int packAttackBonus = 0, int packSize = 1)
+        int packAttackBonus = 0, int packSize = 1, int damagePercent = 100,
+        string damageScaleName = "Többcélú mellékcélpont")
     {
         ArgumentNullException.ThrowIfNull(attacker);
         ArgumentNullException.ThrowIfNull(defender);
@@ -489,17 +507,42 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             new EnemyAttackOptions(AttackWeapon: attackWeapon, AllowWeaponFallback: false,
                 AlliedGuardDefense: alliedGuardDefense, RangedHitModifier: rangedHitModifier,
                 PackAttackBonus: packAttackBonus, PackSize: packSize));
+        if (attack.Hit && damagePercent != 100)
+        {
+            var clampedPercent = Math.Clamp(damagePercent, 1, 100);
+            var scaledDamage = attack.Damage == 0 ? 0 : Math.Max(1, attack.Damage * clampedPercent / 100);
+            attack = attack with
+            {
+                Damage = scaledDamage,
+                Message = $"{attack.Message} {damageScaleName}: ×{clampedPercent / 100d:0.##}.",
+                Details = attack.Details is { } detail
+                    ? detail with
+                    {
+                        Damage = scaledDamage,
+                        Calculation = detail.Calculation.Append(
+                            $"🌀 {damageScaleName}: ×{clampedPercent / 100d:0.##}").ToArray()
+                    }
+                    : null
+            };
+        }
         var vitalityBefore = defender.CurrentVitality;
         var survival = attack.Hit ? ApplyEnemyDamage(defender, attack.Damage, defenderRuntime.Context) : DamageApplicationResult.Empty;
+        var actualDamage = Math.Max(0, vitalityBefore - defender.CurrentVitality);
+        var drained = defender.Race.HasTrait(RaceTraits.LifeDrainImmune)
+            ? 0
+            : RestoreMonsterLifeDrain(attacker, actualDamage);
+        var drainText = drained > 0
+            ? $" 🩸 ÉLETSZÍVÁS: {attacker.Name} +{drained} HP ({attacker.CurrentHitPoints}/{attacker.MaximumHitPoints})."
+            : string.Empty;
         var entry = new BattleLogEntry(
             $"{FormatAttackSummary(attacker.Name, defender.Name, [attack],
-                defender.CurrentVitality, defender.MaximumVitality)} {survival.ShortLog}",
+                defender.CurrentVitality, defender.MaximumVitality)} {survival.ShortLog}{drainText}",
             attack.Critical ? BattleLogKind.CriticalHit : BattleLogKind.EnemyAttack,
             DescribeAction(attacker.Name, defender.Name, [attack], survival.Details),
             attack.DurabilityNotices,
             attack.ShieldBlock.Attempted ? [attack.ShieldBlock] : []);
         return new EnemyAttackResolution(entry, attack.Hit,
-            Math.Max(0, vitalityBefore - defender.CurrentVitality));
+            actualDamage);
     }
 
     public MonsterStrengthContestResult ResolveMonsterStrengthContest(Enemy attacker, LiveCharacter defender,
@@ -2015,25 +2058,27 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         .Where(component => component.Effect == effect)
         .Sum(component => component.Value);
 
-    private int ResolveMonsterTurnStartValue(Enemy enemy, MonsterAbilityEffect effect)
+    private int MonsterRegenerationAmount(Enemy enemy)
     {
-        var total = 0;
-        foreach (var ability in enemy.Definition.AbilityIds.Where(_monsterAbilities.ContainsKey)
-                     .Select(abilityId => _monsterAbilities[abilityId])
-                     .Where(ability => ability.Trigger == MonsterAbilityTrigger.TurnStart &&
-                                       enemy.IsAbilityReady(ability) && enemy.HasAbilityCharge(ability)))
-        {
-            if (ability.ChancePercent <= 0 ||
-                ability.ChancePercent < 100 && _random.Next(100) >= ability.ChancePercent) continue;
-            enemy.ConsumeAbilityCharge(ability);
-            enemy.StartAbilityCooldown(ability);
-            foreach (var component in ability.Effects.Where(component => component.Effect == effect))
-            {
-                var resolved = ResolveMonsterAbilityComponent(component, null);
-                if (resolved.Applies) total += resolved.Value;
-            }
-        }
-        return total;
+        var effects = enemy.Definition.AbilityIds.Where(_monsterAbilities.ContainsKey)
+            .Select(abilityId => _monsterAbilities[abilityId])
+            .Where(ability => ability.Trigger == MonsterAbilityTrigger.TurnStart)
+            .SelectMany(ability => ability.Effects)
+            .Select(component => component.Effect)
+            .ToHashSet();
+        if (effects.Contains(MonsterAbilityEffect.StrongRegeneration))
+            return Math.Clamp(enemy.MaximumHitPoints * 10 / 100, 8, 80);
+        if (effects.Contains(MonsterAbilityEffect.Regeneration))
+            return Math.Clamp(enemy.MaximumHitPoints * 5 / 100, 3, 30);
+        return 0;
+    }
+
+    private int RestoreMonsterLifeDrain(Enemy attacker, int actualDamage)
+    {
+        if (actualDamage <= 0 || attacker.CurrentHitPoints >= attacker.MaximumHitPoints) return 0;
+        var percent = MonsterAbilityValue(attacker.Definition, MonsterAbilityEffect.LifeDrain);
+        if (percent <= 0) return 0;
+        return attacker.RestoreHitPoints(actualDamage * Math.Clamp(percent, 0, 100) / 100);
     }
 
     private MonsterOnHitResult ResolveMonsterOnHitAbilities(Enemy enemyInstance,

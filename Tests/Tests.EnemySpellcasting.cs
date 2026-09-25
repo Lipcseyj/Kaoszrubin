@@ -67,6 +67,20 @@ internal static partial class Program
                !caster.IsSpellReady(plan.Spell.Id),
             "A varázslás nem fogyasztott mannát, nem sebzett vagy nem indította el a lehűlést.");
 
+        var interruptedCaster = new ConfiguredEnemy(new Position(2, 2),
+            baseDefinition with { SpellcasterProfile = profile }, new Random(1));
+        var interruptedTarget = CreateCharacter("Lekötött cél", vitality: 100);
+        var interruptedPlan = service.SelectSpell(interruptedCaster, [interruptedCaster],
+            [(interruptedTarget, new Position(3, 2))], (_, _, _) => true)!;
+        var interruptedMana = interruptedCaster.CurrentMana;
+        var interruptedHp = interruptedTarget.CurrentVitality;
+        var interrupted = service.Execute(interruptedCaster, interruptedPlan, combatFailureChance: 100);
+        Assert(interrupted.Message.Contains("meghiúsul", StringComparison.OrdinalIgnoreCase) &&
+               interruptedCaster.CurrentMana == interruptedMana - interruptedPlan.Spell.ManaCost &&
+               !interruptedCaster.IsSpellReady(interruptedPlan.Spell.Id) &&
+               interruptedTarget.CurrentVitality == interruptedHp,
+            "A lekötött ellenség elrontott varázslata nem veszítette el szabályosan a mannát és az akciót.");
+
         var saved = new EnemySaveData(caster.Position, caster.Definition.Id, caster.CurrentHitPoints,
             CurrentMana: caster.CurrentMana,
             SpellCooldowns: caster.SpellCooldowns.ToDictionary(item => item.Key, item => item.Value));
@@ -123,4 +137,23 @@ internal static partial class Program
                 $"A(z) {level}. szinten túl nagy tömegben kerültek kísérőszerepbe casterek.");
         }
     }
+
+    static void EnemyActionSelectionUsesScoredShortlist()
+    {
+        var clearlyBest = new ScoredAction("varázslat", 100);
+        var closeAlternative = new ScoredAction("fegyver", 94);
+        var weakAlternative = new ScoredAction("rossz képesség", 60);
+        var candidates = new[] { clearlyBest, closeAlternative, weakAlternative };
+        var selectedNames = Enumerable.Range(0, 100)
+            .Select(seed => EnemyActionSelectionPolicy.Select(candidates, candidate => candidate.Score,
+                new Random(seed))!.Name)
+            .ToHashSet();
+
+        Assert(selectedNames.Contains(clearlyBest.Name) && selectedNames.Contains(closeAlternative.Name),
+            "A közeli értékű akciók között nincs meg a tervezett kis változatosság.");
+        Assert(!selectedNames.Contains(weakAlternative.Name),
+            "A 10%-os eltérés egy egyértelműen gyengébb akciót is kiválaszthatott.");
+    }
+
+    private sealed record ScoredAction(string Name, double Score);
 }

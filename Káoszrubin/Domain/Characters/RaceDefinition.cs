@@ -9,7 +9,8 @@ public enum RaceTraits
     Adaptable = 1,
     Resilient = 2,
     KeenSenses = 4,
-    Relentless = 8
+    Relentless = 8,
+    LifeDrainImmune = 16
 }
 
 public sealed record RaceDefinition(string Id, string Name, PrimaryAbilities AbilityBonuses,

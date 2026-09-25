@@ -251,6 +251,7 @@ internal static partial class Program
     ("A közös észlelés felfedi a lopakodót és pontatlan hangjelet ad", PartyPerceptionDetectsStealthAndSound),
     ("A rejtett csapda nem szivárog ki, a felfedezett pedig replikálódik", TrapVisibilityFollowsDiscoveryState),
     ("A csapdakészlet és darabszám a labirintusszinttel nehezedik", TrapConfigurationScalesByMazeLevel),
+    ("Az encounterek konkrét képernyőhöz rendelhetők", EncountersCanTargetASpecificScreen),
     ("A széles pályatípus hárommezős folyosókat és külön konfigurációt használ", WideMazeUsesThreeCellCorridors),
     ("A kijelölt széles szintek több területre elég változatos hordát konfigurálnak", WideLevelsHaveBalancedDiverseHordes),
     ("A képernyőátjáró a mentésben és a világmodellben is megmarad", MazePassageSurvivesSaveRoundTrip),
@@ -335,6 +336,7 @@ internal static partial class Program
     ("Az ellenséges varázshasználói profilok adatvezéreltek és teljesek", EnemySpellcasterProfilesAreDataDrivenAndComplete),
     ("A sötét varázslatok kizárólag ellenségek számára érhetők el", DarkSpellsRemainEnemyOnly),
     ("Az ellenséges varázslás mannát használ, a partit célozza és menthető", EnemySpellcastingUsesManaTargetsPartyAndPersists),
+    ("A varázshasználó AI csak a legjobb, egymáshoz közeli akciók között variál", EnemyActionSelectionUsesScoredShortlist),
     ("A casterek ritka, tematikus pályacsoportokat vezetnek", EnemyCastersLeadRareThematicLevelGroups),
     ("A SignalR LAN host elindítható és leállítható", () =>
         SignalRServerStartsAndStops().GetAwaiter().GetResult()),

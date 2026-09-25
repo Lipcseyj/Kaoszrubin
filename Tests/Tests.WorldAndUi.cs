@@ -1,5 +1,28 @@
 internal static partial class Program
 {
+    static void EncountersCanTargetASpecificScreen()
+    {
+        var configured = Encounters.Same("E-TEST", Amount.Few, Amount.One, screen: 2);
+        Assert(configured.ScreenNumber == 2,
+            "Az encounter segéd nem őrizte meg a megadott képernyőszámot.");
+
+        var pinned = new ResolvedEnemyEncounter(new IntRange(3, 3), [], null,
+            ScreenNumber: 2);
+        var distributed = Game.DistributeEncounters([pinned], 3, new Random(1401));
+        Assert(distributed[0].Count == 0 && distributed[1].Count == 3 && distributed[2].Count == 0 &&
+               distributed[1].All(encounter => encounter.GroupCount == new IntRange(1, 1)),
+            "A képernyőhöz kötött encounter csoportjai nem kizárólag a kijelölt képernyőre kerültek.");
+
+        try
+        {
+            Game.DistributeEncounters([pinned with { ScreenNumber = 4 }], 3, new Random(1402));
+            throw new InvalidOperationException("A nem létező encounter-képernyőt elfogadta a rendszer.");
+        }
+        catch (InvalidOperationException exception) when (exception.Message.Contains("3 képernyője", StringComparison.Ordinal))
+        {
+        }
+    }
+
     static void WideMazeUsesThreeCellCorridors()
     {
         var level = MazeLevelConfigurations.Get(6);

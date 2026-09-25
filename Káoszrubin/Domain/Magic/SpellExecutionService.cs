@@ -377,8 +377,11 @@ public sealed class SpellExecutionService
 
         var currentDamage = 0;
         var actualDamage = 0;
+        var dealsFireDamage = effects.Any(effect => effect.Type == SpellEffectType.Burning);
         foreach (var entry in damage.Where(entry => entry.Value > 0))
         {
+            if (dealsFireDamage && entry.Key.CurrentHitPoints > 0)
+                entry.Key.SuppressRegeneration(DamageType.Fire);
             if (inCombat && entry.Key == currentEnemy)
             {
                 var inflicted = Math.Min(entry.Value, entry.Key.CurrentHitPoints);

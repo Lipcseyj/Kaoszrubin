@@ -120,9 +120,6 @@ public static class SpellcastingRules
 
     public static int CombatFailureChance(LiveCharacter caster, bool engaged)
     {
-        if (!engaged) return 0;
-        var baseChance = Math.Clamp(30 - caster.EffectiveAbilities.Intelligence -
-            caster.EffectiveAbilities.Dexterity, 0, 100);
         var staffReduction = caster.OperationalWeapons.Any(weapon => WeaponFamilies.ForWeapon(weapon) == WeaponFamilies.Staff)
             ? caster.WeaponProficiencyRankFor(WeaponFamilies.Staff) switch
             {
@@ -131,9 +128,15 @@ public static class SpellcastingRules
                 _ => 0
             }
             : 0;
-        var chance = Math.Clamp(baseChance + 15, 0, 100);
-        return Math.Max(0, chance - staffReduction);
+        return CombatFailureChance(caster.EffectiveAbilities.Intelligence,
+            caster.EffectiveAbilities.Dexterity, engaged, staffReduction);
     }
+
+    public static int CombatFailureChance(int intelligence, int dexterity, bool engaged,
+        int focusReduction = 0) => !engaged
+        ? 0
+        : Math.Clamp(Math.Clamp(30 - intelligence - dexterity, 0, 100) + 15 -
+                     Math.Max(0, focusReduction), 0, 100);
 
     public static IReadOnlyList<SpellDefinition> AvailableUnknownSpells(
         LiveCharacter character, GameDataCatalog gameData, int atCharacterLevel)

@@ -1157,6 +1157,9 @@ internal static partial class Program
         Assert(SpellcastingRules.CombatFailureChance(mage, engaged: false) == 0 &&
                SpellcastingRules.CombatFailureChance(mage, engaged: true) == 35,
             "A szabad varázslásnak hibakockázata van, vagy a lekötött varázslás képlete hibás.");
+        Assert(SpellcastingRules.CombatFailureChance(5, 5, engaged: true) == 35 &&
+               SpellcastingRules.CombatFailureChance(12, 10, engaged: true, focusReduction: 5) == 18,
+            "A közös játékos- és ellenséges varázslási kockázat nem azonos képletet használ.");
     }
 
     static void BattleReinforcementJoinsNextCycle()

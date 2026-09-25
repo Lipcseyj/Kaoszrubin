@@ -18,6 +18,7 @@ public sealed class GameDataCatalog
         = new Dictionary<string, CharacterResourceGrowthDefinition>();
     public IReadOnlyList<EnemyDefinition> Enemies { get; init; } = [];
     public IReadOnlyList<MonsterAbilityDefinition> MonsterAbilities { get; init; } = [];
+    public IReadOnlyList<MonsterSummonDefinition> MonsterSummons { get; init; } = [];
     public IReadOnlyList<StrengthHitBonusDefinition> StrengthHitBonuses { get; init; } = [];
     public IReadOnlyList<MonsterLootDefinition> MonsterLoot { get; init; } = [];
     public LootRules LootRules { get; init; } = new(10, 40, 10, 130, 1, 10, 3, 70, 25, 100);
@@ -68,6 +69,8 @@ public sealed class GameDataCatalog
 
     public EnemyDefinition GetEnemy(string id) => FindById(Enemies, id, "ellenfél");
     public MonsterAbilityDefinition GetMonsterAbility(string id) => FindById(MonsterAbilities, id, "szörnyképesség");
+    public MonsterSummonDefinition? GetMonsterSummonForAbility(string abilityId) => MonsterSummons.FirstOrDefault(
+        summon => string.Equals(summon.AbilityId, abilityId, StringComparison.OrdinalIgnoreCase));
     public MonsterLootDefinition? GetMonsterLoot(string enemyId) => MonsterLoot.FirstOrDefault(loot =>
         string.Equals(loot.EnemyId, enemyId, StringComparison.OrdinalIgnoreCase));
     public WeaponTypeDefinition GetWeaponType(string id) => FindById(WeaponTypes, id, "fegyvertípus");

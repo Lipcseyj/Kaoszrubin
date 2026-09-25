@@ -9,13 +9,20 @@ public enum WeaponAttackMode
     NaturalRanged
 }
 
+public enum WeaponAttackShape
+{
+    Automatic,
+    Cone
+}
+
 public sealed record WeaponDefinition(string Id, string Name, string? WeaponTypeId, ValueRange? Damage,
     int MinimumStrength, bool IsTwoHanded, IReadOnlySet<string> AllowedClassIds, string Description, int BasePrice,
     ItemRarity Rarity = ItemRarity.Normal, string? BaseWeaponId = null, int MagicPower = 0, double Weight = 1,
     DamageType DamageType = DamageType.Bludgeoning, int MaximumTargets = 1, bool CanAttackFromRear = false,
     string? FamilyId = null, int MaximumDurability = 100, int ShieldTier = 0,
     WeaponAttackMode AttackMode = WeaponAttackMode.Melee, int MinimumRange = 1, int MaximumRange = 1,
-    string? AmmunitionItemId = null, int? ArmorPenetrationPercent = null) : IDurableItemDefinition
+    string? AmmunitionItemId = null, int? ArmorPenetrationPercent = null,
+    WeaponAttackShape AttackShape = WeaponAttackShape.Automatic) : IDurableItemDefinition
 {
     public ItemCategory Category => ItemCategory.Weapon;
     public bool IsMonsterOnly => BasePrice <= 0 || FamilyId == "NATURAL";
