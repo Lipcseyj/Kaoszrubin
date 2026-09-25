@@ -341,7 +341,7 @@ public sealed partial class Game
                             livingEnemies);
                         candidates.Add(CreateNpcOffensiveSpellCandidate(caster, spell, effects,
                             classification, castingPosition.Key, enemy.Position, enemy, targets,
-                            manaCost, castingPosition.Value, battle.Current.MovementAllowance, livingEnemies));
+                            manaCost, castingPosition.Value, battle.CurrentMovementAllowance, livingEnemies));
                     }
                     continue;
                 }
@@ -366,7 +366,7 @@ public sealed partial class Game
                     var targets = affected.Select(enemy => new NpcSpellPlanTarget(enemy)).ToArray();
                     candidates.Add(CreateNpcOffensiveSpellCandidate(caster, spell, effects,
                         classification, castingPosition.Key, targetPosition, primaryTarget, targets,
-                        manaCost, castingPosition.Value, battle.Current.MovementAllowance, livingEnemies));
+                        manaCost, castingPosition.Value, battle.CurrentMovementAllowance, livingEnemies));
                 }
             }
         }
@@ -412,7 +412,7 @@ public sealed partial class Game
         LiveCharacter caster, IReadOnlyList<Enemy> livingEnemies,
         IReadOnlyList<NpcOffensiveSpellCandidate> rankedCandidates, NpcOffensiveSpellCandidate selected)
     {
-        var movementAllowance = Math.Max(1, battle.Current.MovementAllowance);
+        var movementAllowance = Math.Max(1, battle.CurrentMovementAllowance);
         var origin = GetCasterPosition(caster);
         var nearestEnemyDistance = livingEnemies.Min(enemy => TacticalDistance.Between(origin, enemy.Position));
         if (!NpcSpellPlanningPolicy.CanPreferSaferFullCastingMove(nearestEnemyDistance, movementAllowance,
@@ -699,14 +699,14 @@ public sealed partial class Game
         }
 
         var candidates = new List<(IReadOnlyList<Position> Path, int VisibleTargets, int Safety)>();
-        var allowance = Math.Max(1, battle.Current.MovementAllowance);
+        var allowance = Math.Max(1, battle.CurrentMovementAllowance);
         for (var y = Math.Max(0, origin.Y - allowance); y <= Math.Min(_maze.Height - 1, origin.Y + allowance); y++)
         for (var x = Math.Max(0, origin.X - allowance); x <= Math.Min(_maze.Width - 1, origin.X + allowance); x++)
         {
             var position = new Position(x, y);
             if (position == origin || !CanBattleEnter(battle, position, actorId)) continue;
             var path = FindBattlePath(battle, origin, [position], actorId);
-            if (path.Count == 0 || path.Count > battle.Current.MovementAllowance) continue;
+            if (path.Count == 0 || path.Count > battle.CurrentMovementAllowance) continue;
             var visibleTargets = enemies.Count(enemy => offensiveSpells.Any(spell =>
                 FogOfWar.CanSee(_maze, position, enemy.Position, Math.Max(1, spell.Range))));
             if (seekLineOfSight && visibleTargets == 0) continue;

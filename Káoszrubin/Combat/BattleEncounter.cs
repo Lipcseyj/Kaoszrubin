@@ -18,7 +18,8 @@ public sealed record BattleEnemyParticipant(
     Enemy Enemy,
     int Initiative,
     int MovementAllowance,
-    int EligibleFromCycle);
+    int EligibleFromCycle,
+    int OpeningMovementBonus = 0);
 
 public sealed record BattleKill(
     CharacterId KillerId,
@@ -71,6 +72,7 @@ public sealed class BattleEncounter
     private readonly Dictionary<CombatantId, StaggerState> _staggerStates = [];
     private readonly Dictionary<WorldEntityId, int> _strengthContestCycles = [];
     private readonly HashSet<CharacterId> _rearCombatPreparationOrders = [];
+    private readonly HashSet<WorldEntityId> _usedFirstMeleeDefenseBonuses = [];
     private readonly HashSet<BattleSide> _activeSidesThisCycle = [];
     private readonly Dictionary<CombatantId, int> _spellEffectsAdvancedInCycle = [];
     private readonly Dictionary<CombatantId, int> _dynamicInitiativeModifiers = [];
@@ -128,7 +130,8 @@ public sealed class BattleEncounter
             tacticalParticipants.Add(new TacticalBattleParticipant(id, BattleSide.Hostile,
                 TacticalParticipantKind.Enemy, participant.Enemy.Position, participant.Initiative,
                 participant.MovementAllowance, participant.EligibleFromCycle,
-                participant.EligibleFromCycle > 1 ? TacticalParticipantState.Approaching : TacticalParticipantState.Active));
+                participant.EligibleFromCycle > 1 ? TacticalParticipantState.Approaching : TacticalParticipantState.Active,
+                participant.OpeningMovementBonus));
             _dynamicInitiativeModifiers[id] = DynamicInitiativeModifier(participant.Enemy);
             _enemyFacingTargets[participant.Enemy.Id] = initiatingCharacterId;
         }
@@ -177,6 +180,8 @@ public sealed class BattleEncounter
     public TacticalBattleParticipant Current => Turns.CurrentParticipant ?? Turns.StartTurns();
     public LiveCharacter? CurrentCharacter => _characters.GetValueOrDefault(Current.Id);
     public Enemy? CurrentEnemy => _enemies.GetValueOrDefault(Current.Id);
+    public int CurrentMovementAllowance => Current.MovementAllowance +
+        (Turns.Cycle == 1 ? Current.OpeningMovementBonus : 0);
     public WorldEntityId? SelectedTargetEnemyId { get; private set; }
 
     public CharacterBattleChoices RuntimeFor(LiveCharacter character) =>
@@ -349,6 +354,12 @@ public sealed class BattleEncounter
 
     public bool IsEnemyStaggered(Enemy enemy) => IsStaggered(CombatantId.ForEnemy(enemy.Id));
 
+    public bool TryUseFirstMeleeDefenseBonus(Enemy enemy, bool wasEngaged, int bonus)
+    {
+        if (wasEngaged || bonus <= 0 || !_usedFirstMeleeDefenseBonuses.Add(enemy.Id)) return false;
+        return true;
+    }
+
     public StaggerSnapshot? StaggerFor(CombatantId combatantId)
     {
         if (!_staggerStates.TryGetValue(combatantId, out var state)) return null;
@@ -494,7 +505,8 @@ public sealed class BattleEncounter
         if (_enemies.ContainsKey(id)) return false;
         var tactical = new TacticalBattleParticipant(id, BattleSide.Hostile, TacticalParticipantKind.Enemy,
             participant.Enemy.Position, participant.Initiative, participant.MovementAllowance,
-            participant.EligibleFromCycle, TacticalParticipantState.Approaching);
+            participant.EligibleFromCycle, TacticalParticipantState.Approaching,
+            participant.OpeningMovementBonus);
         if (!Turns.TryAddParticipant(tactical)) return false;
         _enemies.Add(id, participant.Enemy);
         _dynamicInitiativeModifiers[id] = DynamicInitiativeModifier(participant.Enemy);

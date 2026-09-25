@@ -25,7 +25,7 @@ public sealed record MonsterAbilityDefinition(string Id, string Name, string Des
 public sealed record MonsterAbilityComponent(MonsterAbilityEffect Effect, int Value = 0,
     string? StatusId = null, DamageType? DamageType = null, ValueRange? Dice = null,
     int ChancePercent = 100, MonsterResistanceAbility ResistanceAbility = MonsterResistanceAbility.None,
-    int ResistanceDifficulty = 0, int Duration = 0)
+    int ResistanceDifficulty = 0, int Duration = 0, bool AddsArmorToResistance = false)
 {
     public int AverageValue => Dice is { } dice ? (dice.Minimum + dice.Maximum) / 2 : Value;
     public string ValueDisplay => Dice?.ToString() ?? Value.ToString();
@@ -53,7 +53,10 @@ public enum MonsterAbilityEffect
     Regeneration,
     ApplyStatus,
     Stagger,
-    Push
+    Push,
+    ThickHide,
+    OpeningMovementBonus,
+    FirstMeleeDefenseBonus
 }
 
 public enum MonsterAbilityResolutionMode

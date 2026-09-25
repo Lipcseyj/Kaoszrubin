@@ -78,12 +78,14 @@ public sealed partial class Game
                             (enemy == initiatingEnemy || CanEnemyReachBattleWithinCycles(enemy, friendlyPositions)))
             .DistinctBy(enemy => enemy.Id)
             .Select(enemy => new BattleEnemyParticipant(enemy, _battleSystem.RollEnemyInitiative(enemy),
-                EnemyMovementAllowance(enemy), enemy == initiatingEnemy ? 1 : 2))
+                EnemyMovementAllowance(enemy), enemy == initiatingEnemy ? 1 : 2,
+                _battleSystem.EnemyOpeningMovementBonus(enemy)))
             .ToList();
         if (enemyParticipants.All(value => value.Enemy != initiatingEnemy))
             enemyParticipants.Add(new BattleEnemyParticipant(initiatingEnemy,
                 _battleSystem.RollEnemyInitiative(initiatingEnemy),
-                EnemyMovementAllowance(initiatingEnemy), 1));
+                EnemyMovementAllowance(initiatingEnemy), 1,
+                _battleSystem.EnemyOpeningMovementBonus(initiatingEnemy)));
 
         var participantEnemies = enemyParticipants.Select(value => value.Enemy).ToArray();
 
@@ -98,7 +100,23 @@ public sealed partial class Game
         }
 
 
-        foreach (var enemy in participantEnemies) _battleSystem.PrepareEnemyForBattle(enemy);
+        foreach (var participant in enemyParticipants)
+        {
+            var enemy = participant.Enemy;
+            _battleSystem.PrepareEnemyForBattle(enemy);
+            var movementBonus = participant.EligibleFromCycle == 1
+                ? participant.OpeningMovementBonus
+                : 0;
+            var initiativeBonus = _battleSystem.EnemyInitiativeAbilityBonus(enemy);
+            var defenseBonus = _battleSystem.EnemyFirstMeleeDefenseBonus(enemy);
+            if (initiativeBonus > 0 || movementBonus > 0 || defenseBonus > 0)
+                preparationEntries.Add(new BattleLogEntry(
+                    $"⚡ {enemy.Name} VILLÁMGYORS:" +
+                    (initiativeBonus > 0 ? $" +{initiativeBonus} kezdeményezés" : string.Empty) +
+                    (movementBonus > 0 ? $", az első körben +{movementBonus} mozgás" : string.Empty) +
+                    (defenseBonus > 0 ? $", első szabad közelharci védelem +{defenseBonus}" : string.Empty) + ".",
+                    BattleLogKind.Information));
+        }
         var quickAssessment = QuickCombatRules.Assess(characterParticipants.Select(value => value.Character),
             participantEnemies.Select(enemy => enemy.Definition),
             hasAvailableReinforcements: HasAvailableReinforcements(participantEnemies),
@@ -400,7 +418,8 @@ public sealed partial class Game
         {
             _battleSystem.PrepareEnemyForBattle(enemy);
             battle.TryAddEnemy(new BattleEnemyParticipant(enemy, _battleSystem.RollEnemyInitiative(enemy),
-                EnemyMovementAllowance(enemy), battle.Turns.Cycle + 1));
+                EnemyMovementAllowance(enemy), battle.Turns.Cycle + 1,
+                _battleSystem.EnemyOpeningMovementBonus(enemy)));
         }
         var message = $"📯 Az ellenség erősítést hív: {reinforcements.Length} új harcos " +
                       $"a(z) {battle.Turns.Cycle + 1}. körben kapcsolódik be.";

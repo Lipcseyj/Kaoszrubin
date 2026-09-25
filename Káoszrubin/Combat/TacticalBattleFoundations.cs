@@ -57,7 +57,8 @@ public sealed record TacticalBattleParticipant(
     int CurrentInitiative,
     int MovementAllowance,
     int EligibleFromCycle = 1,
-    TacticalParticipantState State = TacticalParticipantState.Active)
+    TacticalParticipantState State = TacticalParticipantState.Active,
+    int OpeningMovementBonus = 0)
 {
     public bool CanActIn(int cycle) => State is TacticalParticipantState.Active or TacticalParticipantState.Approaching &&
                                        cycle >= EligibleFromCycle;

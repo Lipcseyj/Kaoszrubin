@@ -1391,7 +1391,7 @@ public static class CsvGameDataLoader
                 ParseOptionalDamageType(Cell(cells, 6)), MonsterEffectDice(cells, 4, abilityId),
                 MonsterEffectPercentage(cells, 7, abilityId), ParseMonsterResistanceAbility(cells, 8),
                 MonsterEffectNonNegativeInteger(cells, 9, abilityId, "Nehézség"),
-                MonsterEffectNonNegativeInteger(cells, 10, abilityId, "Időtartam")));
+                MonsterEffectNonNegativeInteger(cells, 10, abilityId, "Időtartam"), IsYes(cells, 11)));
     }
 
     private static int MonsterEffectInteger(string[] cells, int index, string abilityId, string fieldName,
@@ -1471,6 +1471,9 @@ public static class CsvGameDataLoader
             MonsterAbilityEffect.InitiativeBonus => component.Value * 2,
             MonsterAbilityEffect.Stagger => Math.Max(2, component.Value * 3),
             MonsterAbilityEffect.Push => Math.Max(3, component.Value * 4),
+            MonsterAbilityEffect.ThickHide => 8,
+            MonsterAbilityEffect.OpeningMovementBonus => component.Value * 2,
+            MonsterAbilityEffect.FirstMeleeDefenseBonus => component.Value * 3,
             _ => 1
         }) * Math.Max(1, ability.MaximumTargets) * Math.Max(1, ability.AttackCount));
 
@@ -1699,6 +1702,10 @@ public static class CsvGameDataLoader
                     component.ResistanceAbility != MonsterResistanceAbility.None && component.ResistanceDifficulty <= 0)
                     throw new InvalidDataException(
                         $"A(z) '{ability.Id}' hatásának ellenállása és nehézsége nincs összhangban.");
+                if (component.AddsArmorToResistance &&
+                    component.Effect is not (MonsterAbilityEffect.Bleeding or MonsterAbilityEffect.ApplyStatus))
+                    throw new InvalidDataException(
+                        $"A(z) '{ability.Id}' páncélos ellenállása csak vérző állapothatáshoz használható.");
                 if (component.Duration < 0)
                     throw new InvalidDataException(
                         $"A(z) '{ability.Id}' hatásának időtartama nem lehet negatív.");

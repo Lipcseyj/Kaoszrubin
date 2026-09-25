@@ -26,8 +26,6 @@ public sealed partial class Game
         var origin = GetCasterPosition(character);
         var activeWeapon = character.AttackWeapon;
         var rangedAttack = activeWeapon?.IsRanged == true;
-        if (!rangedAttack && TacticalDistance.IsMeleeAdjacent(origin, enemy.Position))
-            battle.Engage(character, enemy);
         var dualWielding = DualWieldingRules.TryGetWeapons(character, out var mainHand, out var offhand);
         var targets = rangedAttack
             ? new List<Enemy> { enemy }
@@ -40,7 +38,12 @@ public sealed partial class Game
             var advantage = rangedAttack
                 ? TacticalAttackAdvantage.Front
                 : TacticalBattleCoordinator.AttackAdvantage(battle, character, target);
-            if (!rangedAttack && TacticalDistance.IsMeleeAdjacent(origin, target.Position))
+            var meleeAttack = !rangedAttack && TacticalDistance.IsMeleeAdjacent(origin, target.Position);
+            var swiftDefenseBonus = meleeAttack && battle.TryUseFirstMeleeDefenseBonus(target,
+                battle.IsEngaged(target), _battleSystem.EnemyFirstMeleeDefenseBonus(target))
+                ? _battleSystem.EnemyFirstMeleeDefenseBonus(target)
+                : 0;
+            if (meleeAttack)
                 battle.Engage(character, target);
             var before = target.CurrentHitPoints;
             var damagePercent = TacticalBattleCoordinator.SweepDamagePercent(character,
@@ -55,7 +58,10 @@ public sealed partial class Game
                 attackWeaponSlotIndex: dualWielding ? 0 : null,
                 armorPenalty: battle.EnemyArmorPenalty(target),
                 rangedHitModifier: RangedWeaponRules.CloseRangeModifier(character,
-                    dualWielding ? mainHand : activeWeapon, TacticalDistance.Between(origin, target.Position)));
+                    dualWielding ? mainHand : activeWeapon, TacticalDistance.Between(origin, target.Position)),
+                defenderSpeedBonus: swiftDefenseBonus);
+            if (swiftDefenseBonus > 0)
+                entry = entry with { Message = $"{entry.Message}. ⚡ {target.Name} VILLÁMGYORS: +{swiftDefenseBonus} VÉDELEM" };
             var hit = target.CurrentHitPoints < before;
 
             if (_gameSettings.Settings.CombatSpeed == CombatSpeed.PauseAfterHit && hit)
@@ -80,7 +86,12 @@ public sealed partial class Game
             if (offhandTarget is not null)
             {
                 var advantage = TacticalBattleCoordinator.AttackAdvantage(battle, character, offhandTarget);
-                if (TacticalDistance.IsMeleeAdjacent(GetCasterPosition(character), offhandTarget.Position))
+                var meleeAttack = TacticalDistance.IsMeleeAdjacent(GetCasterPosition(character), offhandTarget.Position);
+                var swiftDefenseBonus = meleeAttack && battle.TryUseFirstMeleeDefenseBonus(offhandTarget,
+                    battle.IsEngaged(offhandTarget), _battleSystem.EnemyFirstMeleeDefenseBonus(offhandTarget))
+                    ? _battleSystem.EnemyFirstMeleeDefenseBonus(offhandTarget)
+                    : 0;
+                if (meleeAttack)
                     battle.Engage(character, offhandTarget);
                 var before = offhandTarget.CurrentHitPoints;
                 var offhandEntry = _battleSystem.ResolveCharacterAttack(character, battle.RuntimeFor(character),
@@ -88,7 +99,13 @@ public sealed partial class Game
                     positionalHitBonus: advantage.HitBonus, positionalAdvantage: advantage.Name,
                     attackWeapon: offhand, allowTriggeredExtraAttacks: false, allowAmbush: false,
                     attackWeaponSlotIndex: 1,
-                    armorPenalty: battle.EnemyArmorPenalty(offhandTarget), damageScaleName: "Mellékkéz");
+                    armorPenalty: battle.EnemyArmorPenalty(offhandTarget), damageScaleName: "Mellékkéz",
+                    defenderSpeedBonus: swiftDefenseBonus);
+                if (swiftDefenseBonus > 0)
+                    offhandEntry = offhandEntry with
+                    {
+                        Message = $"{offhandEntry.Message}. ⚡ {offhandTarget.Name} VILLÁMGYORS: +{swiftDefenseBonus} VÉDELEM"
+                    };
                 var offhandHit = offhandTarget.CurrentHitPoints < before;
 
                 if (_gameSettings.Settings.CombatSpeed == CombatSpeed.PauseAfterHit && offhandHit)
@@ -868,7 +885,7 @@ public sealed partial class Game
         }
         var goals = EnemyApproachPositions(battle, enemy, target, attackWeapon);
         var path = FindBattlePath(battle, enemy.Position, goals, CombatantId.ForEnemy(enemy.Id));
-        var traversed = path.Take(battle.Current.MovementAllowance).ToArray();
+        var traversed = path.Take(battle.CurrentMovementAllowance).ToArray();
         LiveCharacter? interceptor = null;
         for (var index = 0; index < traversed.Length; index++)
         {
@@ -953,7 +970,7 @@ public sealed partial class Game
         if (targets.Count == 0) return false;
         var origin = enemy.Position;
         var actorId = CombatantId.ForEnemy(enemy.Id);
-        var allowance = Math.Max(1, battle.Current.MovementAllowance);
+        var allowance = Math.Max(1, battle.CurrentMovementAllowance);
         var currentSafety = targets.Min(target => TacticalDistance.Between(origin, GetCasterPosition(target)));
         var preferred = PreferredEnemyRangedDistance(weapon);
         var candidates = new List<(IReadOnlyList<Position> Path, int Safety, int VisibleTargets)>();
@@ -1349,7 +1366,7 @@ public sealed partial class Game
     private void CompleteCharacterMovement(BattleEncounter battle, LiveCharacter character,
         IReadOnlyList<Position> path, bool finishAction = true)
     {
-        var steps = path.Take(battle.Current.MovementAllowance).ToArray();
+        var steps = path.Take(battle.CurrentMovementAllowance).ToArray();
         if (steps.Length > 0)
         {
             _battleNoPathReported.Remove(character.Id);
@@ -1386,7 +1403,7 @@ public sealed partial class Game
     {
         if (_battleMovementTurnId == battle.Turns.TurnId) return;
         _battleMovementTurnId = battle.Turns.TurnId;
-        _battleMovementRemaining = battle.Current.MovementAllowance;
+        _battleMovementRemaining = battle.CurrentMovementAllowance;
         _battleMovementSteps = 0;
     }
 

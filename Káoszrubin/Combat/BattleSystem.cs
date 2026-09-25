@@ -81,6 +81,15 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             MonsterAbilityValue(enemy.Definition, MonsterAbilityEffect.InitiativeBonus)).Total;
     }
 
+    public int EnemyOpeningMovementBonus(Enemy enemy) =>
+        MonsterAbilityValue(enemy.Definition, MonsterAbilityEffect.OpeningMovementBonus);
+
+    public int EnemyInitiativeAbilityBonus(Enemy enemy) =>
+        MonsterAbilityValue(enemy.Definition, MonsterAbilityEffect.InitiativeBonus);
+
+    public int EnemyFirstMeleeDefenseBonus(Enemy enemy) =>
+        MonsterAbilityValue(enemy.Definition, MonsterAbilityEffect.FirstMeleeDefenseBonus);
+
     public void PrepareEnemyForBattle(Enemy enemy)
     {
         var abilities = enemy.Definition.AbilityIds.Where(_monsterAbilities.ContainsKey)
@@ -115,15 +124,16 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         bool tacticalBackstab = false, WeaponDefinition? attackWeapon = null,
         bool allowTriggeredExtraAttacks = true, bool allowAmbush = true,
         int armorPenalty = 0, string damageScaleName = "Söprési mellékcélpont",
-        int? attackWeaponSlotIndex = null, int rangedHitModifier = 0)
+        int? attackWeaponSlotIndex = null, int rangedHitModifier = 0,
+        int defenderSpeedBonus = 0)
     {
         ArgumentNullException.ThrowIfNull(attacker);
         ArgumentNullException.ThrowIfNull(runtime);
         ArgumentNullException.ThrowIfNull(defender);
         var resolvedWeapon = attackWeapon ?? attacker.AttackWeapon;
         var target = EnemyDefenseSnapshot.From(defender, armorPenalty,
-            MonsterAbilityValue(defender.Definition, MonsterAbilityEffect.ArmorBonus) +
-            defender.SpellEffectValue(ActiveSpellEffectType.DefenseBonus));
+            defender.SpellEffectValue(ActiveSpellEffectType.DefenseBonus), defenderSpeedBonus,
+            MonsterAbilityValue(defender.Definition, MonsterAbilityEffect.ThickHide));
         var attackOptions = new PlayerAttackOptions(
             PositionalHitBonus: positionalHitBonus,
             PositionalAdvantage: positionalAdvantage,
@@ -353,22 +363,28 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             return new BattleLogEntry($"👁️ {attacker.Name} használja: {ability.Name}, de a hatás nem aktiválódik.",
                 BattleLogKind.Information);
         var effects = new List<string>();
+        var pendingStatuses = new List<MonsterAbilityComponent>();
+        var statusDamageType = ability.Effects.FirstOrDefault(component =>
+            component.Effect == MonsterAbilityEffect.ExtraDamage)?.DamageType ?? DamageType.Bludgeoning;
+        var statusArmorResistance = EquipmentDurabilityRules.ScaleDefense(
+            defender.OperationalArmor?.Resistances?.Against(statusDamageType) ?? 0,
+            defender.InventoryItemCondition(InventorySlotKind.Armor, 0));
         var resolvedComponents = ability.Effects
-            .Select(component => ResolveMonsterAbilityComponent(component, defender))
+            .Select(component => ResolveMonsterAbilityComponent(component, defender,
+                component.AddsArmorToResistance ? Math.Min(10, statusArmorResistance) : 0))
             .ToArray();
         foreach (var resolved in resolvedComponents)
         {
             if (!resolved.Applies)
             {
-                effects.Add(resolved.Note);
+                effects.Add(resolved.Resisted && IsStatusEffect(resolved.Component.Effect)
+                    ? $"{MonsterStatusCompactLabel(resolved.Component)}: ELLENÁLLT"
+                    : resolved.Note);
                 continue;
             }
             var component = resolved.Component;
             if (IsStatusEffect(component.Effect))
-            {
-                var status = ApplyMonsterStatusAbility(attacker.Definition, defender, component);
-                if (!string.IsNullOrWhiteSpace(status)) effects.Add(status.Trim());
-            }
+                pendingStatuses.Add(component);
         }
         var damageComponents = resolvedComponents
             .Where(resolved => resolved.Applies && resolved.Component.Effect == MonsterAbilityEffect.ExtraDamage)
@@ -386,6 +402,16 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var survival = abilityDamage > 0
             ? ApplyEnemyDamage(defender, abilityDamage, defenderContext)
             : DamageApplicationResult.Empty;
+        if (abilityDamage > 0)
+        {
+            foreach (var component in pendingStatuses)
+            {
+                var status = ApplyMonsterStatusAbility(attacker.Definition, defender, component);
+                effects.Add(string.IsNullOrWhiteSpace(status)
+                    ? $"{MonsterStatusCompactLabel(component)}: ELLENÁLLT"
+                    : MonsterStatusCompactLabel(component));
+            }
+        }
         if (abilityDamage > 0)
             effects.Add($"💥 {string.Join(" + ", damageComponents.Where(component => component.Damage > 0)
                 .Select(component => $"{component.Damage} {component.Type.Name()}"))} sebzés, " +
@@ -682,6 +708,11 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
 
         if (attacks.Any(attack => attack.ShieldBlock.IsCriticalBlock))
             summary += $". 🛡️ {defenderName} PAJZSBLOKK";
+        if (attacks.Any(attack => attack.SlippedByThickHide))
+            summary += $". 🦏 {defenderName} VASTAG BŐR: LECSÚSZOTT";
+        var compactEffects = attacks.SelectMany(attack => attack.CombatLogEffects)
+            .Distinct(StringComparer.Ordinal).ToArray();
+        if (compactEffects.Length > 0) summary += $". {string.Join(" · ", compactEffects)}";
 
         return summary;
     }
@@ -1069,6 +1100,24 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         // ============================================================
 
         var baseDamage = weapon?.Damage is { } range ? Roll(range) : Roll(new ValueRange(1, 2));
+        var thickHideChance = criticalMultiplier > 1 ||
+                              !(weapon?.DamageType ?? DamageType.Bludgeoning).IsPhysical()
+            ? 0
+            : Math.Clamp(((weapon?.Damage?.Maximum ?? 2) - baseDamage) * defender.ThickHidePercentPerPoint,
+                0, 50);
+        if (thickHideChance > 0)
+        {
+            var thickHideRoll = _random.Next(1, 101);
+            defenseCalculations.Add($"🦏 Vastag bőr: {baseDamage}/{weapon?.Damage?.Maximum ?? 2}, " +
+                                    $"lecsúszás {thickHideChance}%, d100 {thickHideRoll}");
+            if (thickHideRoll <= thickHideChance)
+            {
+                context.ConsecutivePlayerHits = 0;
+                calculationSummary.Add($"🦏 Vastag bőr: LECSÚSZOTT ({thickHideRoll} ≤ {thickHideChance})");
+                return Detailed(AttackResult.ThickHideSlip(
+                    $"találat: {hit.Description} → a gyenge csapás lecsúszik a vastag bőrről."));
+            }
+        }
         var usesDexterity = weapon is not null && string.Equals(weapon.WeaponTypeId, DexterityWeaponTypeId, StringComparison.OrdinalIgnoreCase);
         var ability = usesDexterity ? player.EffectiveAbilities.Dexterity : player.EffectiveAbilities.Strength;
         var abilityBonus = AbilityDamageBonus(ability);
@@ -1684,7 +1733,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var reduction = (defender.HasPerk(PerkIds.FighterUnbreakable) ? 2 : 0) +
                         (defender.HasPerk(PerkIds.KnightInvincible) ? 4 : 0);
 
-        var onHit = ResolveMonsterOnHitAbilities(attacker, defender, enemyWeapon, otherCalculations);
+        var onHit = ResolveMonsterOnHitAbilities(attacker, defender, enemyWeapon,
+            Math.Min(10, armor), otherCalculations);
         var monsterBonusRolls = onHit.Damage;
         var matchingBonusDamage = monsterBonusRolls.Where(bonus =>
             bonus.DamageType is null || bonus.DamageType == damageType).Sum(bonus => bonus.Value);
@@ -1746,7 +1796,31 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var reductionText = reduction == 0 ? string.Empty : $" - csökkentés {reduction}";
         var manaShieldText = absorbed == 0 ? string.Empty : $" - mannapajzs {absorbed}";
         var monsterBonusText = matchingBonusDamage == 0 ? string.Empty : $" + szörnyképesség {matchingBonusDamage}";
-        var statusText = onHit.StatusText;
+        var statusDescriptions = new List<string>();
+        var compactEffects = damage > 0
+            ? onHit.CompactEffects.ToList()
+            : new List<string>();
+        if (damage > 0)
+        {
+            foreach (var pending in onHit.PendingStatuses)
+            {
+                var status = ApplyMonsterStatusAbility(attacker.Definition, defender, pending.Component);
+                if (string.IsNullOrWhiteSpace(status))
+                {
+                    compactEffects.Add($"{MonsterStatusCompactLabel(pending.Component)}: ELLENÁLLT");
+                    continue;
+                }
+                statusDescriptions.Add(status.Trim());
+                compactEffects.Add(MonsterStatusCompactLabel(pending.Component));
+            }
+        }
+        else if (onHit.PendingStatuses.Count > 0)
+        {
+            otherCalculations.Add("🛡️ A találati állapothatás sebzés hiányában nem kerül fel.");
+        }
+        var statusText = statusDescriptions.Count == 0
+            ? string.Empty
+            : $" ⚠️ ÁLLAPOT: {string.Join(", ", statusDescriptions)}!";
 
         damageCalculations.Add($"💥 Nyers sebzés: erő {strengthBonus} + fegyver {baseDamage} + azonos típusú szörnybónusz {matchingBonusDamage} = {rawDamage}");
         damageCalculations.Add($"💥 Sebzésszorzó: ×{criticalMultiplier} → {rawDamage * criticalMultiplier}");
@@ -1844,7 +1918,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
 
         return Detailed(AttackResult.HitFor(damage,
             $"találat: {hit.Description} → 🎯; sebzés: (Erőbónusz {strengthBonus} + fegyver {baseDamage}{monsterBonusText}) ×{criticalMultiplier} - páncél {armor} - pajzs {shield}{perkDefenseText}{reductionText}{manaShieldText} = {damageText}.{statusText}",
-            criticalMultiplier > 1, durabilityNotices, shieldBlock));
+            criticalMultiplier > 1, durabilityNotices, shieldBlock, compactEffects));
     }
 
     private static EquipmentWearResult ApplyWeaponWear(LiveCharacter character, WeaponDefinition? weapon,
@@ -1947,11 +2021,13 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
     }
 
     private MonsterOnHitResult ResolveMonsterOnHitAbilities(Enemy enemyInstance,
-        LiveCharacter defender, WeaponDefinition? weapon, ICollection<string>? calculation = null)
+        LiveCharacter defender, WeaponDefinition? weapon, int armorResistance,
+        ICollection<string>? calculation = null)
     {
         var enemy = enemyInstance.Definition;
         var rolls = new List<MonsterBonusDamageRoll>();
-        var statuses = new List<string>();
+        var pendingStatuses = new List<PendingMonsterStatus>();
+        var compactEffects = new List<string>();
         foreach (var ability in enemy.AbilityIds.Where(_monsterAbilities.ContainsKey)
                      .Select(abilityId => _monsterAbilities[abilityId])
                      .Where(ability => ability.Trigger == MonsterAbilityTrigger.OnHit &&
@@ -1966,11 +2042,13 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             calculation?.Add($"✨ {ability.Name} aktiválódott ({ability.ChancePercent}%, dobás {roll + 1})");
             foreach (var component in ability.Effects)
             {
-                var resolved = ResolveMonsterAbilityComponent(component, defender);
+                var resolved = ResolveMonsterAbilityComponent(component, defender,
+                    component.AddsArmorToResistance ? armorResistance : 0);
                 if (!resolved.Applies)
                 {
                     calculation?.Add($"🛡️ {ability.Name}: {resolved.Note}");
-                    if (resolved.Resisted) statuses.Add(resolved.Note);
+                    if (resolved.Resisted)
+                        compactEffects.Add($"{MonsterStatusCompactLabel(component)}: ELLENÁLLT");
                     continue;
                 }
                 if (component.Effect == MonsterAbilityEffect.ExtraDamage)
@@ -1981,35 +2059,50 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                 }
                 else if (IsStatusEffect(component.Effect))
                 {
-                    var status = ApplyMonsterStatusAbility(enemy, defender, component);
-                    if (!string.IsNullOrWhiteSpace(status)) statuses.Add(status.Trim());
+                    if (!string.IsNullOrWhiteSpace(resolved.Note))
+                        calculation?.Add($"🎲 {ability.Name}: {resolved.Note}");
+                    pendingStatuses.Add(new PendingMonsterStatus(component));
                 }
             }
         }
-        var statusText = statuses.Count == 0 ? string.Empty : $" ⚠️ ÁLLAPOT: {string.Join(", ", statuses)}!";
-        return new MonsterOnHitResult(rolls, statusText);
+        return new MonsterOnHitResult(rolls, pendingStatuses, compactEffects);
     }
 
     private MonsterAbilityComponentResolution ResolveMonsterAbilityComponent(
-        MonsterAbilityComponent component, LiveCharacter? defender)
+        MonsterAbilityComponent component, LiveCharacter? defender, int armorResistance = 0)
     {
         if (component.ChancePercent <= 0 ||
             component.ChancePercent < 100 && _random.Next(100) >= component.ChancePercent)
             return new MonsterAbilityComponentResolution(component, false, false, 0, "a rész-hatás elmarad");
 
+        var resistanceNote = string.Empty;
         if (component.ResistanceAbility != MonsterResistanceAbility.None && defender is not null)
         {
             var roll = _random.Next(1, 21);
             var abilityValue = MonsterResistanceValue(defender, component.ResistanceAbility);
-            var total = roll + abilityValue;
+            var resilientBonus = defender.Race.HasTrait(RaceTraits.Resilient) &&
+                                 component.Effect is MonsterAbilityEffect.Poison or MonsterAbilityEffect.Disease
+                ? 4
+                : 0;
+            var armorBonus = component.AddsArmorToResistance ? Math.Clamp(armorResistance, 0, 10) : 0;
+            var total = roll + abilityValue + resilientBonus + armorBonus;
+            var bonusText = (resilientBonus, armorBonus) switch
+            {
+                (> 0, > 0) => $" + ellenálló faj {resilientBonus} + páncél {armorBonus}",
+                (> 0, _) => $" + ellenálló faj {resilientBonus}",
+                (_, > 0) => $" + páncél {armorBonus}",
+                _ => string.Empty
+            };
             if (total >= component.ResistanceDifficulty)
                 return new MonsterAbilityComponentResolution(component, false, true, 0,
                     $"{defender.Name} ellenáll ({ResistanceAbilityName(component.ResistanceAbility)}: " +
-                    $"d20 {roll} + {abilityValue} = {total}, célszám {component.ResistanceDifficulty})");
+                    $"d20 {roll} + {abilityValue}{bonusText} = {total}, célszám {component.ResistanceDifficulty})");
+            resistanceNote = $"{defender.Name} nem áll ellen ({ResistanceAbilityName(component.ResistanceAbility)}: " +
+                             $"d20 {roll} + {abilityValue}{bonusText} = {total}, célszám {component.ResistanceDifficulty})";
         }
 
         return new MonsterAbilityComponentResolution(component, true, false,
-            component.Dice is { } dice ? Roll(dice) : component.Value, string.Empty);
+            component.Dice is { } dice ? Roll(dice) : component.Value, resistanceNote);
     }
 
     private static int MonsterResistanceValue(LiveCharacter defender, MonsterResistanceAbility ability) => ability switch
@@ -2038,6 +2131,17 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         MonsterAbilityEffect.Poison or MonsterAbilityEffect.Disease or MonsterAbilityEffect.Bleeding or
         MonsterAbilityEffect.ApplyStatus;
 
+    private static string MonsterStatusCompactLabel(MonsterAbilityComponent component) => component.Effect switch
+    {
+        MonsterAbilityEffect.Poison => "☠️ MÉRGEZÉS",
+        MonsterAbilityEffect.Disease => "🦠 BETEGSÉG",
+        MonsterAbilityEffect.Bleeding => "🩸 VÉRZÉS",
+        MonsterAbilityEffect.ApplyStatus when component.StatusId == CharacterStatusIds.Poisoned => "☠️ MÉRGEZÉS",
+        MonsterAbilityEffect.ApplyStatus when component.StatusId == CharacterStatusIds.Diseased => "🦠 BETEGSÉG",
+        MonsterAbilityEffect.ApplyStatus when component.StatusId == CharacterStatusIds.Bleeding => "🩸 VÉRZÉS",
+        _ => "⚠️ ÁLLAPOT"
+    };
+
     private string ApplyMonsterStatusAbility(EnemyDefinition enemy, LiveCharacter defender,
         MonsterAbilityComponent component)
     {
@@ -2053,16 +2157,9 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                                     statusId is CharacterStatusIds.Poisoned or CharacterStatusIds.Diseased or CharacterStatusIds.Bleeding;
             var evilWardImmunity = IsUnholy(enemy) && defender.HasSpellEffect(ActiveSpellEffectType.ProtectionFromEvil) &&
                                    statusId is CharacterStatusIds.Poisoned or CharacterStatusIds.Diseased;
-            var racialResistance = defender.Race.HasTrait(RaceTraits.Resilient) &&
-                                   statusId is CharacterStatusIds.Poisoned or CharacterStatusIds.Diseased &&
-                                   _random.Next(100) < 50;
             if (statusId is null || statusId == CharacterStatusIds.Bleeding &&
                 defender.HasSpellEffect(ActiveSpellEffectType.BleedingImmunity) || sanctuaryImmunity || evilWardImmunity ||
                 !_statuses.TryGetValue(statusId, out var status)) return string.Empty;
-            if (racialResistance)
-            {
-                return $" ⛰️ {defender.Race.Name} ellenállt: {status.Name}";
-            }
             var wasActive = defender.HasStatus(statusId);
             var maximumVitalityBefore = defender.MaximumVitality;
             if (component.Duration > 0) defender.RestoreStatus(status, component.Duration);
@@ -2220,7 +2317,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         DamageResistance? Resistances,
         int PhysicalReduction,
         ShieldDefenseSnapshot? Shield,
-        WeaponDefinition? Weapon)
+        WeaponDefinition? Weapon,
+        int ThickHidePercentPerPoint)
     {
         public bool IsWounded => CurrentHitPoints * 2 <= Math.Max(1, MaximumHitPoints);
 
@@ -2228,14 +2326,15 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             ? this
             : this with { CurrentHitPoints = Math.Max(0, CurrentHitPoints - attack.Damage) };
 
-        public static EnemyDefenseSnapshot From(Enemy enemy, int armorPenalty, int armorAbilityBonus)
+        public static EnemyDefenseSnapshot From(Enemy enemy, int armorPenalty, int armorAbilityBonus,
+            int speedBonus, int thickHidePercentPerPoint)
         {
             var maximumHitPoints = enemy.MaximumHitPoints;
             return new EnemyDefenseSnapshot(
                 enemy.Name,
                 enemy.CurrentHitPoints,
                 maximumHitPoints,
-                enemy.EffectiveSpeed,
+                enemy.EffectiveSpeed + Math.Max(0, speedBonus),
                 enemy.Definition.Armor is { } armor
                     ? new ValueRange(Math.Max(0, armor.Minimum - Math.Max(0, armorPenalty)),
                         Math.Max(0, armor.Maximum - Math.Max(0, armorPenalty)))
@@ -2245,7 +2344,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                 enemy.Definition.Resistances,
                 enemy.SpellEffectValue(ActiveSpellEffectType.PhysicalReduction),
                 enemy.EquippedShield is { } shield ? new ShieldDefenseSnapshot(shield) : null,
-                enemy.EquippedWeapon);
+                enemy.EquippedWeapon,
+                Math.Max(0, thickHidePercentPerPoint));
         }
     }
 
@@ -2268,20 +2368,27 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
     private sealed record InitiativeRoll(int Total, string ModifierText);
     private sealed record HitRollResult(bool Hit, int NaturalRoll, string Description);
     private sealed record MonsterBonusDamageRoll(int Value, DamageType? DamageType);
-    private sealed record MonsterOnHitResult(IReadOnlyList<MonsterBonusDamageRoll> Damage, string StatusText);
+    private sealed record PendingMonsterStatus(MonsterAbilityComponent Component);
+    private sealed record MonsterOnHitResult(IReadOnlyList<MonsterBonusDamageRoll> Damage,
+        IReadOnlyList<PendingMonsterStatus> PendingStatuses, IReadOnlyList<string> CompactEffects);
     private sealed record MonsterAbilityComponentResolution(MonsterAbilityComponent Component, bool Applies,
         bool Resisted, int Value, string Note);
     private sealed record AttackResult(bool Hit, int Damage, string Message, bool Critical,
         AttackDetails? Details = null, IReadOnlyList<BattleLogNotice>? WearNotices = null,
-        ShieldBlockResult? BlockResult = null)
+        ShieldBlockResult? BlockResult = null, bool SlippedByThickHide = false,
+        IReadOnlyList<string>? CompactEffects = null)
     {
         public IReadOnlyList<BattleLogNotice> DurabilityNotices => WearNotices ?? [];
         public ShieldBlockResult ShieldBlock => BlockResult ?? ShieldBlockResult.NotAttempted;
+        public IReadOnlyList<string> CombatLogEffects => CompactEffects ?? [];
         public static AttackResult Miss(string message) => new(false, 0, message, false);
+        public static AttackResult ThickHideSlip(string message) =>
+            new(false, 0, message, false, SlippedByThickHide: true);
         public static AttackResult HitFor(int damage, string message, bool critical = false,
             IReadOnlyList<BattleLogNotice>? durabilityNotices = null,
-            ShieldBlockResult? shieldBlock = null) =>
-            new(true, damage, message, critical, WearNotices: durabilityNotices, BlockResult: shieldBlock);
+            ShieldBlockResult? shieldBlock = null, IReadOnlyList<string>? compactEffects = null) =>
+            new(true, damage, message, critical, WearNotices: durabilityNotices, BlockResult: shieldBlock,
+                CompactEffects: compactEffects);
     }
 }
 

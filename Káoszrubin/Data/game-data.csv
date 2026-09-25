@@ -690,12 +690,12 @@ E100;D011|D012|S018|D016|S025;180;23;5;90;Artillery;1
 
 #Szörnyképességek
 Id;Név;Leírás;Aktiválás;Végrehajtás;Célzás;SikerEsély;Lehűlés;Hatótáv;MaxCélpont;AI súly;FegyverIds;HasználatCsatánként;Látóvonal;Előkészítés;Támadásszám;Képességcsoport;HátrálásHasználatUtán;Területsugár
-MA002;Mérges támadás;Sikeres találat után mérgezést okozhat.;OnHit;WeaponAttack;SingleEnemy;25;0;1;1;100;W042|WN004|WN007|WN010|WN014|WN018|WN021|WN022|WN024;0;nem;0;1;;0
-MA003;Fertőzéshordozó;Sikeres találat után betegséget terjeszthet.;OnHit;WeaponAttack;SingleEnemy;20;0;1;1;100;W001|W002|W004|W005|W006|W018|WN001|WN002|WN003|WN004|WN007|WN019;0;nem;0;1;;0
-MA004;Vérontó;Sikeres találat után vérzést okozhat.;OnHit;WeaponAttack;SingleEnemy;25;0;1;1;100;W001|W002|W009|W010|W042|WN002|WN007|WN008|WN012|WN024;0;nem;0;1;;0
+MA002;Mérges támadás;Sikeres, sebző találat után külön eséllyel mérgezést okozhat, amelynek a célpont Egészség-próbával állhat ellen.;OnHit;WeaponAttack;SingleEnemy;100;0;1;1;100;W042|WN004|WN007|WN010|WN014|WN018|WN021|WN022|WN024;0;nem;0;1;;0
+MA003;Fertőzéshordozó;Sikeres, sebző találat után külön eséllyel betegséget terjeszthet, amelynek a célpont Egészség-próbával állhat ellen.;OnHit;WeaponAttack;SingleEnemy;100;0;1;1;100;W001|W002|W004|W005|W006|W018|WN001|WN002|WN003|WN004|WN007|WN019;0;nem;0;1;;0
+MA004;Vérontó;Sikeres, sebző találat után külön eséllyel vérzést okozhat, amely ellen az Egészség és a tényleges páncélvédelem is véd.;OnHit;WeaponAttack;SingleEnemy;100;0;1;1;100;W001|W002|W009|W010|W042|WN002|WN007|WN008|WN012|WN024;0;nem;0;1;;0
 MA005;Zúzócsapás;Sikeres találatkor további zúzó sebzést okozhat.;OnHit;WeaponAttack;SingleEnemy;25;0;1;1;100;;0;nem;0;1;;0
-MA006;Villámgyors;A szörny 2 pont bónuszt kap a kezdeményezéséhez.;Passive;Automatic;Self;100;0;1;1;100;;0;nem;0;1;;0
-MA007;Vastag bőr;A szörny 2 pont állandó páncélbónuszt kap.;Passive;Automatic;Self;100;0;1;1;100;;0;nem;0;1;;0
+MA006;Villámgyors;A szörny +2 kezdeményezést és az első körben +2 mozgást kap, lekötés előtt pedig az első ellene irányuló közelharci támadás ellen +2 védelem jár.;Passive;Automatic;Self;100;0;1;1;100;;0;nem;0;1;;0
+MA007;Vastag bőr;A gyenge fegyversebzés-dobások pontonként 5%, legfeljebb 50% eséllyel lecsúsznak a vastag bőrről, a kritikus találat kivétel.;Passive;Automatic;Self;100;0;1;1;100;;0;nem;0;1;;0
 MA008;Regeneráció;A szörny minden saját köre elején legfeljebb 20 HP-t gyógyul.;TurnStart;Automatic;Self;100;0;1;1;100;;0;nem;0;1;;0
 MA011;Dermesztő tekintet;A Medúza tekintete Egészség-próba ellenében rövid időre kődermedtséget okozhat.;Active;SavingThrow;SingleEnemy;100;3;3;1;45;;2;igen;0;1;;0
 MA012;Bénító sugár;A mágikus tekintet megmerevíti és sebzi az áldozatot.;Active;Automatic;SingleEnemy;55;3;4;1;50;;2;igen;0;1;Szemsugár;0
@@ -708,13 +708,15 @@ MA018;Dupla támadás;A lény a távolsághoz illő fegyverével vagy természet
 MA019;Előkészített sziklahajítás;A küklopsz kijelöl egy területet, majd a következő saját körében lezúdít egy embernyi sziklát, amely hátralöki az áldozatokat.;Active;WeaponAttack;Area;100;5;5;4;65;WN034;0;igen;1;1;;0;1
 
 #Szörnyképesség-hatások
-KépességId;Sorrend;Hatás;Érték;Dobás;ÁllapotId;Sebzéstípus;Esély;Ellenállás;Nehézség;Időtartam
-MA002;1;ApplyStatus;0;;STATUS003;;100;None;0;0
-MA003;1;ApplyStatus;0;;STATUS004;;100;None;0;0
-MA004;1;ApplyStatus;0;;STATUS005;;100;None;0;0
+KépességId;Sorrend;Hatás;Érték;Dobás;ÁllapotId;Sebzéstípus;Esély;Ellenállás;Nehézség;Időtartam;PáncélAzEllenálláshoz
+MA002;1;Poison;0;;;;25;Health;18;0;nem
+MA003;1;Disease;0;;;;20;Health;16;0;nem
+MA004;1;Bleeding;0;;;;25;Health;20;0;igen
 MA005;1;ExtraDamage;6;;;zúzás;100;None;0;0
-MA006;1;InitiativeBonus;2;;;;100;None;0;0
-MA007;1;ArmorBonus;2;;;;100;None;0;0
+MA006;1;InitiativeBonus;2;;;;100;None;0;0;nem
+MA006;2;OpeningMovementBonus;2;;;;100;None;0;0;nem
+MA006;3;FirstMeleeDefenseBonus;2;;;;100;None;0;0;nem
+MA007;1;ThickHide;5;;;;100;None;0;0;nem
 MA008;1;Regeneration;20;;;;100;None;0;0
 MA011;1;ApplyStatus;0;;STATUS006;;100;Health;21;2
 MA012;1;ApplyStatus;0;;STATUS006;;100;None;0;0
@@ -723,11 +725,11 @@ MA013;1;ApplyStatus;0;;STATUS007;;100;None;0;0
 MA013;2;ExtraDamage;0;5-7;;nekrotikus;100;None;0;0
 MA014;1;ExtraDamage;4;;;szúrás;100;None;0;0
 MA015;1;ExtraDamage;5;;;szúrás;100;None;0;0
-MA015;2;ApplyStatus;0;;STATUS005;;100;None;0;0
+MA015;2;Bleeding;0;;;;100;Health;20;0;igen
 MA016;1;ExtraDamage;7;;;szúrás;100;None;0;0
 MA016;2;Stagger;1;;;;100;None;0;0
 MA017;1;ExtraDamage;5;;;szúrás;100;None;0;0
-MA017;2;ApplyStatus;0;;STATUS003;;100;None;0;0
+MA017;2;Poison;0;;;;100;Health;21;0;nem
 MA018;1;Trait;0;;;;100;None;0;0
 MA019;1;Push;1;;;;100;None;0;0
 
