@@ -492,7 +492,10 @@ public sealed record EnemySaveData(Position Position, string DefinitionId, int C
     int BossHitPointBonusPercent = 0,
     string? PreparedAbilityId = null,
     int PreparedAbilityTurnsRemaining = 0,
-    Position? PreparedAbilityTargetPosition = null);
+    Position? PreparedAbilityTargetPosition = null,
+    WorldEntityId? SummonerId = null,
+    bool GrantsRewardsAndLoot = true,
+    bool PreparedAbilityRequiresHeavyStagger = false);
 public sealed record EnemyEquipmentSaveData(string? WeaponId, string? ShieldId);
 public sealed record CorpseSaveData(Position Position, string FormerName, int? PartyCharacterIndex,
     string? EnemyDefinitionId = null, bool IsSearched = false, List<string>? GuaranteedLootIds = null,

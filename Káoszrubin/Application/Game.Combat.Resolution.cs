@@ -278,11 +278,13 @@ public sealed partial class Game
         }
         var activeAbility = preparedAbility ?? (enemy.PreparedWeaponId is null
             ? _battleSystem.SelectEnemyActiveAbility(enemy, closestDistance, ability =>
-                (!ability.UsesRangedAttackRoll || !battle.IsEngaged(enemy) ||
+                (_gameData.GetMonsterSummonForAbility(ability.Id) is { } summon
+                    ? CanEnemySummon(battle, enemy, summon)
+                    : (!ability.UsesRangedAttackRoll || !battle.IsEngaged(enemy) ||
                  enemy.AttackWeapons.All(weapon => weapon.IsRanged)) &&
                 (ability.Targeting == MonsterAbilityTargeting.Area
                     ? SelectEnemyAbilityAim(enemy, ability, livingTargets) is not null
-                    : livingTargets.Any(target => EnemyAbilityCanTarget(enemy, target, ability))))
+                    : livingTargets.Any(target => EnemyAbilityCanTarget(enemy, target, ability)))))
             : null);
         if (activeAbility is not null)
         {
@@ -300,11 +302,19 @@ public sealed partial class Game
             var wasPrepared = enemy.IsPreparedAbilityReady(activeAbility.Id);
             if (!wasPrepared && activeAbility.PreparationTurns > 0)
             {
-                PresentBattleEntries([_battleSystem.PrepareEnemyAbility(enemy, activeAbility, abilityAim)]);
+                PresentBattleEntries([_battleSystem.PrepareEnemyAbility(enemy, activeAbility, abilityAim,
+                    interruptionRequiresHeavyStagger:
+                        _gameData.GetMonsterSummonForAbility(activeAbility.Id)?.Prepared == true)]);
                 AdvanceBattleTurn(battle);
                 return;
             }
             if (wasPrepared) enemy.ClearPreparedAbility();
+            if (_gameData.GetMonsterSummonForAbility(activeAbility.Id) is { } summonDefinition)
+            {
+                ExecuteMonsterSummon(battle, enemy, activeAbility, summonDefinition);
+                AdvanceBattleTurn(battle);
+                return;
+            }
             var abilityEntries = new List<BattleLogEntry>();
             var abilityDistance = TacticalDistance.Between(enemy.Position,
                 abilityAim ?? (abilityTargets.Length > 0 ? GetCasterPosition(abilityTargets[0]) : enemy.Position));
@@ -1508,11 +1518,64 @@ public sealed partial class Game
             ResolveCharacterDefeat(battle, character);
     }
 
+    private bool CanEnemySummon(BattleEncounter battle, Enemy caster, MonsterSummonDefinition summon) =>
+        battle.Enemies.Count(enemy => enemy.CurrentHitPoints > 0 && enemy.SummonerId == caster.Id) <
+        summon.MaximumLivingSummons && SummonPositions(battle, caster, summon).Any();
+
+    private IEnumerable<Position> SummonPositions(BattleEncounter battle, Enemy caster,
+        MonsterSummonDefinition summon)
+    {
+        for (var radius = 1; radius <= summon.SpawnRadius; radius++)
+        for (var y = caster.Position.Y - radius; y <= caster.Position.Y + radius; y++)
+        for (var x = caster.Position.X - radius; x <= caster.Position.X + radius; x++)
+        {
+            var position = new Position(x, y);
+            if (Math.Max(Math.Abs(x - caster.Position.X), Math.Abs(y - caster.Position.Y)) != radius ||
+                !battle.Turns.IsInsideBattleArea(position) || !_maze.IsWalkable(position) ||
+                _maze.GetObjectAt(position) is not null) continue;
+            yield return position;
+        }
+    }
+
+    private void ExecuteMonsterSummon(BattleEncounter battle, Enemy caster, MonsterAbilityDefinition ability,
+        MonsterSummonDefinition summon)
+    {
+        _battleSystem.ConsumeEnemyAbility(caster, ability);
+        var living = battle.Enemies.Count(enemy => enemy.CurrentHitPoints > 0 && enemy.SummonerId == caster.Id);
+        var desired = _random.Next(summon.MinimumCount, summon.MaximumCount + 1);
+        var count = Math.Min(desired, summon.MaximumLivingSummons - living);
+        var positions = SummonPositions(battle, caster, summon).OrderBy(_ => _random.Next()).Take(count).ToArray();
+        for (var index = 0; index < positions.Length; index++)
+        {
+            var definition = _gameData.GetEnemy(summon.EnemyIds[_random.Next(summon.EnemyIds.Count)]);
+            var summoned = new ConfiguredEnemy(positions[index], definition, _random);
+            summoned.ConfigureMovement(EnemyMovementProfile.Wander, Direction.Right);
+            summoned.ConfigureGroup(caster.GroupId);
+            summoned.ConfigureSummon(caster.Id, summon.GrantsRewardsAndLoot);
+            _battleSystem.PrepareEnemyForBattle(summoned);
+            _maze.AddEnemy(summoned);
+            battle.TryAddEnemy(new BattleEnemyParticipant(summoned, _battleSystem.RollEnemyInitiative(summoned),
+                EnemyMovementAllowance(summoned), battle.Turns.Cycle + 1,
+                _battleSystem.EnemyOpeningMovementBonus(summoned)));
+        }
+        PresentBattleEntries([new BattleLogEntry(
+            $"☠️ {caster.Name} holtakat éleszt: {positions.Length} idézett lény a következő körben csatlakozik.",
+            BattleLogKind.Information)]);
+    }
+
     private void ResolveEnemyDefeat(BattleEncounter battle, Enemy enemy, LiveCharacter? killer)
     {
         if (!battle.TryResolveDeath(enemy)) return;
         battle.MarkDefeated(enemy);
         if (!_maze.Enemies.Contains(enemy)) return;
+        if (!enemy.GrantsRewardsAndLoot)
+        {
+            _maze.RemoveEnemy(enemy);
+            _nextEnemyMoves.Remove(enemy);
+            RecordSessionActivity(SessionActivityKind.Battle,
+                $"☠ {enemy.Name} idézett teste szertefoszlik.", ConsoleColor.DarkGray);
+            return;
+        }
         AwardBossKey(enemy);
         RegisterNpcQuestKill(enemy);
         var credited = killer ?? battle.Characters.FirstOrDefault(character => character.IsAlive);

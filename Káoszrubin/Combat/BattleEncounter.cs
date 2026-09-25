@@ -335,7 +335,8 @@ public sealed class BattleEncounter
     public bool StaggerEnemy(Enemy enemy, StaggerSeverity severity = StaggerSeverity.Normal)
     {
         var applied = enemy.CurrentHitPoints > 0 && ApplyStagger(CombatantId.ForEnemy(enemy.Id), severity);
-        if (applied) enemy.ClearPreparedAbility();
+        if (applied && (!enemy.PreparedAbilityRequiresHeavyStagger || severity == StaggerSeverity.Heavy))
+            enemy.ClearPreparedAbility();
         return applied;
     }
 

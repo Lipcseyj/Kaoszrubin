@@ -29,6 +29,7 @@ public static class CsvGameDataLoader
         var enemies = new List<EnemyDefinition>();
         var monsterAbilities = new List<MonsterAbilityDefinition>();
         var monsterAbilityEffects = new List<MonsterAbilityEffectRow>();
+        var monsterSummons = new List<MonsterSummonDefinition>();
         var strengthHitBonuses = new List<StrengthHitBonusDefinition>();
         var monsterLoot = new List<MonsterLootDefinition>();
         var lootRuleValues = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -123,6 +124,13 @@ public static class CsvGameDataLoader
                     monsterAbilityEffects.Add(ParseMonsterAbilityEffectRow(cells));
                     continue;
                 }
+                if (section == DataSection.MonsterSummons)
+                {
+                    monsterSummons.Add(new MonsterSummonDefinition(Cell(cells, 0), Cell(cells, 1),
+                        IdList(Cell(cells, 2)), Integer(cells, 3) ?? 1, Integer(cells, 4) ?? 1,
+                        Integer(cells, 5) ?? 1, Integer(cells, 6) ?? 1, IsYes(cells, 7), IsYes(cells, 8)));
+                    continue;
+                }
                 AddDefinition(section, cells, races, characterClasses, enemies, monsterAbilities, strengthHitBonuses,
                     monsterLoot, lootRuleValues, doorAttemptRuleValues, weaponTypes, weapons, armors, abilities, items, magicItems, itemCurses, spells, spellEffects, perks, statuses, characterNames, innNames, innRumors, traps,
                     npcs, uniqueNpcCharacters, npcEncounters, npcDialogues, npcStoryChoices, npcQuests,
@@ -155,6 +163,7 @@ public static class CsvGameDataLoader
             ("Ellenségek", enemies.Select(value => value.Id)),
             ("Szörnyképességek", monsterAbilities.Select(value => value.Id)),
             ("Szörnyképesség-hatások", monsterAbilityEffects.Select(value => $"{value.AbilityId}:{value.Order}")),
+            ("Szörnyidézések", monsterSummons.Select(value => value.Id)),
             ("Fegyvertípus", weaponTypes.Select(value => value.Id)),
             ("Fegyverek", weapons.Select(value => value.Id)),
             ("Páncélok", armors.Select(value => value.Id)),
@@ -182,6 +191,7 @@ public static class CsvGameDataLoader
             ("Karaktergenerálási tárgybővítések", characterGenerationUpgrades.Select(value => value.UpgradeId)),
             ("Kereskedelemből tiltott tárgyak", tradeExcludedItemIds));
         monsterAbilities = ResolveMonsterAbilityEffects(monsterAbilities, monsterAbilityEffects);
+        ValidateMonsterSummons(monsterSummons, monsterAbilities, enemies);
         ValidateSpells(spells);
         ValidateSpellEffects(spells, spellEffects);
         ValidateEnemySpellcasters(enemies, spells, spellEffects, enemySpellcasters);
@@ -287,6 +297,7 @@ public static class CsvGameDataLoader
                 characterClass.ExperienceModifier)).ToList(),
             Enemies = enemies,
             MonsterAbilities = monsterAbilities,
+            MonsterSummons = monsterSummons,
             StrengthHitBonuses = strengthHitBonuses,
             MonsterLoot = monsterLoot,
             LootRules = lootRules,
@@ -1489,6 +1500,25 @@ public static class CsvGameDataLoader
             _ => 1
         }) * Math.Max(1, ability.MaximumTargets) * Math.Max(1, ability.AttackCount));
 
+    private static void ValidateMonsterSummons(IEnumerable<MonsterSummonDefinition> summons,
+        IReadOnlyCollection<MonsterAbilityDefinition> abilities, IReadOnlyCollection<EnemyDefinition> enemies)
+    {
+        var abilityIds = abilities.Select(value => value.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var enemyIds = enemies.Select(value => value.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var summon in summons)
+        {
+            var ability = abilities.FirstOrDefault(value =>
+                string.Equals(value.Id, summon.AbilityId, StringComparison.OrdinalIgnoreCase));
+            if (!abilityIds.Contains(summon.AbilityId) || summon.EnemyIds.Count == 0 ||
+                summon.EnemyIds.Any(id => !enemyIds.Contains(id)) || summon.MinimumCount < 1 ||
+                summon.MaximumCount < summon.MinimumCount || summon.SpawnRadius < 1 ||
+                summon.MaximumLivingSummons < 1 || summon.MaximumCount > summon.MaximumLivingSummons ||
+                ability is null || ability.Trigger != MonsterAbilityTrigger.Active ||
+                ability.ChargesPerBattle != 1 || summon.Prepared != (ability.PreparationTurns > 0))
+                throw new InvalidDataException($"A(z) '{summon.Id}' szörnyidézés adatai érvénytelenek.");
+        }
+    }
+
     private static void ValidateShields(IEnumerable<WeaponDefinition> weapons)
     {
         foreach (var weapon in weapons)
@@ -2030,6 +2060,7 @@ public static class CsvGameDataLoader
         "ellensegek" => DataSection.Enemies,
         "szornykepessegek" => DataSection.MonsterAbilities,
         "szornykepesseg-hatasok" => DataSection.MonsterAbilityEffects,
+        "szornyidezesek" => DataSection.MonsterSummons,
         "fegyvertipus" => DataSection.WeaponTypes,
         "fegyverek" => DataSection.Weapons,
         "pancelok" => DataSection.Armors,
@@ -2093,6 +2124,7 @@ public static class CsvGameDataLoader
         Enemies,
         MonsterAbilities,
         MonsterAbilityEffects,
+        MonsterSummons,
         WeaponTypes,
         Weapons,
         Armors,

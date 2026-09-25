@@ -73,7 +73,8 @@ internal sealed class GameStateMapper
                     StringComparer.OrdinalIgnoreCase),
                 enemy.BossHitPointBonusPercent,
                 enemy.PreparedAbilityId, enemy.PreparedAbilityTurnsRemaining,
-                enemy.PreparedAbilityTargetPosition)).ToList(),
+                enemy.PreparedAbilityTargetPosition, enemy.SummonerId,
+                enemy.GrantsRewardsAndLoot, enemy.PreparedAbilityRequiresHeavyStagger)).ToList(),
             Corpses = maze.Corpses.Select(corpse => new CorpseSaveData(corpse.Position, corpse.FormerName,
                 corpse is PartyMemberCorpse partyCorpse ? CharacterIndex(partyCorpse.Character) : null,
                 (corpse as MonsterCorpse)?.EnemyDefinitionId, (corpse as MonsterCorpse)?.IsSearched ?? false,
@@ -212,6 +213,8 @@ internal sealed class GameStateMapper
                 savedEnemy.ConsecutivePursuitPathFailures, savedEnemy.SearchAnchorPosition,
                 savedEnemy.SearchVisitedPositions);
             enemy.ConfigureGroup(savedEnemy.GroupId, savedEnemy.GroupRole);
+            if (savedEnemy.SummonerId is { } summonerId)
+                enemy.ConfigureSummon(summonerId, savedEnemy.GrantsRewardsAndLoot);
             enemy.RestoreHordeRoaming(savedEnemy.HordeDestination,
                 savedEnemy.HordeCampRemainingMilliseconds > 0
                     ? now + TimeSpan.FromMilliseconds(savedEnemy.HordeCampRemainingMilliseconds)
@@ -220,7 +223,7 @@ internal sealed class GameStateMapper
             enemy.RestoreCombatCooldowns(savedEnemy.AbilityCooldowns ?? [], savedEnemy.WeaponCooldowns ?? [],
                 savedEnemy.PreparedWeaponId, savedEnemy.RemainingAbilityCharges,
                 savedEnemy.PreparedAbilityId, savedEnemy.PreparedAbilityTurnsRemaining,
-                savedEnemy.PreparedAbilityTargetPosition);
+                savedEnemy.PreparedAbilityTargetPosition, savedEnemy.PreparedAbilityRequiresHeavyStagger);
             enemy.RestoreSpellcasting(savedEnemy.CurrentMana ?? enemy.MaximumMana, savedEnemy.SpellCooldowns);
             foreach (var effect in savedEnemy.ActiveSpellEffects ?? []) enemy.RestoreSpellEffect(effect);
             maze.AddEnemy(enemy);

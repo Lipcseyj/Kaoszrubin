@@ -625,7 +625,7 @@ E061;Élőholt pátriárka;Ɨ;8;180;6;4;700;3;;Undead;5;;;nem;W006|W007|W008;ige
 E063;Ork törzsfő;Ø;11;360;8;5;1350;3;MA005;;6;;;igen;W009|W017;igen;0;0;0;0;0;0;0;3;;0
 E068;Barlangi troll;Ť;16;550;8;5;2000;3;MA021|MA007;;6;;;igen;WN012|WN011;nem;2;2;1;-9;1;0;0;4;;10
 E073;Sötételf orgyilkos;æ;11;220;5;9;1250;3;MA006|MA017|MA018;;7;3;1;igen;W022|W043;nem;0;0;0;0;0;0;0;6;;
-E074;Nekromanta;Ɲ;6;130;1;6;2100;3;MA013;;7;2;1;nem;W022;nem;0;0;0;0;0;5;2;5;;35
+E074;Nekromanta;Ɲ;6;130;1;6;2100;3;MA013|MA023;;7;2;1;nem;W022;nem;0;0;0;0;0;5;2;5;;35
 E075;Gargoyle;Γ;11;350;9;6;2200;3;MA007;Flying;6;1;2;nem;WN002|WN009;nem;4;4;-5;2;3;3;2;4;;40
 E076;Óriásskorpió;ϟ;13;460;7;7;1800;3;MA002|MA007;;5;1;2;igen;WN010|WN018;nem;2;3;2;-3;4;-3;0;2;;
 E078;Kígyóember;փ;9;170;4;8;850;3;MA018;;7;2;1;igen;W001|W002|W003|W004|W011;igen;1;2;0;0;3;0;0;6;W026;
@@ -657,7 +657,7 @@ E096;Káoszmágus;Ҩ;11;200;3;7;1800;4;;;8;2;1;nem;W021|W018;nem;0;0;0;2;1;2;5;5
 E097;Sötét druida;ð;11;200;3;6;1800;4;MA008;;8;3;1;igen;W022|WN035;nem;1;1;0;1;2;3;3;7;;30
 E098;Vérmágus;Ѿ;10;200;2;8;1800;4;MA004|MA008|MA022;;8;2;1;nem;W021|W022;nem;0;0;0;2;1;4;4;6;;30
 E021;Vörös sárkány;D;18;1500;9;7;5000;5;MA007|MA005;Flying;7;;;igen;WN004|WN005|WN006;nem;4;1;2;8;2;-2;2;6;;
-E022;Lich;l;13;400;5;5;2500;5;MA013;Undead;7;;;nem;W021;nem;0;0;-1;-1;-2;7;3;8;;30
+E022;Lich;l;13;400;5;5;2500;5;MA013|MA023;Undead;7;;;nem;W021;nem;0;0;-1;-1;-2;7;3;8;;30
 E023;Démonlovag;Ŧ;15;500;10-15;6;2600;5;MA004|MA018;Demonic;6;;;nem;W009|W013|W017|W008|W010;igen;2;1;1;5;-2;-5;4;6;W035;15
 E024;Balor démon;Ψ;19;2500;4;8;7500;5;MA005|MA013;Demonic;7;;;nem;W009|W020;nem;0;0;0;8;3;4;5;8;;15
 E025;Fekete sárkány;Ð;20;2000;10;8;10000;5;MA007|MA002;Flying;7;;;igen;WN004|WN005|WN015;nem;5;4;2;2;8;-2;2;6;;50
@@ -709,6 +709,7 @@ MA019;Előkészített sziklahajítás;A küklopsz kijelöl egy területet, majd 
 MA020;Falkatámadás;Az ugyanazt a célpontot közelharcban fenyegető falkatagok növelik a találati esélyt, legfeljebb +4 találatig.;Passive;Automatic;Self;100;0;1;1;100;;0;nem;0;1;;0
 MA021;Erős regeneráció;A szörny minden saját köre elején a maximum HP 10%-át gyógyul, legalább 8, legfeljebb 80 HP-t.;TurnStart;Automatic;Self;100;0;1;1;100;;0;nem;0;1;;0
 MA022;Életszívás;A sebző találat által ténylegesen elvett HP felét visszagyógyítja.;OnHit;WeaponAttack;SingleEnemy;100;0;1;1;100;;0;nem;0;1;;0
+MA023;Holtélesztés;A holtidéző csontvázakat vagy zombikat kelt életre maga körül.;Active;Automatic;Self;100;10;8;1;65;;1;nem;1;1;;0
 
 #Szörnyképesség-hatások
 KépességId;Sorrend;Hatás;Érték;Dobás;ÁllapotId;Sebzéstípus;Esély;Ellenállás;Nehézség;Időtartam;PáncélAzEllenálláshoz
@@ -738,6 +739,11 @@ MA019;1;Push;1;;;;100;None;0;0
 MA020;1;PackAttack;4;;;;100;None;0;0;nem
 MA021;1;StrongRegeneration;10;;;;100;None;0;0
 MA022;1;LifeDrain;50;;;;100;None;0;0
+MA023;1;Trait;0;;;;100;None;0;0
+
+#Szörnyidézések
+Id;KépességId;EllenségIds;Minimum;Maximum;Sugár;MaxÉlőIdézett;JutalomÉsZsákmány;Előkészített
+MS001;MA023;E004|E006;1;4;2;4;nem;igen
 
 #Zsákmány paraméterek
 Id;Érték

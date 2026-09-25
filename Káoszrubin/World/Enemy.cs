@@ -61,6 +61,8 @@ public abstract class Enemy(Position position) : WorldObject(position)
     public IReadOnlySet<Position> SearchVisitedPositions => _searchVisitedPositions;
     public string? GroupId { get; private set; }
     public EnemyGroupRole GroupRole { get; private set; } = EnemyGroupRole.Member;
+    public WorldEntityId? SummonerId { get; private set; }
+    public bool GrantsRewardsAndLoot { get; private set; } = true;
     public bool IsRoamingHordeMember => GroupId?.StartsWith(HordeGroupPrefix,
         StringComparison.Ordinal) == true;
     public Position? HordeDestination { get; private set; }
@@ -86,6 +88,7 @@ public abstract class Enemy(Position position) : WorldObject(position)
     public string? PreparedAbilityId { get; private set; }
     public int PreparedAbilityTurnsRemaining { get; private set; }
     public Position? PreparedAbilityTargetPosition { get; private set; }
+    public bool PreparedAbilityRequiresHeavyStagger { get; private set; }
     public IReadOnlyList<string> CarriedWeaponIds
     {
         get
@@ -167,17 +170,20 @@ public abstract class Enemy(Position position) : WorldObject(position)
         string.Equals(PreparedAbilityId, abilityId, StringComparison.OrdinalIgnoreCase);
     public bool IsPreparedAbilityReady(string abilityId) =>
         IsAbilityPrepared(abilityId) && PreparedAbilityTurnsRemaining <= 0;
-    public void PrepareAbility(string abilityId, int turns, Position? targetPosition = null)
+    public void PrepareAbility(string abilityId, int turns, Position? targetPosition = null,
+        bool requiresHeavyStagger = false)
     {
         PreparedAbilityId = abilityId;
         PreparedAbilityTurnsRemaining = Math.Max(1, turns);
         PreparedAbilityTargetPosition = targetPosition;
+        PreparedAbilityRequiresHeavyStagger = requiresHeavyStagger;
     }
     public void ClearPreparedAbility()
     {
         PreparedAbilityId = null;
         PreparedAbilityTurnsRemaining = 0;
         PreparedAbilityTargetPosition = null;
+        PreparedAbilityRequiresHeavyStagger = false;
     }
     public void PrepareAbilityCharges(IEnumerable<MonsterAbilityDefinition> abilities)
     {
@@ -197,7 +203,7 @@ public abstract class Enemy(Position position) : WorldObject(position)
         IEnumerable<KeyValuePair<string, int>> weaponCooldowns, string? preparedWeaponId = null,
         IEnumerable<KeyValuePair<string, int>>? remainingAbilityCharges = null,
         string? preparedAbilityId = null, int preparedAbilityTurnsRemaining = 0,
-        Position? preparedAbilityTargetPosition = null)
+        Position? preparedAbilityTargetPosition = null, bool preparedAbilityRequiresHeavyStagger = false)
     {
         _abilityCooldowns.Clear();
         _weaponCooldowns.Clear();
@@ -207,6 +213,7 @@ public abstract class Enemy(Position position) : WorldObject(position)
         PreparedAbilityId = string.IsNullOrWhiteSpace(preparedAbilityId) ? null : preparedAbilityId;
         PreparedAbilityTurnsRemaining = PreparedAbilityId is null ? 0 : Math.Max(0, preparedAbilityTurnsRemaining);
         PreparedAbilityTargetPosition = PreparedAbilityId is null ? null : preparedAbilityTargetPosition;
+        PreparedAbilityRequiresHeavyStagger = PreparedAbilityId is not null && preparedAbilityRequiresHeavyStagger;
         _remainingAbilityCharges.Clear();
         foreach (var item in remainingAbilityCharges?.Where(item => item.Value >= 0) ?? [])
             _remainingAbilityCharges[item.Key] = item.Value;
@@ -489,6 +496,12 @@ public abstract class Enemy(Position position) : WorldObject(position)
     {
         GroupId = string.IsNullOrWhiteSpace(groupId) ? null : groupId;
         GroupRole = role;
+    }
+
+    public void ConfigureSummon(WorldEntityId summonerId, bool grantsRewardsAndLoot)
+    {
+        SummonerId = summonerId;
+        GrantsRewardsAndLoot = grantsRewardsAndLoot;
     }
 
     public void SetHordeDestination(Position destination)

@@ -455,9 +455,10 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
     }
 
     public BattleLogEntry PrepareEnemyAbility(Enemy enemy, MonsterAbilityDefinition ability,
-        Position? targetPosition = null)
+        Position? targetPosition = null, bool interruptionRequiresHeavyStagger = false)
     {
-        enemy.PrepareAbility(ability.Id, ability.PreparationTurns, targetPosition);
+        enemy.PrepareAbility(ability.Id, ability.PreparationTurns, targetPosition,
+            interruptionRequiresHeavyStagger);
         return new BattleLogEntry(
             $"⚠️ {enemy.Name} előkészíti: {ability.Name}. " +
             (ability.PreparationTurns == 1

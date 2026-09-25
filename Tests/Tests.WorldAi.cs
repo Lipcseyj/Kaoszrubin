@@ -101,6 +101,7 @@ internal static partial class Program
         var troll = data.GetEnemy("E013");
         var dragon = data.GetEnemy("E021");
         var gaze = data.GetMonsterAbility("MA011");
+        var summon = data.GetMonsterSummonForAbility("MA023");
         Assert(medusa.AbilityIds.Contains("MA011") &&
                gaze.Trigger == MonsterAbilityTrigger.Active && gaze.Cooldown == 3 &&
                gaze.Range == 3 && gaze.StatusId == "STATUS006" &&
@@ -110,7 +111,13 @@ internal static partial class Program
                !data.GetEnemy("E004").AbilityIds.Contains(MonsterAbilityIds.Undead) &&
                data.GetEnemy("E018").AbilityIds.Contains("MA012") &&
                data.GetEnemy("E022").AbilityIds.Contains("MA013") &&
-               data.GetMonsterAbility("MA013").MaximumTargets == 2,
+               data.GetMonsterAbility("MA013").MaximumTargets == 2 &&
+               summon is { MinimumCount: 1, MaximumCount: 4, SpawnRadius: 2,
+                   MaximumLivingSummons: 4, GrantsRewardsAndLoot: false, Prepared: true } &&
+               summon.EnemyIds.ToHashSet(StringComparer.OrdinalIgnoreCase).SetEquals(["E004", "E006"]) &&
+               data.GetMonsterAbility("MA023") is { ChargesPerBattle: 1, PreparationTurns: 1 } &&
+               data.GetEnemy("E074").AbilityIds.Contains("MA023") &&
+               data.GetEnemy("E022").AbilityIds.Contains("MA023"),
             "A jellemzők és a paraméterezett képességek szétválasztása hibás.");
     }
 
