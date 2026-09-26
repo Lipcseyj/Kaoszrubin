@@ -63,56 +63,115 @@ public sealed partial class Game
                 true,
                 false)
             : _gameData.GetNpc(npc.DefinitionId);
-        if (definition.Unique && string.Equals(definition.StoryId, EliraStoryId, StringComparison.OrdinalIgnoreCase))
+
+        if (definition.Unique &&
+            string.Equals(definition.StoryId, EliraStoryId, StringComparison.OrdinalIgnoreCase))
         {
             ConverseWithFirstUniqueNpc(npc);
             _renderer.CharacterSheet.RefreshCharacterSheet();
             return false;
         }
-        if (definition.Unique && string.Equals(definition.StoryId, RodericStoryId, StringComparison.OrdinalIgnoreCase))
+
+        if (definition.Unique &&
+            string.Equals(definition.StoryId, RodericStoryId, StringComparison.OrdinalIgnoreCase))
         {
             ConverseWithRoderic(npc);
             _renderer.CharacterSheet.RefreshCharacterSheet();
             return false;
         }
+
         if (definition.Unique)
         {
             _renderer.DrawUniqueNpcIntroduction(npc);
             _renderer.CharacterSheet.RefreshCharacterSheet();
             return false;
         }
-        ProcessQuestProgressChanges(_questManager.SynchronizeCollectQuests());
-        var questNpc = _questManager.For(LegacyNpcIdMap.ToQuestNpcId(npc.DefinitionId),
-            _questWorldContext.GetInstanceId(npc));
-        var unfinishedQuests = questNpc.GetActiveQuests().Where(quest => quest.IsActive).ToArray();
-        var reminder = unfinishedQuests.Length == 0
-            ? null
-            : QuestReminderText.Build(npc.Character, unfinishedQuests, _random.Next(QuestReminderText.TemplateCount));
-        var result = _renderer.DrawWorldNpcRecruitment(npc, CanNpcJoin(npc), GetNpcQuestUiEntries(npc), reminder);
-        ProcessNpcQuests(npc);
+
+        WorldNpcInteractionResult result;
+
+        if (npc.IsQuestNpc)
+        {
+            ProcessQuestProgressChanges(
+                _questManager.SynchronizeCollectQuests());
+
+            var questNpc = _questManager.For(
+                LegacyNpcIdMap.ToQuestNpcId(npc.DefinitionId),
+                _questWorldContext.GetInstanceId(npc));
+
+            var unfinishedQuests = questNpc
+                .GetActiveQuests()
+                .Where(quest => quest.IsActive)
+                .ToArray();
+
+            var reminder = unfinishedQuests.Length == 0
+                ? null
+                : QuestReminderText.Build(
+                    npc.Character,
+                    unfinishedQuests,
+                    _random.Next(QuestReminderText.TemplateCount));
+
+            result = _renderer.DrawWorldNpcRecruitment(
+                npc,
+                CanNpcJoin(npc),
+                GetNpcQuestUiEntries(npc),
+                reminder);
+
+            ProcessNpcQuests(npc);
+        }
+        else
+        {
+            // Nem quest NPC, például az első pálya ingyenes egyjátékos társa.
+            result = _renderer.DrawWorldNpcRecruitment(
+                npc,
+                CanNpcJoin(npc),
+                [],
+                null);
+        }
+
         if (result == WorldNpcInteractionResult.Continue)
         {
             _renderer.CharacterSheet.RefreshCharacterSheet();
             return true;
         }
-        if (result == WorldNpcInteractionResult.Join && CharacterRoster.Party.Add(npc.Character))
+
+        if (result == WorldNpcInteractionResult.Join &&
+            CharacterRoster.Party.Add(npc.Character))
         {
-            npc.Character.SetNpcJoinOrigin(_mazeLevel, "A pályán csatlakozott");
+            npc.Character.SetNpcJoinOrigin(
+                _mazeLevel,
+                "A pályán csatlakozott");
+
             _maze.RemoveWorldNpc(npc);
-            var avatar = new PartyMemberAvatar(npc.Position, npc.Character);
+
+            var avatar = new PartyMemberAvatar(
+                npc.Position,
+                npc.Character);
+
             _maze.AddPartyMember(avatar);
             _nextPartyMoves[avatar] = DateTime.UtcNow;
+
             RevealFor(npc.Character, avatar.Position);
+
             _renderer.CharacterSheet.RefreshCharacterSheet();
-            _renderer.DrawInventoryMessage($"🤝 {npc.Character.Name} ingyen csatlakozott a partihoz.", ConsoleColor.Green);
+
+            _renderer.DrawInventoryMessage(
+                $"🤝 {npc.Character.Name} ingyen csatlakozott a partihoz.",
+                ConsoleColor.Green);
+
             RequestCoopSnapshotPublish();
             return false;
         }
 
         npc.Decline();
+
         _renderer.CharacterSheet.RefreshCharacterSheet();
-        _renderer.DrawInventoryMessage(result == WorldNpcInteractionResult.Join ? "A parti megtelt; előbb helyet kell felszabadítani."
-            : $"{npc.Character.Name} egyelőre itt marad.", ConsoleColor.Yellow);
+
+        _renderer.DrawInventoryMessage(
+            result == WorldNpcInteractionResult.Join
+                ? "A parti megtelt; előbb helyet kell felszabadítani."
+                : $"{npc.Character.Name} egyelőre itt marad.",
+            ConsoleColor.Yellow);
+
         return false;
     }
 
