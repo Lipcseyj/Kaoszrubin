@@ -181,8 +181,12 @@ public sealed partial class Game
         }
         var targetPosition = SelectSpellTarget(character, GetCasterPosition(character), spell, enemy);
         if (targetPosition is null) return;
+        var spellTargetEnemyId = spell.TargetType == SpellTargetType.Enemy
+            ? battle.Enemies.FirstOrDefault(candidate => candidate.CurrentHitPoints > 0 &&
+                candidate.Position == targetPosition.Value)?.Id
+            : null;
         SubmitLocalBattleCommand(BattleActionKind.CastSpell, spell.Id, castingItemSlotIndex,
-            targetPosition, enemy.Id);
+            targetPosition, spellTargetEnemyId);
     }
 
     private BattleItemOptionSnapshot? SelectBattleItem(BattleEncounter battle,

@@ -1146,10 +1146,13 @@ public sealed class CoopGuestScreen
             return null;
         }
         if (key != ConsoleKey.Enter || !spell.ValidTargets.Contains(_spellTargetCursor!.Value)) return null;
+        var targetEnemyId = spell.TargetType == SpellTargetType.Enemy
+            ? snapshot.World?.Enemies.FirstOrDefault(enemy => enemy.Position == _spellTargetCursor.Value)?.EntityId
+            : null;
         GameCommand command = _spellCastingInBattle
             ? new BattleActionCommand(client.PlayerId!.Value, client.NextCommandId(), characterId,
                 snapshot.Battle!.BattleId, snapshot.Battle.TurnId, BattleActionKind.CastSpell, spell.SpellId,
-                spell.CastingItemSlotIndex, _spellTargetCursor)
+                spell.CastingItemSlotIndex, _spellTargetCursor, targetEnemyId)
             : new CastExplorationSpellCommand(client.PlayerId!.Value, client.NextCommandId(), characterId,
                 spell.SpellId, spell.CastingItemSlotIndex, _spellTargetCursor.Value);
         _targetedBattleSpell = null;

@@ -878,6 +878,44 @@ internal static partial class Program
             "A host- vagy guest-célzás nem a konkrét hatótáv-, látóvonal- vagy célpontokot jeleníti meg.");
     }
 
+    static void BattleSpellOptionsIncludeAllEnemies()
+    {
+        var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory,
+            CsvGameDataLoader.GameDataFileName));
+        var spell = catalog.GetSpell("S001");
+        var caster = CreateCharacter("Célzó", characterClassId: CharacterClassIds.Mágus);
+        Assert(caster.LearnSpell(spell) && caster.SetMemorizedSpells([spell]),
+            "A tesztmágus nem tudta előkészíteni a Mágikus lövedéket.");
+        var casterPosition = new Position(2, 2);
+        var focusEnemy = CreateEnemyAt(new Position(5, 2), "HOST-FOCUS");
+        var diagonalEnemy = CreateEnemyAt(new Position(3, 3), "GUEST-DIAGONAL");
+        var maze = new Maze(9, 9);
+        for (var y = 0; y < maze.Height; y++)
+        for (var x = 0; x < maze.Width; x++)
+            maze.Carve(new Position(x, y));
+        maze.AddEnemy(focusEnemy);
+        maze.AddEnemy(diagonalEnemy);
+        var fog = new FogOfWar(maze.Width, maze.Height, 10);
+        fog.RevealFrom(maze, casterPosition, 10);
+        var service = new SpellExecutionService(catalog, new Random(1912));
+        var coordinator = new BattleActionCoordinator(catalog, CreateBattleSystem(1912), service,
+            new Random(1912));
+        var party = new[] { (Character: caster, Position: casterPosition) };
+        var options = coordinator.GetSpellOptions(caster, casterPosition, focusEnemy, inCombat: true,
+            (character, position, candidate, enemy) => service.HasValidSpellTarget(character, position,
+                candidate, enemy, party, maze, fog, casterPosition, caster),
+            (position, candidate, enemy) => service.GetValidSpellTargets(position, candidate, enemy,
+                maze, fog, casterPosition, caster),
+            (position, candidate, enemy) => service.GetInvalidSpellTargetIssues(position, candidate, enemy,
+                maze, fog, casterPosition, caster));
+        var targets = options.Single(option => option.SpellId == spell.Id).ValidTargets;
+
+        Assert(targets.Contains(focusEnemy.Position) && targets.Contains(diagonalEnemy.Position) &&
+               Math.Max(Math.Abs(casterPosition.X - diagonalEnemy.Position.X),
+                   Math.Abs(casterPosition.Y - diagonalEnemy.Position.Y)) == 1,
+            "A guest csak a host fókuszellenfelét kapta meg, az átlósan elérhető varázscélpontot nem.");
+    }
+
     static void RestSummaryUiIsShared()
     {
         var characterId = CharacterId.New();

@@ -122,9 +122,8 @@ public sealed class SpellExecutionService
         switch (spell.TargetType)
         {
             case SpellTargetType.Enemy:
-                var enemy = currentEnemy is not null && currentEnemy.Position == position
-                    ? currentEnemy
-                    : currentEnemy is null ? maze.GetEnemyAt(position) : null;
+                var enemy = maze.GetEnemyAt(position) ??
+                            (currentEnemy is not null && currentEnemy.Position == position ? currentEnemy : null);
                 return enemy?.CurrentHitPoints > 0
                     ? SpellTargetValidation.Valid
                     : SpellTargetValidation.Invalid("nincs élő ellenség ezen a mezőn");
