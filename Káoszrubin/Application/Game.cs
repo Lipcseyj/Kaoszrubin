@@ -223,11 +223,13 @@ public sealed partial class Game : ISessionCommandHandler
         BattleSnapshot? battle = _activeBattle is { IsCompleted: false } activeBattle
             ? CreateBattleSnapshot(activeBattle)
             : null;
+        var illuminatedWalls = CurrentIlluminatedWallPositions();
         var snapshot = _session.CreateSnapshot(new SessionSnapshotContext(_difficultyLevel, _maze.LevelName,
             positions, battle, WorldSnapshotProjector.Create(_maze, _fogOfWar,
                 _activeBattle?.Enemies.Where(enemy => enemy.CurrentHitPoints > 0)
                     .Select(enemy => enemy.Id).ToHashSet(),
-                new QuestWorldSnapshotProjector(_questManager, _questWorldContext).Create)));
+                new QuestWorldSnapshotProjector(_questManager, _questWorldContext).Create,
+                illuminatedWalls)));
         var followers = _maze.PartyMembers
             .Where(member => member.IsTemporaryFollower)
             .Select(member => member.Character)

@@ -607,6 +607,9 @@ public sealed partial class Game
                     _nextNpcSelfCareCheck = now + TimeSpan.FromSeconds(1);
                 }
 
+                _renderer.UpdateIlluminatedWalls(_maze, _fogOfWar, _player.Position,
+                    CurrentIlluminatedWallPositions());
+
                 TryPublishScheduledCoopSnapshot(now);
 
                 Thread.Sleep(20);

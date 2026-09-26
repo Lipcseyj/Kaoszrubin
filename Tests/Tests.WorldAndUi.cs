@@ -562,6 +562,12 @@ static void BattleHitHighlightsDamageAndHealth()
             "A world snapshot rejtett kijáratot vagy cellát publikált.");
         Assert(world.RevealedCells.Single(cell => cell.Position == new Position(2, 1)).ForegroundColor == maze.WallColor,
             "A world snapshot nem őrizte meg a host falszínét.");
+        var illuminatedWall = new Position(2, 1);
+        var illuminatedWorld = WorldSnapshotProjector.Create(maze, fog,
+            illuminatedWalls: new HashSet<Position> { illuminatedWall });
+        Assert(illuminatedWorld.RevealedCells.Single(cell => cell.Position == illuminatedWall).ForegroundColor ==
+               ConsoleColor.Yellow,
+            "A world snapshot nem adta át a vendégnek a fényburok sárga falszínét.");
         Assert(world.Doors.Single().ForegroundColor == ConsoleColor.DarkYellow &&
                world.Doors.Single().SymbolCodePoint == new Rune('╬').Value,
             "A world snapshot nem őrizte meg a host ajtószínét vagy ajtójelét.");

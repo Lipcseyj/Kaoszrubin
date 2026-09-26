@@ -619,6 +619,36 @@ public sealed partial class Game
         return revealed;
     }
 
+    private HashSet<Position> CurrentIlluminatedWallPositions()
+    {
+        const string lightSpellId = "S026";
+        var sources = LivingPartyWithPositions()
+            .Where(entry => entry.Character.IsAlive && entry.Character.ActiveSpellEffects.Any(effect =>
+                effect.Type == ActiveSpellEffectType.VisionBonus && effect.Value > 0 &&
+                effect.SourceSpellId is lightSpellId or MiscItemIds.Torch))
+            .Select(entry => (entry.Position,
+                Range: CharacterClassRules.VisionRange(entry.Character, CurrentLevelVisionModifier)))
+            .ToArray();
+        if (sources.Length == 0) return [];
+
+        var result = new HashSet<Position>();
+        foreach (var source in sources)
+        {
+            var minimumX = Math.Max(0, source.Position.X - source.Range);
+            var maximumX = Math.Min(_maze.Width - 1, source.Position.X + source.Range);
+            var minimumY = Math.Max(0, source.Position.Y - source.Range);
+            var maximumY = Math.Min(_maze.Height - 1, source.Position.Y + source.Range);
+            for (var y = minimumY; y <= maximumY; y++)
+            for (var x = minimumX; x <= maximumX; x++)
+            {
+                var position = new Position(x, y);
+                if (_maze.Tiles[x, y] != _maze.WallRune || result.Contains(position)) continue;
+                if (FogOfWar.CanSee(_maze, source.Position, position, source.Range)) result.Add(position);
+            }
+        }
+        return result;
+    }
+
     private MazeLevelConfiguration CurrentLevelConfiguration => _locationKind == AdventureLocationKind.Quest
         ? QuestLocationConfigurations.Get(_locationId)
         : MazeLevelConfigurations.Get(_mazeLevel);

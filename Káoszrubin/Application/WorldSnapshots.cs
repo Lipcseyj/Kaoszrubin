@@ -64,7 +64,8 @@ public static class WorldSnapshotProjector
 {
     public static WorldSnapshot Create(Maze maze, FogOfWar fogOfWar,
         IReadOnlySet<WorldEntityId>? forcedVisibleEnemies = null,
-        Func<WorldNpc, WorldNpcQuestData>? projectQuests = null)
+        Func<WorldNpc, WorldNpcQuestData>? projectQuests = null,
+        IReadOnlySet<Position>? illuminatedWalls = null)
     {
         ArgumentNullException.ThrowIfNull(maze);
         ArgumentNullException.ThrowIfNull(fogOfWar);
@@ -83,6 +84,8 @@ public static class WorldSnapshotProjector
             if (shownTrap is not null) tile = shownTrap.Symbol;
             var color = shownTrap is not null
                 ? shownTrap.State == TrapState.Detected ? ConsoleColor.Yellow : ConsoleColor.DarkGray
+                : tile == maze.WallRune && illuminatedWalls?.Contains(position) == true
+                ? ConsoleColor.Yellow
                 : tile == maze.WallRune
                 ? maze.WallColor
                 : maze.GetPassageAt(position) is not null ? ConsoleColor.Cyan

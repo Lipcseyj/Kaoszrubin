@@ -140,6 +140,8 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
     private ConsoleColor? _currentForegroundColor;
     private ConsoleColor? _currentBackgroundColor;
     private readonly HashSet<Position> _battleFocusPositions = [];
+    private readonly HashSet<Position> _illuminatedWallPositions = [];
+    private WorldId? _illuminatedWorldId;
     private readonly List<SpellImpactAnimation> _activeSpellImpacts = [];
     private readonly HashSet<Position> _spellImpactDrawnCells = [];
     private Maze? _spellImpactMaze;
@@ -327,6 +329,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
         _battleDetailsPage = 0;
         _spellInfoCharacter = null;
         _spellCastingOverlaySnapshot = null;
+        if (_illuminatedWorldId != maze.Id) _illuminatedWallPositions.Clear();
         Console.Clear();
         DrawPlayfield(maze, fogOfWar);
         DrawFrame();
@@ -444,6 +447,26 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
         foreach (var position in changedPositions.Where(maze.IsInside).Distinct())
             if (position != playerPosition) DrawMapCell(maze, fogOfWar, position);
         DrawPlayer(playerPosition);
+    }
+
+    /// <summary>Csak a mozgó fényburokba belépő vagy abból kilépő falakat rajzolja újra.</summary>
+    public void UpdateIlluminatedWalls(Maze maze, FogOfWar fogOfWar, Position playerPosition,
+        IEnumerable<Position> illuminatedWalls)
+    {
+        if (_illuminatedWorldId != maze.Id)
+        {
+            _illuminatedWorldId = maze.Id;
+            _illuminatedWallPositions.Clear();
+        }
+        var next = illuminatedWalls.Where(maze.IsInside)
+            .Where(position => maze.Tiles[position.X, position.Y] == maze.WallRune)
+            .ToHashSet();
+        var changed = _illuminatedWallPositions.Except(next)
+            .Concat(next.Except(_illuminatedWallPositions)).ToArray();
+        if (changed.Length == 0) return;
+        _illuminatedWallPositions.Clear();
+        _illuminatedWallPositions.UnionWith(next);
+        DrawMapCellsChanged(maze, fogOfWar, playerPosition, changed);
     }
 
     /// <summary>Villogtatás nélkül, inverz színekkel jelöli az aktuális cselekvőt és célpontját.</summary>
@@ -2970,7 +2993,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
     /// Visszaadja az adott mező előtérszínét az ott lévő objektum alapján
     /// (kincsesládához sárga, ellenséghez piros, stb.), vagy a tile alapértelmezettét.
     /// </summary>
-    private static ConsoleColor GetForegroundColor(Maze maze, Position position)
+    private ConsoleColor GetForegroundColor(Maze maze, Position position)
     {
         if (maze.GetTrapAt(position) is { State: not TrapState.Hidden } trap)
             return trap.State == TrapState.Detected ? ConsoleColor.Yellow : ConsoleColor.DarkGray;
@@ -2993,6 +3016,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
 
         return maze.Tiles[position.X, position.Y] switch
         {
+            var tile when tile == maze.WallRune && _illuminatedWallPositions.Contains(position) => ConsoleColor.Yellow,
             var tile when tile == maze.WallRune => maze.WallColor,
             var tile when tile == Maze.ExitMarker => ConsoleColor.Green,
             _ => ConsoleColor.Black
@@ -3009,9 +3033,10 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
         _ => ConsoleColor.Gray
     };
 
-    private static ConsoleColor GetTerrainForegroundColor(Maze maze, Position position) =>
+    private ConsoleColor GetTerrainForegroundColor(Maze maze, Position position) =>
         maze.Tiles[position.X, position.Y] switch
         {
+            var tile when tile == maze.WallRune && _illuminatedWallPositions.Contains(position) => ConsoleColor.Yellow,
             var tile when tile == maze.WallRune => maze.WallColor,
             var tile when tile == Maze.ExitMarker => ConsoleColor.Green,
             _ => ConsoleColor.Black
