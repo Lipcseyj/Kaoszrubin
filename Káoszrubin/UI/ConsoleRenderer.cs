@@ -2140,7 +2140,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
     #region NPC interaction and story dialogs
 
     public WorldNpcInteractionResult DrawWorldNpcRecruitment(WorldNpc npc,
-        bool canJoin, IReadOnlyList<NpcQuestUiEntry> npcQuestUiEntries)
+        bool canJoin, IReadOnlyList<NpcQuestUiEntry> npcQuestUiEntries, string? dialogueOverride = null)
     {
         var mana = npc.Character.UsesMana ? $"   🔷 {npc.Character.CurrentMana}/{npc.Character.MaximumMana}" : string.Empty;
         var lines = new List<(string Text, ConsoleColor Color)>
@@ -2153,7 +2153,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
             (npcQuestUiEntries.Count > 0 ? $"📜 Küldetések: {npcQuestUiEntries.Count}" : string.Empty, ConsoleColor.DarkYellow),
             (string.Empty, ConsoleColor.Gray),
         };
-        lines.AddRange(MessageTextLayout.Wrap($"„{npc.Dialogue}”", WorldNpcRecruitmentTextWidth)
+        lines.AddRange(MessageTextLayout.Wrap($"„{dialogueOverride ?? npc.Dialogue}”", WorldNpcRecruitmentTextWidth)
             .Select(line => (line, ConsoleColor.White)));
 
         foreach (var quest in npcQuestUiEntries)

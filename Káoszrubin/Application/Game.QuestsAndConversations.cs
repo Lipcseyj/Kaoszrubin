@@ -81,7 +81,14 @@ public sealed partial class Game
             _renderer.CharacterSheet.RefreshCharacterSheet();
             return false;
         }
-        var result = _renderer.DrawWorldNpcRecruitment(npc, CanNpcJoin(npc), GetNpcQuestUiEntries(npc));
+        ProcessQuestProgressChanges(_questManager.SynchronizeCollectQuests());
+        var questNpc = _questManager.For(LegacyNpcIdMap.ToQuestNpcId(npc.DefinitionId),
+            _questWorldContext.GetInstanceId(npc));
+        var unfinishedQuests = questNpc.GetActiveQuests().Where(quest => quest.IsActive).ToArray();
+        var reminder = unfinishedQuests.Length == 0
+            ? null
+            : QuestReminderText.Build(npc.Character, unfinishedQuests, _random.Next(QuestReminderText.TemplateCount));
+        var result = _renderer.DrawWorldNpcRecruitment(npc, CanNpcJoin(npc), GetNpcQuestUiEntries(npc), reminder);
         ProcessNpcQuests(npc);
         if (result == WorldNpcInteractionResult.Continue)
         {
