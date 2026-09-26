@@ -56,6 +56,7 @@ public sealed class CoopGuestScreen
     private long _lastSessionActivitySequence;
     private long _lastSessionSoundSequence;
     private bool _sessionSoundsInitialized;
+    private readonly ReplicatedSpellImpactTracker _spellImpacts = new();
     private int _deathStateSynchronized;
     private Guid? _acknowledgedNarrativeId;
     private Guid? _acknowledgedLevelImageId;
@@ -105,6 +106,8 @@ public sealed class CoopGuestScreen
         client.SnapshotChanged += snapshot =>
         {
             _battleCommandGate.CompleteAfterSnapshot(snapshot.SnapshotSequence);
+            if (snapshot.World is { } world)
+                _spellImpacts.Observe(world.WorldId, snapshot.SpellImpacts, _gameData, DateTime.UtcNow);
             Interlocked.Exchange(ref _redrawRequested, 1);
         };
         client.ConnectionStateChanged += _ => Interlocked.Exchange(ref _redrawRequested, 1);
@@ -1500,6 +1503,8 @@ public sealed class CoopGuestScreen
             _lastFrame = null;
             return;
         }
+        var now = DateTime.UtcNow;
+        var activeSpellImpacts = _spellImpacts.ActiveAt(now);
 
         var own = snapshot.Party.FirstOrDefault(character => character.CharacterId == selected.CharacterId);
         var ownsCharacter = snapshot.CharacterControls.Any(control =>
@@ -1514,9 +1519,10 @@ public sealed class CoopGuestScreen
             return;
         }
 
-        var frame = BuildFrame(client, selected, snapshot, world);
+        var frame = BuildFrame(client, selected, snapshot, world, activeSpellImpacts, now);
         RenderFrame(frame, _lastFrame);
         _lastFrame = frame;
+        if (activeSpellImpacts.Count > 0) Interlocked.Exchange(ref _redrawRequested, 1);
     }
 
     private void SynchronizeBackgroundMusic(SessionSnapshot snapshot)
@@ -1600,7 +1606,8 @@ public sealed class CoopGuestScreen
     }
 
     private GuestRenderFrame BuildFrame(CoopSignalRClient client, CoopCharacterOption selected,
-        SessionSnapshot snapshot, WorldSnapshot world)
+        SessionSnapshot snapshot, WorldSnapshot world, IReadOnlyList<SpellImpactAnimation> activeSpellImpacts,
+        DateTime utcNow)
     {
         var windowWidth = SafeWindowWidth();
         var windowHeight = SafeWindowHeight();
@@ -1672,6 +1679,20 @@ public sealed class CoopGuestScreen
             for (var y = 0; y < grid.GetLength(1); y++)
                 for (var x = 0; x < grid.GetLength(0); x++)
                     grid[x, y] = new GuestMapCell(" ", ConsoleColor.Gray, ConsoleColor.Black);
+        foreach (var impact in activeSpellImpacts)
+            foreach (var position in impact.Cells)
+            {
+                if (position.X < 0 || position.X >= grid.GetLength(0) ||
+                    position.Y < 0 || position.Y >= grid.GetLength(1)) continue;
+                var cell = grid[position.X, position.Y];
+                var colors = SpellImpactVisual.GetColors(impact.Spell, position, impact.Origin,
+                    impact.ElapsedMillisecondsAt(utcNow));
+                grid[position.X, position.Y] = cell with
+                {
+                    Color = colors.Foreground,
+                    Background = colors.Background
+                };
+            }
         if (_doorTargetAction is not null && _doorTargetCandidates.Count > 0)
         {
             _doorTargetSelection = Math.Clamp(_doorTargetSelection, 0, _doorTargetCandidates.Count - 1);

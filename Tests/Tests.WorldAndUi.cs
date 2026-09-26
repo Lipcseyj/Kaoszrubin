@@ -691,14 +691,20 @@ static void BattleHitHighlightsDamageAndHealth()
         var enemy = CreateEnemyAt(new Position(3, 2), "E-REPLICATION");
         maze.AddEnemy(enemy);
         var second = session.CreateSnapshot(new SessionSnapshotContext(1, "Replikációs pálya", positions,
-            World: WorldSnapshotProjector.Create(maze, fog)));
+            World: WorldSnapshotProjector.Create(maze, fog))) with
+        {
+            SpellImpacts = [new SessionSpellImpactSnapshot(1, maze.Id, "S001",
+                enemy.Position, [enemy.Position])]
+        };
         var delta = publisher.CreateFrame(playerId, second);
         Assert(delta.Kind == SessionReplicationFrameKind.Delta && delta.Session.World is null &&
                delta.BaseSnapshotSequence == first.SnapshotSequence &&
-               delta.WorldDelta?.EnemyUpserts.Single().EntityId == enemy.Id,
+               delta.WorldDelta?.EnemyUpserts.Single().EntityId == enemy.Id &&
+               delta.Session.SpellImpacts is [{ SpellId: "S001" }],
             "A nyugtázott baseline után nem megfelelő world delta készült.");
         var restored = JsonSerializer.Deserialize<SessionReplicationFrame>(JsonSerializer.Serialize(delta));
-        Assert(restored?.WorldDelta?.ToSnapshotSequence == second.SnapshotSequence,
+        Assert(restored?.WorldDelta?.ToSnapshotSequence == second.SnapshotSequence &&
+               restored.Session.SpellImpacts is [{ WorldId: var impactWorld }] && impactWorld == maze.Id,
             "A replikációs frame JSON round-trip közben megváltozott.");
     }
 

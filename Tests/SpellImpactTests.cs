@@ -3,6 +3,7 @@ using KaoszRubin.Domain.Magic;
 using KaoszRubin.Domain.Characters;
 using KaoszRubin.UI;
 using KaoszRubin.World;
+using KaoszRubin.Application;
 
 internal static class SpellImpactTests
 {
@@ -90,6 +91,28 @@ internal static class SpellImpactTests
                 !animation.IsActiveAt(started.AddMilliseconds(spell.EffectiveImpactDurationMilliseconds)) &&
                 animation.ElapsedMillisecondsAt(started.AddMilliseconds(-100)) == 0,
             "A varázseffekt nem külső képkockaidő alapján indul vagy jár le.");
+    }
+
+    public static void ReplicatedImpactStartsGuestAnimationOnce()
+    {
+        var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
+        var tracker = new ReplicatedSpellImpactTracker();
+        var world = WorldId.New();
+        var otherWorld = WorldId.New();
+        var started = new DateTime(2026, 1, 1, 12, 0, 0, DateTimeKind.Utc);
+        var old = new SessionSpellImpactSnapshot(1, world, "S001", new(2, 2), [new(2, 2)]);
+        Require(tracker.Observe(world, [old], catalog, started).Count == 0,
+            "A guest belépéskor lejátszotta a korábbi varázseffektet.");
+
+        var current = new SessionSpellImpactSnapshot(2, world, "S001", new(3, 2), [new(3, 2)]);
+        var foreign = new SessionSpellImpactSnapshot(3, otherWorld, "S007", new(4, 2), [new(4, 2)]);
+        var active = tracker.Observe(world, [old, current, foreign], catalog, started.AddMilliseconds(20));
+        Require(active.Count == 1 && active[0].Spell.Id == "S001" && active[0].Cells.SequenceEqual(current.Cells),
+            "A host friss varázseffektje nem jutott el egyszer a guest idővonalára.");
+        Require(tracker.Observe(world, [old, current, foreign], catalog, started.AddMilliseconds(40)).Count == 1,
+            "Az ismételt snapshot megkettőzte a guest varázseffektjét.");
+        Require(tracker.ActiveAt(started.AddSeconds(2)).Count == 0,
+            "A guest varázseffektje nem járt le.");
     }
 
     public static void ImpactPrecedesDamage()

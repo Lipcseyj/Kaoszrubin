@@ -1,4 +1,6 @@
 using KaoszRubin.Domain.Magic;
+using KaoszRubin.Application;
+using KaoszRubin.Data;
 
 namespace KaoszRubin.UI;
 
@@ -58,4 +60,55 @@ internal sealed record SpellImpactAnimation(SpellDefinition Spell, Position Orig
 
     public bool IsActiveAt(DateTime utcNow) =>
         ElapsedMillisecondsAt(utcNow) < Spell.EffectiveImpactDurationMilliseconds;
+}
+
+internal sealed class ReplicatedSpellImpactTracker
+{
+    private readonly object _gate = new();
+    private readonly List<SpellImpactAnimation> _active = [];
+    private long _lastSequence;
+    private bool _initialized;
+    private WorldId? _worldId;
+
+    public IReadOnlyList<SpellImpactAnimation> Observe(WorldId worldId,
+        IReadOnlyList<SessionSpellImpactSnapshot>? impacts, GameDataCatalog gameData, DateTime utcNow)
+    {
+        lock (_gate)
+        {
+            if (_worldId != worldId)
+            {
+                _worldId = worldId;
+                _active.Clear();
+            }
+            impacts ??= [];
+            if (!_initialized)
+            {
+                _lastSequence = impacts.Count == 0 ? 0 : impacts.Max(impact => impact.Sequence);
+                _initialized = true;
+                RemoveExpired(utcNow);
+                return _active.ToArray();
+            }
+            foreach (var impact in impacts.Where(impact => impact.Sequence > _lastSequence)
+                         .OrderBy(impact => impact.Sequence))
+            {
+                _lastSequence = impact.Sequence;
+                if (impact.WorldId != worldId || impact.Cells.Count == 0) continue;
+                _active.Add(new SpellImpactAnimation(gameData.GetSpell(impact.SpellId), impact.Origin,
+                    impact.Cells.Distinct().ToArray(), utcNow));
+            }
+            RemoveExpired(utcNow);
+            return _active.ToArray();
+        }
+    }
+
+    public IReadOnlyList<SpellImpactAnimation> ActiveAt(DateTime utcNow)
+    {
+        lock (_gate)
+        {
+            RemoveExpired(utcNow);
+            return _active.ToArray();
+        }
+    }
+
+    private void RemoveExpired(DateTime utcNow) => _active.RemoveAll(impact => !impact.IsActiveAt(utcNow));
 }

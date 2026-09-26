@@ -138,6 +138,37 @@ internal static class QuestDoorTests
         Check(rejected, "Questzár került nem garantált mellékszobára.");
     }
 
+    public static void AureliosChestAlwaysStaysBehindQuestDoor()
+    {
+        var configuration = MazeLevelConfigurations.Get(1);
+        var data = Data();
+        for (var seed = 0; seed < 80; seed++)
+        {
+            var settings = configuration.CreateGenerationSettings(new Random(seed * 2));
+            var maze = new MazeGenerator(settings, [], [], new Random(seed * 2 + 1)).Create(55, 31);
+            QuestChestPlacement.Place(maze, data, configuration.QuestChestPlacements);
+            var room = maze.GetRoomByContentId("KING_CHEST_ROOM")
+                ?? throw new InvalidOperationException($"Hiányzik Aurelios ládaszobája (seed: {seed}).");
+            var chest = maze.TreasureChests.Single(candidate =>
+                candidate.Definition?.Id == new QuestChestId("AURELIOS_HELP"));
+            Check(room.Contains(chest.Position), $"Aurelios ládája nem a quest szobába került (seed: {seed}).");
+
+            var boundaryDoors = maze.Doors.Where(door => IsOnBoundary(room, door.Position)).ToArray();
+            Check(boundaryDoors.Length == 1 && boundaryDoors[0] is
+                {
+                    RequiredQuest.QuestId: QuestId.AureliosEmissaryChest,
+                    IsQuestSealed: true,
+                    State: DoorState.Closed,
+                    IsWalkable: false
+                }, $"Aurelios ládaszobája nem pontosan egy lezárt questajtó mögé került (seed: {seed}).");
+        }
+    }
+
+    private static bool IsOnBoundary(Room room, Position position) =>
+        !room.Contains(position) &&
+        position.X >= room.TopLeft.X - 1 && position.X <= room.TopLeft.X + room.Width &&
+        position.Y >= room.TopLeft.Y - 1 && position.Y <= room.TopLeft.Y + room.Height;
+
     private sealed class NoRollRandom : Random
     {
         public override int Next(int minValue, int maxValue) => throw new InvalidOperationException("A tiltott próbához dobás történt.");

@@ -830,6 +830,8 @@ static void ResolveSkipsActionAfterSupportVictory()
             Activities = [new SessionActivitySnapshot(1, SessionActivityKind.Spell,
             "A host térképi varázslatot használt.", ConsoleColor.Magenta)],
             Sounds = [new SessionSoundSnapshot(1, SoundEffect.OffensiveSpell, [companion.Id])],
+            SpellImpacts = [new SessionSpellImpactSnapshot(1, WorldId.New(), "S001",
+                new Position(4, 3), [new Position(4, 3), new Position(5, 3)])],
             LevelImage = new LevelImageSnapshot(Guid.NewGuid(), "Tesztlabirintus", "teszt.png",
                 [session.HostPlayerId]),
             InnDeparture = new InnDepartureSnapshot("A csapat elhagyja a fogadót."),
@@ -869,6 +871,7 @@ static void ResolveSkipsActionAfterSupportVictory()
                    Sequence: 1, Effect: SoundEffect.OffensiveSpell,
                    ListenerCharacterIds: [{ } listener]
                }] && listener == companion.Id &&
+               restored.SpellImpacts is [{ Sequence: 1, SpellId: "S001", Cells.Count: 2 }] &&
                restored.PartyGold == 777 && restored.Party.All(character => character.Gold == 777) &&
                restored.Sounds[0].IsAudibleTo(companion.Id) && !restored.Sounds[0].IsAudibleTo(leader.Id) &&
                restored.Party.Single(character => character.CharacterId == companion.Id).Position == new Position(3, 2),

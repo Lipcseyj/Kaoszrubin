@@ -1,5 +1,6 @@
 using KaoszRubin.Combat;
 using KaoszRubin.Domain.Characters;
+using KaoszRubin.World;
 
 namespace KaoszRubin.Application;
 
@@ -10,8 +11,10 @@ public sealed class SessionEventService
     private readonly Random _random;
     private readonly Queue<SessionActivitySnapshot> _sessionActivities = new();
     private readonly Queue<SessionSoundSnapshot> _sessionSounds = new();
+    private readonly Queue<SessionSpellImpactSnapshot> _spellImpacts = new();
     private long _sessionActivitySequence;
     private long _sessionSoundSequence;
+    private long _spellImpactSequence;
 
     public SessionEventService(ConsoleRenderer renderer, SoundEffects soundEffects, Random random)
     {
@@ -22,6 +25,7 @@ public sealed class SessionEventService
 
     public IReadOnlyList<SessionActivitySnapshot> Activities => _sessionActivities.ToArray();
     public IReadOnlyList<SessionSoundSnapshot> Sounds => _sessionSounds.ToArray();
+    public IReadOnlyList<SessionSpellImpactSnapshot> SpellImpacts => _spellImpacts.ToArray();
 
     public void LogPartyComment(LiveCharacter speaker, string comment, string? level = null)
     {
@@ -96,6 +100,15 @@ public sealed class SessionEventService
     {
         _sessionSounds.Enqueue(new SessionSoundSnapshot(++_sessionSoundSequence, effect, listenerCharacterIds));
         while (_sessionSounds.Count > 48) _sessionSounds.Dequeue();
+    }
+
+    public void RecordSpellImpact(WorldId worldId, string spellId, Position origin,
+        IReadOnlyList<Position> cells)
+    {
+        if (string.IsNullOrWhiteSpace(spellId) || cells.Count == 0) return;
+        _spellImpacts.Enqueue(new SessionSpellImpactSnapshot(++_spellImpactSequence, worldId, spellId, origin,
+            cells.Distinct().ToArray()));
+        while (_spellImpacts.Count > 24) _spellImpacts.Dequeue();
     }
 
     public static ConsoleColor BattleEntryColor(BattleLogKind kind) => kind switch

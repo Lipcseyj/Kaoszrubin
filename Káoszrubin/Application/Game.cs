@@ -272,6 +272,7 @@ public sealed partial class Game : ISessionCommandHandler
             MusicContext = _backgroundMusic.Context,
             ExplorationClockIndicator = BuildExplorationClockIndicator(DateTime.UtcNow,
                 IsExplorationClockAdvancing),
+            SpellImpacts = _sessionEventService.SpellImpacts,
             Party = snapshot.Party.Select(character => character with
             {
                 Gold = PartyLeader.Gold,

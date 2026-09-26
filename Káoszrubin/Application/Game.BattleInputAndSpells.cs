@@ -416,8 +416,14 @@ public sealed partial class Game
             targets => PlaySpellImpact(spell, casterPosition, target, targets));
 
     private void PlaySpellImpact(SpellDefinition spell, Position casterPosition, Position target,
-        IReadOnlyList<Position> enemyTargets) =>
+        IReadOnlyList<Position> enemyTargets)
+    {
         _renderer.PlaySpellImpact(_maze, _fogOfWar, _player.Position, spell, casterPosition, target, enemyTargets);
+        var origin = spell.TargetType == SpellTargetType.Direction ? casterPosition : target;
+        var cells = SpellImpactVisual.GetCells(spell, casterPosition, target, enemyTargets, _maze)
+            .Where(_fogOfWar.IsVisible).Distinct().ToArray();
+        _sessionEventService.RecordSpellImpact(_maze.Id, spell.Id, origin, cells);
+    }
 
     private void ShiftExplorationSchedules(TimeSpan pause)
     {
