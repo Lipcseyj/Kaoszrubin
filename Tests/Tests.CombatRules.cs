@@ -889,22 +889,33 @@ internal static partial class Program
         var daggerTargets = TacticalBattleCoordinator.EnemyAttackTargets(battle, kobold, dagger,
             _ => new Position(5, 3));
         var polearm = data.GetWeapon("W011");
+        var sightMaze = new Maze(7, 7);
+        sightMaze.Carve(kobold.Position);
+        sightMaze.Carve(new Position(3, 1));
+        var blockedPolearmTargets = TacticalBattleCoordinator.EnemyAttackTargets(battle, kobold, polearm,
+            _ => new Position(3, 1), (origin, aim, range) => FogOfWar.CanSee(sightMaze, origin, aim, range));
+        sightMaze.Carve(new Position(3, 2));
         var polearmTargets = TacticalBattleCoordinator.EnemyAttackTargets(battle, kobold, polearm,
-            _ => new Position(3, 1));
+            _ => new Position(3, 1), (origin, aim, range) => FogOfWar.CanSee(sightMaze, origin, aim, range));
         var daggerApproach = TacticalBattleCoordinator.EnemyMeleeApproachPositions(target: new Position(3, 3), dagger)
             .ToArray();
-        var polearmApproach = TacticalBattleCoordinator.EnemyMeleeApproachPositions(target: new Position(3, 3), polearm)
+        var polearmApproach = TacticalBattleCoordinator.EnemyMeleeApproachPositions(
+                target: new Position(3, 3), polearm, _ => true)
+            .ToArray();
+        var blockedPolearmApproach = TacticalBattleCoordinator.EnemyMeleeApproachPositions(
+                target: new Position(3, 3), polearm, _ => false)
             .ToArray();
 
         Assert(!dagger.CanAttackFromRear && TacticalDistance.Between(kobold.Position, new Position(5, 3)) == 1 &&
                !TacticalDistance.IsMeleeAdjacent(kobold.Position, new Position(5, 3)) &&
                daggerTargets.Count == 0 && daggerApproach.All(position =>
                    TacticalDistance.IsMeleeAdjacent(position, new Position(3, 3))) &&
-               polearm.CanAttackFromRear && polearmTargets.SequenceEqual([target]) &&
+               polearm.CanAttackFromRear && polearmTargets.SequenceEqual([target]) && blockedPolearmTargets.Count == 0 &&
                polearmApproach.Contains(new Position(3, 1)) &&
                polearmApproach.All(position => TacticalDistance.Between(position, new Position(3, 3)) == 2 &&
-                                                !TacticalDistance.IsMeleeAdjacent(position, new Position(3, 3))),
-            "Az ellenséges tőr vagy lándzsa célelérése/pathfindingja nem a HátsóSor fegyverjellemzőt követte.");
+                                                !TacticalDistance.IsMeleeAdjacent(position, new Position(3, 3))) &&
+               blockedPolearmApproach.Length == 0,
+            "Az ellenséges tőr vagy lándzsa célelérése/pathfindingja nem a HátsóSor fegyverjellemzőt és a látóvonalat követte.");
     }
 
     static void DualWieldingRequiresDisciplineAndProficiencies()

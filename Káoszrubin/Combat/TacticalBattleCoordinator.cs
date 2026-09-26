@@ -240,8 +240,11 @@ public sealed class TacticalBattleCoordinator
             var position = getCharacterPosition(character);
             var distance = TacticalDistance.Between(enemy.Position, position);
             if (weapon?.IsRanged != true)
-                return TacticalDistance.IsMeleeAdjacent(enemy.Position, position) ||
-                       weapon?.CanAttackFromRear == true && distance <= 2;
+            {
+                if (TacticalDistance.IsMeleeAdjacent(enemy.Position, position)) return true;
+                return weapon?.CanAttackFromRear == true && distance <= 2 &&
+                       (canSee is null || canSee(enemy.Position, position, 2));
+            }
             return RangedWeaponRules.CanReach(weapon, distance) &&
                    (canSee is null || canSee(enemy.Position, position, weapon.MaximumRange));
         }
@@ -341,7 +344,8 @@ public sealed class TacticalBattleCoordinator
                 yield return new Position(x, y);
     }
 
-    public static IEnumerable<Position> EnemyMeleeApproachPositions(Position target, WeaponDefinition? weapon)
+    public static IEnumerable<Position> EnemyMeleeApproachPositions(Position target, WeaponDefinition? weapon,
+        Func<Position, bool>? hasLineOfSightToTarget = null)
     {
         if (weapon?.CanAttackFromRear != true) return MeleePositions(target);
 
@@ -353,7 +357,8 @@ public sealed class TacticalBattleCoordinator
         {
             var position = new Position(x, y);
             if (TacticalDistance.Between(position, target) == preferredDistance &&
-                !TacticalDistance.IsMeleeAdjacent(position, target))
+                !TacticalDistance.IsMeleeAdjacent(position, target) &&
+                (hasLineOfSightToTarget is null || hasLineOfSightToTarget(position)))
                 positions.Add(position);
         }
         return positions;

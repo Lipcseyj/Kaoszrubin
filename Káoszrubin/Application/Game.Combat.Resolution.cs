@@ -1145,7 +1145,8 @@ public sealed partial class Game
     {
         var actorId = CombatantId.ForEnemy(enemy.Id);
         if (weapon?.IsRanged != true)
-            return TacticalBattleCoordinator.EnemyMeleeApproachPositions(target, weapon)
+            return TacticalBattleCoordinator.EnemyMeleeApproachPositions(target, weapon,
+                    position => HasBattleLineOfSight(position, target, 2))
                 .Where(position => CanBattleEnter(battle, position, actorId))
                 .ToArray();
 
