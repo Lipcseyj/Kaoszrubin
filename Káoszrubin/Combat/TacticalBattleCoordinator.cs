@@ -239,15 +239,9 @@ public sealed class TacticalBattleCoordinator
         {
             var position = getCharacterPosition(character);
             var distance = TacticalDistance.Between(enemy.Position, position);
-
-            if (weapon?.IsRanged == true)
-            {
-                return RangedWeaponRules.CanReach(weapon, distance) &&
-                       (canSee is null ||
-                        canSee(enemy.Position, position, weapon.MaximumRange));
-            }
-
-            return distance <= 1;
+            if (!RangedWeaponRules.CanReach(weapon, distance)) return false;
+            return weapon?.IsRanged != true || canSee is null ||
+                   canSee(enemy.Position, position, weapon.MaximumRange);
         }
 
         var directCandidates = EnemyTargets(battle, enemy).Where(InRange)
