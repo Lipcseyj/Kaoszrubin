@@ -1807,7 +1807,7 @@ public static class CsvGameDataLoader
 
     private static bool IsMonsterStatusEffect(MonsterAbilityEffect effect) => effect is
         MonsterAbilityEffect.Poison or MonsterAbilityEffect.Disease or MonsterAbilityEffect.Bleeding or
-        MonsterAbilityEffect.ApplyStatus;
+        MonsterAbilityEffect.ApplyStatus or MonsterAbilityEffect.Curse;
 
     private static void ValidateStrengthHitBonuses(IEnumerable<CharacterClassDefinition> characterClasses,
         IReadOnlyCollection<StrengthHitBonusDefinition> bonuses)

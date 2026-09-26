@@ -44,6 +44,7 @@ public sealed partial class Game
     private void StartBattle(LiveCharacter initiatingCharacter, Enemy initiatingEnemy, bool enemyStrikesFirst)
     {
         if (_battleStarted || !initiatingCharacter.IsAlive || initiatingEnemy.CurrentHitPoints <= 0) return;
+        _nextExplorationStatusTickUtc = DateTime.MaxValue;
         CheckBossDiscovery([initiatingEnemy], initiatingCharacter);
         _timeStopUsedThisBattle = false;
         _turnUndeadNextAvailableRounds.Clear();

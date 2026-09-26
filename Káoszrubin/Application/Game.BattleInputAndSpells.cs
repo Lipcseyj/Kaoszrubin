@@ -417,6 +417,9 @@ public sealed partial class Game
     private void ShiftExplorationSchedules(TimeSpan pause)
     {
         _nextNeedsDrain += pause;
+        if (_nextExplorationStatusTickUtc != DateTime.MinValue &&
+            _nextExplorationStatusTickUtc != DateTime.MaxValue)
+            _nextExplorationStatusTickUtc += pause;
         _nextNpcSelfCareCheck += pause;
         _nextAdHocConversationCheckUtc += pause;
         if (_lastAdHocConversationUtc != DateTime.MinValue) _lastAdHocConversationUtc += pause;

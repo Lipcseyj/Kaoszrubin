@@ -119,6 +119,8 @@ public sealed partial class Game : ISessionCommandHandler
     private Guid? _hostSpellInfoWindowId;
     private HeldInventoryItem? _heldInventoryItem;
     private DateTime _nextNeedsDrain;
+    private static readonly TimeSpan ExplorationStatusTickInterval = TimeSpan.FromSeconds(10);
+    private DateTime _nextExplorationStatusTickUtc = DateTime.MinValue;
     private DateTime _nextNpcSelfCareCheck;
     private DateTime _nextTrapMessageUtc;
     private readonly Dictionary<Enemy, DateTime> _nextEnemyMoves = [];

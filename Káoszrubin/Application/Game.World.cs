@@ -577,6 +577,21 @@ public sealed partial class Game
                     if (TryStartAdHocFollowerConversation(now)) MarkCoopSnapshotDirty();
                 }
 
+                if (!_battleStarted)
+                {
+                    if (_nextExplorationStatusTickUtc == DateTime.MinValue ||
+                        _nextExplorationStatusTickUtc == DateTime.MaxValue)
+                    {
+                        _nextExplorationStatusTickUtc = now + ExplorationStatusTickInterval;
+                    }
+                    else if (now >= _nextExplorationStatusTickUtc)
+                    {
+                        ProcessExplorationStatusEffects();
+                        _nextExplorationStatusTickUtc = now + ExplorationStatusTickInterval;
+                        if (_gameOver) continue;
+                    }
+                }
+
                 if (!_battleStarted && now >= _nextNeedsDrain)
                 {
                     DrainNeeds();

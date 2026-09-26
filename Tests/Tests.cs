@@ -274,6 +274,7 @@ internal static partial class Program
     ("A szörnyjellemzők és képességparaméterek külön töltődnek", MonsterTraitsAndAbilitiesAreDataDriven),
     ("A regeneráció és a leheletlehűlés példányonként működik", MonsterRegenerationAndBreathCooldownWork),
     ("A sebzés nélküli, időzített állapot is lejár", TimedNonDamageStatusExpires),
+    ("A mérgezés és vérzés felfedezés közben is sebez és lejár", PoisonAndBleedingAdvanceDuringExploration),
     ("Az összetett szörnyképesség egy aktiválással sebez és állapotot okoz", CompositeMonsterAbilityAppliesAllEffects),
     ("A szörnyképesség csak a CSV-ben kötött fegyverrel aktiválódik", MonsterAbilityRespectsWeaponBinding),
     ("A pályanevekből szabályos képfájlnév készül", LevelImageFileNamesAreNormalized),

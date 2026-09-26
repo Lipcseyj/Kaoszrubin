@@ -272,6 +272,30 @@ internal static partial class Program
                second.Count == 1 && second[0].Expired && !character.HasStatus("STATUS006"),
             "A sebzés nélküli időzített állapot nem két saját akció után járt le.");
     }
+
+    static void PoisonAndBleedingAdvanceDuringExploration()
+    {
+        var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
+        var character = CreateCharacter("Sebesült", vitality: 100);
+        character.AddStatus(data.GetStatus(CharacterStatusIds.Poisoned));
+        character.AddStatus(data.GetStatus(CharacterStatusIds.Bleeding));
+        character.AddStatus(data.GetStatus(CharacterStatusIds.Diseased));
+        var random = new Random(7281);
+        var damage = 0;
+        for (var tick = 0; tick < 4; tick++)
+            damage += character.ApplyExplorationStatusEffects(random).Sum(result => result.Damage);
+        Assert(damage > 0 && !character.HasStatus(CharacterStatusIds.Bleeding) &&
+               character.HasStatus(CharacterStatusIds.Poisoned) &&
+               character.GetStatusDuration(CharacterStatusIds.Poisoned) == 2 &&
+               character.HasStatus(CharacterStatusIds.Diseased),
+            "A felfedezési állapottick nem sebezte vagy nem megfelelően léptette a mérgezést és vérzést.");
+        character.ApplyExplorationStatusEffects(random);
+        var final = character.ApplyExplorationStatusEffects(random);
+        Assert(!character.HasStatus(CharacterStatusIds.Poisoned) &&
+               final.Any(result => result.Name == "Mérgezés" && result.Expired) &&
+               character.HasStatus(CharacterStatusIds.Diseased),
+            "A mérgezés nem járt le hat felfedezési aktiválás után, vagy a tartós betegség is léptetődött.");
+    }
     static void CompositeMonsterAbilityAppliesAllEffects()
     {
         var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));

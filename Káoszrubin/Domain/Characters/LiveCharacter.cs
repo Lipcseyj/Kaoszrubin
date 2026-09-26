@@ -1014,10 +1014,20 @@ public sealed class LiveCharacter
     }
 
     public IReadOnlyList<StatusTickResult> ApplyTurnEndStatusEffects(Random random)
+        => ApplyStatusEffects(random, _ => true);
+
+    public IReadOnlyList<StatusTickResult> ApplyExplorationStatusEffects(Random random) =>
+        ApplyStatusEffects(random, status =>
+            string.Equals(status.Id, CharacterStatusIds.Poisoned, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(status.Id, CharacterStatusIds.Bleeding, StringComparison.OrdinalIgnoreCase));
+
+    private IReadOnlyList<StatusTickResult> ApplyStatusEffects(Random random,
+        Func<StatusDefinition, bool> shouldAdvance)
     {
         var results = new List<StatusTickResult>();
-        foreach (var status in _statuses.Where(status =>
-                     status.PeriodicDamageMaximum > 0 || _statusDurations.GetValueOrDefault(status.Id) is > 0).ToList())
+        foreach (var status in _statuses.Where(status => shouldAdvance(status) &&
+                     (status.PeriodicDamageMaximum > 0 ||
+                      _statusDurations.GetValueOrDefault(status.Id) is > 0)).ToList())
         {
             var damage = status.PeriodicDamageMaximum > 0
                 ? random.Next(status.PeriodicDamageMinimum, status.PeriodicDamageMaximum + 1)

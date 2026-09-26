@@ -220,9 +220,9 @@ PERK-C006-3B;Főmágus;+25 maximális manna és minden varázslat költsége 2 p
 Id;Név;Emoji;Időtartam;KörsebzésMin;KörsebzésMax;FizikaiSebzésBüntetés;KezdeményezésBüntetés;TalálatBüntetés;MaxHP%;MaxManna%;HPGyógyulás%;MannaGyógyulás%;CsatakezdőHPVeszteség%;CsatakezdőMannaVeszteség%;NullaSzükségletSzorzó;Leírás
 STATUS001;Éhes;🍖;;0;0;2;0;0;100;100;75;100;5;0;1;Az élelem szintje 30 vagy kevesebb. Fizikai sebzés -2 és HP gyógyulás 75 százalékos. Nulla élelemnél csatakezdéskor 5 százalék max HP elveszik.
 STATUS002;Szomjas;💧;;0;0;0;3;1;100;100;100;100;0;5;2;A víz szintje 30 vagy kevesebb. Kezdeményezés -3 és találat -1. Csatakezdéskor 5 százalék max manna elveszik. Nulla víznél a büntetések duplázódnak.
-STATUS003;Mérgezés;☠️;6;1;4;0;0;0;100;100;100;100;0;0;1;Minden saját támadási kör végén 1-4 páncélt figyelmen kívül hagyó sebzés. Hat aktiválódás után elmúlik.
+STATUS003;Mérgezés;☠️;6;1;4;0;0;0;100;100;100;100;0;0;1;Csatában minden saját akció végén, felfedezés közben tíz másodpercenként 1-4 páncélt figyelmen kívül hagyó sebzés. Hat aktiválódás után elmúlik.
 STATUS004;Betegség;🤒;;0;0;0;0;0;80;80;50;50;0;0;1;A maximális HP és manna 80 százalékra csökken. A HP és manna visszatöltése 50 százalékos. Nem múlik el magától.
-STATUS005;Vérzés;🩸;4;1;3;0;0;0;100;100;100;100;0;0;1;Minden saját támadási kör végén 1-3 páncélt figyelmen kívül hagyó sebzés. Négy aktiválódás után elmúlik.
+STATUS005;Vérzés;🩸;4;1;3;0;0;0;100;100;100;100;0;0;1;Csatában minden saját akció végén, felfedezés közben tíz másodpercenként 1-3 páncélt figyelmen kívül hagyó sebzés. Négy aktiválódás után elmúlik.
 STATUS006;Kődermedtség;🗿;2;0;0;3;0;3;100;100;100;100;0;0;1;A megkövülő test két saját akcióig 3 ponttal rontja a találatot és a fizikai sebzést.
 STATUS007;Rettegés;😱;2;0;0;0;2;2;100;100;100;100;0;0;1;A természetfeletti félelem két saját akcióig 2 ponttal rontja a kezdeményezést és a találatot.
 

@@ -154,6 +154,73 @@ public sealed partial class Game
         _renderer.RefreshCharacterSheet(PartyLeader);
     }
 
+    private void ProcessExplorationStatusEffects()
+    {
+        var followers = _maze.PartyMembers.Where(member => member.IsTemporaryFollower)
+            .Select(member => member.Character);
+        var characters = CharacterRoster.Party.Members.Concat(followers).Distinct().Where(character => character.IsAlive)
+            .ToArray();
+        var changed = false;
+        foreach (var character in characters)
+        {
+            var ticks = character.ApplyExplorationStatusEffects(_random);
+            if (ticks.Count == 0) continue;
+            changed = true;
+            var details = string.Join(", ", ticks.Select(tick => $"{tick.Icon} {tick.Name}" +
+                (tick.Damage > 0 ? $" -{tick.Damage} HP" : string.Empty) +
+                (tick.Expired ? " (elmúlt)" : string.Empty)));
+            var message = $"⏳ {character.Name} állapothatásai: {details}.";
+            _renderer.DrawInventoryMessage(message, ConsoleColor.Red);
+            RecordSessionActivity(SessionActivityKind.System, message, ConsoleColor.Red);
+            _renderer.RefreshCharacterSheet(character);
+            if (!character.IsAlive)
+            {
+                ResolveExplorationStatusDefeat(character);
+                if (_gameOver) break;
+            }
+        }
+        if (changed) RequestCoopSnapshotPublish();
+    }
+
+    private void ResolveExplorationStatusDefeat(LiveCharacter character)
+    {
+        var avatar = _maze.PartyMembers.FirstOrDefault(member => member.Character == character);
+        if (avatar is not null && IsQuestCriticalRoderic(avatar))
+        {
+            character.RestoreVitality(Math.Max(1, character.MaximumVitality / 3));
+            _renderer.RefreshCharacterSheet(character);
+            var protectedMessage = $"{character.Name} eszméletét veszti, de az Ezüst Eskü erejével ismét talpra áll.";
+            _renderer.DrawInventoryMessage(protectedMessage, ConsoleColor.DarkYellow);
+            RecordSessionActivity(SessionActivityKind.Support, protectedMessage, ConsoleColor.DarkYellow);
+            return;
+        }
+
+        var message = $"☠ {character.Name} elesett a csatán kívül ható állapottól.";
+        if (avatar is not null)
+        {
+            var position = avatar.Position;
+            _maze.ReplacePartyMemberWithCorpse(avatar);
+            _nextPartyMoves.Remove(avatar);
+            _renderer.DrawMapCellsChanged(_maze, _fogOfWar, _player.Position, [position]);
+        }
+        _renderer.DrawInventoryMessage(message, ConsoleColor.Red);
+        RecordSessionActivity(SessionActivityKind.System, message, ConsoleColor.Red);
+        PlaySessionSound(SoundEffect.MemberKilled);
+        TryLogPartyComments(PartySituationIds.PartyMemberDied);
+
+        if (character == PartyLeader)
+        {
+            _renderer.DrawGameOver(PartyLeader.Name);
+            _gameOver = true;
+            _session.SetPhase(GameSessionPhase.GameOver);
+            return;
+        }
+
+        _activeCoopHost?.TryPublishCharacterState(character.Id,
+            _gameSaveService.SerializeCharacter(character), CharacterSyncReason.CharacterDied);
+        _session.ReleaseCharacterControl(character.Id);
+    }
+
     private void DrainNeedsAfterBattle(LiveCharacter character, int cycles) =>
         _sustenanceService.DrainNeedsAfterBattle(character, cycles, IsAutonomousNpc, LogNewZeroNeed);
 
