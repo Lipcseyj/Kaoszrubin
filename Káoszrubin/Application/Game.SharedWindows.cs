@@ -284,6 +284,7 @@ public sealed partial class Game
         _captureSharedWindow = false;
         UpdatePlayerBlockingWindowState(_session.HostPlayerId, PartyLeader.Id, kind, windowId, true);
         _renderer.SetExplorationClockIndicator(BuildExplorationClockIndicator(DateTime.UtcNow, advancing: false));
+        CoopWindowStatusBanner.Refresh(CurrentHostCoopWindowStatus);
         ForceCoopSnapshotPublish();
         try
         {

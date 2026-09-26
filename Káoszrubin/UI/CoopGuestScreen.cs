@@ -306,6 +306,9 @@ public sealed class CoopGuestScreen
         _personalWindowId = windowId;
         _personalWindowKind = kind;
         await SendPersonalWindowStateAsync(client, characterId, kind, windowId, true, cancellationToken);
+        if (PlayerWindowKindRules.PausesGame(kind))
+            CoopWindowStatusBanner.Refresh(() =>
+                $"⌛ AZ IDŐ ÁLL — {LocalPlayerWindowStatusText(kind)}.");
         try
         {
             action();

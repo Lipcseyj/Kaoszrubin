@@ -60,7 +60,7 @@ public static class CoopWindowStatusBanner
     private static void Draw(string? message)
     {
         int width;
-        try { width = Math.Min(Console.WindowWidth, 170); }
+        try { width = Math.Min(Console.WindowWidth, 169); }
         catch (IOException) { return; }
 
         lock (Gate)
@@ -75,7 +75,7 @@ public static class CoopWindowStatusBanner
             }
 
             // Az első megjelenítéskor mentjük a legfelső sort; az üzenetváltás nem írhatja felül a mentést.
-            _savedBackground ??= new BackgroundContentRestorer(0, 0, width, 1);
+            _savedBackground ??= new BackgroundContentRestorer(0, 0, width + 1, 1);
 
             var text = BattleCommandPanel.TruncateToDisplayWidth($" FIGYELEM: {message} ", width);
             try
