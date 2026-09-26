@@ -872,6 +872,41 @@ internal static partial class Program
             "Az ellenfél nem ugyanazt a megingási állapotgépet használja, mint a parti.");
     }
 
+    static void EnemyMeleeReachUsesRearRowWeaponFlag()
+    {
+        var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory,
+            CsvGameDataLoader.GameDataFileName));
+        var dagger = data.GetWeapon("W001");
+        var target = CreateCharacter("Kobold-cél", 100);
+        var system = CreateBattleSystem(1811);
+        var preparation = system.PrepareCharacter(target);
+        var kobold = CreateEnemyAt(new Position(3, 3), MonsterIds.Kobold);
+        var battle = new BattleEncounter(kobold.Position,
+            [new BattleCharacterParticipant(target, new Position(5, 3), TacticalParticipantKind.PartyMember,
+                preparation.Initiative, 3, 1, preparation.Runtime)],
+            [new BattleEnemyParticipant(kobold, 5, 2, 1)], target.Id, kobold.Id);
+
+        var daggerTargets = TacticalBattleCoordinator.EnemyAttackTargets(battle, kobold, dagger,
+            _ => new Position(5, 3));
+        var polearm = data.GetWeapon("W011");
+        var polearmTargets = TacticalBattleCoordinator.EnemyAttackTargets(battle, kobold, polearm,
+            _ => new Position(3, 1));
+        var daggerApproach = TacticalBattleCoordinator.EnemyMeleeApproachPositions(target: new Position(3, 3), dagger)
+            .ToArray();
+        var polearmApproach = TacticalBattleCoordinator.EnemyMeleeApproachPositions(target: new Position(3, 3), polearm)
+            .ToArray();
+
+        Assert(!dagger.CanAttackFromRear && TacticalDistance.Between(kobold.Position, new Position(5, 3)) == 1 &&
+               !TacticalDistance.IsMeleeAdjacent(kobold.Position, new Position(5, 3)) &&
+               daggerTargets.Count == 0 && daggerApproach.All(position =>
+                   TacticalDistance.IsMeleeAdjacent(position, new Position(3, 3))) &&
+               polearm.CanAttackFromRear && polearmTargets.SequenceEqual([target]) &&
+               polearmApproach.Contains(new Position(3, 1)) &&
+               polearmApproach.All(position => TacticalDistance.Between(position, new Position(3, 3)) == 2 &&
+                                                !TacticalDistance.IsMeleeAdjacent(position, new Position(3, 3))),
+            "Az ellenséges tőr vagy lándzsa célelérése/pathfindingja nem a HátsóSor fegyverjellemzőt követte.");
+    }
+
     static void DualWieldingRequiresDisciplineAndProficiencies()
     {
         var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));

@@ -239,9 +239,11 @@ public sealed class TacticalBattleCoordinator
         {
             var position = getCharacterPosition(character);
             var distance = TacticalDistance.Between(enemy.Position, position);
-            if (!RangedWeaponRules.CanReach(weapon, distance)) return false;
-            return weapon?.IsRanged != true || canSee is null ||
-                   canSee(enemy.Position, position, weapon.MaximumRange);
+            if (weapon?.IsRanged != true)
+                return TacticalDistance.IsMeleeAdjacent(enemy.Position, position) ||
+                       weapon?.CanAttackFromRear == true && distance <= 2;
+            return RangedWeaponRules.CanReach(weapon, distance) &&
+                   (canSee is null || canSee(enemy.Position, position, weapon.MaximumRange));
         }
 
         var directCandidates = EnemyTargets(battle, enemy).Where(InRange)
@@ -337,6 +339,24 @@ public sealed class TacticalBattleCoordinator
         for (var x = center.X - 1; x <= center.X + 1; x++)
             if (x != center.X || y != center.Y)
                 yield return new Position(x, y);
+    }
+
+    public static IEnumerable<Position> EnemyMeleeApproachPositions(Position target, WeaponDefinition? weapon)
+    {
+        if (weapon?.CanAttackFromRear != true) return MeleePositions(target);
+
+        var positions = new List<Position>();
+        const int preferredDistance = 2;
+        for (var y = target.Y - preferredDistance; y <= target.Y + preferredDistance; y++)
+        for (var x = target.X - preferredDistance * TacticalDistance.HorizontalCellsPerUnit;
+             x <= target.X + preferredDistance * TacticalDistance.HorizontalCellsPerUnit; x++)
+        {
+            var position = new Position(x, y);
+            if (TacticalDistance.Between(position, target) == preferredDistance &&
+                !TacticalDistance.IsMeleeAdjacent(position, target))
+                positions.Add(position);
+        }
+        return positions;
     }
 
     public static IReadOnlyList<BattleItemOptionSnapshot> GetBattleItemOptions(BattleEncounter battle,

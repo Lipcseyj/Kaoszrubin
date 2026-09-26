@@ -74,6 +74,7 @@ internal static partial class Program
     ("A kritikus pajzsblokk és a lovagi közbelépés minden harci naplóban látszik", DefensiveInterventionsReachBattleLogs),
     ("A pajzs CSV-validációja elutasítja a hibás tiert és besorolást", ShieldCsvValidationRejectsInvalidDefinitions),
     ("A többcélú fegyverek ívben, vonalban és kis területen hatnak", WeaponFamiliesUseDistinctAttackPatterns),
+    ("Az ellenséges tőr szomszédot, a lándzsa két mezőre álló célt keres", EnemyMeleeReachUsesRearRowWeaponFlag),
     ("A kétfegyveres harc csak képzett tőr- és kardpárokkal működik", DualWieldingRequiresDisciplineAndProficiencies),
     ("Az elf tőr ügyességi vágófegyver és párban sebzésbónuszt ad", ElvenDaggersGainPairedDamage),
     ("A taktikai diszciplínák a 8. és 18. szinten választhatók és menthetők", TacticalDisciplinesProgressAndPersist),
