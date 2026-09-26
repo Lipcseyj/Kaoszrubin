@@ -94,5 +94,8 @@ public enum QuestId
     RodericOrderRelics,
     
     // NPC022 - Aurelios küldötte
-    AureliosEmissaryChest
+    AureliosEmissaryChest,
+
+    // NPC002 - Szörnyvadász
+    GoblinChiefHunt
 }

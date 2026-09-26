@@ -46,7 +46,11 @@ internal sealed class QuestCatalogBuilder
         var npcDefinition =
             _gameData.GetNpc(source.NpcId);
 
-        var scope = npcDefinition.Unique
+        var scope = QuestScope.PerNpcInstance;
+
+        if (source.IsGlobal)
+            scope = QuestScope.Global;
+        else scope = npcDefinition.Unique
             ? QuestScope.Global
             : QuestScope.PerNpcInstance;
 

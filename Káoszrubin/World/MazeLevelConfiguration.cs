@@ -205,6 +205,24 @@ public static class MazeLevelConfigurations
                 RoomSize = new(3, 5),
                 TreasureChestCount = new(2, 3),
                 TreasureGold = new(50, 120),
+                QuestRoomIds = ["KING_CHEST_ROOM"],
+                SpecialRoomPlacements = new Dictionary<string, SpecialRoomPlacement>
+                {
+                    ["KING_CHEST_ROOM"] = SpecialRoomPlacement.SideBranch,
+                },
+                QuestDoorRequirements = new Dictionary<string, Domain.Quests.QuestId>
+                {
+                    ["KING_CHEST_ROOM"] = Domain.Quests.QuestId.AureliosEmissaryChest,
+                },
+                QuestChestPlacements = new Dictionary<string, Domain.Quests.QuestChestId>
+                {
+                    ["KING_CHEST_ROOM"] = new("AURELIOS_HELP")
+                },
+                QuestRoomEnemyEncounters =
+                [
+                    new("KING_CHEST_ROOM", MonsterIds.Kobold, 3),
+                    new("KING_CHEST_ROOM", MonsterIds.Goblin, 1)
+                ],
                 RoomEncounters =
                 [
                     Encounters.Same(MonsterIds.Óriáspatkány, Amount.Several, Amount.Handful),
@@ -254,6 +272,25 @@ public static class MazeLevelConfigurations
                 RoomSize = new(3, 6),
                 TreasureChestCount = new(8, 12),
                 TreasureGold = new(80, 200),
+                QuestRoomIds = ["GOBLIN_CHIEF_ROOM"],
+                SpecialRoomPlacements = new Dictionary<string, SpecialRoomPlacement>
+                {
+                    ["GOBLIN_CHIEF_ROOM"] = SpecialRoomPlacement.SideBranch,
+                },
+                QuestDoorRequirements = new Dictionary<string, Domain.Quests.QuestId>
+                {
+                    ["GOBLIN_CHIEF_ROOM"] = Domain.Quests.QuestId.GoblinChiefHunt,
+                },
+                QuestChestPlacements = new Dictionary<string, Domain.Quests.QuestChestId>
+                {
+                    ["GOBLIN_CHIEF_ROOM"] = new("GOBLIN_CHEST")
+                },
+                QuestRoomEnemyEncounters =
+                [
+                    new("GOBLIN_CHIEF_ROOM", MonsterIds.GoblinFőnök, 1),
+                    new("GOBLIN_CHIEF_ROOM", MonsterIds.Goblin, 3),
+                    new("GOBLIN_CHIEF_ROOM", MonsterIds.GoblinÍjász, 2)
+                ],
                 RoomEncounters =
                 [
                     Encounters.Same(MonsterIds.Kobold, Amount.Few, Amount.Few),

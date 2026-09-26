@@ -684,12 +684,21 @@ public static class CsvGameDataLoader
                     Cell(cells, 4)));
                 break;
             case DataSection.NpcQuests:
-                npcQuests.Add(new QuestImportRow(id, Cell(cells, 1), EnumValue<QuestImportType>(cells, 2),
-                    Cell(cells, 3), Math.Max(1, Integer(cells, 4) ?? 1),
-                    Math.Max(0, Integer(cells, 5) ?? 0), Cell(cells, 6), Cell(cells, 7),
-                    EmptyAsNull(Cell(cells, 8)), Math.Max(0, Integer(cells, 9) ?? 0),
-                    Math.Clamp(Integer(cells, 10) ?? 1, 0, 5), EmptyAsNull(Cell(cells, 11)),
-                    EmptyAsNull(Cell(cells, 12))));
+                npcQuests.Add(new QuestImportRow(
+                    id,
+                    Cell(cells, 1),
+                    EnumValue<QuestImportType>(cells, 2),
+                    Cell(cells, 3),
+                    Math.Max(1, Integer(cells, 4) ?? 1),
+                    Math.Max(0, Integer(cells, 5) ?? 0),
+                    Cell(cells, 6),
+                    Cell(cells, 7),
+                    EmptyAsNull(Cell(cells, 8)),
+                    Math.Max(0, Integer(cells, 9) ?? 0),
+                    Math.Clamp(Integer(cells, 10) ?? 1, 0, 5),
+                    EmptyAsNull(Cell(cells, 11)),
+                    EmptyAsNull(Cell(cells, 12)),
+                    IsYes(cells, 13)));
                 break;
             case DataSection.NpcStoryChoices:
                 npcStoryChoices.Add(new NpcStoryChoiceDefinition(id, Cell(cells, 1), Cell(cells, 2),

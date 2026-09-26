@@ -58,6 +58,7 @@ public static class LegacyQuestIdMap
             "NPCQ040" => QuestId.RodericTheDeadAreNotPrey,
             "NPCQ041" => QuestId.RodericOrderRelics,
             "NPCQ042" => QuestId.AureliosEmissaryChest,
+            "NPCQ043" => QuestId.GoblinChiefHunt,
 
             _ => throw new InvalidDataException(
                 $"Ismeretlen legacy quest-azonosító: '{legacyId}'.")
@@ -107,6 +108,7 @@ public static class LegacyQuestIdMap
         QuestId.RodericTheDeadAreNotPrey => "NPCQ040",
         QuestId.RodericOrderRelics => "NPCQ041",
         QuestId.AureliosEmissaryChest => "NPCQ042",
+        QuestId.GoblinChiefHunt => "NPCQ043",
         _ => throw new InvalidDataException("Ismeretlen típusos questazonosító.")
     };
 }

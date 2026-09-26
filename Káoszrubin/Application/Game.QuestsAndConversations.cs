@@ -80,13 +80,6 @@ public sealed partial class Game
             return false;
         }
 
-        if (definition.Unique)
-        {
-            _renderer.DrawUniqueNpcIntroduction(npc);
-            _renderer.CharacterSheet.RefreshCharacterSheet();
-            return false;
-        }
-
         WorldNpcInteractionResult result;
 
         if (npc.IsQuestNpc)

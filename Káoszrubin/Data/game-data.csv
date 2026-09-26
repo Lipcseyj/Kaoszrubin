@@ -374,6 +374,8 @@ W041;harci íj;WT002;6-12;8;igen;nem;nem;nem;Megerősített harci íj amely csak
 W042;kézi íjpuska;WT002;4-7;2;nem;igen;nem;nem;Egy kézzel is elsüthető rövid íjpuska közelibb célpontok ellen.;380;;;;2;szúrás;1;nem;CROSSBOW;100;0;Projectile;1;3;T030;10;C001|C004
 W043;könnyű íjpuska;WT002;5-10;4;igen;igen;nem;nem;Kétkezes könnyű íjpuska biztos mechanikával és jó átütőerővel.;640;;;;4;szúrás;1;nem;CROSSBOW;130;0;Projectile;1;4;T030;20;C001|C004
 W044;nehéz íjpuska;WT002;7-14;7;igen;nem;nem;nem;Acélíves nehéz íjpuska páncélozott célpontok átütésére.;980;;;;7;szúrás;1;nem;CROSSBOW;160;0;Projectile;1;5;T030;30;C001
+W045;Főnökhasító;WT002;4-8;3;nem;igen;nem;nem;Csorba, széles pengéjű rövid kard, amelynek markolatát goblinfogak és vörös rongyok díszítik. Nem szép munka, de a főnök sok ellenfelét túlélte vele.;180;;;;2;vágás;1;nem;SWORD;75;0;Melee;1;1;;0;C001|C004
+
 WN001;fogak;WT001;2-6;1;nem;nem;nem;nem;Természetes harapás.;0;;;;1;szúrás;1;nem;NATURAL
 WN002;karmok;WT001;4-10;1;nem;nem;nem;nem;Természetes karmolás.;0;;;;1;vágás;1;nem;NATURAL
 WN003;ököl;WT001;5-12;1;nem;nem;nem;nem;Nehéz természetes ütés.;0;;;;1;zúzás;1;nem;NATURAL
@@ -464,7 +466,10 @@ A006;teljes vértezet;8-10;nem;nem;igen;nem;Nehéz lemezpáncél amely tetőtől
 A007;mitril láncing;7-8;igen;igen;igen;nem;Rendkívül könnyű és erős mitrilkarikákból font ritka vértezet.;2200;;;;4;2;-1;-2;0;0;0;0
 A008;mitril mellvért;8-9;igen;nem;igen;nem;Könnyedén viselhető mitril lemez kiváló törzsvédelemmel.;3500;;;;6;3;1;-2;0;0;0;0
 A009;mitril teljes vértezet;12-15;nem;nem;igen;nem;Mesteri mitril páncélzat amely páratlan védelmet nyújt.;6500;;;;9;3;1;-2;0;0;0;0
+A010;Goblinvezér foltvértje;3-4;igen;igen;igen;nem;Különféle bőrdarabokból, láncszemekből és zsákmányolt fémlapokból összetákolt vért. Meglepően jól védi viselőjét, bár minden lépésnél gyanúsan csörög.;220;;;;4;1;0;0;0;0;0;0;80
+
 RA001;Várnok vértezete;9-11;nem;nem;igen;nem;A Várnok család teljes lemezvértje. Roderic örökségéhez kötött +1 ereklye amelyet más nem viselhet.;3100;Magic;A006;1;12;3;1;-1
+
 LA001;Csillagköpeny;5-8;igen;igen;igen;igen;Éjszakai égboltot idéző kámzsa apró mozgó csillagokkal.;4800;Legendás;A001;5;1;0;0;0;0;0;2;4;160
 LA002;Árnyékjáró vértje;6-9;igen;igen;nem;igen;Füstként simuló bőrvért amely elnyeli a léptek zaját.;6200;Legendás;A002;5;2;1;-1;0;0;0;3;1;175
 LA003;Sárkánypikkely;10-15;igen;nem;igen;nem;Ősi vörös sárkány pikkelyeiből illesztett forró páncél.;9000;Legendás;A004;6;8;2;0;-1;6;0;0;0;240
@@ -512,6 +517,8 @@ T023
 T024
 W037
 W038
+W045
+A010
 
 #Karaktergenerálási felszerelés
 Id;MinimumSzint;MaximumSzint
@@ -564,6 +571,8 @@ A006;6;12
 A007;7;30
 A008;9;22
 A009;13;30
+W045;31;31
+A010;31;31
 
 #Karaktergenerálási tárgybővítések
 Id;MinimumSzint;MaximumSzint
@@ -602,7 +611,7 @@ E034;Óriás baziliszkusz;β;8;240;6;4;780;2;MA002||MA011;;5;;;igen;WN018;nem;2;
 E035;Ork sámán;ó;7;120;3;6;750;2;;;6;;;igen;W018|W001|W006;nem;0;0;0;2;0;0;2;4;;0
 E051;Patkányember;Ʒ;7;105;4;7;600;2;MA003;;5;;;igen;W001|W002|W005|W006|W007;igen;0;0;0;0;0;0;0;6;W024;0
 E052;Csontváz lovag;ǂ;7;105;5;4;330;2;;Undead;4;;;nem;W004|W006|W007|W008|W009|W010|W011|W012|W013;igen;2;4;-3;0;0;1;0;6;W029;10
-E062;Goblin főnök;Ǥ;7;180;6;6;750;2;MA005|MA006;;6;;;igen;W004|W006|W010;igen;0;0;0;0;0;0;0;3;W036;0
+E062;Goblin főnök;Ǥ;7;180;6;6;750;2;MA006;;6;;;igen;W004|W006|W010;igen;0;0;0;0;0;0;0;3;W036;0
 E066;Csontváz őr;ᚰ;5;90;4;4;350;1;;Undead;4;;;nem;W011|W012;igen;2;4;-3;0;0;1;0;5;;10
 E067;Páncélozott zombi;Ƶ;6;130;6;2;490;1;MA003|MA007;Undead;4;;;nem;W005|W006;igen;2;2;0;-2;0;2;0;5;W025;
 E072;Orgyilkos;c;8;110;4;7;800;2;MA004|MA002|MA006|MA017;;6;3;;igen;W001|W042;nem;0;0;0;0;0;0;2;3;;
@@ -1405,17 +1414,20 @@ NPC018;Káoszzarándok;C005;Neutral;Guarded;nem;nem
 NPC019;Óriásvadász;C001;Neutral;Aggressive;nem;nem
 NPC020;Elira Ezüstág;C004;Neutral;Guarded;igen;igen;R003;ELIRA_RESCUE
 NPC021;Sir Roderic;C003;Neutral;Guarded;igen;igen;R001;RODERIC_OATH
-NPC022;Aurelios küldötte;C006;Friendly;Friendly;nem;nem
+NPC022;Merion;C006;Friendly;Friendly;nem;igen;R001
+NPC023;Vildar;C001;Friendly;Friendly;nem;igen;R001
 
 #Egyedi NPC karakterlap
 NpcId;Szint;Erő;Ügyesség;Egészség;Intelligencia;Alkalmazkodó;ÉleterőBónusz;MannaBónusz;Szín;HarciViselkedés;SpecializációId;TehetségId-k;Fegyver1Id;Fegyver2Id;PáncélId;VarázstárgyId-k;HátizsákId-k;FegyverjártasságId-k
 NPC020;3;5;9;6;6;;8;1;Green;Scout;;;W002;;A002;;T011|T001|T002;
 NPC021;7;9;5;9;6;STR;20;1;DarkCyan;Aggressive;;PERK-C003-1B|PERK-NPC021-OATHBLADE|PERK-C003-2B|PERK-C003-3A;RW001;;RA001;;T011|T011|T012|T012|T001|T001|T002|T002;SWORD|SWORD
+NPC022;9;3;9;4;11;INT;8;10;Magenta;Defensive;;;W001;;A001;;T011|T001|T002;
+NPC023;3;8;3;8;4;STR;5;0;Magenta;Aggressive;;;W004;;A002;;T011|T001|T002;
 
 #NPC találkozások
 Id;NpcId;Pályaszint;MinimumTávolság;MaximumTávolság;QuestRoomId
 NPCE001;NPC001;2;6;14
-NPCE002;NPC002;3;7;16
+NPCE002;NPC002;3;20;40
 NPCE003;NPC003;5;8;18
 NPCE004;NPC001;7;8;18
 NPCE005;NPC004;8;7;16
@@ -1444,11 +1456,13 @@ NPCE027;NPC018;21;10;23
 NPCE028;NPC020;2;8;18
 NPCE029;NPC021;5;1;50;RODERIC_MEETING
 NPCE030;NPC022;1;5;13
+NPCE031;NPC023;3;10;30
 
 #Quest ládák
 Id;Név;Arany;Térképjel;Előtérszín;Háttérszín
 RODERIC_ORDER_RELICS;Az Ezüst Eskü ereklyeládája;0;◈;White;DarkBlue
-AURELIOS_HELP;Aurelios máguskirály küldöttének ládája;200;◈;Yellow;DarkMagenta
+AURELIOS_HELP;Aurelios máguskirály küldöttének ládája;300;◈;Yellow;DarkMagenta
+GOBLIN_CHEST;A goblin főnök kincsesládája;600;◈;Magenta;Green
 
 #Quest láda tartalom
 Id;TárgyId;Darab
@@ -1466,9 +1480,17 @@ AURELIOS_HELP;T011;3
 AURELIOS_HELP;T014;3
 AURELIOS_HELP;MS007;1
 AURELIOS_HELP;MS008;1
+GOBLIN_CHEST;T001;12
+GOBLIN_CHEST;T002;12
+GOBLIN_CHEST;T006;6
+GOBLIN_CHEST;T011;6
+GOBLIN_CHEST;W042;1
+GOBLIN_CHEST;W045;1
+GOBLIN_CHEST;A010;1
+
 
 #NPC küldetések
-Id;NpcId;Típus;CélId;Darabszám;XP;Cím;Leírás;FixJutalomId;FixJutalomDarab;VéletlenJutalomDarab;SzükségesTörténetÁllapot;LezáróPárbeszédId
+Id;NpcId;Típus;CélId;Darabszám;XP;Cím;Leírás;FixJutalomId;FixJutalomDarab;VéletlenJutalomDarab;SzükségesTörténetÁllapot;LezáróPárbeszédId;Globális
 NPCQ001;NPC001;Collect;T011;3;810;Gyógyító készlet;Gyűjts össze három kis gyógyitalt a füvesasszonynak.;T018;2;0;;NPCD072
 NPCQ002;NPC002;Kill;E003;4;1170;Goblinvadászat;Ölj meg négy goblint a szörnyvadász megbízásából.;;;;;NPCD073
 NPCQ003;NPC003;Collect;T001;5;1440;Útravaló a mélybe;Szerezz öt útravalót a kincskereső következő útjához.;;;;;NPCD074
@@ -1503,6 +1525,7 @@ NPCQ031;NPC018;Explore;EXIT;1;9900;A lehetetlen ösvény;Fedezd fel a kijáratot
 NPCQ032;NPC018;OpenChest;ANY;3;9450;A Rubin visszhangjai;Nyiss ki három ládát amelyekben a Káoszrubin energiája visszhangzik.;;;3;;NPCD103
 NPCQ033;NPC019;Kill;E012;3;3690;Nagyvad;Győzz le három ogrét az óriásvadász megbízásából.;;;;;NPCD104
 NPCQ042;NPC022;OpenQuestChest;AURELIOS_HELP;1;900;Uralkodód ezt a segítséget küldi;Találd meg Aurelios máguskirály küldöttének ládáját.;MW001;1;0;;NPCD071
+NPCQ043;NPC023;Kill;E062;1;1800;Szemet szemért;Öld meg a goblin főnököt Vildar megbízásából.;T019;3;3;;NPCD114
 
 NPCQ034;NPC020;Escort;EXIT;1;1890;Ezüstág kimenekítése;Kísérd el Elirát élve a pálya kijáratáig.;T017;2;1;;NPCD105
 NPCQ035;NPC020;Collect;T019;1;720;Elszakadt kötés;Adj Elirának egy tiszta kötést hogy a sérült bokája bírja az utat.;T011;2;0;;NPCD106
@@ -1651,6 +1674,10 @@ NPCD109;NPC021;0;10;"Roderic lehajtja fejét a két pátriárka fölött, majd l
 NPCD110;NPC021;0;10;"Roderic sokáig áll Malrec mozdulatlan teste mellett, aztán letörli kardjáról egykori bajtársa hamuját. ""Évekig azt hittem, előle menekülök. Valójában attól a naptól futottam, amikor bezártam a kaput. Ennek most vége."""
 NPCD111;NPC021;0;10;"Roderic megszámolja az elesett élőholtakat, majd először engedi le teljesen a pajzsát előttetek. ""Nyolcan tértek vissza a nyugalomba. Nem sírrablókat látok többé, hanem olyanokat, akik mellett érdemes kardot rántani."""
 NPCD112;NPC021;0;10;"Roderic letérdel az Ezüst Eskü ereklyéi előtt, és kezét a rend megkopott jelvényére teszi. ""A rend nem a falakban és nem is a kincsekben él. Addig létezik, amíg valaki felemeli azt, amit mások elejtettek. Ma ti is ezt tettétek."""
+
+NPCD113;NPC023;0;10;"Egy fiatal harcos áll az út szélén, kezében egy vérfoltos, csorba nyílhegyet forgat. Amikor közelebb értek, ökölbe szorul a keze. ""Vildar vagyok. Ezt a nyílhegyet a testvérem mellkasából húztam ki. A goblinok törzsfőnöke ölte meg, amikor a falunkat védte. Egyedül indultam volna utána, de tudom, hogy csak én is ott maradnék mellette. Ha megtaláljátok azt a szörnyeteget... öljétek meg érte. Nem aranyat kérek vissza, csak azt, hogy a testvérem végre békében nyugodhasson."""
+
+NPCD114;NPC023;0;10;"Vildar egy kidőlt fatörzs mellett ül, és némán a kezében tartott csorba nyílhegyet nézi. Amikor meglátja nálatok a goblin főnök fejét, hosszú másodpercekig egyetlen szót sem tud kimondani. Végül lehajtja a fejét, és remegő kézzel markolja meg a régi nyílhegyet. ""Hát... vége. Annyi éjszakán át azt hittem, csak akkor tudok majd újra lélegezni, ha az a gyilkos halott lesz. Bátyám... most már nyugodhatsz."" Vildar megtörli a szemét, majd felétek fordul. ""Köszönöm. Nemcsak bosszút álltatok érte... visszaadtatok nekem valamit abból, amit azon a napon elvesztettem. Fogadjátok el ezeket a kötéseket. Nem sok, de a testvérem mindig azt mondta: egy jó harcos nem szégyelli, ha életben akar maradni. Legyen most nektek hasznotokra. Úgy hallottam a vadállatok odúiban farkashordák kószálnak."""
 
 #NPC történeti választások
 Id;TörténetId;ÁllapotId;Mondat;Sorrend;Válasz;ViszonyVáltozás;KövetkezőÁllapotId;Reakció;Hatás;HatásParaméter;Folytatás;MinimumViszony;MaximumViszony
