@@ -306,13 +306,15 @@ public static class CharacterSheetPanel
     public static CharacterSheetPanelLine BuildWorldHeaderLine(int mazeLevel, int goldenKeyCount, int bossCount,
         string explorationClockIndicator, int width = Width)
     {
+        const string widestClockIndicator = "⌛⏸";
         var suffix = string.IsNullOrWhiteSpace(explorationClockIndicator)
             ? string.Empty
             : $"  {explorationClockIndicator}";
         var full = $"Labirintus: {mazeLevel}  🔑 {goldenKeyCount}/{bossCount}{suffix}";
         var compact = $"Lab: {mazeLevel}  🔑 {goldenKeyCount}/{bossCount}{suffix}";
+        var widestFull = $"Labirintus: {mazeLevel}  🔑 {goldenKeyCount}/{bossCount}  {widestClockIndicator}";
         return new CharacterSheetPanelLine(0,
-            full.Length <= Math.Max(Width, width) ? full : compact,
+            BattleCommandPanel.DisplayWidth(widestFull) <= Math.Max(Width, width) ? full : compact,
             ConsoleColor.Green);
     }
 

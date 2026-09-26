@@ -704,9 +704,23 @@ public sealed partial class ConsoleRenderer
         {
             if (_owner._spellInfoCharacter is not null || _itemInspectionPanel is not null ||
                 _displayedCharacter is null) return;
-            WriteCharacterSheetPanelLine(CharacterSheetPanel.BuildWorldHeaderLine(_owner._mazeLevel,
+            var line = CharacterSheetPanel.BuildWorldHeaderLine(_owner._mazeLevel,
                 _owner._goldenKeyCount, MonsterIds.Bosses.Count, _owner._explorationClockIndicator,
-                RightSheetWidthForWindow()));
+                RightSheetWidthForWindow());
+            var indicatorStart = line.Text.LastIndexOf(_owner._explorationClockIndicator,
+                StringComparison.Ordinal);
+            if (indicatorStart < 0) return;
+
+            // Az óra saját, fix szélességű helyét frissítjük; a fejléc többi része nem villan újra.
+            var prefixWidth = BattleCommandPanel.DisplayWidth(line.Text[..indicatorStart]);
+            const int clockSegmentWidth = 4;
+            var indicatorWidth = BattleCommandPanel.DisplayWidth(_owner._explorationClockIndicator);
+            SetColors(line.Color, line.Background);
+            Console.SetCursorPosition(RightSheetX + prefixWidth, line.Row);
+            Console.Write(_owner._explorationClockIndicator);
+            if (indicatorWidth < clockSegmentWidth)
+                Console.Write(new string(' ', clockSegmentWidth - indicatorWidth));
+            _lastCharacterSheetLines[line.Row] = line;
         }
 
         /// <summary>
