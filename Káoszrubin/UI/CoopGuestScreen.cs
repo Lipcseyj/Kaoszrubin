@@ -1071,7 +1071,8 @@ public sealed class CoopGuestScreen
             _battleSpellMenuOpen = false;
             var option = options[Math.Clamp(_battleSpellSelection, 0, options.Count - 1)];
             if (option.ValidTargets.Count == 0)
-                SetMessage("A varázslatnak jelenleg nincs érvényes célpontja.", ConsoleColor.Red);
+                SetMessage($"A varázslatnak jelenleg nincs érvényes célpontja: " +
+                           $"{SpellUnavailableReason(option)}.", ConsoleColor.Red);
             else
             {
                 Interlocked.Exchange(ref _redrawRequested, 1);
@@ -1161,7 +1162,8 @@ public sealed class CoopGuestScreen
     {
         if (spell.ValidTargets.Count == 0)
         {
-            SetMessage("A gyorshely varázslatának nincs érvényes célpontja.", ConsoleColor.Red);
+            SetMessage($"A gyorshely varázslatának nincs érvényes célpontja: " +
+                       $"{SpellUnavailableReason(spell)}.", ConsoleColor.Red);
             return null;
         }
         if (spell.TargetType is SpellTargetType.Self or SpellTargetType.Party)
@@ -1876,11 +1878,17 @@ public sealed class CoopGuestScreen
             commandSegments.Length == 0 ? ConsoleColor.DarkCyan : _battleCommandPanel.Foreground,
             _battleCommandPanel.Background, Segments: commandSegments.Length == 0 ? null : commandSegments);
         if (_targetedBattleSpell is { } targeted && _spellTargetCursor is { } cursor)
+        {
+            var invalidReason = SpellTargetInvalidReason(targeted, cursor, world);
             footer[^1] = new GuestTextLine($"╳ {targeted.Name} — {ConsoleRenderer.SpellTargetName(targeted.TargetType)}, " +
                 $"táv {targeted.Range}{(targeted.AreaRadius > 0 ? $", sugár {targeted.AreaRadius}" : string.Empty)} | " +
-                $"({cursor.X},{cursor.Y}) | Enter: célzás, Tab: következő, Esc: mégse",
-                targeted.ValidTargets.Contains(cursor) ? ConsoleColor.Cyan : ConsoleColor.DarkYellow,
+                (invalidReason is null
+                    ? $"({cursor.X},{cursor.Y})"
+                    : $"érvénytelen cél: {invalidReason}") +
+                " | Enter: célzás, Tab: következő, Esc: mégse",
+                invalidReason is null ? ConsoleColor.Cyan : ConsoleColor.DarkYellow,
                 ConsoleColor.Black);
+        }
         else if (_doorTargetAction is { } doorAction && _doorTargetCandidates.Count > 0)
             footer[^1] = new GuestTextLine(
                 $"╳ Ajtó kiválasztása ({(doorAction == CharacterAction.OpenDoor ? "nyitás" : "bezárás/zárás")})" +
@@ -1890,6 +1898,25 @@ public sealed class CoopGuestScreen
         return new GuestRenderFrame(world.WorldId, windowWidth, windowHeight, mapWidth, mapHeight, panelWidth, grid, panel,
             partyStatuses, footer, resourceLine);
     }
+
+    internal static string? SpellTargetInvalidReason(BattleSpellOption spell, Position cursor,
+        WorldSnapshot? world)
+    {
+        if (spell.ValidTargets.Contains(cursor)) return null;
+        var projected = spell.InvalidTargets?.FirstOrDefault(issue => issue.Position == cursor);
+        if (projected is not null) return projected.Reason;
+        if (world is not null && (cursor.X < 0 || cursor.Y < 0 || cursor.X >= world.Width || cursor.Y >= world.Height))
+            return "a célmező a térképen kívül van";
+        if (world is not null && world.RevealedCells.All(cell => cell.Position != cursor))
+            return "a célmező még nincs felderítve";
+        if (spell.CasterPosition is { } caster &&
+            Math.Max(Math.Abs(caster.X - cursor.X), Math.Abs(caster.Y - cursor.Y)) > Math.Max(1, spell.Range))
+            return $"hatótávon kívül van (legfeljebb {Math.Max(1, spell.Range)} mező)";
+        return "nincs megfelelő célpont ezen a mezőn";
+    }
+
+    private static string SpellUnavailableReason(BattleSpellOption spell) =>
+        spell.InvalidTargets?.FirstOrDefault()?.Reason ?? "nincs megfelelő célpont a hatótávon belül";
 
     private static bool TryGetBattleTacticAction(BattleSnapshot battle, ConsoleKey key,
         out BattleActionKind action)

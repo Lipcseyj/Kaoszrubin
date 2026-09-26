@@ -15,6 +15,14 @@ public sealed record SpellExecutionResult(int DamageToCurrentEnemy, int ExtraPla
 
 public sealed record SpellResolutionResult(bool Applies, bool Half, bool Critical, string Text);
 
+public sealed record SpellTargetValidation(bool IsValid, string? InvalidReason = null)
+{
+    public static readonly SpellTargetValidation Valid = new(true);
+    public static SpellTargetValidation Invalid(string reason) => new(false, reason);
+}
+
+public sealed record SpellTargetIssue(Position Position, string Reason);
+
 public sealed class SpellExecutionService
 {
     private readonly GameDataCatalog _gameData;
@@ -93,32 +101,88 @@ public sealed class SpellExecutionService
 
     public bool IsValidSpellTarget(Position casterPosition, SpellDefinition spell, Position position,
         Enemy? currentEnemy, Maze? maze, FogOfWar? fogOfWar, Position? playerPosition,
+        LiveCharacter? selectedCharacter) => ValidateSpellTarget(casterPosition, spell, position, currentEnemy,
+        maze, fogOfWar, playerPosition, selectedCharacter).IsValid;
+
+    public SpellTargetValidation ValidateSpellTarget(Position casterPosition, SpellDefinition spell,
+        Position position, Enemy? currentEnemy, Maze? maze, FogOfWar? fogOfWar, Position? playerPosition,
         LiveCharacter? selectedCharacter)
     {
-        if (maze is null || fogOfWar is null) return true;
-        if (!maze.IsInside(position) || !fogOfWar.IsVisible(position)) return false;
-        var inRange = Chebyshev(casterPosition, position) <= Math.Max(1, spell.Range);
-        if (!inRange || spell.RequiresLineOfSight && !FogOfWar.CanSee(maze, casterPosition, position, Math.Max(1, spell.Range))) return false;
-        return spell.TargetType switch
+        if (maze is null || fogOfWar is null) return SpellTargetValidation.Valid;
+        if (!maze.IsInside(position))
+            return SpellTargetValidation.Invalid("a célmező a térképen kívül van");
+        if (!fogOfWar.IsVisible(position))
+            return SpellTargetValidation.Invalid("a célmező még nincs felderítve");
+        var range = Math.Max(1, spell.Range);
+        if (Chebyshev(casterPosition, position) > range)
+            return SpellTargetValidation.Invalid($"hatótávon kívül van (legfeljebb {range} mező)");
+        if (spell.RequiresLineOfSight && !FogOfWar.CanSee(maze, casterPosition, position, range))
+            return SpellTargetValidation.Invalid("nincs szabad látóvonal a célmezőre");
+
+        switch (spell.TargetType)
         {
-            SpellTargetType.Enemy => currentEnemy is not null
-                ? currentEnemy.CurrentHitPoints > 0 && currentEnemy.Position == position
-                : maze.GetEnemyAt(position)?.CurrentHitPoints > 0,
-            SpellTargetType.PartyMember => (playerPosition.HasValue && position == playerPosition.Value &&
-                                           selectedCharacter is not null && selectedCharacter.IsAlive &&
-                                           CanAffectCharacter(spell, selectedCharacter)) ||
-                                           maze.PartyMembers.Any(member => member.Position == position && member.Character.IsAlive &&
-                                               CanAffectCharacter(spell, member.Character)),
-            SpellTargetType.Corpse => maze.Corpses.OfType<PartyMemberCorpse>().Any(corpse =>
-                corpse.Position == position && !corpse.Character.WasResurrectedThisLevel &&
-                FindResurrectionPosition(maze, playerPosition, corpse) is not null),
-            SpellTargetType.Direction => Manhattan(casterPosition, position) == 1,
-            SpellTargetType.Cell when _gameData.GetSpellEffects(spell.Id).Any(effect =>
-                effect.Type is SpellEffectType.TeleportSelf or SpellEffectType.TeleportParty) =>
-                maze.IsWalkable(position) && maze.GetObjectAt(position) is null,
-            SpellTargetType.Cell or SpellTargetType.Area => true,
-            _ => false
-        };
+            case SpellTargetType.Enemy:
+                var enemy = currentEnemy is not null && currentEnemy.Position == position
+                    ? currentEnemy
+                    : currentEnemy is null ? maze.GetEnemyAt(position) : null;
+                return enemy?.CurrentHitPoints > 0
+                    ? SpellTargetValidation.Valid
+                    : SpellTargetValidation.Invalid("nincs élő ellenség ezen a mezőn");
+            case SpellTargetType.PartyMember:
+                var partyTarget = playerPosition.HasValue && position == playerPosition.Value
+                    ? selectedCharacter
+                    : maze.PartyMembers.FirstOrDefault(member => member.Position == position)?.Character;
+                if (partyTarget?.IsAlive != true)
+                    return SpellTargetValidation.Invalid("nincs élő csapattag ezen a mezőn");
+                return CanAffectCharacter(spell, partyTarget)
+                    ? SpellTargetValidation.Valid
+                    : SpellTargetValidation.Invalid("a csapattagra a varázslatnak nincs alkalmazható hatása");
+            case SpellTargetType.Corpse:
+                var corpse = maze.Corpses.OfType<PartyMemberCorpse>()
+                    .FirstOrDefault(candidate => candidate.Position == position);
+                if (corpse is null)
+                    return SpellTargetValidation.Invalid("nincs csapattag holtteste ezen a mezőn");
+                if (corpse.Character.WasResurrectedThisLevel)
+                    return SpellTargetValidation.Invalid("ez a csapattag ezen a szinten már fel lett támasztva");
+                return FindResurrectionPosition(maze, playerPosition, corpse) is not null
+                    ? SpellTargetValidation.Valid
+                    : SpellTargetValidation.Invalid("nincs szabad mező a feltámasztáshoz");
+            case SpellTargetType.Direction:
+                return Manhattan(casterPosition, position) == 1
+                    ? SpellTargetValidation.Valid
+                    : SpellTargetValidation.Invalid("csak a négy közvetlen irány egyike célozható");
+            case SpellTargetType.Cell when _gameData.GetSpellEffects(spell.Id).Any(effect =>
+                effect.Type is SpellEffectType.TeleportSelf or SpellEffectType.TeleportParty):
+                if (!maze.IsWalkable(position))
+                    return SpellTargetValidation.Invalid("a célmező nem járható");
+                return maze.GetObjectAt(position) is null
+                    ? SpellTargetValidation.Valid
+                    : SpellTargetValidation.Invalid("a célmező foglalt");
+            case SpellTargetType.Cell:
+            case SpellTargetType.Area:
+                return SpellTargetValidation.Valid;
+            default:
+                return SpellTargetValidation.Invalid("ez a varázslat nem célozható mezőre");
+        }
+    }
+
+    public IReadOnlyList<SpellTargetIssue> GetInvalidSpellTargetIssues(Position casterPosition,
+        SpellDefinition spell, Enemy? currentEnemy, Maze? maze, FogOfWar? fogOfWar,
+        Position? playerPosition, LiveCharacter? selectedCharacter)
+    {
+        if (maze is null || fogOfWar is null) return [];
+        var range = Math.Max(1, spell.Range);
+        var issues = new List<SpellTargetIssue>();
+        for (var y = Math.Max(0, casterPosition.Y - range); y <= Math.Min(maze.Height - 1, casterPosition.Y + range); y++)
+        for (var x = Math.Max(0, casterPosition.X - range); x <= Math.Min(maze.Width - 1, casterPosition.X + range); x++)
+        {
+            var position = new Position(x, y);
+            var validation = ValidateSpellTarget(casterPosition, spell, position, currentEnemy, maze, fogOfWar,
+                playerPosition, selectedCharacter);
+            if (!validation.IsValid)
+                issues.Add(new SpellTargetIssue(position, validation.InvalidReason ?? "érvénytelen cél"));
+        }
+        return issues;
     }
 
     public IEnumerable<Position> GetValidSpellTargets(Position casterPosition, SpellDefinition spell,

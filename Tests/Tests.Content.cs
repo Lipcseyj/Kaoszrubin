@@ -835,6 +835,49 @@ internal static partial class Program
             "A közös varázslatválasztó elvesztette a harci címet, gyorshelyet vagy mannafigyelmeztetést.");
     }
 
+    static void SpellTargetingExplainsInvalidTargets()
+    {
+        var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory,
+            CsvGameDataLoader.GameDataFileName));
+        var service = new SpellExecutionService(catalog, new Random(1911));
+        var maze = new Maze(7, 7);
+        for (var y = 0; y < maze.Height; y++)
+        for (var x = 0; x < maze.Width; x++)
+            maze.Carve(new Position(x, y));
+        var caster = new Position(2, 2);
+        var enemyPosition = new Position(4, 2);
+        var enemy = CreateEnemyAt(enemyPosition, "SPELL-TARGET");
+        maze.AddEnemy(enemy);
+        var fog = new FogOfWar(maze.Width, maze.Height, 10);
+        fog.RevealFrom(maze, caster, 10);
+        maze.SetTile(new Position(3, 2), Maze.Wall);
+        var spell = new SpellDefinition("TARGET-REASON", "Célpróba", SpellSchool.Arcane,
+            1, 1, "", SpellTargetType.Enemy, 3, 0, true, SpellUsageMode.Both);
+
+        var blocked = service.ValidateSpellTarget(caster, spell, enemyPosition, enemy, maze, fog, caster, null);
+        var empty = service.ValidateSpellTarget(caster, spell, new Position(2, 3), enemy, maze, fog, caster, null);
+        var far = service.ValidateSpellTarget(caster, spell, new Position(6, 6), enemy, maze, fog, caster, null);
+        var issues = service.GetInvalidSpellTargetIssues(caster, spell, enemy, maze, fog, caster, null);
+        var option = new BattleSpellOption(spell.Id, spell.Name, spell.Level, spell.ManaCost,
+            spell.TargetType, spell.Range, spell.AreaRadius, null, null, 0, null, [], caster, issues);
+        var restoredOption = JsonSerializer.Deserialize<BattleSpellOption>(
+            JsonSerializer.Serialize(option))!;
+        var world = new WorldSnapshot(maze.Id, maze.Width, maze.Height, null, null,
+            maze.Tiles.Cast<Rune>().Select((tile, index) => new WorldCellSnapshot(
+                new Position(index / maze.Height, index % maze.Height), tile.Value)).ToArray(),
+            [], [], [], [], [], []);
+
+        Assert(!blocked.IsValid && blocked.InvalidReason?.Contains("látóvonal", StringComparison.Ordinal) == true &&
+               !empty.IsValid && empty.InvalidReason?.Contains("nincs élő ellenség", StringComparison.Ordinal) == true &&
+               !far.IsValid && far.InvalidReason?.Contains("hatótávon kívül", StringComparison.Ordinal) == true &&
+               restoredOption.CasterPosition == caster &&
+               CoopGuestScreen.SpellTargetInvalidReason(restoredOption, enemyPosition, world)?.Contains(
+                   "látóvonal", StringComparison.Ordinal) == true &&
+               CoopGuestScreen.SpellTargetInvalidReason(restoredOption, new Position(6, 6), world)?.Contains(
+                   "hatótávon kívül", StringComparison.Ordinal) == true,
+            "A host- vagy guest-célzás nem a konkrét hatótáv-, látóvonal- vagy célpontokot jeleníti meg.");
+    }
+
     static void RestSummaryUiIsShared()
     {
         var characterId = CharacterId.New();

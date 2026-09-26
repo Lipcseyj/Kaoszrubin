@@ -277,7 +277,8 @@ public sealed partial class Game
         Position characterPosition, Enemy? enemy, bool inCombat) =>
         _battleActionCoordinator.GetSpellOptions(character, characterPosition, enemy, inCombat,
             (c, pos, sp, en) => HasValidSpellTarget(c, pos, sp, en),
-            (pos, sp, en) => GetValidSpellTargets(pos, sp, en));
+            (pos, sp, en) => GetValidSpellTargets(pos, sp, en),
+            (pos, sp, en) => GetInvalidSpellTargetIssues(pos, sp, en));
 
     private void ExecuteExplorationSpell(CastExplorationSpellCommand command)
     {
@@ -543,10 +544,12 @@ public sealed partial class Game
 
         while (true)
         {
-            var valid = IsValidSpellTarget(casterPosition, spell, cursor, currentEnemy);
+            var validation = ValidateSpellTarget(casterPosition, spell, cursor, currentEnemy);
+            var valid = validation.IsValid;
             var prompt = $"╳ {spell.Name} — {ConsoleRenderer.SpellTargetName(spell.TargetType)}, táv {spell.Range}" +
                          (spell.AreaRadius > 0 ? $", sugár {spell.AreaRadius}" : string.Empty) +
-                         $" | {(valid ? DescribeSpellTarget(caster, spell, cursor, currentEnemy) : "érvénytelen cél")} | Enter: célzás, Tab: következő, Esc: mégse";
+                         $" | {(valid ? DescribeSpellTarget(caster, spell, cursor, currentEnemy) :
+                             $"érvénytelen cél: {validation.InvalidReason}")} | Enter: célzás, Tab: következő, Esc: mégse";
             _renderer.DrawSpellTargetCursor(_maze, _fogOfWar, previous, cursor, valid, prompt);
             previous = cursor;
             var key = Console.ReadKey(intercept: true);
@@ -586,6 +589,16 @@ public sealed partial class Game
 
     private bool IsValidSpellTarget(Position casterPosition, SpellDefinition spell, Position position, Enemy? currentEnemy) =>
         _spellExecutionService.IsValidSpellTarget(casterPosition, spell, position, currentEnemy, _maze, _fogOfWar, _player?.Position, PartyLeader);
+
+    private SpellTargetValidation ValidateSpellTarget(Position casterPosition, SpellDefinition spell,
+        Position position, Enemy? currentEnemy) =>
+        _spellExecutionService.ValidateSpellTarget(casterPosition, spell, position, currentEnemy, _maze,
+            _fogOfWar, _player?.Position, PartyLeader);
+
+    private IReadOnlyList<SpellTargetIssue> GetInvalidSpellTargetIssues(Position casterPosition,
+        SpellDefinition spell, Enemy? currentEnemy) =>
+        _spellExecutionService.GetInvalidSpellTargetIssues(casterPosition, spell, currentEnemy, _maze,
+            _fogOfWar, _player?.Position, PartyLeader);
 
     private bool HasValidSpellTarget(LiveCharacter caster, Position casterPosition, SpellDefinition spell, Enemy? currentEnemy) =>
         _spellExecutionService.HasValidSpellTarget(caster, casterPosition, spell, currentEnemy, LivingPartyWithPositions().ToArray(), _maze, _fogOfWar, _player?.Position, PartyLeader);

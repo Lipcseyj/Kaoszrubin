@@ -311,6 +311,7 @@ internal static partial class Program
     ("A részletes karakterlap közösen mutatja a látásmódosítókat és ölési statisztikát", CharacterDetailsAreShared),
     ("A karakterlap külön színezi az alacsony HP-t és a mannát", CharacterSheetColorsHealthAndManaSeparately),
     ("A host és a vendég közös varázslat-UI modelleket használ", SpellUiModelsAreShared),
+    ("A host és a vendég megkapja az érvénytelen varázscél okát", SpellTargetingExplainsInvalidTargets),
     ("A host és a vendég közös pihenési összegzőt használ", RestSummaryUiIsShared),
     ("A vendég tárgyvizsgálata nem vágja le a sebzésértéket", GuestItemInspectionKeepsDamageValue),
     ("A boss-ablak és a harci promptok közös UI-modellt használnak", BossAndBattlePromptsAreShared),

@@ -164,7 +164,8 @@ public sealed class BattleActionCoordinator
         Enemy? enemy,
         bool inCombat,
         Func<LiveCharacter, Position, SpellDefinition, Enemy?, bool> hasValidSpellTarget,
-        Func<Position, SpellDefinition, Enemy?, IEnumerable<Position>> getValidSpellTargets)
+        Func<Position, SpellDefinition, Enemy?, IEnumerable<Position>> getValidSpellTargets,
+        Func<Position, SpellDefinition, Enemy?, IReadOnlyList<SpellTargetIssue>> getInvalidSpellTargets)
     {
         var quickSpells = character.QuickSpells;
         return character.MemorizedSpells
@@ -199,7 +200,10 @@ public sealed class BattleActionCoordinator
                     entry.Item is null ? SpellcastingRules.EffectiveManaCost(character, entry.Spell) : 0,
                     entry.Spell.TargetType, entry.Spell.Range, entry.Spell.AreaRadius, entry.Slot,
                     entry.Item?.Kind, entry.Slot is { } slot ? character.MagicItemCharges[slot] : 0,
-                    entry.Item is null && quickIndex >= 0 ? quickIndex : null, targets);
+                    entry.Item is null && quickIndex >= 0 ? quickIndex : null, targets, characterPosition,
+                    entry.Spell.TargetType is SpellTargetType.Self or SpellTargetType.Party
+                        ? []
+                        : getInvalidSpellTargets(characterPosition, entry.Spell, enemy));
             }).ToArray();
     }
 
