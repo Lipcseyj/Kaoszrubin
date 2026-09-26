@@ -271,7 +271,7 @@ public sealed partial class Game : ISessionCommandHandler
             { AcknowledgedPlayerIds = _sharedWindowAcknowledgements.ToArray() },
             MusicContext = _backgroundMusic.Context,
             ExplorationClockIndicator = BuildExplorationClockIndicator(DateTime.UtcNow,
-                !_battleStarted && _openPlayerWindows.Count == 0 && !_gameOver),
+                IsExplorationClockAdvancing),
             Party = snapshot.Party.Select(character => character with
             {
                 Gold = PartyLeader.Gold,

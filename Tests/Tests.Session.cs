@@ -895,6 +895,23 @@ static void ResolveSkipsActionAfterSupportVictory()
         Assert(maze.TryMovePartyMember(member, chestPosition, maze.Entrance, allowTreasureChest: true) &&
                member.Position == chestPosition && maze.GetTreasureChestAt(chestPosition) == chest,
             "Az ember által vezérelt vendéget a láda mezője blokkolta.");
+
+        var npcMaze = new Maze(7, 7);
+        var npcStart = new Position(2, 3);
+        var npcPosition = new Position(3, 3);
+        npcMaze.Carve(npcStart);
+        npcMaze.Carve(npcPosition);
+        var guest = new PartyMemberAvatar(npcStart, CreateCharacter("Vendég"));
+        npcMaze.AddPartyMember(guest);
+        npcMaze.AddWorldNpc(new WorldNpc(npcPosition, "NPC-FRIENDLY-PASSABLE", CreateCharacter("Barátságos"),
+            NpcDisposition.Friendly, false, false, "Utad engedem."));
+        Assert(!npcMaze.TryMovePartyMember(guest, npcPosition, npcMaze.Entrance) &&
+               npcMaze.TryMovePartyMember(guest, npcPosition, npcMaze.Entrance, allowWorldNpc: true),
+            "Az ember által vezérelt vendég nem tud áthaladni a barátságos NPC avatárján.");
+
+        Assert(CoopGuestScreen.LocalPlayerWindowStatusText(PlayerWindowKind.QuestJournal) ==
+               "küldetésnapló megnyitva",
+            "A vendég saját küldetésnapló-bannerének szövege hiányzó alanyra utal.");
     }
 
     static void GuestSeesOtherPlayersBlockingWindows()

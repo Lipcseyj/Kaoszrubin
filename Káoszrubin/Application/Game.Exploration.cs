@@ -536,7 +536,8 @@ public sealed partial class Game
             return;
         }
         if (!CanEnterTrap(member.Character, destination)) return;
-        if (!_maze.TryMovePartyMember(member, destination, _player.Position, allowTreasureChest: true)) return;
+        if (!_maze.TryMovePartyMember(member, destination, _player.Position,
+                allowTreasureChest: true, allowWorldNpc: true)) return;
         member.Character.RegisterExplorationStep();
         ScheduleNextControlledMove(member.Character);
         var newlyRevealed = RevealFor(member.Character, member.Position, advanceEnemyMemory: true);

@@ -298,7 +298,7 @@ public sealed partial class Game
             else
                 UpdatePlayerBlockingWindowState(_session.HostPlayerId, PartyLeader.Id, kind, windowId, false);
             _renderer.SetExplorationClockIndicator(BuildExplorationClockIndicator(DateTime.UtcNow,
-                !_battleStarted && _openPlayerWindows.Count == 0 && !_gameOver));
+                IsExplorationClockAdvancing));
             ForceCoopSnapshotPublish();
         }
     }
@@ -317,6 +317,7 @@ public sealed partial class Game
     private T RunHostWindow<T>(string title, string message, Func<T> action)
     {
         var previousPhase = _session.Phase;
+        var pauseStartedUtc = DateTime.UtcNow;
         var previousTitle = _leaderDecisionTitle;
         var previousMessage = _leaderDecisionMessage;
         var previousCaptureSharedWindow = _captureSharedWindow;
@@ -333,6 +334,8 @@ public sealed partial class Game
         _leaderDecisionTitle = title;
         _leaderDecisionMessage = message;
         _session.SetPhase(GameSessionPhase.Paused);
+        _renderer.SetExplorationClockIndicator(BuildExplorationClockIndicator(pauseStartedUtc, advancing: false));
+        CoopWindowStatusBanner.Refresh(() => $"⌛ AZ IDŐ ÁLL — {title}.");
         var remoteListeners = _session.CharacterControls
             .Where(control => control.AssignedPlayerId is { } playerId &&
                               playerId != _session.HostPlayerId &&
@@ -364,7 +367,15 @@ public sealed partial class Game
             _sharedWindowAcknowledgements.UnionWith(previousSharedWindowAcknowledgements);
             _leaderDecisionTitle = previousTitle;
             _leaderDecisionMessage = previousMessage;
+            if (previousPhase == GameSessionPhase.Exploration && !_battleStarted)
+                ShiftExplorationSchedules(DateTime.UtcNow - pauseStartedUtc);
             _session.SetPhase(previousPhase);
+            _renderer.SetExplorationClockIndicator(BuildExplorationClockIndicator(DateTime.UtcNow,
+                IsExplorationClockAdvancing));
+            if (previousPhase == GameSessionPhase.Paused && !string.IsNullOrWhiteSpace(previousTitle))
+                CoopWindowStatusBanner.Refresh(() => $"⌛ AZ IDŐ ÁLL — {previousTitle}.");
+            else
+                CoopWindowStatusBanner.Clear();
             if (previousPhase == GameSessionPhase.Battle && _activeBattle is not { IsCompleted: false })
                 MarkCoopSnapshotDirty();
             else

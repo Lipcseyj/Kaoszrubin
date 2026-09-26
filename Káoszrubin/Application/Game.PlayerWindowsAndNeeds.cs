@@ -221,6 +221,9 @@ public sealed partial class Game
     private string BuildExplorationClockIndicator(DateTime now, bool advancing) =>
         ExplorationClockFrame(_nextExplorationStatusTickUtc, now, advancing);
 
+    private bool IsExplorationClockAdvancing => !_battleStarted &&
+        _session.Phase == GameSessionPhase.Exploration && _openPlayerWindows.Count == 0 && !_gameOver;
+
     private void ResolveExplorationStatusDefeat(LiveCharacter character)
     {
         var avatar = _maze.PartyMembers.FirstOrDefault(member => member.Character == character);

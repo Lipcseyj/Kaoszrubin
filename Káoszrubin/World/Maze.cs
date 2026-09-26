@@ -324,12 +324,13 @@ public sealed class Maze
     }
 
     public bool TryMovePartyMember(PartyMemberAvatar member, Position destination, Position leaderPosition,
-        bool allowTreasureChest = false)
+        bool allowTreasureChest = false, bool allowWorldNpc = false)
     {
         if (!IsWalkable(destination) || destination == leaderPosition) return false;
         var occupant = GetObjectAt(destination);
         if (occupant is not null && occupant != member && occupant is not (GroundItemPile or Corpse) &&
-            !(allowTreasureChest && occupant is TreasureChest) && !IsPassableNeutralNpc(occupant)) return false;
+            !(allowTreasureChest && occupant is TreasureChest) && !(allowWorldNpc && occupant is WorldNpc) &&
+            !IsPassableNeutralNpc(occupant)) return false;
         member.MoveTo(destination);
         return true;
     }

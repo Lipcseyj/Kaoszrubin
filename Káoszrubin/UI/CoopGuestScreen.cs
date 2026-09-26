@@ -324,6 +324,7 @@ public sealed class CoopGuestScreen
                 _personalWindowId = null;
                 await SendPersonalWindowStateAsync(client, characterId, kind, windowId, false,
                     CancellationToken.None);
+                CoopWindowStatusBanner.Clear();
             }
         }
     }
@@ -1999,13 +2000,23 @@ public sealed class CoopGuestScreen
         _ => "személyes ablakot használ"
     };
 
+    public static string LocalPlayerWindowStatusText(PlayerWindowKind kind) => kind switch
+    {
+        PlayerWindowKind.Help => "súgó megnyitva",
+        PlayerWindowKind.Settings => "beállítások megnyitva",
+        PlayerWindowKind.QuestJournal => "küldetésnapló megnyitva",
+        PlayerWindowKind.CharacterDetails => "részletes karakterinformáció megnyitva",
+        PlayerWindowKind.SpellInfo => "varázslatinformáció megnyitva",
+        _ => "személyes ablak megnyitva"
+    };
+
     private string? CurrentCoopWindowStatus(CoopSignalRClient client, CharacterId characterId)
     {
         var snapshot = client.CurrentSnapshot;
         if (snapshot is null || client.PlayerId is not { } localPlayerId) return null;
         SynchronizeSessionSounds(snapshot, characterId);
         if (_personalWindowKind is { } localKind && PlayerWindowKindRules.PausesGame(localKind))
-            return $"⌛ AZ IDŐ ÁLL — {PlayerWindowActivityText(localKind)}.";
+            return $"⌛ AZ IDŐ ÁLL — {LocalPlayerWindowStatusText(localKind)}.";
         var remote = (snapshot.OpenPlayerWindows ?? []).FirstOrDefault(window =>
             window.PlayerId != localPlayerId);
         if (remote is not null)
