@@ -935,20 +935,45 @@ public sealed partial class Game
         return positions;
     }
 
-    private void MoveEnemyToward(BattleEncounter battle, Enemy enemy, Position target,
-        WeaponDefinition? attackWeapon)
+    private void MoveEnemyToward(
+    BattleEncounter battle,
+    Enemy enemy,
+    Position target,
+    WeaponDefinition? attackWeapon)
     {
         if (battle.IsMovementBlocked(CombatantId.ForEnemy(enemy.Id)))
         {
             PresentBattleEntries([new BattleLogEntry(
-                $"💫 {enemy.Name} megingott, ezért ebben az akcióban nem tud közeledni.",
-                BattleLogKind.Information)]);
+            $"💫 {enemy.Name} megingott, ezért ebben az akcióban nem tud közeledni.",
+            BattleLogKind.Information)]);
             AdvanceBattleTurn(battle);
             return;
         }
-        var goals = EnemyApproachPositions(battle, enemy, target, attackWeapon);
-        var path = FindBattlePath(battle, enemy.Position, goals, CombatantId.ForEnemy(enemy.Id));
-        var traversed = path.Take(battle.CurrentMovementAllowance).ToArray();
+
+        var goals = EnemyApproachPositions(
+            battle, enemy, target, attackWeapon).ToArray();
+
+        var path = FindBattlePath(
+            battle,
+            enemy.Position,
+            goals,
+            CombatantId.ForEnemy(enemy.Id)).ToArray();
+
+        var traversed = path
+            .Take(battle.CurrentMovementAllowance)
+            .ToArray();
+
+        // TEMP DEBUG
+        //PresentBattleEntries([new BattleLogEntry(
+        //$"DEBUG MOVE {enemy.Name}: " +
+        //$"pos={enemy.Position.X},{enemy.Position.Y}, " +
+        //$"target={target.X},{target.Y}, " +
+        //$"weapon={attackWeapon?.Name ?? "-"}, " +
+        //$"goals={goals.Length}, " +
+        //$"path={path.Length}, " +
+        //$"allowance={battle.CurrentMovementAllowance}, " +
+        //$"traversed={traversed.Length}",
+        //BattleLogKind.Information)]);
         LiveCharacter? interceptor = null;
         for (var index = 0; index < traversed.Length; index++)
         {
@@ -1493,33 +1518,83 @@ public sealed partial class Game
         _battleMovementSteps = 0;
     }
 
-    private IReadOnlyList<Position> FindBattlePath(BattleEncounter battle, Position origin,
-        IReadOnlyCollection<Position> goals, CombatantId actorId)
+    private IReadOnlyList<Position> FindBattlePath(
+        BattleEncounter battle,
+        Position origin,
+        IReadOnlyCollection<Position> goals,
+        CombatantId actorId)
     {
         if (goals.Count == 0) return [];
+
         var goalSet = goals.ToHashSet();
         var queue = new Queue<Position>();
-        var previous = new Dictionary<Position, Position> { [origin] = origin };
+        var previous = new Dictionary<Position, Position>
+        {
+            [origin] = origin
+        };
+
         queue.Enqueue(origin);
+
         Position? found = goalSet.Contains(origin) ? origin : null;
+
+        // Ha nincs teljes út, legalább a lehető legközelebb akarunk jutni.
+        var bestPartial = origin;
+        var bestPartialDistance = DistanceToClosestGoal(origin);
+
         while (queue.Count > 0 && found is null)
         {
             var current = queue.Dequeue();
+
             foreach (var direction in Directions)
             {
                 var next = current + direction;
+
                 if (previous.ContainsKey(next) ||
-                    !CanBattleEnter(battle, next, actorId) && !CanFlyingEnemyTraverse(battle, next, actorId)) continue;
+                    !CanBattleEnter(battle, next, actorId) &&
+                    !CanFlyingEnemyTraverse(battle, next, actorId))
+                    continue;
+
                 previous[next] = current;
-                if (goalSet.Contains(next)) { found = next; break; }
+
+                // Teljes útvonal megvan.
+                if (goalSet.Contains(next))
+                {
+                    found = next;
+                    break;
+                }
+
+                // Jegyezzük meg az eddigi legjobb részleges célpontot.
+                var distance = DistanceToClosestGoal(next);
+                if (distance < bestPartialDistance)
+                {
+                    bestPartial = next;
+                    bestPartialDistance = distance;
+                }
+
                 queue.Enqueue(next);
             }
         }
-        if (found is null || found == origin) return [];
+
+        // Ha nem találtunk teljes utat, menjünk addig, ameddig érdemben közelebb tudunk jutni.
+        var destination = found ?? bestPartial;
+
+        if (destination == origin)
+            return [];
+
         var path = new List<Position>();
-        for (var current = found.Value; current != origin; current = previous[current]) path.Add(current);
+
+        for (var current = destination;
+             current != origin;
+             current = previous[current])
+        {
+            path.Add(current);
+        }
+
         path.Reverse();
         return path;
+
+        int DistanceToClosestGoal(Position position) =>
+            goals.Min(goal => TacticalDistance.Between(position, goal));
     }
 
     private bool CanBattleEnter(BattleEncounter battle, Position position, CombatantId actorId)
