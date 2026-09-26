@@ -1501,7 +1501,8 @@ public static class CsvGameDataLoader
             MonsterAbilityEffect.ExtraDamage => Math.Max(1,
                 component.AverageValue * ability.ChancePercent * component.ChancePercent / 10_000),
             MonsterAbilityEffect.ApplyStatus or MonsterAbilityEffect.Poison or MonsterAbilityEffect.Disease or
-                MonsterAbilityEffect.Bleeding => ability.Trigger == MonsterAbilityTrigger.Active ? 10 : 5,
+                MonsterAbilityEffect.Bleeding or MonsterAbilityEffect.Curse =>
+                ability.Trigger == MonsterAbilityTrigger.Active ? 10 : 5,
             MonsterAbilityEffect.Regeneration or MonsterAbilityEffect.StrongRegeneration => Math.Max(2,
                 component.AverageValue * component.ChancePercent / 50),
             MonsterAbilityEffect.LifeDrain => Math.Max(2, component.Value / 10),

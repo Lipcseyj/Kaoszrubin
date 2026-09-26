@@ -426,11 +426,11 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var survival = abilityDamage > 0
             ? ApplyEnemyDamage(defender, abilityDamage, defenderContext)
             : DamageApplicationResult.Empty;
-        if (abilityDamage > 0)
+        if (defender.IsAlive)
         {
             foreach (var component in pendingStatuses)
             {
-                var status = ApplyMonsterStatusAbility(attacker.Definition, defender, component);
+                var status = ApplyMonsterStatusAbility(attacker.Definition, defender, component, ability.Id);
                 effects.Add(string.IsNullOrWhiteSpace(status)
                     ? $"{MonsterStatusCompactLabel(component)}: ELLENÁLLT"
                     : MonsterStatusCompactLabel(component));
@@ -1864,7 +1864,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         {
             foreach (var pending in onHit.PendingStatuses)
             {
-                var status = ApplyMonsterStatusAbility(attacker.Definition, defender, pending.Component);
+                var status = ApplyMonsterStatusAbility(attacker.Definition, defender, pending.Component, pending.AbilityId);
                 if (string.IsNullOrWhiteSpace(status))
                 {
                     compactEffects.Add($"{MonsterStatusCompactLabel(pending.Component)}: ELLENÁLLT");
@@ -2123,7 +2123,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                 {
                     if (!string.IsNullOrWhiteSpace(resolved.Note))
                         calculation?.Add($"🎲 {ability.Name}: {resolved.Note}");
-                    pendingStatuses.Add(new PendingMonsterStatus(component));
+                    pendingStatuses.Add(new PendingMonsterStatus(ability.Id, component));
                 }
             }
         }
@@ -2191,7 +2191,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
 
     private static bool IsStatusEffect(MonsterAbilityEffect effect) => effect is
         MonsterAbilityEffect.Poison or MonsterAbilityEffect.Disease or MonsterAbilityEffect.Bleeding or
-        MonsterAbilityEffect.ApplyStatus;
+        MonsterAbilityEffect.ApplyStatus or MonsterAbilityEffect.Curse;
 
     private static string MonsterStatusCompactLabel(MonsterAbilityComponent component) => component.Effect switch
     {
@@ -2201,12 +2201,27 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         MonsterAbilityEffect.ApplyStatus when component.StatusId == CharacterStatusIds.Poisoned => "☠️ MÉRGEZÉS",
         MonsterAbilityEffect.ApplyStatus when component.StatusId == CharacterStatusIds.Diseased => "🦠 BETEGSÉG",
         MonsterAbilityEffect.ApplyStatus when component.StatusId == CharacterStatusIds.Bleeding => "🩸 VÉRZÉS",
+        MonsterAbilityEffect.Curse => "🕸️ ÁTOK",
         _ => "⚠️ ÁLLAPOT"
     };
 
     private string ApplyMonsterStatusAbility(EnemyDefinition enemy, LiveCharacter defender,
-        MonsterAbilityComponent component)
+        MonsterAbilityComponent component, string sourceAbilityId)
     {
+        if (component.Effect == MonsterAbilityEffect.Curse)
+        {
+            defender.ApplySpellEffect(new ActiveSpellEffect(sourceAbilityId, ActiveSpellEffectType.HitBonus,
+                component.Value, component.Duration, Beneficial: false));
+            defender.ApplySpellEffect(new ActiveSpellEffect(sourceAbilityId, ActiveSpellEffectType.DefenseBonus,
+                component.Value, component.Duration, Beneficial: false));
+            if (string.Equals(component.StatusId, "HitDefenseInitiative", StringComparison.OrdinalIgnoreCase))
+                defender.ApplySpellEffect(new ActiveSpellEffect(sourceAbilityId, ActiveSpellEffectType.InitiativeBonus,
+                    component.Value, component.Duration, Beneficial: false));
+            return $" 🕸️ átok felkerült ({component.Value} találat és védelem" +
+                   (string.Equals(component.StatusId, "HitDefenseInitiative", StringComparison.OrdinalIgnoreCase)
+                       ? $", {component.Value} kezdeményezés"
+                       : string.Empty) + $", {component.Duration} kör)";
+        }
         var statusId = component.Effect switch
         {
             MonsterAbilityEffect.Poison => CharacterStatusIds.Poisoned,
@@ -2432,7 +2447,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
     private sealed record InitiativeRoll(int Total, string ModifierText);
     private sealed record HitRollResult(bool Hit, int NaturalRoll, string Description);
     private sealed record MonsterBonusDamageRoll(int Value, DamageType? DamageType);
-    private sealed record PendingMonsterStatus(MonsterAbilityComponent Component);
+    private sealed record PendingMonsterStatus(string AbilityId, MonsterAbilityComponent Component);
     private sealed record MonsterOnHitResult(IReadOnlyList<MonsterBonusDamageRoll> Damage,
         IReadOnlyList<PendingMonsterStatus> PendingStatuses, IReadOnlyList<string> CompactEffects);
     private sealed record MonsterAbilityComponentResolution(MonsterAbilityComponent Component, bool Applies,

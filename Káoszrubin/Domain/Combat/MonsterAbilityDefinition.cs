@@ -59,7 +59,8 @@ public enum MonsterAbilityEffect
     ThickHide,
     OpeningMovementBonus,
     FirstMeleeDefenseBonus,
-    PackAttack
+    PackAttack,
+    Curse
 }
 
 public enum MonsterAbilityResolutionMode
@@ -108,4 +109,6 @@ public static class MonsterAbilityIds
     public const string PackAttack = "MA020";
     public const string StrongRegeneration = "MA021";
     public const string LifeDrain = "MA022";
+    public const string MummyCurse = "MA024";
+    public const string AncientMummyCurse = "MA025";
 }

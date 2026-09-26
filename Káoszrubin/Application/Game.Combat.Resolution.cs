@@ -989,8 +989,15 @@ public sealed partial class Game
     private bool EnemyAbilityCanTarget(Enemy enemy, LiveCharacter target, MonsterAbilityDefinition ability)
     {
         var targetPosition = GetCasterPosition(target);
-        return EnemyAbilityCanAimAtPosition(enemy, targetPosition, ability);
+        return EnemyAbilityCanAimAtPosition(enemy, targetPosition, ability) &&
+               !HasActiveMonsterCurse(target, ability);
     }
+
+    private static bool HasActiveMonsterCurse(LiveCharacter target, MonsterAbilityDefinition ability) =>
+        ability.Effects.Any(effect => effect.Effect == MonsterAbilityEffect.Curse) &&
+        target.ActiveSpellEffects.Any(effect =>
+            string.Equals(effect.SourceSpellId, ability.Id, StringComparison.OrdinalIgnoreCase) &&
+            !effect.Beneficial && effect.RemainingRounds > 1);
 
     private bool EnemyAbilityCanAimAtPosition(Enemy enemy, Position targetPosition,
         MonsterAbilityDefinition ability)
@@ -1621,6 +1628,7 @@ public sealed partial class Game
             : 0;
         var damage = (effectDamage + weaponDamage) * Math.Max(1, ability.AttackCount) * targetCount;
         var control = ability.Effects.Where(effect => effect.Effect is MonsterAbilityEffect.ApplyStatus or
+                MonsterAbilityEffect.Curse or
                 MonsterAbilityEffect.Stagger or MonsterAbilityEffect.Push)
             .Sum(effect => effect.Effect == MonsterAbilityEffect.ApplyStatus && effect.StatusId is { } statusId &&
                            targets.All(target => target.HasStatus(statusId)) ? 0 : 25) * targetCount;

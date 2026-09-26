@@ -614,7 +614,7 @@ E093;Boszorkány;ẅ;8;80;3;7;1000;2;MA006;;7;3;1;igen;W018|W001;nem;0;0;0;0;1;2
 E012;Ogre;O;12;320;5;3;900;3;MA005|MA007;;4;;;igen;W019|WN003;nem;0;0;0;0;0;0;0;3;;0
 E013;Troll;T;14;500;6;4;1200;3;MA021|MA007;;5;;;igen;WN012|WN011;nem;1;1;1;-7;1;0;0;3;;5
 E014;Minotaurusz;Ñ;11;300;7;5;1000;3;;;5;;;igen;W017|WN009;nem;0;0;0;0;0;0;0;6;;0
-E015;Múmia;m;9;250;7;3;1400;3;MA003;Undead;4;;;nem;WN003;nem;-2;1;0;-5;0;3;0;5;;15
+E015;Múmia;m;9;250;7;3;1400;3;MA003|MA024;Undead;4;;;nem;WN001|WN003;nem;-2;1;0;-5;0;3;0;5;;15
 E016;Medúza;Ƶ;11;250;6;6;1500;3;MA002|MA006|MA011|MA018;;6;;;igen;W001|WN021;nem;0;0;0;0;1;1;1;2;;
 E036;Ettin;E;15;720;8;3;1700;3;MA005|MA007;;5;;;igen;W017|W019;nem;0;0;0;0;0;0;0;3;;0
 E037;Wight;Ŵ;13;560;7;6;1650;3;;Undead;6;;;nem;W023;nem;2;3;-2;0;0;4;1;7;;
@@ -645,7 +645,7 @@ E045;Démonpók;§;17;1050;8;10;4200;4;MA002|MA004;Demonic;6;3;1;nem;WN024;nem;2
 E053;Sir Malrec az Esküszegő;‡;11;420;9;5;1800;4;MA005;Undead;6;1;3;nem;W009;nem;2;3;-2;1;1;4;2;8;;
 E064;Ősi hidra;Ŵ;18;1600;8;6;5000;4;MA002|MA007|MA008;;6;;;nem;WN014;igen;0;0;1;-6;4;-3;0;5;;
 E065;Vámpír kardmester;џ;15;450;8;8;2500;4;MA022;Undead;7;2;1;nem;W009|W003;igen;1;1;1;-3;1;4;1;7;;
-E069;Vén múmia;ϻ;10;350;7;3;2400;4;MA003|MA013;Undead;5;;;nem;WN003;nem;-2;2;0;-4;0;5;1;6;;30
+E069;Vén múmia;ϻ;10;350;7;3;2400;4;MA003|MA013|MA025;Undead;5;;;nem;WN001|WN003;nem;-2;2;0;-4;0;5;1;6;;30
 E070;Alfa vérfarkas;Ŀ;17;600;8;10;4500;4;MA004|MA006|MA008|MA018|MA020;;8;2;2;igen;WN012|WN007;nem;2;0;1;0;0;0;1;8;;
 E071;Ősi minotaurusz;Ṅ;16;800;10;6;4700;4;MA005|MA018;;6;;;igen;W037|W012;igen;1;0;1;0;0;-4;0;7;;
 E077;Pokolkutya;ʘ;13;520;3;9;2800;4;MA006|MA020;Demonic;7;2;3;nem;WN011|WN012;nem;0;0;0;8;1;-2;3;8;;
@@ -710,6 +710,8 @@ MA020;Falkatámadás;Az ugyanazt a célpontot közelharcban fenyegető falkatago
 MA021;Erős regeneráció;A szörny minden saját köre elején a maximum HP 10%-át gyógyul, legalább 8, legfeljebb 80 HP-t.;TurnStart;Automatic;Self;100;0;1;1;100;;0;nem;0;1;;0
 MA022;Életszívás;A sebző találat által ténylegesen elvett HP felét visszagyógyítja.;OnHit;WeaponAttack;SingleEnemy;100;0;1;1;100;;0;nem;0;1;;0
 MA023;Holtélesztés;A holtidéző csontvázakat vagy zombikat kelt életre maga körül.;Active;Automatic;Self;100;10;8;1;65;;1;nem;1;1;;0
+MA024;Sír átka;A múmia síri átka sebezhetőbbé és bizonytalanabbá teszi egy áldozatát.;Active;SavingThrow;SingleEnemy;100;4;3;1;55;;2;igen;0;1;Múmiaátok;0;0
+MA025;Ősi sírátok;A vén múmia ősi átka egyszerre több áldozat harci erejét és kezdeményezését sorvasztja.;Active;SavingThrow;MultipleEnemies;100;5;4;2;65;;2;igen;0;1;Múmiaátok;0;0
 
 #Szörnyképesség-hatások
 KépességId;Sorrend;Hatás;Érték;Dobás;ÁllapotId;Sebzéstípus;Esély;Ellenállás;Nehézség;Időtartam;PáncélAzEllenálláshoz
@@ -740,6 +742,8 @@ MA020;1;PackAttack;4;;;;100;None;0;0;nem
 MA021;1;StrongRegeneration;10;;;;100;None;0;0
 MA022;1;LifeDrain;50;;;;100;None;0;0
 MA023;1;Trait;0;;;;100;None;0;0
+MA024;1;Curse;-2;;HitDefense;;100;Health;18;3;nem
+MA025;1;Curse;-2;;HitDefenseInitiative;;100;Health;21;4;nem
 
 #Szörnyidézések
 Id;KépességId;EllenségIds;Minimum;Maximum;Sugár;MaxÉlőIdézett;JutalomÉsZsákmány;Előkészített
