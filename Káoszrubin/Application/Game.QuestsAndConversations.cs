@@ -541,19 +541,8 @@ public sealed partial class Game
 
             if (!quest.IsReadyToTurnIn)
             {
-                var progressMessage =
-                    $"📜 {quest.Title}: " +
-                    $"{quest.Progress}/{quest.RequiredCount}";
-
-                _renderer.DrawInventoryMessage(
-                    progressMessage,
-                    ConsoleColor.DarkYellow);
-
-                RecordSessionActivity(
-                    SessionActivityKind.Support,
-                    progressMessage,
-                    ConsoleColor.DarkYellow);
-
+                // Az aktív quest emlékeztetője magában a találkozási dialógusban jelenik meg.
+                // Ne keltsük minden visszatéréskor új quest felvételének látszatát a csatalogban.
                 continue;
             }
 
