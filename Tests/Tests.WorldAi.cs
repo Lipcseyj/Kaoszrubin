@@ -640,6 +640,24 @@ internal static partial class Program
         Assert(followOrder.SequenceEqual([frontLeft.Id, frontRight.Id, rearLeft.Id]) &&
                firstStep == rightTarget && secondStep == upTarget && thirdStep == leftTarget,
             "A szabad követés továbbra is a csatlakozási sorrendet vagy közös nyompontot használt a slotsorrend helyett.");
+
+        var corridor = new Maze(11, 7);
+        for (var x = 1; x <= 9; x++) corridor.Carve(new Position(x, 3));
+        var corridorLeader = new Player(new Position(9, 3), leader);
+        var blocker = new PartyMemberAvatar(new Position(7, 3), rearLeft);
+        var lagging = new PartyMemberAvatar(new Position(2, 3), frontLeft);
+        corridor.AddPartyMember(blocker);
+        corridor.AddPartyMember(lagging);
+        var corridorTrail = Enumerable.Range(1, 9).Select(x => new Position(x, 3)).ToArray();
+        var catchingUpStep = PartyMovementController.FollowLeaderTrail(lagging, 2, corridor,
+            corridorLeader, corridorTrail);
+        Assert(catchingUpStep == new Position(3, 3),
+            "A lemaradt társ nem indult el az egymezős folyosón az utat később elzáró csapattárs felé.");
+
+        lagging.MoveTo(new Position(6, 3));
+        Assert(PartyMovementController.FollowLeaderTrail(lagging, 2, corridor, corridorLeader,
+                   corridorTrail) is null,
+            "A követő megpróbált a közvetlenül előtte álló csapattárs foglalt mezőjére lépni.");
     }
 
     static void LockedFormationUsesSingleFileLayout()

@@ -68,10 +68,46 @@ public sealed class PartyMovementController
         {
             var target = leaderTrail[index];
             if (target == member.Position) return null;
-            if (!CanPartyTraverse(member, target, maze, player)) continue;
-            return FindNextStep(member, [target], maze, player);
+            if (!CanPartyPlanThrough(member, target, maze, player)) continue;
+            return FindNextTrailStep(member, target, maze, player);
         }
         return null;
+    }
+
+    /// <summary>
+    /// A nyomvonal tervezésekor a csapattársak később felszabaduló mezőin is átvezethet az út,
+    /// de az azonnali lépés csak ténylegesen szabad mezőre történhet.
+    /// </summary>
+    private static Position? FindNextTrailStep(PartyMemberAvatar member, Position target, Maze maze, Player player)
+    {
+        var visited = new HashSet<Position> { member.Position };
+        var queue = new Queue<(Position Position, Position FirstStep)>();
+        foreach (var direction in Directions)
+        {
+            var next = member.Position + direction;
+            if (!CanPartyTraverse(member, next, maze, player) || !visited.Add(next)) continue;
+            queue.Enqueue((next, next));
+        }
+        while (queue.Count > 0)
+        {
+            var current = queue.Dequeue();
+            if (current.Position == target) return current.FirstStep;
+            foreach (var direction in Directions)
+            {
+                var next = current.Position + direction;
+                if (!CanPartyPlanThrough(member, next, maze, player) || !visited.Add(next)) continue;
+                queue.Enqueue((next, current.FirstStep));
+            }
+        }
+        return null;
+    }
+
+    private static bool CanPartyPlanThrough(PartyMemberAvatar member, Position position, Maze maze, Player player)
+    {
+        if (!maze.IsWalkable(position) || position == player.Position) return false;
+        var occupant = maze.GetObjectAt(position);
+        return occupant is null or GroundItemPile or Corpse or PartyMemberAvatar || occupant == member ||
+               Maze.IsPassableNeutralNpc(occupant);
     }
 
     public static Position? ChooseForwardStep(
