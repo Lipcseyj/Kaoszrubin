@@ -995,6 +995,25 @@ public static class AsciiPortraits
                     /|╳|\
                     /_||_\
                """),
+           // E104 - Vadkan
+           [MonsterIds.Vadkan] = Portrait(
+            """
+                  __,__,
+              ___/ • • \_
+             /   \  ▲   _)
+            |  (___===_/
+             \_/     \_\
+            """),
+
+           // E105 - Hegyi hiúz
+           [MonsterIds.HegyiHiúz] = Portrait(
+            """
+                /\     /\
+               /  \___/  \
+              <  •  ▲  •  >
+               \  \___/  /
+                /_/   \_\
+            """),
        };
 
     private static readonly AsciiPortrait Unknown = Portrait(

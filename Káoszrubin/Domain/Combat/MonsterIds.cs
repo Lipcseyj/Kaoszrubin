@@ -99,6 +99,8 @@ public static class MonsterIds
     public const string GoblinÍjász = "E101";
     public const string CsontvázÍjász = "E102";
     public const string OrkÍjász = "E103";
+    public const string Vadkan = "E104";
+    public const string HegyiHiúz = "E105";
 
     public static IReadOnlySet<string> Bosses { get; } = new HashSet<string>(
     [

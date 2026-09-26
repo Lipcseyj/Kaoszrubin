@@ -199,6 +199,8 @@ public static class MazeLevelConfigurations
             [1] = new()
             {
                 Name = "Patkányjáratok",
+                //WallRune = new('♠'),
+                //WallColor = ConsoleColor.DarkGreen,
                 DoubleWidthCorridorChance = 0.95,
                 Level = 1,
                 RoomCount = Amount.Several.Range(),
@@ -268,7 +270,7 @@ public static class MazeLevelConfigurations
                 WallColor = ConsoleColor.DarkGreen,
                 Level = 3,
                 DoubleWidthCorridorChance = 0.75,
-                RoomCount = Amount.Several.Range(),
+                RoomCount = new(8, 10),
                 RoomSize = new(3, 6),
                 TreasureChestCount = new(8, 12),
                 TreasureGold = new(80, 200),
@@ -302,10 +304,9 @@ public static class MazeLevelConfigurations
                 ],
                 CorridorEncounters =
                 [
-                    Encounters.Solo(MonsterIds.Óriáspatkány, Amount.Few),
+                    Encounters.MixedHorde(MonsterIds.Óriáspatkány, Amount.TwoThree, MonsterIds.Óriásdenevér, Amount.TwoThree, Amount.One),
                     Encounters.Solo(MonsterIds.Goblin, Amount.Several, EnemyMovementProfile.Patrol),
                     Encounters.Solo(MonsterIds.Farkas, Amount.Few, EnemyMovementProfile.Patrol),
-                    Encounters.Horde(MonsterIds.Farkas, Amount.Few, Amount.TwoThree)
                 ]
             },
             [4] = new()
@@ -321,6 +322,7 @@ public static class MazeLevelConfigurations
                 TreasureGold = new(140, 300),
                 RoomEncounters =
                 [
+                    Encounters.Same(MonsterIds.Vadkan, Amount.Few, Amount.Handful),
                     Encounters.Same(MonsterIds.Goblin, Amount.Few, Amount.Several),
                     Encounters.Mixed(MonsterIds.Csontváz, Amount.Several, MonsterIds.Zombi, Amount.Few, Amount.Few),
                     Encounters.LeaderGroup(MonsterIds.Ork, MonsterIds.Goblin, Amount.Few, Amount.Several),
@@ -329,9 +331,12 @@ public static class MazeLevelConfigurations
                 ],
                 CorridorEncounters =
                 [
+                    Encounters.Horde(MonsterIds.Farkas, Amount.Few, Amount.TwoThree),
                     Encounters.Solo(MonsterIds.Farkas, Amount.Several, EnemyMovementProfile.Patrol),
                     Encounters.Solo(MonsterIds.Goblin, Amount.Few),
-                    Encounters.Solo(MonsterIds.Patkányember, Amount.Few)
+                    Encounters.Solo(MonsterIds.Patkányember, Amount.Few),
+                    Encounters.Solo(MonsterIds.Vadkan, Amount.Few),
+                    Encounters.Solo(MonsterIds.HegyiHiúz, Amount.Several)
                 ]
             },
             [5] = new()
