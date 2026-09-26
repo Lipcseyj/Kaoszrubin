@@ -279,7 +279,7 @@ public sealed partial class Game : ISessionCommandHandler
                 CharacterSheet = CharacterSheetWithCombatConditions(characters[character.CharacterId], battle),
                 History = CreateCharacterHistory(characters[character.CharacterId]),
                 SpellInfo = SpellcastingRules.TryGetSchool(characters[character.CharacterId].CharacterClass.Id, out _)
-                    ? SpellInfoSnapshotProjector.Create(characters[character.CharacterId]) : null,
+                    ? SpellInfoSnapshotProjector.Create(characters[character.CharacterId], _gameData) : null,
                 ExplorationSpellOptions = snapshot.Phase == GameSessionPhase.Exploration &&
                                           positions.TryGetValue(character.CharacterId, out var characterPosition)
                     ? GetSpellOptions(characters[character.CharacterId], characterPosition, null, inCombat: false)
@@ -492,7 +492,7 @@ public sealed partial class Game : ISessionCommandHandler
         CharacterSheetWithCombatIcons(character, _activeBattle is { IsCompleted: false } battle
             ? CombatConditionsFor(battle, CombatantId.ForCharacter(character.Id)).Select(condition => condition.Icon)
             : []),
-        character.Color, SpellInfo: character.IsSpellcaster ? SpellInfoSnapshotProjector.Create(character) : null,
+        character.Color, SpellInfo: character.IsSpellcaster ? SpellInfoSnapshotProjector.Create(character, _gameData) : null,
         History: CreateCharacterHistory(character));
 
     private void HandleLocalSessionEvent(GameSessionEvent sessionEvent)

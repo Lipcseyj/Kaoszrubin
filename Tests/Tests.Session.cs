@@ -848,6 +848,17 @@ static void ResolveSkipsActionAfterSupportVictory()
                 [new ReplicatedWindowLineSnapshot("A host által rajzolt közös tartalom.", ConsoleColor.Cyan)],
                 [session.HostPlayerId])
         };
+        var detailedSpell = new KnownSpellSnapshot("S001", "Mágikus lövedék", 1, 3,
+            SpellTargetType.Enemy, "Célba talál.", true, 0, SpellSchool.Arcane, 6, 0, true,
+            SpellUsageMode.Both, SpellImpactPalette.Blue, 1500, Effects:
+            [new KnownSpellEffectSnapshot(SpellEffectType.Damage, new(2, 6), 1, 1, 0, 0, 100,
+                SpellResolution.Auto, null, "Mágikus sebzés.")]);
+        snapshot = snapshot with
+        {
+            Party = snapshot.Party.Select(character => character.CharacterId == leader.Id
+                ? character with { SpellInfo = new SpellInfoSnapshot("Varázskönyv", 3, [detailedSpell]) }
+                : character).ToArray()
+        };
         var json = JsonSerializer.Serialize(snapshot);
         var restored = JsonSerializer.Deserialize<SessionSnapshot>(json);
         Assert(restored is not null && restored.ProtocolVersion == SessionProtocol.Version &&
@@ -872,6 +883,9 @@ static void ResolveSkipsActionAfterSupportVictory()
                    ListenerCharacterIds: [{ } listener]
                }] && listener == companion.Id &&
                restored.SpellImpacts is [{ Sequence: 1, SpellId: "S001", Cells.Count: 2 }] &&
+               restored.Party.Single(character => character.CharacterId == leader.Id).SpellInfo?.KnownSpells is
+               [{ Range: 6, RequiresLineOfSight: true, UsageMode: SpellUsageMode.Both,
+                   Effects: [{ Type: SpellEffectType.Damage, Dice: { Count: 2, Sides: 6 } }] }] &&
                restored.PartyGold == 777 && restored.Party.All(character => character.Gold == 777) &&
                restored.Sounds[0].IsAudibleTo(companion.Id) && !restored.Sounds[0].IsAudibleTo(leader.Id) &&
                restored.Party.Single(character => character.CharacterId == companion.Id).Position == new Position(3, 2),

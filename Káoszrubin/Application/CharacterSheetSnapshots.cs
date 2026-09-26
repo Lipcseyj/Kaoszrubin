@@ -1,5 +1,6 @@
 using KaoszRubin.Domain.Characters;
 using KaoszRubin.Domain.Magic;
+using KaoszRubin.Data;
 
 namespace KaoszRubin.Application;
 
@@ -28,7 +29,7 @@ public sealed record CharacterHistorySnapshot(IReadOnlyList<MonsterKillSnapshot>
 
 public static class SpellInfoSnapshotProjector
 {
-    public static SpellInfoSnapshot Create(LiveCharacter character) => new(
+    public static SpellInfoSnapshot Create(LiveCharacter character, GameDataCatalog gameData) => new(
         character.Backpack.FirstOrDefault(item => SpellcastingRules.IsSpellcastingFocus(item))?.Name ?? "HIÁNYZIK",
         character.MemorizationCapacity,
         character.KnownSpells.OrderBy(spell => spell.Level).ThenBy(spell => spell.Name).Select(spell =>
@@ -36,7 +37,12 @@ public static class SpellInfoSnapshotProjector
                 SpellcastingRules.EffectiveManaCost(character, spell), spell.TargetType, spell.Description,
                 character.MemorizedSpells.Any(candidate => candidate.Id == spell.Id),
                 character.QuickSpells.ToList().FindIndex(candidate => candidate?.Id == spell.Id) is var index && index >= 0
-                    ? index : null)).ToArray());
+                    ? index : null, spell.School, spell.Range, spell.AreaRadius, spell.RequiresLineOfSight,
+                spell.UsageMode, spell.ImpactPalette, spell.EffectiveImpactDurationMilliseconds, spell.EnemyOnly,
+                gameData.GetSpellEffects(spell.Id).OrderBy(effect => effect.Order).Select(effect =>
+                    new KnownSpellEffectSnapshot(effect.Type, effect.Dice, effect.IntelligenceMultiplier,
+                        effect.LevelMultiplier, effect.Value, effect.Duration, effect.ChancePercent,
+                        effect.Resolution, effect.Parameter, effect.Description)).ToArray())).ToArray());
 }
 
 public static class CharacterSheetSnapshotProjector

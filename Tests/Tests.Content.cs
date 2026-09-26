@@ -807,14 +807,34 @@ internal static partial class Program
 
     static void SpellUiModelsAreShared()
     {
+        var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory,
+            CsvGameDataLoader.GameDataFileName));
+        var caster = CreateCharacter("SpellInfo", characterClassId: CharacterClassIds.Mágus);
+        var configured = catalog.GetSpell("S001");
+        Assert(caster.LearnSpell(configured), "A SpellInfo tesztvarázslata nem tanulható meg.");
+        var projected = SpellInfoSnapshotProjector.Create(caster, catalog).KnownSpells.Single();
+        Assert(projected.Range == configured.Range && projected.AreaRadius == configured.AreaRadius &&
+               projected.RequiresLineOfSight == configured.RequiresLineOfSight &&
+               projected.UsageMode == configured.UsageMode && projected.School == configured.School &&
+               projected.ImpactPalette == configured.ImpactPalette && projected.Effects is { Count: > 0 },
+            "A SpellInfo snapshot nem viszi át a varázslat teljes konfigurációját.");
+
         var spell = new KnownSpellSnapshot("spell-test", "Próbaláng", 2, 7, SpellTargetType.Enemy,
-            "Egy próbaként használt varázslat.", true, 0);
+            "Egy próbaként használt varázslat.", true, 0, SpellSchool.Arcane, 6, 2, true,
+            SpellUsageMode.Both, SpellImpactPalette.Red, 1750, Effects:
+            [new KnownSpellEffectSnapshot(SpellEffectType.Damage, new(2, 6), 1, 1, 0, 0, 100,
+                SpellResolution.Attack, null, "Próbasebzést okoz.")]);
         var infoLines = SpellInfoPanel.Build("Rubin", CharacterClassIds.Mágus, 6,
             new SpellInfoSnapshot("Kristálygömb", 3, [spell]), 0);
         Assert(infoLines.Any(line => line.Row == 5 && line.Text.Contains("[M][F1]", StringComparison.Ordinal)) &&
-               infoLines.Any(line => line.Row == 43 && line.Text == "Következő feloldás: L10") &&
+               infoLines.Any(line => line.Row == 21 && line.Text.Contains("Hatótáv: 6 mező", StringComparison.Ordinal) &&
+                                                   line.Text.Contains("Sugár: 2 mező", StringComparison.Ordinal)) &&
+               infoLines.Any(line => line.Row == 22 && line.Text == "Látóvonal: szükséges") &&
+               infoLines.Any(line => line.Row is >= 31 and < 40 &&
+                                     line.Text.Contains("Sebzés", StringComparison.Ordinal)) &&
+               infoLines.Any(line => line.Row == 42 && line.Text == "Következő feloldás: L10") &&
                infoLines.Single(line => line.Row == 5).Background == ConsoleColor.DarkCyan,
-            "A közös varázslatinformációs panel elvesztette a gyorshelyet, feloldást vagy kijelölést.");
+            "A közös varázslatinformációs panel elvesztette a részletes varázslatadatokat.");
         var longDescriptionSpell = spell with
         {
             Description = "Egy próbaként használt varázslat, amely szélesebb karakterlapon kevesebb töréssel jelenjen meg."
@@ -823,8 +843,8 @@ internal static partial class Program
             new SpellInfoSnapshot("Kristálygömb", 3, [longDescriptionSpell]), 0);
         var wideInfoLines = SpellInfoPanel.Build("Rubin", CharacterClassIds.Mágus, 6,
             new SpellInfoSnapshot("Kristálygömb", 3, [longDescriptionSpell]), 0, width: 40);
-        Assert(wideInfoLines.Count(line => line.Row is >= 30 and < 35 && !string.IsNullOrWhiteSpace(line.Text)) <=
-               defaultInfoLines.Count(line => line.Row is >= 30 and < 35 && !string.IsNullOrWhiteSpace(line.Text)),
+        Assert(wideInfoLines.Count(line => line.Row is >= 27 and < 30 && !string.IsNullOrWhiteSpace(line.Text)) <=
+               defaultInfoLines.Count(line => line.Row is >= 27 and < 30 && !string.IsNullOrWhiteSpace(line.Text)),
             "A széles varázslatinformációs panel nem használja ki az extra jobb oldali helyet a leírás tördelésénél.");
 
         var selectorLines = SpellSelectorWindow.Build("Rubin", 5, 12, true,

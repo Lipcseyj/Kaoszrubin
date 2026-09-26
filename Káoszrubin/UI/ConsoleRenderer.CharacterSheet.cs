@@ -198,7 +198,7 @@ public sealed partial class ConsoleRenderer
             selectedIndex = spells.Count == 0 ? 0 : Math.Clamp(selectedIndex, 0, spells.Count - 1);
             _owner._spellInfoCharacter = character;
             _selectedSpellInfoIndex = selectedIndex;
-            var info = SpellInfoSnapshotProjector.Create(character);
+            var info = SpellInfoSnapshotProjector.Create(character, _owner._gameData);
             var panelLines = SpellInfoPanel.Build(character.Name, character.CharacterClass.Id, character.Level,
                 info, selectedIndex, _characterSheetFocused, RightSheetWidthForWindow()).ToDictionary(line => line.Row);
             for (var row = 0; row <= PicturePanelBottom; row++)

@@ -7,8 +7,9 @@ namespace KaoszRubin.UI;
 /// <summary>Közös host–vendég varázslatinformációs karakterlap.</summary>
 public static class SpellInfoPanel
 {
-    private const int VisibleSpellRows = 20;
-    private const int DescriptionRows = 5;
+    private const int VisibleSpellRows = 11;
+    private const int DescriptionRows = 3;
+    private const int EffectRows = 9;
 
     public static IReadOnlyList<CharacterSheetPanelLine> Build(string characterName, string characterClassId,
         int characterLevel, SpellInfoSnapshot info, int selectedIndex, bool focused = false,
@@ -26,7 +27,8 @@ public static class SpellInfoPanel
             new(3, "[M] memorizált  [F#] gyors", ConsoleColor.DarkCyan),
             new(4, "ISMERT VARÁZSLATOK", ConsoleColor.White)
         };
-        var start = Math.Clamp(selectedIndex - 9, 0, Math.Max(0, spells.Count - VisibleSpellRows));
+        var start = Math.Clamp(selectedIndex - VisibleSpellRows / 2, 0,
+            Math.Max(0, spells.Count - VisibleSpellRows));
         for (var row = 0; row < VisibleSpellRows; row++)
         {
             var index = start + row;
@@ -42,28 +44,127 @@ public static class SpellInfoPanel
         if (spells.Count > 0)
         {
             var selected = spells[selectedIndex];
-            lines.Add(new(26, "KIJELÖLT VARÁZSLAT", ConsoleColor.White));
-            lines.Add(new(27, selected.Name, ConsoleColor.Yellow));
-            lines.Add(new(28, $"L{selected.Level} {selected.ManaCost}M {ConsoleRenderer.SpellTargetName(selected.TargetType)}", ConsoleColor.Blue));
-            lines.Add(new(29, selected.IsMemorized
-                ? $"Memorizált{(selected.QuickSlot is { } slot ? $", F{slot + 1}" : string.Empty)}"
-                : "Csak ismert", ConsoleColor.Magenta));
+            lines.Add(new(17, "KIJELÖLT VARÁZSLAT", ConsoleColor.White));
+            lines.Add(new(18, selected.Name, ConsoleColor.Yellow));
+            lines.Add(new(19, $"L{selected.Level} | {selected.ManaCost} manna | {SchoolName(selected.School)}",
+                ConsoleColor.Blue));
+            lines.Add(new(20, $"Cél: {ConsoleRenderer.SpellTargetName(selected.TargetType)}", ConsoleColor.Cyan));
+            lines.Add(new(21, $"Hatótáv: {(selected.Range == 0 ? "helyi" : $"{selected.Range} mező")} | " +
+                $"Sugár: {(selected.AreaRadius == 0 ? "nincs" : $"{selected.AreaRadius} mező")}", ConsoleColor.Cyan));
+            lines.Add(new(22, $"Látóvonal: {(selected.RequiresLineOfSight ? "szükséges" : "nem szükséges")}",
+                selected.RequiresLineOfSight ? ConsoleColor.DarkYellow : ConsoleColor.Green));
+            lines.Add(new(23, $"Használat: {UsageName(selected.UsageMode)}", ConsoleColor.Cyan));
+            lines.Add(new(24, $"Vizuál: {PaletteName(selected.ImpactPalette)}, " +
+                $"{selected.ImpactDurationMilliseconds / 1000d:0.##} mp", ConsoleColor.DarkMagenta));
+            lines.Add(new(25, (selected.IsMemorized
+                    ? $"Memorizált{(selected.QuickSlot is { } slot ? $", F{slot + 1}" : string.Empty)}"
+                    : "Csak ismert") + (selected.EnemyOnly ? " | csak ellenfél" : string.Empty),
+                ConsoleColor.Magenta));
+            lines.Add(new(26, "LEÍRÁS", ConsoleColor.White));
             var description = Wrap(selected.Description, effectiveWidth).Take(DescriptionRows).ToArray();
             for (var row = 0; row < DescriptionRows; row++)
-                lines.Add(new(30 + row, row < description.Length ? description[row] : string.Empty, ConsoleColor.Gray));
+                lines.Add(new(27 + row, row < description.Length ? description[row] : string.Empty, ConsoleColor.Gray));
+            lines.Add(new(30, "HATÁSOK", ConsoleColor.White));
+            var effects = (selected.Effects ?? []).Select(DescribeEffect)
+                .SelectMany(effect => Wrap(effect, effectiveWidth)).Take(EffectRows).ToArray();
+            if (effects.Length == 0) effects = ["Nincs konfigurált hatás."];
+            for (var row = 0; row < EffectRows; row++)
+                lines.Add(new(31 + row, row < effects.Length ? effects[row] : string.Empty,
+                    row < effects.Length ? ConsoleColor.DarkCyan : ConsoleColor.Gray));
         }
-        lines.Add(new(36, "VARÁZSLATSZINTEK", ConsoleColor.White));
+        lines.Add(new(40, "VARÁZSLATSZINTEK", ConsoleColor.White));
         var unlocks = characterClassId == CharacterClassIds.Lovag ? new[] { 1, 8 } : new[] { 1, 5, 10, 15, 20 };
-        for (var index = 0; index < unlocks.Length; index++)
-            lines.Add(new(37 + index, $"{index + 1}. szint: L{unlocks[index]} " +
-                (characterLevel >= unlocks[index] ? "feloldva" : $"még {unlocks[index] - characterLevel}"),
-                characterLevel >= unlocks[index] ? ConsoleColor.Green : ConsoleColor.DarkYellow));
+        lines.Add(new(41, $"Feloldva: {unlocks.Count(level => characterLevel >= level)}/{unlocks.Length}",
+            ConsoleColor.Green));
         var nextUnlock = unlocks.FirstOrDefault(level => level > characterLevel);
-        lines.Add(new(43, nextUnlock == 0 ? "Minden szint feloldva." : $"Következő feloldás: L{nextUnlock}", ConsoleColor.Cyan));
+        lines.Add(new(42, nextUnlock == 0 ? "Minden szint feloldva." : $"Következő feloldás: L{nextUnlock}", ConsoleColor.Cyan));
         lines.Add(new(45, "Fel/le | F1-F8 gyors", ConsoleColor.Green));
         lines.Add(new(46, "Enter elsüt | Esc vissza", ConsoleColor.DarkYellow));
         return lines;
     }
+
+    private static string DescribeEffect(KnownSpellEffectSnapshot effect)
+    {
+        var mechanics = new List<string>();
+        if (effect.Dice is { } dice) mechanics.Add(dice.ToString());
+        if (effect.IntelligenceMultiplier != 0) mechanics.Add($"INT×{effect.IntelligenceMultiplier:0.##}");
+        if (effect.LevelMultiplier != 0) mechanics.Add($"szint×{effect.LevelMultiplier}");
+        if (effect.Value != 0) mechanics.Add($"érték {effect.Value}");
+        if (effect.Duration > 0) mechanics.Add($"{effect.Duration} kör");
+        if (effect.ChancePercent is > 0 and < 100) mechanics.Add($"{effect.ChancePercent}% esély");
+        if (effect.Resolution != SpellResolution.Auto) mechanics.Add(ResolutionName(effect.Resolution));
+        if (!string.IsNullOrWhiteSpace(effect.Parameter)) mechanics.Add(effect.Parameter!);
+        var detail = mechanics.Count == 0 ? string.Empty : $" ({string.Join(", ", mechanics)})";
+        var description = string.IsNullOrWhiteSpace(effect.Description) ? string.Empty : $": {effect.Description}";
+        return $"• {EffectName(effect.Type)}{detail}{description}";
+    }
+
+    private static string SchoolName(SpellSchool school) => school switch
+    {
+        SpellSchool.Divine => "Isteni",
+        _ => "Arkán"
+    };
+
+    private static string UsageName(SpellUsageMode usage) => usage switch
+    {
+        SpellUsageMode.Exploration => "térképen",
+        SpellUsageMode.Combat => "csatában",
+        _ => "térképen és csatában"
+    };
+
+    private static string PaletteName(SpellImpactPalette palette) => palette switch
+    {
+        SpellImpactPalette.Red => "vörös",
+        SpellImpactPalette.YellowBrown => "aranybarna",
+        SpellImpactPalette.Purple => "lila",
+        SpellImpactPalette.SicklyGreen => "betegzöld",
+        SpellImpactPalette.Shadow => "árny",
+        SpellImpactPalette.BloodRed => "vérvörös",
+        _ => "kék"
+    };
+
+    private static string ResolutionName(SpellResolution resolution) => resolution switch
+    {
+        SpellResolution.Attack => "támadópróba",
+        SpellResolution.SaveHalf => "mentő: felez",
+        SpellResolution.SaveNegates => "mentő: kivéd",
+        _ => "automatikus"
+    };
+
+    private static string EffectName(SpellEffectType type) => type switch
+    {
+        SpellEffectType.Damage => "Sebzés",
+        SpellEffectType.Burning => "Égés",
+        SpellEffectType.SpeedPenalty => "Lassítás",
+        SpellEffectType.SkipAlternate => "Akcióvesztés",
+        SpellEffectType.Invisibility => "Láthatatlanság",
+        SpellEffectType.DefenseBonus => "Védelem",
+        SpellEffectType.TeleportSelf => "Teleportálás",
+        SpellEffectType.Dispel => "Mágiatörés",
+        SpellEffectType.Storm => "Vihar",
+        SpellEffectType.ChainDamage => "Láncsebzés",
+        SpellEffectType.PhysicalReduction => "Fizikai védelem",
+        SpellEffectType.BleedingImmunity => "Vérzésimmunitás",
+        SpellEffectType.ExtraActions => "Extra akció",
+        SpellEffectType.Execute => "Kivégzés",
+        SpellEffectType.TeleportParty => "Partiteleport",
+        SpellEffectType.RandomElement => "Véletlen elem",
+        SpellEffectType.Heal => "Gyógyítás",
+        SpellEffectType.CureStatus => "Állapotgyógyítás",
+        SpellEffectType.HitBonus => "Találati bónusz",
+        SpellEffectType.DamageBonus => "Sebzésbónusz",
+        SpellEffectType.InitiativeBonus => "Kezdeményezés",
+        SpellEffectType.ProtectionFromEvil => "Gonosz elleni védelem",
+        SpellEffectType.GuardianAngel => "Őrangyal",
+        SpellEffectType.Sanctuary => "Szentély",
+        SpellEffectType.Resurrect => "Feltámasztás",
+        SpellEffectType.DispelBeneficial => "Erősítés törlése",
+        SpellEffectType.RestoreNeeds => "Szükségletek helyreállítása",
+        SpellEffectType.VisionBonus => "Látásmódosítás",
+        SpellEffectType.BreakItemCurse => "Tárgyátok megtörése",
+        SpellEffectType.WeaponDamageType => "Fegyversebzés-típus",
+        _ => type.ToString()
+    };
 
     private static IEnumerable<string> Wrap(string text, int width)
     {

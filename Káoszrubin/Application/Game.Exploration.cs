@@ -409,7 +409,7 @@ public sealed partial class Game
                 WaitForRemoteSpellPreparation(character);
             else
             {
-                var spellInfo = SpellInfoSnapshotProjector.Create(character);
+                var spellInfo = SpellInfoSnapshotProjector.Create(character, _gameData);
                 _activeSpellPreparation = new SpellPreparationSnapshot(Guid.NewGuid(), character.Id,
                     character.Name, character.MemorizationCapacity, spellInfo.KnownSpells,
                     character.MemorizedSpells.Select(spell => spell.Id).ToArray());
@@ -431,7 +431,7 @@ public sealed partial class Game
     private void WaitForRemoteSpellPreparation(LiveCharacter character)
     {
         var previousPhase = _session.Phase;
-        var spellInfo = SpellInfoSnapshotProjector.Create(character);
+        var spellInfo = SpellInfoSnapshotProjector.Create(character, _gameData);
         _activeSpellPreparation = new SpellPreparationSnapshot(Guid.NewGuid(), character.Id, character.Name,
             character.MemorizationCapacity, spellInfo.KnownSpells,
             character.MemorizedSpells.Select(spell => spell.Id).ToArray());

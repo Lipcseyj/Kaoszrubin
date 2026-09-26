@@ -10,7 +10,7 @@ namespace KaoszRubin.Application;
 /// <summary>A hálózati szerződés jelenlegi verziója. Inkompatibilis DTO-változáskor növelendő.</summary>
 public static class SessionProtocol
 {
-    public const int Version = 92;
+    public const int Version = 93;
 }
 
 /// <summary>A host doménállapotától leválasztott, JSON-nal továbbítható teljes session-kép.</summary>
@@ -177,7 +177,15 @@ public sealed record SpellInfoSnapshot(string FocusName, int MemorizationCapacit
     IReadOnlyList<KnownSpellSnapshot> KnownSpells);
 
 public sealed record KnownSpellSnapshot(string SpellId, string Name, int Level, int ManaCost,
-    SpellTargetType TargetType, string Description, bool IsMemorized, int? QuickSlot);
+    SpellTargetType TargetType, string Description, bool IsMemorized, int? QuickSlot,
+    SpellSchool School = SpellSchool.Arcane, int Range = 0, int AreaRadius = 0,
+    bool RequiresLineOfSight = false, SpellUsageMode UsageMode = SpellUsageMode.Both,
+    SpellImpactPalette ImpactPalette = SpellImpactPalette.Blue, int ImpactDurationMilliseconds = 0,
+    bool EnemyOnly = false, IReadOnlyList<KnownSpellEffectSnapshot>? Effects = null);
+
+public sealed record KnownSpellEffectSnapshot(SpellEffectType Type, DiceExpression? Dice,
+    double IntelligenceMultiplier, int LevelMultiplier, int Value, int Duration, int ChancePercent,
+    SpellResolution Resolution, string? Parameter, string Description);
 
 public sealed record BattleSnapshot(BattleId BattleId, long TurnId, int Round, bool IsPlayerTurn,
     CharacterId ActingCharacterId, SessionEnemySnapshot Enemy,

@@ -90,27 +90,6 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
     private const int RightSheetX = 172;
     private const int RightSheetWidth = 27;
     private const int RightSheetBattleHintLine = 42;
-    private const int SpellInfoKnownSpellRows = 20;
-    private const int SpellInfoKnownSpellStartLine = 5;
-    private const int SpellInfoSelectedSpellHeadingLine = 26;
-    private const int SpellInfoSelectedSpellNameLine = 27;
-    private const int SpellInfoSelectedSpellSummaryLine = 28;
-    private const int SpellInfoSelectedSpellStateLine = 29;
-    private const int SpellInfoDescriptionStartLine = 30;
-    private const int SpellInfoDescriptionRows = 5;
-    private const int SpellInfoLevelsHeadingLine = 36;
-    private const int SpellInfoNextUnlockLine = 43;
-    private const int SpellInfoControlsLine = 45;
-    private const int SpellInfoCloseControlsLine = 46;
-    private const int SpellLevelCount = 5;
-    private const int PaladinSpellLevelCount = 2;
-    private const int FirstSpellUnlockLevel = 1;
-    private const int SecondSpellUnlockLevel = 5;
-    private const int ThirdSpellUnlockLevel = 10;
-    private const int FourthSpellUnlockLevel = 15;
-    private const int FifthSpellUnlockLevel = 20;
-    private const int SecondPaladinSpellUnlockLevel = 8;
-    private const int UnavailableSpellUnlockLevel = 99;
     private const int ResourceIconStep = 10;
     private const int PortraitInteriorWidth = 25;
     private static int RightSheetWidthForWindow() =>
@@ -1857,7 +1836,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
         while (true)
         {
             ResetColorCache();
-            var projected = SpellInfoSnapshotProjector.Create(character).KnownSpells;
+            var projected = SpellInfoSnapshotProjector.Create(character, _gameData).KnownSpells;
             var lines = MagicProgressionWindow.BuildPreparation(character.Name, selected.Count,
                 character.MemorizationCapacity, projected, selected, cursor);
             using var background = SaveCenteredFrameBackground(MagicProgressionWindow.PreparationWidth, lines, FramedWindow.SpellPreparation);
