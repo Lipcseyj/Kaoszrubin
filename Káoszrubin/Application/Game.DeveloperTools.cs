@@ -344,11 +344,12 @@ public sealed partial class Game
             PartyLeader.MaximumMana - PartyLeader.CurrentMana));
 
         var companions = new List<LiveCharacter>();
+        var testEquipment = RandomCharacterGenerator.EquipmentOptions.Scaled(tierVariance: 0);
         foreach (var classId in new[] { CharacterClassIds.Mágus, CharacterClassIds.Pap, CharacterClassIds.Lovag })
         {
             var companion = generator.GenerateCombatTestCharacter(_gameData.GetCharacterClass(classId),
                 options.PartyLevel, CharacterRoster.Characters.Concat(companions)
-                    .Select(character => character.Name).ToArray());
+                    .Select(character => character.Name).ToArray(), testEquipment);
             CharacterRoster.Add(companion);
             companions.Add(companion);
             _developerBattleTestCompanions.Add(companion);
