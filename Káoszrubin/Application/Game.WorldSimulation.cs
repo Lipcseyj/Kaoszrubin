@@ -116,18 +116,7 @@ public sealed partial class Game
         foreach (var enemy in dueEnemies)
         {
             ScheduleNextEnemyMove(enemy, now);
-            var previousEffectCount = enemy.ActiveSpellEffects.Count;
-            var spellTick = enemy.AdvanceSpellEffects(_random);
-            if (enemy.ActiveSpellEffects.Count != previousEffectCount) stateChanged = true;
-            if (spellTick.Damage > 0)
-            {
-                stateChanged = true;
-                var spellNotes = new List<string>();
-                ApplyExplorationSpellDamage(PartyLeader, enemy, spellTick.Damage, spellNotes);
-                _renderer.DrawInventoryMessage(string.Join("; ", spellTick.Notes.Concat(spellNotes)), ConsoleColor.Magenta);
-                if (enemy.CurrentHitPoints <= 0) continue;
-            }
-            if (spellTick.SkipAction) continue;
+            if (enemy.ConsumeExplorationSpellActionSkip()) continue;
             var visibleTarget = FindVisibleEnemyTarget(enemy);
             var detectedTarget = visibleTarget ?? FindSensedEnemyTarget(enemy);
             if (detectedTarget is not null)

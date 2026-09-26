@@ -541,6 +541,8 @@ public sealed partial class Game
 
                 var now = DateTime.UtcNow;
                 ProcessSessionCommands();
+                _renderer.SetExplorationClockIndicator(BuildExplorationClockIndicator(now,
+                    !_battleStarted && _openPlayerWindows.Count == 0 && !_gameOver));
 
                 if (_activeBattle is not null &&
                     _automaticBattleResumeUtc is { } battleResumeUtc &&

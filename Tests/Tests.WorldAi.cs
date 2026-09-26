@@ -296,6 +296,35 @@ internal static partial class Program
                character.HasStatus(CharacterStatusIds.Diseased),
             "A mérgezés nem járt le hat felfedezési aktiválás után, vagy a tartós betegség is léptetődött.");
     }
+
+    static void ExplorationClockAdvancesSpellEffectsInsteadOfSteps()
+    {
+        var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
+        var character = CreateCharacter("Időmágus", vitality: 100);
+        character.ApplySpellEffect(new ActiveSpellEffect("S-IDO", ActiveSpellEffectType.DefenseBonus, 2, 2,
+            Beneficial: true));
+        for (var step = 0; step < 20; step++) character.RegisterExplorationStep();
+        Assert(character.ActiveSpellEffects.Single().RemainingRounds == 2,
+            "A varázshatás továbbra is a megtett lépésekből fogy.");
+        character.AdvanceExplorationSpellEffects(new Random(1));
+        Assert(character.ActiveSpellEffects.Single().RemainingRounds == 1,
+            "A felfedezési időzítő nem fogyasztott egy varázshatáskört.");
+        character.AdvanceExplorationSpellEffects(new Random(1));
+        Assert(character.ActiveSpellEffects.Count == 0,
+            "A varázshatás nem járt le a második időzített felfedezési körben.");
+
+        var now = new DateTime(2026, 9, 26, 12, 0, 0, DateTimeKind.Utc);
+        var next = now + TimeSpan.FromSeconds(30);
+        Assert(Game.ExplorationClockFrame(next, now, true) == "⌛" &&
+               Game.ExplorationClockFrame(next, now + TimeSpan.FromSeconds(3), true) == "⏳" &&
+               Game.ExplorationClockFrame(next, now + TimeSpan.FromSeconds(6), true) == "⌛" &&
+               Game.ExplorationClockFrame(next, now, false).Contains("⏸", StringComparison.Ordinal),
+            "A homokóra nem három másodpercenként fordul vagy nem jelzi a szünetet.");
+        var header = CharacterSheetPanel.BuildWorldHeaderLine(12, 7, 12, "⏳", 34);
+        Assert(header.Text.Contains("🔑 7/12", StringComparison.Ordinal) &&
+               header.Text.EndsWith("⏳", StringComparison.Ordinal),
+            "A homokóra nem az aranykulcsok után jelenik meg a karakterlapon.");
+    }
     static void CompositeMonsterAbilityAppliesAllEffects()
     {
         var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));

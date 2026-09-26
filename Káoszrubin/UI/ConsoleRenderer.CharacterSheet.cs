@@ -454,7 +454,8 @@ public sealed partial class ConsoleRenderer
                 character == _party.Leader,
                 IsTemporaryFollower(character),
                 RightSheetWidthForWindow(),
-                _owner.CombatStatusIconsFor(character));
+                _owner.CombatStatusIconsFor(character),
+                _owner._explorationClockIndicator);
 
             if (fullRedraw)
                 DrawCharacterSheetHeader(character);
@@ -699,6 +700,15 @@ public sealed partial class ConsoleRenderer
             " - " + character.Name,
             character.Color);
 
+        public void RefreshExplorationClockLine()
+        {
+            if (_owner._spellInfoCharacter is not null || _itemInspectionPanel is not null ||
+                _displayedCharacter is null) return;
+            WriteCharacterSheetPanelLine(CharacterSheetPanel.BuildWorldHeaderLine(_owner._mazeLevel,
+                _owner._goldenKeyCount, MonsterIds.Bosses.Count, _owner._explorationClockIndicator,
+                RightSheetWidthForWindow()));
+        }
+
         /// <summary>
         /// Draws selectable inventory rows and party rows with selection highlighting.
         /// Use this after selection movement or inventory mutations.
@@ -710,7 +720,7 @@ public sealed partial class ConsoleRenderer
                 _activeSheetSelection = entries.FirstOrDefault()?.Key;
             var panelLines = CharacterSheetPanel.Build(character, _owner._gameData.ExperienceByLevel, _owner._mazeLevel,
                 _owner._goldenKeyCount, MonsterIds.Bosses.Count, character == _party.Leader, IsTemporaryFollower(character),
-                RightSheetWidthForWindow());
+                RightSheetWidthForWindow(), explorationClockIndicator: _owner._explorationClockIndicator);
             DrawInventorySlotRows(character, panelLines);
             DrawPartyStatusRows(character);
         }

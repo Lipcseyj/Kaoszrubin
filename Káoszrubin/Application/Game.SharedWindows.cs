@@ -278,12 +278,12 @@ public sealed partial class Game
 
     private T RunHostPersonalWindow<T>(PlayerWindowKind kind, Func<T> action)
     {
-        if (_activeCoopHost is null) return action();
         var hadPrevious = _openPlayerWindows.TryGetValue(_session.HostPlayerId, out var previous);
         var windowId = hadPrevious ? previous!.WindowId : Guid.NewGuid();
         var previousCaptureSharedWindow = _captureSharedWindow;
         _captureSharedWindow = false;
         UpdatePlayerBlockingWindowState(_session.HostPlayerId, PartyLeader.Id, kind, windowId, true);
+        _renderer.SetExplorationClockIndicator(BuildExplorationClockIndicator(DateTime.UtcNow, advancing: false));
         ForceCoopSnapshotPublish();
         try
         {
@@ -297,6 +297,8 @@ public sealed partial class Game
                     previous.WindowId, true);
             else
                 UpdatePlayerBlockingWindowState(_session.HostPlayerId, PartyLeader.Id, kind, windowId, false);
+            _renderer.SetExplorationClockIndicator(BuildExplorationClockIndicator(DateTime.UtcNow,
+                !_battleStarted && _openPlayerWindows.Count == 0 && !_gameOver));
             ForceCoopSnapshotPublish();
         }
     }

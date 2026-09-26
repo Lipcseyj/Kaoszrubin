@@ -355,11 +355,33 @@ public sealed class LiveCharacter
 
     public void RegisterExplorationStep()
     {
-        _explorationStepsTowardSpellAction++;
-        if (_explorationStepsTowardSpellAction < 10) return;
+        // Régi mentési kompatibilitás miatt a számláló megmarad, de a varázshatások
+        // időtartamát már a közös, valós idejű felfedezési kör lépteti.
         _explorationStepsTowardSpellAction = 0;
-        AdvanceSpellEffects();
     }
+
+    public SpellEffectTickResult AdvanceExplorationSpellEffects(Random random)
+    {
+        var damage = 0;
+        var notes = new List<string>();
+        foreach (var effect in _activeSpellEffects)
+        {
+            if (effect.PeriodicDamage is not { } dice) continue;
+            var rolled = (dice.Roll(random) + effect.IntelligenceBonus) * effect.DamageMultiplierPercent / 100;
+            damage += rolled;
+            notes.Add($"{ExplorationSpellEffectName(effect.Type)} -{rolled} HP");
+        }
+        if (damage > 0) ReceiveDamage(damage);
+        AdvanceSpellEffects();
+        return new SpellEffectTickResult(damage, false, notes);
+    }
+
+    private static string ExplorationSpellEffectName(ActiveSpellEffectType type) => type switch
+    {
+        ActiveSpellEffectType.Burning => "🔥 Égés",
+        ActiveSpellEffectType.Storm => "⚡ Vihar",
+        _ => "✨ Varázshatás"
+    };
 
     public void RestoreExplorationStepsTowardSpellAction(int steps) =>
         _explorationStepsTowardSpellAction = Math.Clamp(steps, 0, 9);

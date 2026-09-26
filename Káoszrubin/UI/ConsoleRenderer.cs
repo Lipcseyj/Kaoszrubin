@@ -129,6 +129,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
     private readonly Party _party;
     private int _mazeLevel;
     private int _goldenKeyCount;
+    private string _explorationClockIndicator = "⌛⏸";
     private bool _battleActive;
     private Enemy? _battleEnemy;
     private BattleActionDetails? _battleDetails;
@@ -207,6 +208,13 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
     }
 
     public void SetGoldenKeyCount(int count) => _goldenKeyCount = Math.Clamp(count, 0, MonsterIds.Bosses.Count);
+
+    public void SetExplorationClockIndicator(string indicator)
+    {
+        if (_explorationClockIndicator == indicator) return;
+        _explorationClockIndicator = indicator;
+        CharacterSheet.RefreshExplorationClockLine();
+    }
 
     #endregion
 

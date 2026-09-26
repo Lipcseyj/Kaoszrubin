@@ -1709,7 +1709,8 @@ public sealed class CoopGuestScreen
                     _spellInfoSelection, focused: _inventoryOpen, width: panelWidth).ToDictionary(line => line.Row)
                 : own?.CharacterSheet is not null && own.Inventory is not null
                     ? CharacterSheetPanel.Build(own, snapshot.MazeLevel, snapshot.GoldenKeyCount,
-                        snapshot.BossKeyCount, own.CharacterId == snapshot.LeaderCharacterId, width: panelWidth)
+                        snapshot.BossKeyCount, own.CharacterId == snapshot.LeaderCharacterId, width: panelWidth,
+                        explorationClockIndicator: snapshot.ExplorationClockIndicator)
                         .ToDictionary(line => line.Row)
                     : [];
         var actionDetails = snapshot.Battle?.ActionDetails;
@@ -2003,10 +2004,13 @@ public sealed class CoopGuestScreen
         var snapshot = client.CurrentSnapshot;
         if (snapshot is null || client.PlayerId is not { } localPlayerId) return null;
         SynchronizeSessionSounds(snapshot, characterId);
+        if (_personalWindowKind is { } localKind && PlayerWindowKindRules.PausesGame(localKind))
+            return $"⌛ AZ IDŐ ÁLL — {PlayerWindowActivityText(localKind)}.";
         var remote = (snapshot.OpenPlayerWindows ?? []).FirstOrDefault(window =>
             window.PlayerId != localPlayerId);
         if (remote is not null)
-            return $"{remote.CharacterName} {PlayerWindowActivityText(remote.Kind)}; a közös játék szünetel.";
+            return $"⌛ AZ IDŐ ÁLL — {remote.CharacterName} {PlayerWindowActivityText(remote.Kind)}; " +
+                   "a közös játék szünetel.";
         if (!HasSharedWindow(snapshot)) return null;
         var title = !string.IsNullOrWhiteSpace(snapshot.LeaderDecisionTitle)
             ? snapshot.LeaderDecisionTitle

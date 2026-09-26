@@ -119,7 +119,7 @@ public sealed partial class Game : ISessionCommandHandler
     private Guid? _hostSpellInfoWindowId;
     private HeldInventoryItem? _heldInventoryItem;
     private DateTime _nextNeedsDrain;
-    private static readonly TimeSpan ExplorationStatusTickInterval = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan ExplorationStatusTickInterval = TimeSpan.FromSeconds(30);
     private DateTime _nextExplorationStatusTickUtc = DateTime.MinValue;
     private DateTime _nextNpcSelfCareCheck;
     private DateTime _nextTrapMessageUtc;
@@ -268,6 +268,8 @@ public sealed partial class Game : ISessionCommandHandler
             SharedWindow = _activeSharedWindow is null ? null : _activeSharedWindow with
             { AcknowledgedPlayerIds = _sharedWindowAcknowledgements.ToArray() },
             MusicContext = _backgroundMusic.Context,
+            ExplorationClockIndicator = BuildExplorationClockIndicator(DateTime.UtcNow,
+                !_battleStarted && _openPlayerWindows.Count == 0 && !_gameOver),
             Party = snapshot.Party.Select(character => character with
             {
                 Gold = PartyLeader.Gold,

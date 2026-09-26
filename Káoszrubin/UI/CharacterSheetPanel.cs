@@ -213,7 +213,7 @@ public static class CharacterSheetPanel
     public static IReadOnlyList<CharacterSheetPanelLine> Build(LiveCharacter character,
         IReadOnlyDictionary<int, int> experienceByLevel, int mazeLevel, int goldenKeyCount, int bossCount,
         bool isPartyLeader = false, bool isTemporaryFollower = false, int width = Width,
-        IReadOnlyList<string>? combatStatusIcons = null)
+        IReadOnlyList<string>? combatStatusIcons = null, string explorationClockIndicator = "")
     {
         var characterSheet = CharacterSheetSnapshotProjector.Create(character, experienceByLevel,
             MazeLevelConfigurations.Get(mazeLevel).VisionModifier);
@@ -229,7 +229,8 @@ public static class CharacterSheetPanel
             InventorySnapshotProjector.Create(character),
             characterSheet,
             IsTemporaryFollower: isTemporaryFollower);
-        return Build(snapshot, mazeLevel, goldenKeyCount, bossCount, isPartyLeader, width);
+        return Build(snapshot, mazeLevel, goldenKeyCount, bossCount, isPartyLeader, width,
+            explorationClockIndicator);
     }
 
     /// <summary>
@@ -241,7 +242,8 @@ public static class CharacterSheetPanel
     /// Nincs külön pozicionálás.
     /// </summary>
     public static IReadOnlyList<CharacterSheetPanelLine> Build(SessionCharacterSnapshot character,
-        int mazeLevel, int goldenKeyCount, int bossCount, bool isPartyLeader = false, int width = Width)
+        int mazeLevel, int goldenKeyCount, int bossCount, bool isPartyLeader = false, int width = Width,
+        string explorationClockIndicator = "")
     {
         ArgumentNullException.ThrowIfNull(character);
         var details = character.CharacterSheet ?? throw new ArgumentException(
@@ -251,7 +253,7 @@ public static class CharacterSheetPanel
         var effectiveWidth = Math.Max(Width, width);
         var lines = new List<CharacterSheetPanelLine>
         {
-            new(0, $"Labirintus: {mazeLevel}  🔑 {goldenKeyCount}/{bossCount}", ConsoleColor.Green),
+            BuildWorldHeaderLine(mazeLevel, goldenKeyCount, bossCount, explorationClockIndicator, effectiveWidth),
             new(1, $"KARAKTERLAP - {character.Name}", ConsoleColor.Yellow),
             new(2, $"{details.RaceName} {details.CharacterClassName}" +
                    (isPartyLeader ? "  👑 VEZÉR" : character.IsTemporaryFollower ? "  👤 KÖVETŐ" : string.Empty),
@@ -299,6 +301,19 @@ public static class CharacterSheetPanel
             ColoredSuffixColor: EncumbranceColor(details.Encumbrance)));
         AddInventoryLines(lines, inventory, details, effectiveWidth);
         return lines;
+    }
+
+    public static CharacterSheetPanelLine BuildWorldHeaderLine(int mazeLevel, int goldenKeyCount, int bossCount,
+        string explorationClockIndicator, int width = Width)
+    {
+        var suffix = string.IsNullOrWhiteSpace(explorationClockIndicator)
+            ? string.Empty
+            : $"  {explorationClockIndicator}";
+        var full = $"Labirintus: {mazeLevel}  🔑 {goldenKeyCount}/{bossCount}{suffix}";
+        var compact = $"Lab: {mazeLevel}  🔑 {goldenKeyCount}/{bossCount}{suffix}";
+        return new CharacterSheetPanelLine(0,
+            full.Length <= Math.Max(Width, width) ? full : compact,
+            ConsoleColor.Green);
     }
 
     /// <summary>

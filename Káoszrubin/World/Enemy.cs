@@ -294,6 +294,19 @@ public abstract class Enemy(Position position) : WorldObject(position)
         ActiveSpellEffectType.Storm => "⚡ Vihar",
         _ => "✨ Varázshatás"
     };
+    private bool _skipNextExplorationAction;
+    public SpellEffectTickResult AdvanceExplorationSpellEffects(Random random)
+    {
+        var result = AdvanceSpellEffects(random);
+        _skipNextExplorationAction |= result.SkipAction;
+        return result;
+    }
+    public bool ConsumeExplorationSpellActionSkip()
+    {
+        var skip = _skipNextExplorationAction;
+        _skipNextExplorationAction = false;
+        return skip;
+    }
     public void ConfigureMovement(EnemyMovementProfile profile, Direction patrolDirection,
         EnemyPursuitState pursuitState = EnemyPursuitState.Undecided,
         CharacterId? pursuitTargetCharacterId = null, int pursuitMemoryRemainingMoves = -1)

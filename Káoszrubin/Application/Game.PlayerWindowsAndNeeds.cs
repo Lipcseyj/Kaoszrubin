@@ -69,15 +69,21 @@ public sealed partial class Game
 
     private string? CurrentHostCoopWindowStatus()
     {
-        if (_activeCoopHost is null) return null;
-        ProcessSessionCommands();
-        PruneDisconnectedPlayerWindows();
-        TryPublishScheduledCoopSnapshot(DateTime.UtcNow);
+        if (_activeCoopHost is not null)
+        {
+            ProcessSessionCommands();
+            PruneDisconnectedPlayerWindows();
+            TryPublishScheduledCoopSnapshot(DateTime.UtcNow);
+        }
+        var local = _openPlayerWindows.GetValueOrDefault(_session.HostPlayerId);
+        if (local is not null)
+            return $"⌛ AZ IDŐ ÁLL — {PlayerWindowTitle(local.Kind)} megnyitva.";
         var remote = _openPlayerWindows.Values.FirstOrDefault(window =>
             window.PlayerId != _session.HostPlayerId);
         return remote is null
             ? null
-            : $"{remote.CharacterName} {PlayerWindowActivity(remote.Kind)}; a közös játék szünetel.";
+            : $"⌛ AZ IDŐ ÁLL — {remote.CharacterName} {PlayerWindowActivity(remote.Kind)}; " +
+              "a közös játék szünetel.";
     }
 
     private void RefreshCoopWindowStatus()
@@ -164,14 +170,20 @@ public sealed partial class Game
         foreach (var character in characters)
         {
             var ticks = character.ApplyExplorationStatusEffects(_random);
-            if (ticks.Count == 0) continue;
+            var previousSpellEffectCount = character.ActiveSpellEffects.Count;
+            var spellTick = character.AdvanceExplorationSpellEffects(_random);
+            if (ticks.Count == 0 && previousSpellEffectCount == 0) continue;
             changed = true;
             var details = string.Join(", ", ticks.Select(tick => $"{tick.Icon} {tick.Name}" +
                 (tick.Damage > 0 ? $" -{tick.Damage} HP" : string.Empty) +
-                (tick.Expired ? " (elmúlt)" : string.Empty)));
-            var message = $"⏳ {character.Name} állapothatásai: {details}.";
-            _renderer.DrawInventoryMessage(message, ConsoleColor.Red);
-            RecordSessionActivity(SessionActivityKind.System, message, ConsoleColor.Red);
+                (tick.Expired ? " (elmúlt)" : string.Empty))
+                .Concat(spellTick.Notes));
+            if (!string.IsNullOrWhiteSpace(details))
+            {
+                var message = $"⏳ {character.Name} állapothatásai: {details}.";
+                _renderer.DrawInventoryMessage(message, ConsoleColor.Red);
+                RecordSessionActivity(SessionActivityKind.System, message, ConsoleColor.Red);
+            }
             _renderer.RefreshCharacterSheet(character);
             if (!character.IsAlive)
             {
@@ -179,8 +191,35 @@ public sealed partial class Game
                 if (_gameOver) break;
             }
         }
+        if (!_gameOver)
+        {
+            foreach (var enemy in _maze.Enemies.ToArray())
+            {
+                var previousEffectCount = enemy.ActiveSpellEffects.Count;
+                var spellTick = enemy.AdvanceExplorationSpellEffects(_random);
+                if (previousEffectCount == 0 && spellTick.Damage == 0) continue;
+                changed = true;
+                if (spellTick.Damage <= 0) continue;
+                var spellNotes = new List<string>();
+                ApplyExplorationSpellDamage(PartyLeader, enemy, spellTick.Damage, spellNotes);
+                var message = string.Join("; ", spellTick.Notes.Concat(spellNotes));
+                _renderer.DrawInventoryMessage(message, ConsoleColor.Magenta);
+                RecordSessionActivity(SessionActivityKind.Spell, message, ConsoleColor.Magenta);
+            }
+        }
         if (changed) RequestCoopSnapshotPublish();
     }
+
+    internal static string ExplorationClockFrame(DateTime nextTickUtc, DateTime now, bool advancing)
+    {
+        if (!advancing || nextTickUtc == DateTime.MinValue || nextTickUtc == DateTime.MaxValue) return "⌛⏸";
+        var remaining = Math.Clamp((int)Math.Ceiling((nextTickUtc - now).TotalSeconds), 0,
+            (int)ExplorationStatusTickInterval.TotalSeconds);
+        return ((int)ExplorationStatusTickInterval.TotalSeconds - remaining) / 3 % 2 == 0 ? "⌛" : "⏳";
+    }
+
+    private string BuildExplorationClockIndicator(DateTime now, bool advancing) =>
+        ExplorationClockFrame(_nextExplorationStatusTickUtc, now, advancing);
 
     private void ResolveExplorationStatusDefeat(LiveCharacter character)
     {
