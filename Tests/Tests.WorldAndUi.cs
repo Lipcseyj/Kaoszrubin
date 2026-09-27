@@ -48,6 +48,31 @@ internal static partial class Program
             "A guest tranzakciója nem ugyanabba a magenta kereskedői státuszsorba kerül, mint a hoston.");
     }
 
+    static void GuestMapRenderingBatchesChangedCells()
+    {
+        var previous = new CoopGuestScreen.GuestMapCell[8, 1];
+        var current = new CoopGuestScreen.GuestMapCell[8, 1];
+        for (var x = 0; x < 8; x++)
+        {
+            previous[x, 0] = new CoopGuestScreen.GuestMapCell("·", ConsoleColor.DarkGray);
+            current[x, 0] = previous[x, 0];
+        }
+        for (var x = 2; x <= 5; x++)
+            current[x, 0] = new CoopGuestScreen.GuestMapCell(" ", ConsoleColor.Gray);
+
+        var partial = CoopGuestScreen.BuildMapWriteRuns(current, previous, 0, fullRedraw: false);
+        Assert(partial.Count == 1 && partial[0].X == 2 && partial[0].Text == "    ",
+            "A guest az egymás melletti megváltozott cellákat nem egyetlen sorírásba vonta össze.");
+
+        current[0, 0] = new CoopGuestScreen.GuestMapCell("🛒", ConsoleColor.Yellow);
+        current[1, 0] = new CoopGuestScreen.GuestMapCell(string.Empty, ConsoleColor.Yellow,
+            IsContinuation: true);
+        current[2, 0] = new CoopGuestScreen.GuestMapCell("X", ConsoleColor.Yellow);
+        var full = CoopGuestScreen.BuildMapWriteRuns(current, null, 0, fullRedraw: true);
+        Assert(full[0].X == 0 && full[0].Text == "🛒X",
+            "A sorfutam a dupla szélességű konzoljelet vagy annak folytatócelláját hibásan kezeli.");
+    }
+
     static void NpcThiefTrapCommandAcceptsTemporaryFollowers()
     {
         var leaderPosition = new Position(5, 5);

@@ -2470,12 +2470,8 @@ public sealed class CoopGuestScreen
 
         const int mapTop = 0;
         for (var y = 0; y < frame.MapHeight; y++)
-        {
-            for (var x = 0; x < frame.MapWidth; x++)
-                if (!frame.Map[x, y].IsContinuation &&
-                    (fullRedraw || previous!.Map[x, y] != frame.Map[x, y]))
-                    WriteMapCell(x, mapTop + y, frame.Map[x, y]);
-        }
+            foreach (var run in BuildMapWriteRuns(frame.Map, previous?.Map, y, fullRedraw))
+                WriteMapRun(run.X, mapTop + y, run.Text, run.Color, run.Background);
 
         for (var row = 0; row < frame.Panel.Length; row++)
         {
@@ -2539,12 +2535,51 @@ public sealed class CoopGuestScreen
         TrySetCursorPosition(0, Math.Min(frame.WindowHeight - 1, frame.MapHeight + frame.Footers.Length));
     }
 
-    private static void WriteMapCell(int x, int y, GuestMapCell cell)
+    internal static IReadOnlyList<GuestMapWriteRun> BuildMapWriteRuns(GuestMapCell[,] map,
+        GuestMapCell[,]? previous, int y, bool fullRedraw)
+    {
+        var runs = new List<GuestMapWriteRun>();
+        var width = map.GetLength(0);
+        var x = 0;
+        while (x < width)
+        {
+            var cell = map[x, y];
+            if (cell.IsContinuation || (!fullRedraw && previous is not null && previous[x, y] == cell))
+            {
+                x++;
+                continue;
+            }
+
+            var start = x;
+            var color = cell.Color;
+            var background = cell.Background;
+            var text = new System.Text.StringBuilder();
+            while (x < width)
+            {
+                cell = map[x, y];
+                if (cell.IsContinuation)
+                {
+                    x++;
+                    continue;
+                }
+                if ((!fullRedraw && previous is not null && previous[x, y] == cell) ||
+                    cell.Color != color || cell.Background != background)
+                    break;
+                text.Append(cell.Glyph);
+                x++;
+                while (x < width && map[x, y].IsContinuation) x++;
+            }
+            runs.Add(new GuestMapWriteRun(start, text.ToString(), color, background));
+        }
+        return runs;
+    }
+
+    private static void WriteMapRun(int x, int y, string text, ConsoleColor color, ConsoleColor background)
     {
         if (!TrySetCursorPosition(x, y)) return;
-        Console.ForegroundColor = cell.Color;
-        Console.BackgroundColor = cell.Background;
-        Console.Write(cell.Glyph);
+        Console.ForegroundColor = color;
+        Console.BackgroundColor = background;
+        Console.Write(text);
     }
 
     private static void WriteAt(int x, int y, GuestTextLine line, int width)
@@ -2896,8 +2931,10 @@ public sealed class CoopGuestScreen
         return builder.ToString();
     }
 
-    private readonly record struct GuestMapCell(string Glyph, ConsoleColor Color,
+    internal readonly record struct GuestMapCell(string Glyph, ConsoleColor Color,
         ConsoleColor Background = ConsoleColor.Black, bool IsContinuation = false);
+    internal readonly record struct GuestMapWriteRun(int X, string Text, ConsoleColor Color,
+        ConsoleColor Background);
     private readonly record struct GuestTextLine(string Text, ConsoleColor Foreground, ConsoleColor Background,
         string ColoredSuffix = "", ConsoleColor ColoredSuffixColor = ConsoleColor.White,
         IReadOnlyList<TextSegment>? Segments = null, bool ExtendsToDivider = false,

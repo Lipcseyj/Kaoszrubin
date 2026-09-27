@@ -59,6 +59,7 @@ internal static partial class Program
     ("A közös háttérkatalógus tíz stabil, soronként rajzolható mintát ad", ConsoleBackdropsAreStableAndRowBased),
     ("A fogadói közös ablak nem hirdeti feleslegesen az idő megállását", InnSharedWindowUsesContextualBanner),
     ("A host és guest kereskedőablaka ugyanazt a státuszsort használja", InnVendorStatusIsShared),
+    ("A guest a megváltozott térképcellákat színes sorfutamokban rajzolja", GuestMapRenderingBatchesChangedCells),
     ("A főmenü rubintüze teljes szélességben terjed és korlátos marad", RubyFireSpreadsAcrossMenuWidth),
     ("A képernyő alulról felfelé ég el", ScreenBurnRisesAndConsumesTheWholeScreen),
     ("A főmenü rubinja félpercenként egy gyors magentahullámmal pulzál", RubyPulseUsesSlowSineWave),
