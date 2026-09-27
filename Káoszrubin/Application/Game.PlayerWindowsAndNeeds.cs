@@ -494,14 +494,20 @@ public sealed partial class Game
         {
             Message = BattleLogFormatter.Format(entry.Message, actorNames)
         }).ToArray();
+        // A gyorsharc csak az éppen futó gyorsharc saját, nagy mennyiségű bejegyzéseit nyeli el.
+        // A jelző egy korábbi gyorsharcból nem hallgattathatja el a felfedezési akciókat.
+        var suppressLocalLog = ShouldSuppressLocalBattleLog(_isQuickBattle, _activeBattle is not null);
         _sessionEventService.PresentBattleEntries(
             displayEntries,
-            _isQuickBattle,
+            suppressLocalLog,
             entry => _renderer.DrawBattleRound(entry),
             _ => _renderer.CharacterSheet.RefreshBattleStatusRows(),
             PartyLeader.Id,
             _ => _quickBattleSuppressedEntryCount++);
     }
+
+    internal static bool ShouldSuppressLocalBattleLog(bool isQuickBattle, bool hasActiveBattle) =>
+        isQuickBattle && hasActiveBattle;
 
     private void RecordSessionActivity(SessionActivityKind kind, string message, ConsoleColor color,
         IReadOnlyCollection<CharacterId>? listeners = null)

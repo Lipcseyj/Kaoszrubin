@@ -98,6 +98,7 @@ internal static partial class Program
     ("A host mozgási parancsa átmegy", HostMovementIsAccepted),
     ("A felfedezési lövedék a hatótávig halad és a fal előtt megáll", ExplorationProjectileStopsAtWallsAndRange),
     ("A vendég felfedezés közben saját karakterével lőhet", RemotePlayerCanShootDuringExploration),
+    ("A korábbi gyorsharc nem nyeli el a felfedezési támadás naplóját", ExplorationAttackLogSurvivesQuickBattleState),
     ("A karakterszín palettáról módosítható és a coop parancs validált", CharacterColorCanBeChangedFromPalette),
     ("A vendég átvehet egy NPC-t", RemotePlayerCanTakeNpcControl),
     ("A vendég saját karakterrel beléphet a host partijába", RemotePlayerCanJoinOwnCharacter),

@@ -968,6 +968,14 @@ static void ResolveSkipsActionAfterSupportVictory()
             "A session a fogadóban is elfogadta a felfedezési lövést.");
     }
 
+    static void ExplorationAttackLogSurvivesQuickBattleState()
+    {
+        Assert(Game.ShouldSuppressLocalBattleLog(isQuickBattle: true, hasActiveBattle: true),
+            "Az aktív gyorsharc részletes bejegyzései nem kerülnek elnyomásra.");
+        Assert(!Game.ShouldSuppressLocalBattleLog(isQuickBattle: true, hasActiveBattle: false),
+            "Egy befejezett gyorsharc állapota elnyelte a felfedezési támadás naplóját.");
+    }
+
     static void GuestSeesOtherPlayersBlockingWindows()
     {
         var (session, leader, companion) = CreateSession();

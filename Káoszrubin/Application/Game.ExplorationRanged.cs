@@ -10,7 +10,7 @@ public sealed partial class Game
     private void ExecuteExplorationRangedAttack(ExplorationRangedAttackCommand command)
     {
         var attacker = CharacterRoster.Party.Members.FirstOrDefault(character => character.Id == command.CharacterId);
-        if (attacker is null || !attacker.IsAlive || !CanControlledCharacterMove(attacker)) return;
+        if (attacker is null || !attacker.IsAlive) return;
         var origin = attacker == PartyLeader
             ? _player.Position
             : _maze.PartyMembers.FirstOrDefault(member => member.Character == attacker)?.Position;
@@ -62,7 +62,6 @@ public sealed partial class Game
 
         _renderer.AnimateExplorationProjectile(_maze, _fogOfWar, _player.Position, flightPath,
             command.Direction);
-        ScheduleNextControlledMove(attacker);
         var distance = flightPath.Count;
         if (enemyTarget is not null)
         {

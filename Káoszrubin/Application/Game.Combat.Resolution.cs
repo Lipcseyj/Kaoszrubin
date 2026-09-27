@@ -1882,6 +1882,7 @@ public sealed partial class Game
         ResetBattleMovement();
 
         _activeBattle = null;
+        _isQuickBattle = false;
         _battleStarted = false;
         _preparedBattleTurnId = 0;
 
