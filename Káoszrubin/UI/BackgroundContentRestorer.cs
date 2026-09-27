@@ -48,12 +48,28 @@ public sealed class BackgroundContentRestorer : IDisposable
     {
         if (_disposed) return;
         _disposed = true;
+        RestoreCore();
+    }
+
+    /// <summary>
+    /// Restores the captured cells without releasing the snapshot, so a long-lived surface can
+    /// cheaply clear the same overlay region several times.
+    /// </summary>
+    public bool Restore()
+    {
+        if (_disposed) return false;
+        return RestoreCore();
+    }
+
+    private bool RestoreCore()
+    {
+        var restored = false;
         try
         {
             if (_captured && Console.BufferWidth > _region.Right && Console.BufferHeight > _region.Bottom)
             {
                 var region = _region;
-                WriteConsoleOutputW(_output, _cells, _size, default, ref region);
+                restored = WriteConsoleOutputW(_output, _cells, _size, default, ref region);
             }
         }
         catch (Exception exception) when (TerminalViewport.IsTransientConsoleException(exception))
@@ -74,6 +90,7 @@ public sealed class BackgroundContentRestorer : IDisposable
             }
             _invalidateColors?.Invoke();
         }
+        return restored;
     }
 
     [StructLayout(LayoutKind.Sequential)]

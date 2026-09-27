@@ -129,12 +129,11 @@ public sealed partial class ConsoleRenderer
         /// </summary>
         public void DrawInnCharacterSheet(LiveCharacter character)
         {
-            _owner.DrawFrame(5);
+            _owner.DrawFrame();
             if (_displayedCharacter is null || !SheetCharacters().Contains(_displayedCharacter))
                 _displayedCharacter = character;
             DrawCharacterSheet(_displayedCharacter);
             SetCharacterSheetFocused(true);
-            _owner.DrawInnMessage("Fogadói karakterlap — Tab: vissza a fogadóba | ↑/↓: választás | ←/→: karakter");
         }
 
         /// <summary>

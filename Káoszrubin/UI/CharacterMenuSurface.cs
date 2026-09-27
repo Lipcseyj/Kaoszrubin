@@ -1,7 +1,6 @@
 namespace KaoszRubin.UI;
 
 internal readonly record struct CharacterMenuFrame(int Left, int Top, int Width, int Height);
-internal enum CharacterMenuBackdropStyle { Maze, Blocks }
 
 /// <summary>Közös, Scroll-keretes felület a karakterlista és a karakteralkotás minden lépéséhez.</summary>
 internal static class CharacterMenuSurface
@@ -10,7 +9,7 @@ internal static class CharacterMenuSurface
     private const int PreferredHeight = 34;
     private static int _backgroundWidth;
     private static int _backgroundHeight;
-    private static CharacterMenuBackdropStyle _backdropStyle;
+    private static ConsoleBackdropStyle _backdropStyle;
     public static bool IsActive { get; private set; }
 
     public static CharacterMenuFrame Frame
@@ -29,9 +28,7 @@ internal static class CharacterMenuSurface
     public static void Begin()
     {
         IsActive = true;
-        _backdropStyle = Random.Shared.Next(2) == 0
-            ? CharacterMenuBackdropStyle.Maze
-            : CharacterMenuBackdropStyle.Blocks;
+        _backdropStyle = ConsoleBackdropCatalog.RandomStyle();
         DrawBackdrop();
     }
 
@@ -84,28 +81,12 @@ internal static class CharacterMenuSurface
         {
             Console.SetCursorPosition(0, y);
             var rowWidth = y == _backgroundHeight - 1 ? Math.Max(0, _backgroundWidth - 1) : _backgroundWidth;
-            for (var x = 0; x < rowWidth; x++)
-                Console.Write(_backdropStyle == CharacterMenuBackdropStyle.Maze
-                    ? MazeGlyph(x, y)
-                    : BlockGlyph(x, y));
+            Console.Write(ConsoleBackdropCatalog.BuildRow(_backdropStyle, y, rowWidth));
         }
         Console.ResetColor();
     }
 
-    internal static char MazeGlyph(int x, int y)
-    {
-        var horizontal = y % 4 == 0 && ((x / 7 + y / 4 * 3) % 5 != 1);
-        var vertical = x % 7 == 0 && ((y / 4 + x / 7 * 2) % 5 != 2);
-        if (horizontal && vertical) return '┼';
-        if (horizontal) return '─';
-        if (vertical) return '│';
-        return (x * 17 + y * 31) % 97 == 0 ? '·' : ' ';
-    }
+    internal static char MazeGlyph(int x, int y) => ConsoleBackdropCatalog.Glyph(ConsoleBackdropStyle.Maze, x, y);
 
-    internal static char BlockGlyph(int x, int y)
-    {
-        const string ramp = "░▒▓██▓▒░";
-        var diagonalWave = x / 3 + y / 2 + (x + y) / 17;
-        return ramp[diagonalWave % ramp.Length];
-    }
+    internal static char BlockGlyph(int x, int y) => ConsoleBackdropCatalog.Glyph(ConsoleBackdropStyle.Blocks, x, y);
 }

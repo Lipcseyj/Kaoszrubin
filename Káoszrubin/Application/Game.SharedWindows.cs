@@ -336,7 +336,7 @@ public sealed partial class Game
         _leaderDecisionMessage = message;
         _session.SetPhase(GameSessionPhase.Paused);
         _renderer.SetExplorationClockIndicator(BuildExplorationClockIndicator(pauseStartedUtc, advancing: false));
-        CoopWindowStatusBanner.Refresh(() => $"⌛ AZ IDŐ ÁLL — {title}.");
+        CoopWindowStatusBanner.Refresh(() => SharedWindowBanner(previousPhase, title));
         var remoteListeners = _session.CharacterControls
             .Where(control => control.AssignedPlayerId is { } playerId &&
                               playerId != _session.HostPlayerId &&
@@ -383,6 +383,11 @@ public sealed partial class Game
                 ForceCoopSnapshotPublish();
         }
     }
+
+    internal static string SharedWindowBanner(GameSessionPhase previousPhase, string title) =>
+        previousPhase == GameSessionPhase.Inn
+            ? $"🏰 KÖZÖS FOGADÓI ESEMÉNY — {title}."
+            : $"⌛ AZ IDŐ ÁLL — {title}.";
 
     private void CaptureSharedWindowPresentation(int width,
         IReadOnlyList<(string Text, ConsoleColor Color)> lines, FramedWindow? frame)

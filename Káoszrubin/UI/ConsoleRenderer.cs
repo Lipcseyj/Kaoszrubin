@@ -102,6 +102,11 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
     private readonly Queue<MessageLogLine> _messageLog = new();
     private int _messageLogScrollOffset;
     private BackgroundContentRestorer? _replicatedWindowBackground;
+    private BackgroundContentRestorer? _innWindowBackground;
+    private LiveCharacter? _innSurfaceLeader;
+    private ConsoleBackdropStyle _innBackdropStyle;
+    private int _innSurfaceWidth;
+    private int _innSurfaceHeight;
     private readonly GameDataCatalog _gameData;
     private readonly GameSettings _settings;
     private readonly Func<IReadOnlyList<LiveCharacter>> _temporaryFollowers;
@@ -999,6 +1004,17 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
         return lines;
     }
 
+    internal static string FormatInnTransaction(InnTransactionSnapshot transaction) => transaction.Kind switch
+    {
+        InnTransactionKind.Purchase => $"🏰 {transaction.ActorName} megvette: {transaction.ItemName} " +
+                                       $"({transaction.Price} arany) → {transaction.InventoryOwnerName}",
+        InnTransactionKind.Sale => $"🏰 {transaction.ActorName} eladta: {transaction.ItemName} " +
+                                   $"({transaction.Price} arany) ← {transaction.InventoryOwnerName}",
+        InnTransactionKind.Service => $"🏰 {transaction.ActorName} fizetett: {transaction.ItemName} " +
+                                      $"({transaction.Price} arany)",
+        _ => $"🏰 {transaction.ActorName}: {transaction.ItemName}"
+    };
+
     internal static IReadOnlyList<(string Text, ConsoleColor Color)> BuildWanderingMageMenuLines(int partyGold,
         IReadOnlyList<(string Label, string Description, bool Disabled)> options, int selectedIndex, string message)
     {
@@ -1062,13 +1078,66 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
 
     public void ClearInnMenuScreen()
     {
-        var emptyLine = new string(' ', InnMarketFrameWidth + 35);
+        EnsureInnSurface();
+        if (_innWindowBackground?.Restore() == true) return;
 
-        for (var line = 8; line < 45; line++)
+        // Tesztekben vagy a fogadói életcikluson kívül is biztonságos marad: teljes sorokat ír,
+        // nem cellánként töröl.
+        var region = InnSurfaceRegion.ForViewport(SafeConsoleWindowWidth(), SafeConsoleWindowHeight());
+        SetColors(_innSurfaceLeader is null ? ConsoleColor.Black : ConsoleColor.DarkGray, ConsoleColor.Black);
+        for (var row = 0; row < region.Height; row++)
         {
-            WriteAt(20, line, emptyLine);
+            var text = _innSurfaceLeader is null
+                ? new string(' ', region.Width)
+                : ConsoleBackdropCatalog.BuildRow(_innBackdropStyle, region.Top + row, region.Width, region.Left);
+            WriteAt(region.Left, region.Top + row, text);
         }
-    }   
+    }
+
+    public void BeginInnSurface(LiveCharacter leader, string innName, int mazeLevel)
+    {
+        _innSurfaceLeader = leader;
+        _innBackdropStyle = ConsoleBackdropCatalog.ForInn(innName, mazeLevel);
+        RebuildInnSurface();
+    }
+
+    public void EndInnSurface()
+    {
+        _innWindowBackground?.Dispose();
+        _innWindowBackground = null;
+        _innSurfaceLeader = null;
+        _innSurfaceWidth = 0;
+        _innSurfaceHeight = 0;
+    }
+
+    private void EnsureInnSurface()
+    {
+        if (_innSurfaceLeader is null) return;
+        if (_innSurfaceWidth == SafeConsoleWindowWidth() && _innSurfaceHeight == SafeConsoleWindowHeight()) return;
+        RebuildInnSurface();
+    }
+
+    private void RebuildInnSurface()
+    {
+        if (_innSurfaceLeader is null) return;
+        _innWindowBackground?.Dispose();
+        _innWindowBackground = null;
+        ResetColorCache();
+        Console.Clear();
+        _innSurfaceWidth = SafeConsoleWindowWidth();
+        _innSurfaceHeight = SafeConsoleWindowHeight();
+        var region = InnSurfaceRegion.ForViewport(_innSurfaceWidth, _innSurfaceHeight);
+        SetColors(ConsoleColor.DarkGray, ConsoleColor.Black);
+        for (var row = 0; row < region.Height; row++)
+        {
+            var y = region.Top + row;
+            WriteAt(region.Left, y,
+                ConsoleBackdropCatalog.BuildRow(_innBackdropStyle, y, region.Width, region.Left));
+        }
+        CharacterSheet.DrawInnCharacterSheet(_innSurfaceLeader);
+        _innWindowBackground = new BackgroundContentRestorer(region.Left, region.Top,
+            region.Width, region.Height, ResetColorCache);
+    }
 
     public void DrawInnMenuScreen(LiveCharacter leader, int partyCount, int selectedIndex,
         IReadOnlyList<InnMenuOptionSnapshot> options, string artisanNotice, string innName, int mazeLevel)
@@ -2057,7 +2126,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
         var style = WindowFrameConfiguration.For(window);
         var adornmentRows = WindowFrameCatalog.Adornment(style, frameWidth) is null ? 0 : 2;
         height += FrameBorderWidth + adornmentRows;
-        var (left, top) = CenteredFrameOrigin(frameWidth, height);
+        var (left, top) = CenteredFrameOrigin(frameWidth, height, window);
         return new BackgroundContentRestorer(left, top, frameWidth, height, ResetColorCache);
     }
 
@@ -2070,9 +2139,13 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
         return SaveCenteredFrameBackground(frameWidth, lines.Count, window);
     }
 
-    private static (int Left, int Top) CenteredFrameOrigin(int width, int height) =>
-        (Math.Max(0, (Console.WindowWidth - width) / FrameBorderWidth),
-         Math.Max(MinimumCenteredFrameTop, (Console.WindowHeight - height) / FrameBorderWidth));
+    private (int Left, int Top) CenteredFrameOrigin(int width, int height, FramedWindow? window = null)
+    {
+        if (window == FramedWindow.Inn && _innSurfaceLeader is not null)
+            return InnSurfaceRegion.ForViewport(SafeConsoleWindowWidth(), SafeConsoleWindowHeight()).Center(width, height);
+        return (Math.Max(0, (Console.WindowWidth - width) / FrameBorderWidth),
+            Math.Max(MinimumCenteredFrameTop, (Console.WindowHeight - height) / FrameBorderWidth));
+    }
 
     private void DrawCenteredFrame(int frameWidth, IReadOnlyList<(string Text, ConsoleColor Color)> lines, FramedWindow? framedWindow = null)
     {
@@ -2084,7 +2157,8 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
         var topAdornment = WindowFrameCatalog.Adornment(style, frameWidth);
         var bottomAdornment = WindowFrameCatalog.Adornment(style, frameWidth, bottom: true);
         var adornmentRows = topAdornment is null ? 0 : 2;
-        var (left, top) = CenteredFrameOrigin(frameWidth, lines.Count + FrameBorderWidth + adornmentRows);
+        var (left, top) = CenteredFrameOrigin(frameWidth, lines.Count + FrameBorderWidth + adornmentRows,
+            framedWindow);
         var contentPadding = WindowFrameCatalog.ContentPadding(style);
         var contentWidth = frameWidth - contentPadding * FrameBorderWidth;
         var frameTop = topAdornment is null ? top : top + 1;
@@ -2642,8 +2716,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
             : WindowFrameStyle.Double;
         var contentPadding = WindowFrameCatalog.ContentPadding(style);
         var contentWidth = frameWidth - contentPadding * FrameBorderWidth;
-        var left = Math.Max(0, (Console.WindowWidth - frameWidth) / FrameBorderWidth);
-        var top = Math.Max(MinimumCenteredFrameTop, (Console.WindowHeight - lineCount - FrameBorderWidth) / FrameBorderWidth);
+        var (left, top) = CenteredFrameOrigin(frameWidth, lineCount + FrameBorderWidth, framedWindow);
         foreach (var (index, text, color) in updates)
         {
             SetColors(color, ConsoleColor.Black);
@@ -2666,14 +2739,6 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
         while (_messageLog.Count > MessageLogBufferLineCount) _messageLog.Dequeue();
         _messageLogScrollOffset = 0;
         RenderMessageLog();
-    }
-
-    private void DrawInnMessage(string message, ConsoleColor color = ConsoleColor.Magenta)
-    {
-        foreach (var line in WrapMessage(message)) _messageLog.Enqueue(new MessageLogLine(line, color));
-        while (_messageLog.Count > MessageLogBufferLineCount) _messageLog.Dequeue();
-        _messageLogScrollOffset = 0;
-        RenderMessageLog(2);
     }
 
     private void RenderMessageLog(int displayedLines = 0)

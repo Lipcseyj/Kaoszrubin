@@ -335,70 +335,75 @@ internal sealed class InnController
 
     private DepartureChoice RunMenuLoop(int completedLevel)
     {
-        Console.Clear();
-        _renderer.CharacterSheet.DrawInnCharacterSheet(_partyLeader);
-
-        var options = (_menuOptions ?? []).ToList();
-        var selectedIndex = 0;
-        var menuNotice = _artisanNotice;
-        var redraw = true;
-        while (true)
+        _renderer.BeginInnSurface(_partyLeader, _innName, _innLevel);
+        try
         {
-            if (redraw)
+            var options = (_menuOptions ?? []).ToList();
+            var selectedIndex = 0;
+            var menuNotice = _artisanNotice;
+            var redraw = true;
+            while (true)
             {
-                _renderer.DrawInnMenuScreen(_partyLeader, _characterRoster.Party.Members.Count, selectedIndex,
-                    options, menuNotice, _innName, _innLevel);
-                redraw = false;
-            }
-            var key = _readKey().Key;
-            if (key == StateChangedKey)
-            {
-                menuNotice = ConsumeHostTransactionMessages(menuNotice);
+                if (redraw)
+                {
+                    _renderer.DrawInnMenuScreen(_partyLeader, _characterRoster.Party.Members.Count, selectedIndex,
+                        options, menuNotice, _innName, _innLevel);
+                    redraw = false;
+                }
+                var key = _readKey().Key;
+                if (key == StateChangedKey)
+                {
+                    menuNotice = ConsumeHostTransactionMessages(menuNotice);
+                    redraw = true;
+                    continue;
+                }
+                if (key == ConsoleKey.UpArrow)
+                {
+                    var previousIndex = selectedIndex;
+                    selectedIndex = (selectedIndex - 1 + options.Count) % options.Count;
+                    _renderer.UpdateInnMenuSelection(options, previousIndex, selectedIndex);
+                    continue;
+                }
+                if (key == ConsoleKey.DownArrow)
+                {
+                    var previousIndex = selectedIndex;
+                    selectedIndex = (selectedIndex + 1) % options.Count;
+                    _renderer.UpdateInnMenuSelection(options, previousIndex, selectedIndex);
+                    continue;
+                }
+                if (key != ConsoleKey.Enter) continue;
                 redraw = true;
-                continue;
-            }
-            if (key == ConsoleKey.UpArrow)
-            {
-                var previousIndex = selectedIndex;
-                selectedIndex = (selectedIndex - 1 + options.Count) % options.Count;
-                _renderer.UpdateInnMenuSelection(options, previousIndex, selectedIndex);
-                continue;
-            }
-            if (key == ConsoleKey.DownArrow)
-            {
-                var previousIndex = selectedIndex;
-                selectedIndex = (selectedIndex + 1) % options.Count;
-                _renderer.UpdateInnMenuSelection(options, previousIndex, selectedIndex);
-                continue;
-            }
-            if (key != ConsoleKey.Enter) continue;
-            redraw = true;
 
-            switch (options[selectedIndex].Kind)
-            {
-                case InnMenuOptionKind.Rest: RestPartyAtInn(); break;
-                case InnMenuOptionKind.Market: RunInnMarket(completedLevel); break;
-                case InnMenuOptionKind.Witcher: RunWitcherMarket(completedLevel); break;
-                case InnMenuOptionKind.SecretStash: RunInnSecretStash(completedLevel); break;
-                case InnMenuOptionKind.Blacksmith: RunSpecialistMarket("🔨 KOVÁCSMESTER",
-                    _vendorStocks.GetValueOrDefault(InnVendorKind.Blacksmith) ?? []); break;
-                case InnMenuOptionKind.Armorer: RunSpecialistMarket("🛡️ PÁNCÉLMÍVES",
-                    _vendorStocks.GetValueOrDefault(InnVendorKind.Armorer) ?? []); break;
-                case InnMenuOptionKind.BlacksmithRepair: RunRepairMarket(InnVendorKind.BlacksmithRepair); break;
-                case InnMenuOptionKind.ArmorerRepair: RunRepairMarket(InnVendorKind.ArmorerRepair); break;
-                case InnMenuOptionKind.WanderingMage: RunWanderingMage(
-                    _vendorStocks.GetValueOrDefault(InnVendorKind.WanderingMage) ?? []); break;
-                case InnMenuOptionKind.Recruit: RunInnRecruitment(); break;
-                case InnMenuOptionKind.Retraining: RunInnRetraining(); break;
-                case InnMenuOptionKind.Feast: RunInnFeast(completedLevel); break;
-                case InnMenuOptionKind.Rumors: RunInnRumors(); break;
-                case InnMenuOptionKind.ReturnExpedition:
-                    _active = false;
-                    return DepartureChoice.ReturnExpedition;
-                case InnMenuOptionKind.Leave:
-                    _active = false;
-                    return DepartureChoice.NextLevel;
+                switch (options[selectedIndex].Kind)
+                {
+                    case InnMenuOptionKind.Rest: RestPartyAtInn(); break;
+                    case InnMenuOptionKind.Market: RunInnMarket(completedLevel); break;
+                    case InnMenuOptionKind.Witcher: RunWitcherMarket(completedLevel); break;
+                    case InnMenuOptionKind.SecretStash: RunInnSecretStash(completedLevel); break;
+                    case InnMenuOptionKind.Blacksmith: RunSpecialistMarket("🔨 KOVÁCSMESTER",
+                        _vendorStocks.GetValueOrDefault(InnVendorKind.Blacksmith) ?? []); break;
+                    case InnMenuOptionKind.Armorer: RunSpecialistMarket("🛡️ PÁNCÉLMÍVES",
+                        _vendorStocks.GetValueOrDefault(InnVendorKind.Armorer) ?? []); break;
+                    case InnMenuOptionKind.BlacksmithRepair: RunRepairMarket(InnVendorKind.BlacksmithRepair); break;
+                    case InnMenuOptionKind.ArmorerRepair: RunRepairMarket(InnVendorKind.ArmorerRepair); break;
+                    case InnMenuOptionKind.WanderingMage: RunWanderingMage(
+                        _vendorStocks.GetValueOrDefault(InnVendorKind.WanderingMage) ?? []); break;
+                    case InnMenuOptionKind.Recruit: RunInnRecruitment(); break;
+                    case InnMenuOptionKind.Retraining: RunInnRetraining(); break;
+                    case InnMenuOptionKind.Feast: RunInnFeast(completedLevel); break;
+                    case InnMenuOptionKind.Rumors: RunInnRumors(); break;
+                    case InnMenuOptionKind.ReturnExpedition:
+                        _active = false;
+                        return DepartureChoice.ReturnExpedition;
+                    case InnMenuOptionKind.Leave:
+                        _active = false;
+                        return DepartureChoice.NextLevel;
+                }
             }
+        }
+        finally
+        {
+            _renderer.EndInnSurface();
         }
     }
 
@@ -1765,7 +1770,7 @@ internal sealed class InnController
         while (_transactions.Count > 8) _transactions.Dequeue();
         if (announceOnHost)
         {
-            _pendingHostTransactionMessages.Enqueue(FormatTransaction(transaction));
+            _pendingHostTransactionMessages.Enqueue(ConsoleRenderer.FormatInnTransaction(transaction));
             while (_pendingHostTransactionMessages.Count > 8)
                 _pendingHostTransactionMessages.TryDequeue(out _);
         }
@@ -1778,17 +1783,6 @@ internal sealed class InnController
         while (_pendingHostTransactionMessages.TryDequeue(out var message)) messages.Add(message);
         return string.Join("  •  ", messages);
     }
-
-    private static string FormatTransaction(InnTransactionSnapshot transaction) => transaction.Kind switch
-    {
-        InnTransactionKind.Purchase => $"🏰 {transaction.ActorName} megvette: {transaction.ItemName} " +
-                                       $"({transaction.Price} arany) → {transaction.InventoryOwnerName}",
-        InnTransactionKind.Sale => $"🏰 {transaction.ActorName} eladta: {transaction.ItemName} " +
-                                   $"({transaction.Price} arany) ← {transaction.InventoryOwnerName}",
-        InnTransactionKind.Service => $"🏰 {transaction.ActorName} fizetett: {transaction.ItemName} " +
-                                      $"({transaction.Price} arany)",
-        _ => $"🏰 {transaction.ActorName}: {transaction.ItemName}"
-    };
 
     private sealed record RechargeableWand(LiveCharacter Character, InventorySlotKind Kind, int Index, MagicItemDefinition Item);
     private sealed record RepairOffer(LiveCharacter Owner, InventorySlotKind Kind, int Index,

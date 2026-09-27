@@ -949,7 +949,7 @@ internal static partial class Program
                CharacterMenuSurface.MazeGlyph(0, 0) == '┼' &&
                CharacterMenuSurface.MazeGlyph(1, 0) == '─' &&
                CharacterMenuSurface.MazeGlyph(0, 1) == '│' &&
-               Enum.GetValues<CharacterMenuBackdropStyle>().Length == 2 &&
+               Enum.GetValues<ConsoleBackdropStyle>().Length == 10 &&
                Enumerable.Range(0, 48).Select(x => CharacterMenuSurface.BlockGlyph(x, x / 2))
                    .ToHashSet().SetEquals(['░', '▒', '▓', '█']),
             "Az első körös ablak–keret alapbeállítások hibásak.");

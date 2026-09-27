@@ -1,5 +1,53 @@
 internal static partial class Program
 {
+    static void InnSurfaceStaysAboveMessageLog()
+    {
+        var region = InnSurfaceRegion.ForViewport(200, 52);
+        var (left, top) = region.Center(ConsoleRenderer.InnMarketFrameWidth, 35);
+        Assert(region.Left == 2 && region.Top == 1 && region.Width == 168 && region.Height == 43 &&
+               left >= region.Left && left + ConsoleRenderer.InnMarketFrameWidth <= region.Left + region.Width &&
+               top >= region.Top && top + 35 <= region.Top + region.Height &&
+               region.Top + region.Height <= ConsoleRenderer.PlayfieldHeight,
+            "A fogadói ablakrégió beleérhet az alsó logmezőbe, vagy nem fogadja be a legnagyobb keretet.");
+    }
+
+    static void ConsoleBackdropsAreStableAndRowBased()
+    {
+        Assert(ConsoleBackdropCatalog.Styles.Count == 10, "A háttérkatalógus nem tíz mintát tartalmaz.");
+        foreach (var style in ConsoleBackdropCatalog.Styles)
+        {
+            var first = ConsoleBackdropCatalog.BuildRow(style, 7, 173, 4);
+            var second = ConsoleBackdropCatalog.BuildRow(style, 7, 173, 4);
+            Assert(first.Length == 173 && first == second,
+                $"A(z) {style} minta nem stabil vagy nem teljes sorban készül el.");
+        }
+        Assert(ConsoleBackdropCatalog.ForInn("A Törött Kard", 3) ==
+               ConsoleBackdropCatalog.ForInn("A Törött Kard", 3),
+            "A host és guest számára használt fogadóminta nem determinisztikus.");
+    }
+
+    static void InnSharedWindowUsesContextualBanner()
+    {
+        var inn = Game.SharedWindowBanner(GameSessionPhase.Inn, "Lakomázás");
+        var exploration = Game.SharedWindowBanner(GameSessionPhase.Exploration, "Felszerelés");
+        Assert(inn.Contains("FOGADÓI ESEMÉNY", StringComparison.Ordinal) &&
+               !inn.Contains("AZ IDŐ ÁLL", StringComparison.Ordinal) &&
+               exploration.Contains("AZ IDŐ ÁLL", StringComparison.Ordinal),
+            "A közös ablak állapotszövege nem különbözteti meg a fogadót az expedíciótól.");
+    }
+
+    static void InnVendorStatusIsShared()
+    {
+        var transaction = new InnTransactionSnapshot(4, InnTransactionKind.Purchase,
+            "Vendég", "Tőr", 35, "Vendég");
+        var status = ConsoleRenderer.FormatInnTransaction(transaction);
+        var vendor = new InnVendorSnapshot(InnVendorKind.Market, "Kereskedő", []);
+        var lines = ConsoleRenderer.BuildInnVendorLines(vendor, InnMarketMode.Buy, [], 0,
+            100, 3, status, "A Törött Kard");
+        Assert(lines[^2] == (status, ConsoleColor.Magenta),
+            "A guest tranzakciója nem ugyanabba a magenta kereskedői státuszsorba kerül, mint a hoston.");
+    }
+
     static void NpcThiefTrapCommandAcceptsTemporaryFollowers()
     {
         var leaderPosition = new Position(5, 5);

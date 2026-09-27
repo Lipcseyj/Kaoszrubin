@@ -52,6 +52,7 @@ public sealed class CoopGuestScreen
     private InnMarketMode _innMarketMode = InnMarketMode.Buy;
     private bool _innRumorOpen;
     private int _innRumorSelection;
+    private string _innVendorStatus = string.Empty;
     private long _lastInnTransactionSequence;
     private long _lastSessionActivitySequence;
     private long _lastSessionSoundSequence;
@@ -399,6 +400,7 @@ public sealed class CoopGuestScreen
         {
             _innVendor = null;
             _innRumorOpen = false;
+            _innVendorStatus = string.Empty;
         }
         if (snapshot.Phase != GameSessionPhase.Exploration)
             ClearDoorTargeting();
@@ -960,6 +962,7 @@ public sealed class CoopGuestScreen
                     _innMageMenuOpen = selectedVendor == InnVendorKind.WanderingMage;
                     _innMarketMode = InnMarketMode.Buy;
                     _innSelection = 0;
+                    _innVendorStatus = GuestVendorDefaultStatus(selectedVendor, _innMarketMode);
                 }
             }
             Interlocked.Exchange(ref _redrawRequested, 1);
@@ -971,11 +974,11 @@ public sealed class CoopGuestScreen
         if (_innMageMenuOpen)
         {
             const int mageOptionCount = 5;
-            if (key == ConsoleKey.Escape) { _innVendor = null; _innMageMenuOpen = false; _innSelection = 0; }
+            if (key == ConsoleKey.Escape) { _innVendor = null; _innMageMenuOpen = false; _innSelection = 0; _innVendorStatus = string.Empty; }
             else if (key == ConsoleKey.UpArrow) _innSelection = (_innSelection - 1 + mageOptionCount) % mageOptionCount;
             else if (key == ConsoleKey.DownArrow) _innSelection = (_innSelection + 1) % mageOptionCount;
-            else if (key == ConsoleKey.Enter && _innSelection == 1) { _innMageMenuOpen = false; _innSelection = 0; }
-            else if (key == ConsoleKey.Enter && _innSelection == 4) { _innVendor = null; _innMageMenuOpen = false; _innSelection = 0; }
+            else if (key == ConsoleKey.Enter && _innSelection == 1) { _innMageMenuOpen = false; _innSelection = 0; _innVendorStatus = GuestVendorDefaultStatus(vendor.Kind, _innMarketMode); }
+            else if (key == ConsoleKey.Enter && _innSelection == 4) { _innVendor = null; _innMageMenuOpen = false; _innSelection = 0; _innVendorStatus = string.Empty; }
             else if (key == ConsoleKey.Enter) SetMessage(_innSelection switch
             {
                 0 => "A pálcatöltést csak a party leader intézheti.",
@@ -986,12 +989,13 @@ public sealed class CoopGuestScreen
             return null;
         }
         if (key == ConsoleKey.Escape)
-        { _innVendor = null; _innSelection = 0; Interlocked.Exchange(ref _redrawRequested, 1); return null; }
+        { _innVendor = null; _innSelection = 0; _innVendorStatus = string.Empty; Interlocked.Exchange(ref _redrawRequested, 1); return null; }
         if (vendor.Kind == InnVendorKind.Market &&
             key is ConsoleKey.LeftArrow or ConsoleKey.RightArrow)
         {
             _innMarketMode = _innMarketMode == InnMarketMode.Buy ? InnMarketMode.Sell : InnMarketMode.Buy;
             _innSelection = 0;
+            _innVendorStatus = GuestVendorDefaultStatus(vendor.Kind, _innMarketMode);
             Interlocked.Exchange(ref _redrawRequested, 1);
             return null;
         }
@@ -1014,12 +1018,12 @@ public sealed class CoopGuestScreen
             if (_innMarketMode == InnMarketMode.Sell && vendor.Kind == InnVendorKind.Market)
             {
                 var saleOffer = sellOffers[_innSelection];
-                SetMessage($"Eladás: {saleOffer.Slot.Item!.Name}…", ConsoleColor.Cyan);
+                _innVendorStatus = $"Eladás: {saleOffer.Slot.Item!.Name}…";
                 return new InnSaleCommand(client.PlayerId!.Value, client.NextCommandId(), characterId,
                     inn.Revision, own!.Inventory!.Revision, saleOffer.Slot.Index);
             }
             var purchaseOffer = vendor.Offers[_innSelection];
-            SetMessage($"Vásárlás: {purchaseOffer.Item.Name}…", ConsoleColor.Cyan);
+            _innVendorStatus = $"Vásárlás: {purchaseOffer.Item.Name}…";
             return new InnPurchaseCommand(client.PlayerId!.Value, client.NextCommandId(), characterId,
                 inn.Revision, vendor.Kind, purchaseOffer.Index);
         }
@@ -1468,7 +1472,10 @@ public sealed class CoopGuestScreen
         }
         catch (Exception exception) when (exception is InvalidOperationException or TimeoutException)
         {
-            SetMessage(exception.Message);
+            if (snapshot.Phase == GameSessionPhase.Inn && _innVendor is not null)
+                _innVendorStatus = exception.Message;
+            else
+                SetMessage(exception.Message);
         }
     }
 
@@ -1555,15 +1562,11 @@ public sealed class CoopGuestScreen
         foreach (var transaction in inn.Transactions.Where(transaction =>
                      transaction.Sequence > _lastInnTransactionSequence).OrderBy(transaction => transaction.Sequence))
         {
-            var message = transaction.Kind switch
-            {
-                InnTransactionKind.Purchase => $"🏰 {transaction.ActorName} megvette: {transaction.ItemName} " +
-                                               $"({transaction.Price} arany) → {transaction.InventoryOwnerName}",
-                InnTransactionKind.Sale => $"🏰 {transaction.ActorName} eladta: {transaction.ItemName} " +
-                                           $"({transaction.Price} arany) ← {transaction.InventoryOwnerName}",
-                _ => $"🏰 {transaction.ActorName}: {transaction.ItemName}"
-            };
-            SetMessage(message, ConsoleColor.Yellow);
+            var message = ConsoleRenderer.FormatInnTransaction(transaction);
+            if (snapshot.Phase == GameSessionPhase.Inn)
+                _innVendorStatus = message;
+            else
+                SetMessage(message, ConsoleColor.Yellow);
             _lastInnTransactionSequence = transaction.Sequence;
         }
     }
@@ -1676,9 +1679,15 @@ public sealed class CoopGuestScreen
                 };
         }
         if (snapshot.Phase == GameSessionPhase.Inn)
+        {
+            var backdrop = snapshot.Inn is { } inn
+                ? ConsoleBackdropCatalog.ForInn(inn.InnName, inn.MazeLevel)
+                : ConsoleBackdropStyle.Maze;
             for (var y = 0; y < grid.GetLength(1); y++)
                 for (var x = 0; x < grid.GetLength(0); x++)
-                    grid[x, y] = new GuestMapCell(" ", ConsoleColor.Gray, ConsoleColor.Black);
+                    grid[x, y] = new GuestMapCell(ConsoleBackdropCatalog.Glyph(backdrop, x, y).ToString(),
+                        ConsoleColor.DarkGray, ConsoleColor.Black);
+        }
         foreach (var impact in activeSpellImpacts)
             foreach (var position in impact.Cells)
             {
@@ -2091,6 +2100,7 @@ public sealed class CoopGuestScreen
             _innMageMenuOpen = false;
             _innRumorOpen = false;
             _innSelection = 0;
+            _innVendorStatus = string.Empty;
             return;
         }
         if (inn.LevelCompletion is { } completion)
@@ -2141,15 +2151,20 @@ public sealed class CoopGuestScreen
             lines = ConsoleRenderer.BuildInnVendorLines(vendor!, _innMarketMode, displaySellOffers,
                 _innSelection, inn.PartyGold,
                 own?.Inventory?.Slots.Count(slot => slot.Kind == InventorySlotKind.Backpack && slot.Item is null) ?? 0,
-                vendor?.Kind == InnVendorKind.Market && _innMarketMode == InnMarketMode.Sell
-                    ? "Csak a saját hátizsákod tárgyai adhatók el."
-                    : "Válassz a fogadó kínálatából.", inn.InnName).ToList();
+                string.IsNullOrWhiteSpace(_innVendorStatus)
+                    ? GuestVendorDefaultStatus(vendor!.Kind, _innMarketMode)
+                    : _innVendorStatus, inn.InnName).ToList();
         }
         DrawGuestOverlay(grid, lines, ConsoleColor.Magenta,
             _innVendor is null ? ConsoleRenderer.InnMenuFrameWidth : ConsoleRenderer.InnMarketFrameWidth,
             FramedWindow.Inn);
         if (_innRumorOpen) ApplyInnRumorUi(grid, inn);
     }
+
+    private static string GuestVendorDefaultStatus(InnVendorKind vendor, InnMarketMode mode) =>
+        vendor == InnVendorKind.Market && mode == InnMarketMode.Sell
+            ? "Csak a saját hátizsákod tárgyai adhatók el."
+            : "Válassz a fogadó kínálatából.";
 
     private void ApplyInnRumorUi(GuestMapCell[,] grid, InnSnapshot inn)
     {
