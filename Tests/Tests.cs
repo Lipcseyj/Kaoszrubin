@@ -56,7 +56,7 @@ internal static partial class Program
     ("A támadó becsapódás a sebzés előtt az összes lánccélpontot megkapja", SpellImpactTests.ImpactPrecedesDamage),
     ("A terminál méretőre pontosan a teljes játékképernyőt követeli meg", TerminalViewportRequiresCompleteGameScreen),
     ("A fogadói ablakok közös tartománya nem éri el az alsó logmezőt", InnSurfaceStaysAboveMessageLog),
-    ("A közös háttérkatalógus tíz stabil, soronként rajzolható mintát ad", ConsoleBackdropsAreStableAndRowBased),
+    ("A közös háttérkatalógus stabil mintákat és kizárólag sötét színeket ad", ConsoleBackdropsAreStableAndRowBased),
     ("A fogadói közös ablak nem hirdeti feleslegesen az idő megállását", InnSharedWindowUsesContextualBanner),
     ("A host és guest kereskedőablaka ugyanazt a státuszsort használja", InnVendorStatusIsShared),
     ("A guest a megváltozott térképcellákat színes sorfutamokban rajzolja", GuestMapRenderingBatchesChangedCells),

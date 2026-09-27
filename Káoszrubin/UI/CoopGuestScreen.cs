@@ -1681,12 +1681,12 @@ public sealed class CoopGuestScreen
         if (snapshot.Phase == GameSessionPhase.Inn)
         {
             var backdrop = snapshot.Inn is { } inn
-                ? ConsoleBackdropCatalog.ForInn(inn.InnName, inn.MazeLevel)
-                : ConsoleBackdropStyle.Maze;
+                ? ConsoleBackdropCatalog.ForInnSelection(inn.InnName, inn.MazeLevel)
+                : new ConsoleBackdropSelection(ConsoleBackdropStyle.Maze, ConsoleColor.DarkGray);
             for (var y = 0; y < grid.GetLength(1); y++)
                 for (var x = 0; x < grid.GetLength(0); x++)
-                    grid[x, y] = new GuestMapCell(ConsoleBackdropCatalog.Glyph(backdrop, x, y).ToString(),
-                        ConsoleColor.DarkGray, ConsoleColor.Black);
+                    grid[x, y] = new GuestMapCell(ConsoleBackdropCatalog.Glyph(backdrop.Style, x, y).ToString(),
+                        backdrop.Color, ConsoleColor.Black);
         }
         foreach (var impact in activeSpellImpacts)
             foreach (var position in impact.Cells)

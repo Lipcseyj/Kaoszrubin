@@ -14,6 +14,9 @@ internal static partial class Program
     static void ConsoleBackdropsAreStableAndRowBased()
     {
         Assert(ConsoleBackdropCatalog.Styles.Count == 10, "A háttérkatalógus nem tíz mintát tartalmaz.");
+        Assert(ConsoleBackdropCatalog.Colors.Count == 7 &&
+               ConsoleBackdropCatalog.Colors.All(color => color.ToString().StartsWith("Dark", StringComparison.Ordinal)),
+            "A háttérkatalógus nem kizárólag a hét látható sötét konzolszínt tartalmazza.");
         foreach (var style in ConsoleBackdropCatalog.Styles)
         {
             var first = ConsoleBackdropCatalog.BuildRow(style, 7, 173, 4);
@@ -21,9 +24,19 @@ internal static partial class Program
             Assert(first.Length == 173 && first == second,
                 $"A(z) {style} minta nem stabil vagy nem teljes sorban készül el.");
         }
-        Assert(ConsoleBackdropCatalog.ForInn("A Törött Kard", 3) ==
-               ConsoleBackdropCatalog.ForInn("A Törött Kard", 3),
-            "A host és guest számára használt fogadóminta nem determinisztikus.");
+        var firstInnBackdrop = ConsoleBackdropCatalog.ForInnSelection("A Törött Kard", 3);
+        var secondInnBackdrop = ConsoleBackdropCatalog.ForInnSelection("A Törött Kard", 3);
+        Assert(firstInnBackdrop == secondInnBackdrop &&
+               ConsoleBackdropCatalog.Colors.Contains(firstInnBackdrop.Color),
+            "A host és guest számára használt fogadóminta vagy háttérszín nem determinisztikus.");
+
+        for (var sample = 0; sample < 100; sample++)
+        {
+            var randomBackdrop = ConsoleBackdropCatalog.RandomSelection();
+            Assert(ConsoleBackdropCatalog.Styles.Contains(randomBackdrop.Style) &&
+                   ConsoleBackdropCatalog.Colors.Contains(randomBackdrop.Color),
+                "A véletlen háttérválasztás katalóguson kívüli mintát vagy színt adott.");
+        }
     }
 
     static void InnSharedWindowUsesContextualBanner()

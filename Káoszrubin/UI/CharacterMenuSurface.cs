@@ -10,6 +10,7 @@ internal static class CharacterMenuSurface
     private static int _backgroundWidth;
     private static int _backgroundHeight;
     private static ConsoleBackdropStyle _backdropStyle;
+    private static ConsoleColor _backdropColor;
     public static bool IsActive { get; private set; }
 
     public static CharacterMenuFrame Frame
@@ -28,7 +29,9 @@ internal static class CharacterMenuSurface
     public static void Begin()
     {
         IsActive = true;
-        _backdropStyle = ConsoleBackdropCatalog.RandomStyle();
+        var backdrop = ConsoleBackdropCatalog.RandomSelection();
+        _backdropStyle = backdrop.Style;
+        _backdropColor = backdrop.Color;
         DrawBackdrop();
     }
 
@@ -73,7 +76,7 @@ internal static class CharacterMenuSurface
     private static void DrawBackdrop()
     {
         Console.BackgroundColor = ConsoleColor.Black;
-        Console.ForegroundColor = ConsoleColor.DarkGray;
+        Console.ForegroundColor = _backdropColor;
         Console.Clear();
         _backgroundWidth = Console.WindowWidth;
         _backgroundHeight = Console.WindowHeight;

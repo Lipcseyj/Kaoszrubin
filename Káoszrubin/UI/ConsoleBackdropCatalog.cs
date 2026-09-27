@@ -14,23 +14,45 @@ internal enum ConsoleBackdropStyle
     Chain
 }
 
+internal readonly record struct ConsoleBackdropSelection(ConsoleBackdropStyle Style, ConsoleColor Color);
+
 /// <summary>Deterministic, low-contrast console backgrounds shared by menu-like screens.</summary>
 internal static class ConsoleBackdropCatalog
 {
     internal static IReadOnlyList<ConsoleBackdropStyle> Styles { get; } =
         Enum.GetValues<ConsoleBackdropStyle>();
 
+    internal static IReadOnlyList<ConsoleColor> Colors { get; } =
+    [
+        ConsoleColor.DarkBlue,
+        ConsoleColor.DarkGreen,
+        ConsoleColor.DarkCyan,
+        ConsoleColor.DarkRed,
+        ConsoleColor.DarkMagenta,
+        ConsoleColor.DarkYellow,
+        ConsoleColor.DarkGray
+    ];
+
     internal static ConsoleBackdropStyle RandomStyle() =>
         Styles[Random.Shared.Next(Styles.Count)];
 
+    internal static ConsoleBackdropSelection RandomSelection() =>
+        new(Styles[Random.Shared.Next(Styles.Count)], Colors[Random.Shared.Next(Colors.Count)]);
+
     internal static ConsoleBackdropStyle ForInn(string innName, int mazeLevel)
+        => ForInnSelection(innName, mazeLevel).Style;
+
+    internal static ConsoleBackdropSelection ForInnSelection(string innName, int mazeLevel)
     {
         unchecked
         {
             var hash = 17;
             foreach (var character in innName) hash = hash * 31 + character;
             hash = hash * 31 + mazeLevel;
-            return Styles[(hash & int.MaxValue) % Styles.Count];
+            var positiveHash = hash & int.MaxValue;
+            return new ConsoleBackdropSelection(
+                Styles[positiveHash % Styles.Count],
+                Colors[positiveHash / Styles.Count % Colors.Count]);
         }
     }
 

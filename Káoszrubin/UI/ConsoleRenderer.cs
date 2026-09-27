@@ -105,6 +105,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
     private BackgroundContentRestorer? _innWindowBackground;
     private LiveCharacter? _innSurfaceLeader;
     private ConsoleBackdropStyle _innBackdropStyle;
+    private ConsoleColor _innBackdropColor;
     private int _innSurfaceWidth;
     private int _innSurfaceHeight;
     private readonly GameDataCatalog _gameData;
@@ -1083,7 +1084,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
         // Tesztekben vagy a fogadói életcikluson kívül is biztonságos marad: teljes sorokat ír,
         // nem cellánként töröl.
         var region = InnSurfaceRegion.ForViewport(SafeConsoleWindowWidth(), SafeConsoleWindowHeight());
-        SetColors(_innSurfaceLeader is null ? ConsoleColor.Black : ConsoleColor.DarkGray, ConsoleColor.Black);
+        SetColors(_innSurfaceLeader is null ? ConsoleColor.Black : _innBackdropColor, ConsoleColor.Black);
         for (var row = 0; row < region.Height; row++)
         {
             var text = _innSurfaceLeader is null
@@ -1096,7 +1097,9 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
     public void BeginInnSurface(LiveCharacter leader, string innName, int mazeLevel)
     {
         _innSurfaceLeader = leader;
-        _innBackdropStyle = ConsoleBackdropCatalog.ForInn(innName, mazeLevel);
+        var backdrop = ConsoleBackdropCatalog.ForInnSelection(innName, mazeLevel);
+        _innBackdropStyle = backdrop.Style;
+        _innBackdropColor = backdrop.Color;
         RebuildInnSurface();
     }
 
@@ -1126,7 +1129,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
         _innSurfaceWidth = SafeConsoleWindowWidth();
         _innSurfaceHeight = SafeConsoleWindowHeight();
         var region = InnSurfaceRegion.ForViewport(_innSurfaceWidth, _innSurfaceHeight);
-        SetColors(ConsoleColor.DarkGray, ConsoleColor.Black);
+        SetColors(_innBackdropColor, ConsoleColor.Black);
         for (var row = 0; row < region.Height; row++)
         {
             var y = region.Top + row;
