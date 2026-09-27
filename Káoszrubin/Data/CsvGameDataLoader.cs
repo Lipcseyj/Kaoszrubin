@@ -555,7 +555,7 @@ public static class CsvGameDataLoader
                 abilities.Add(new AbilityDefinition(id, name));
                 break;
             case DataSection.Items:
-                items.Add(new MiscItemDefinition(id, name, Cell(cells, 2), RequiredPrice(cells, 3, id),
+                items.Add(new MiscItemDefinition(id, name, Cell(cells, 2), RequiredMiscItemPrice(cells, 3, id),
                     ParseConsumableEffect(cells, 4), Integer(cells, 5) ?? 0, IsYes(cells, 6),
                     PositiveWeight(cells, 7, id, "tárgy")));
                 break;
@@ -814,6 +814,14 @@ public static class CsvGameDataLoader
     private static int RequiredPrice(string[] cells, int index, string id) => Integer(cells, index) is > 0 and var price
         ? price
         : throw new InvalidOperationException($"A(z) '{id}' tárgy ára hiányzik vagy nem pozitív a " + GameDataFileName + " fájlban.");
+
+    private static int RequiredMiscItemPrice(string[] cells, int index, string id)
+    {
+        var price = Integer(cells, index);
+        if (price is > 0 || price == 0 && id is MiscItemIds.RawMeat or MiscItemIds.CookedMeat)
+            return price.Value;
+        throw new InvalidOperationException($"A(z) '{id}' tárgy ára hiányzik vagy nem pozitív a " + GameDataFileName + " fájlban.");
+    }
 
     private static int NonNegativeWeaponPrice(string[] cells, int index, string id) =>
         Integer(cells, index) is >= 0 and var price

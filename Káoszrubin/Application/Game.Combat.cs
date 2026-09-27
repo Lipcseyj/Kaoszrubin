@@ -770,6 +770,9 @@ public sealed partial class Game
                      (character.WaterLevel < 100 || character.CurrentVitality < character.MaximumVitality)
             ? UseHerbalTea(character, item.EffectValue)
             : IsInitiativeDrink(item) ? UseInitiativeDrink(character, item)
+            : string.Equals(item.Id, MiscItemIds.RawMeat, StringComparison.OrdinalIgnoreCase) &&
+              character.FoodLevel < 100
+                ? UseRawMeat(character, item.EffectValue)
             : item.Effect switch
             {
                 ConsumableEffect.Food when character.FoodLevel < 100 => UseFood(character, item.EffectValue),

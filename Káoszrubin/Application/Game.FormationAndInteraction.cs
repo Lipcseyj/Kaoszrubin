@@ -863,6 +863,8 @@ public sealed partial class Game
         bool shareLootWithParty, ICollection<string> messages)
     {
         var enemy = _gameData.GetEnemy(corpse.EnemyDefinitionId);
+        if (RestProvisionService.IsEdibleMonster(enemy.Id))
+            return SearchEdibleBoarCorpse(character, position, shareLootWithParty, messages);
         var rules = _gameData.LootRules;
         var equipmentDefinition = _gameData.GetMonsterLoot(enemy.Id);
         // A #Szörny zsákmány sor a teljes normál zsákmány engedélyezése. A táblából kihagyott
@@ -948,6 +950,30 @@ public sealed partial class Game
         if (foundItems.Count == 0 && messages.All(message => !message.StartsWith(ConsoleRenderer.MoneyIcon, StringComparison.Ordinal)))
             messages.Add("a tetemnél nem találtál zsákmányt");
         return foundGold || foundItems.Count > 0;
+    }
+
+    private bool SearchEdibleBoarCorpse(LiveCharacter character, Position position,
+        bool shareLootWithParty, ICollection<string> messages)
+    {
+        var rawMeat = _gameData.GetItem(MiscItemIds.RawMeat);
+        var quantity = _random.Next(1, 3);
+        var storedByOwner = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var dropped = 0;
+        for (var index = 0; index < quantity; index++)
+        {
+            if (TryStoreSearchedLoot(character, rawMeat, shareLootWithParty, out var owner))
+                storedByOwner[owner] = storedByOwner.GetValueOrDefault(owner) + 1;
+            else
+            {
+                _maze.DropItem(position, rawMeat);
+                dropped++;
+            }
+        }
+        foreach (var (owner, count) in storedByOwner)
+            messages.Add($"{rawMeat.Name}{(count > 1 ? $" ×{count}" : string.Empty)} → {owner} hátizsákja");
+        if (dropped > 0)
+            messages.Add($"{rawMeat.Name}{(dropped > 1 ? $" ×{dropped}" : string.Empty)} a földön maradt (a hátizsákok tele vannak)");
+        return true;
     }
 
     private int AdjustedSearchChance(LiveCharacter character, int baseChance) =>

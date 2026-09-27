@@ -33,6 +33,10 @@ internal static partial class Program
                details.Any(line => line.Text.Contains("HP:", StringComparison.Ordinal)) &&
                details.Any(line => line.Text.Contains("Képességek", StringComparison.Ordinal)),
             "A bestiárium nem kizárólag a legyőzött, feloldható szörnyeket vagy nem a teljes adatlapjukat adja.");
+        var boarEntry = new BestiaryWindow.Entry(catalog.GetEnemy(MonsterIds.Vadkan), 1);
+        Assert(BestiaryWindow.BuildDetails(catalog, boarEntry).Any(line =>
+                line.Text.Contains("ehető", StringComparison.OrdinalIgnoreCase)),
+            "A bestiárium nem jelzi a vadkan ehető tetemét.");
     }
 
     static void RaceTraitsAreLoadedFromData()
@@ -310,6 +314,27 @@ internal static partial class Program
                catalog.GetMonsterLoot("E081") is
                    { CanDropWeapon: false, CanDropArmor: true, CanDropMagicItem: false },
             "A martalóc, káoszlovag vagy élő páncél zsákmányprofilja nem illik a felszereléséhez.");
+
+        var rawMeat = catalog.GetItem(MiscItemIds.RawMeat);
+        var cookedMeat = catalog.GetItem(MiscItemIds.CookedMeat);
+        var hunter = CreateCharacter("Vadász");
+        hunter.ConsumeFood(20);
+        Assert(hunter.AddToBackpack(rawMeat) && hunter.AddToBackpack(rawMeat),
+            "A nyers hús tesztkészlete nem fért el.");
+        var rawResult = RestProvisionService.ConsumeRawMeat(hunter,
+            catalog.GetStatus(CharacterStatusIds.Poisoned), rawMeat.EffectValue);
+        Assert(rawMeat.EffectValue == 15 && hunter.FoodLevel == 95 &&
+               hunter.HasStatus(CharacterStatusIds.Poisoned) && rawResult.Contains("mérgezést", StringComparison.Ordinal),
+            "A nyers hús nem pontosan 15 élelmet és mérgezést ad.");
+        var cookedCount = RestProvisionService.CookRawMeat([hunter], cookedMeat);
+        Assert(RestProvisionService.IsEdibleMonster(MonsterIds.Vadkan) &&
+               !RestProvisionService.IsEdibleMonster(MonsterIds.Goblin) && cookedCount == 2 &&
+               Enumerable.Range(0, LiveCharacter.MaximumBackpackItemCount).Sum(index =>
+                   string.Equals(hunter.GetInventoryItem(InventorySlotKind.Backpack, index)?.Id,
+                       MiscItemIds.CookedMeat, StringComparison.OrdinalIgnoreCase)
+                       ? hunter.GetInventoryItemQuantity(InventorySlotKind.Backpack, index) : 0) == 2 &&
+               RestProvisionService.CookingMessage(cookedCount).Contains("2 adag", StringComparison.Ordinal),
+            "A vadkan ID-kivétele vagy a pihenéskori nyershús-sütés hibás.");
     }
 
     static void NonRecruitableFriendlyNpcShowsUsableActions()
@@ -985,15 +1010,17 @@ internal static partial class Program
         var characterId = CharacterId.New();
         var rest = new PartyRestSnapshot(Guid.NewGuid(), false,
             [new CharacterRestSnapshot(characterId, "Rubin", ConsoleColor.Cyan,
-            7, 12, 28, 35, 20, 20, true, ["🤒 betegség", "🩸 vérzés"])], []);
+            7, 12, 28, 35, 20, 20, true, ["🤒 betegség", "🩸 vérzés"])], [],
+            "🔥 Megsütöttük a nyers húst: 2 adag sült hús készült.");
         var lines = RestSummaryWindow.Build(rest, "❖  Nyomj Entert a folytatáshoz...  ❖");
         Assert(WindowFrameConfiguration.For(FramedWindow.Inn) == WindowFrameStyle.Ruby &&
                lines.Any(line => line.Text.Contains("❤️ Rubin", StringComparison.Ordinal) &&
                                  line.Text.Contains("+7", StringComparison.Ordinal) &&
                                  line.Text.Contains("🔷+12", StringComparison.Ordinal)) &&
                lines.Any(line => line.Text.Contains("🤒 betegség", StringComparison.Ordinal) &&
-                                 line.Text.Contains("🩸 vérzés", StringComparison.Ordinal)),
-            "A közös Ruby pihenési összegzőből hiányzik a HP, manna vagy megszűnt állapot.");
+                                 line.Text.Contains("🩸 vérzés", StringComparison.Ordinal)) &&
+               lines.Any(line => line.Text.Contains("2 adag sült hús", StringComparison.Ordinal)),
+            "A közös Ruby pihenési összegzőből hiányzik a HP, manna, megszűnt állapot vagy sütési üzenet.");
     }
 
     static void GuestItemInspectionKeepsDamageValue()

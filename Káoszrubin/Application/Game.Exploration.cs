@@ -472,8 +472,11 @@ public sealed partial class Game
                 character.UsesMana, cured));
         }
         _dungeonRestState.TryMarkRested(activeAreaId);
+        var cookedMeatCount = RestProvisionService.CookRawMeat(CharacterRoster.Party.Members,
+            _gameData.GetItem(MiscItemIds.CookedMeat));
         PlaySessionSound(SoundEffect.Rest);
-        ShowSynchronizedRest(new PartyRestSnapshot(Guid.NewGuid(), false, restResults, []));
+        ShowSynchronizedRest(new PartyRestSnapshot(Guid.NewGuid(), false, restResults, [],
+            RestProvisionService.CookingMessage(cookedMeatCount)));
         TryLogPartyComments(PartySituationIds.Resting);
         PreparePartySpells();
         foreach (var door in roomDoors) _maze.SetDoorState(door, DoorState.Closed);

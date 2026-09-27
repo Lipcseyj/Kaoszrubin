@@ -269,6 +269,9 @@ public sealed partial class Game
             ? UseHerbalTea(character, item.EffectValue)
             : IsInitiativeDrink(item) && character.IsAlive
                 ? UseInitiativeDrink(character, item)
+            : string.Equals(item.Id, MiscItemIds.RawMeat, StringComparison.OrdinalIgnoreCase) &&
+              character.FoodLevel < 100
+                ? UseRawMeat(character, item.EffectValue)
             : item.Effect switch
             {
                 ConsumableEffect.Food when character.FoodLevel < 100 => UseFood(character, item.EffectValue),
@@ -427,6 +430,10 @@ public sealed partial class Game
         character.RestoreFood(amount);
         return $"élelem +{character.FoodLevel - before}";
     }
+
+    private string UseRawMeat(LiveCharacter character, int amount)
+        => RestProvisionService.ConsumeRawMeat(character,
+            _gameData.GetStatus(CharacterStatusIds.Poisoned), amount);
 
     private static string UseWater(LiveCharacter character, int amount)
     {

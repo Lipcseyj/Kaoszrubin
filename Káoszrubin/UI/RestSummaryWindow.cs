@@ -32,6 +32,12 @@ public static class RestSummaryWindow
                 : "   ✨ Megszűnt állapot: nincs", ConsoleColor.DarkCyan));
         }
 
+        if (!string.IsNullOrWhiteSpace(rest.PreparedFoodMessage))
+        {
+            lines.Add((string.Empty, ConsoleColor.Gray));
+            lines.Add((rest.PreparedFoodMessage, ConsoleColor.DarkYellow));
+        }
+
         lines.Add((string.Empty, ConsoleColor.Gray));
         lines.Add((footer, footerColor));
         return lines;

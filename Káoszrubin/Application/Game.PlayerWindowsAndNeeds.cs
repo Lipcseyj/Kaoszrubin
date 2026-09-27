@@ -304,7 +304,12 @@ public sealed partial class Game
             if (candidates.Length == 0) break;
             var selected = candidates[_random.Next(candidates.Length)];
             if (!character.RemoveOneInventoryItem(InventorySlotKind.Backpack, selected.Index)) break;
-            if (effect == ConsumableEffect.Food) character.RestoreFood(selected.Item.EffectValue);
+            if (effect == ConsumableEffect.Food)
+            {
+                character.RestoreFood(selected.Item.EffectValue);
+                if (string.Equals(selected.Item.Id, MiscItemIds.RawMeat, StringComparison.OrdinalIgnoreCase))
+                    character.AddStatus(_gameData.GetStatus(CharacterStatusIds.Poisoned));
+            }
             else if (string.Equals(selected.Item.Id, MiscItemIds.HerbalTea, StringComparison.OrdinalIgnoreCase))
                 UseHerbalTea(character, selected.Item.EffectValue);
             else if (IsInitiativeDrink(selected.Item)) UseInitiativeDrink(character, selected.Item);

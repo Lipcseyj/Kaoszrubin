@@ -85,6 +85,8 @@ public static class BestiaryWindow
         if (enemy.HasTrait(EnemyTraits.Undead)) traits.Add("élőholt");
         if (enemy.HasTrait(EnemyTraits.Demonic)) traits.Add("démoni");
         if (enemy.HasTrait(EnemyTraits.Flying)) traits.Add("repülő");
+        if (RestProvisionService.IsEdibleMonster(enemy.Id))
+            traits.Add("ehető — a teteméből 1–2 nyers hús nyerhető");
         var weapons = (enemy.Weapons ?? []).Select(weapon => weapon.Name).Distinct().ToArray();
         var lines = new List<Line>
         {

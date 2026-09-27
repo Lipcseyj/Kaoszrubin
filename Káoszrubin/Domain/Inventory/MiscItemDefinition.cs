@@ -38,6 +38,8 @@ public static class MiscItemIds
     public const string RepairKit = "T028";
     public const string Arrow = AmmunitionIds.Arrow;
     public const string CrossbowBolt = AmmunitionIds.CrossbowBolt;
+    public const string RawMeat = "T031";
+    public const string CookedMeat = "T032";
 }
 
 public static class QuestItemIds

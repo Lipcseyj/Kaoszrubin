@@ -456,8 +456,11 @@ internal sealed class InnController
                 character.CurrentVitality, character.MaximumVitality, character.CurrentMana, character.MaximumMana,
                 character.UsesMana, []));
         }
+        var cookedMeatCount = RestProvisionService.CookRawMeat(_characterRoster.Party.Members,
+            _gameData.GetItem(MiscItemIds.CookedMeat));
         _hasRestedAtInn = true;
-        _reportRest(new PartyRestSnapshot(Guid.NewGuid(), true, summaries, []));
+        _reportRest(new PartyRestSnapshot(Guid.NewGuid(), true, summaries, [],
+            RestProvisionService.CookingMessage(cookedMeatCount)));
         _playGlobalSound(SoundEffect.Rest);
         _preparePartySpells();
     }
