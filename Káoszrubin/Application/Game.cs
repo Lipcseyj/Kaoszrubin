@@ -23,6 +23,13 @@ public sealed record NpcQuestUiEntry(string Title, QuestState State, int Progres
 /// <summary>A játék futását és felhasználói bemenetét koordinálja.</summary>
 public sealed partial class Game : ISessionCommandHandler
 {
+    private sealed class HostSpellSelectorState(IReadOnlyList<LiveCharacter> casters, int casterIndex, bool inCombat)
+    {
+        public IReadOnlyList<LiveCharacter> Casters { get; } = casters;
+        public int CasterIndex { get; set; } = casterIndex;
+        public int SelectedIndex { get; set; }
+        public bool InCombat { get; } = inCombat;
+    }
     private sealed record WaitingDismissedCompanion(LiveCharacter Character, int InnVisitsRemaining);
     private enum PartyMemberDismissalChoice { Cancel, Permanent, WaitForParty }
 
@@ -116,6 +123,7 @@ public sealed partial class Game : ISessionCommandHandler
     private bool _battleStarted;
     private bool _gameOver;
     private bool _characterSheetFocused;
+    private HostSpellSelectorState? _hostSpellSelector;
     private Guid? _hostSpellInfoWindowId;
     private HeldInventoryItem? _heldInventoryItem;
     private DateTime _nextNeedsDrain;

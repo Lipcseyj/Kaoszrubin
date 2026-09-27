@@ -162,12 +162,9 @@ public sealed partial class Game
         int? castingItemSlotIndex = null;
         if (key.Key == ConsoleKey.V && allowed.Contains(BattleActionKind.CastSpell))
         {
-            var selection = _renderer.DrawSpellCastingScreen([character], 0, inCombat: true, _maze, _fogOfWar,
-                _ => GetCasterPosition(character), () => { });
-            _renderer.RestoreSpellCastingOverlay();
-            spell = selection?.Spell;
-            castingItem = selection?.CastingItem;
-            castingItemSlotIndex = selection?.CastingItemSlotIndex;
+            _hostSpellSelector = new HostSpellSelectorState([character], 0, inCombat: true);
+            DrawHostSpellSelector();
+            return;
         }
         else if (TryGetQuickSpellIndex(key, out var slotIndex) && allowed.Contains(BattleActionKind.CastSpell))
             spell = character.QuickSpells[slotIndex];
@@ -187,6 +184,28 @@ public sealed partial class Game
             : null;
         SubmitLocalBattleCommand(BattleActionKind.CastSpell, spell.Id, castingItemSlotIndex,
             targetPosition, spellTargetEnemyId);
+    }
+
+    private void CompleteBattleSpellSelection(SpellCastSelection selection)
+    {
+        if (_activeBattle is not { } battle || battle.CurrentCharacter != selection.Caster) return;
+        var enemy = battle.SelectedTargetEnemy() ?? ClosestLivingEnemy(battle, GetCasterPosition(selection.Caster));
+        var validation = ValidateSpellCast(selection.Caster, GetCasterPosition(selection.Caster), selection.Spell,
+            inCombat: true, enemy, selection.CastingItem, selection.CastingItemSlotIndex);
+        if (validation is not null)
+        {
+            _renderer.DrawInventoryMessage(validation.Message, ConsoleColor.Red);
+            return;
+        }
+        var targetPosition = SelectSpellTarget(selection.Caster, GetCasterPosition(selection.Caster),
+            selection.Spell, enemy);
+        if (targetPosition is null) return;
+        var spellTargetEnemyId = selection.Spell.TargetType == SpellTargetType.Enemy
+            ? battle.Enemies.FirstOrDefault(candidate => candidate.CurrentHitPoints > 0 &&
+                candidate.Position == targetPosition.Value)?.Id
+            : null;
+        SubmitLocalBattleCommand(BattleActionKind.CastSpell, selection.Spell.Id,
+            selection.CastingItemSlotIndex, targetPosition, spellTargetEnemyId);
     }
 
     private BattleItemOptionSnapshot? SelectBattleItem(BattleEncounter battle,

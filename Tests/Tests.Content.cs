@@ -853,6 +853,24 @@ internal static partial class Program
                selectorLines.Any(line => line.Text.Contains("[F1] L2", StringComparison.Ordinal) &&
                                          line.Color == ConsoleColor.DarkRed),
             "A közös varázslatválasztó elvesztette a harci címet, gyorshelyet vagy mannafigyelmeztetést.");
+
+        var manySpells = Enumerable.Range(1, 20)
+            .Select(index => new SpellSelectorOption($"Varázslat {index}", 1, index,
+                SpellTargetType.Enemy, "--", true)).ToArray();
+        var scrolledLines = SpellSelectorWindow.Build("Rubin", 99, 99, false, manySpells, 10, 5);
+        Assert(scrolledLines.Count == 4 + SpellSelectorWindow.PageSize + 1 &&
+               scrolledLines.Any(line => line.Text.Contains("6–17 / 20", StringComparison.Ordinal)),
+            "A varázsválasztó nem tartja be a maximális magasságát vagy nem jelzi a görgetett tartományt.");
+        var frameHeight = scrolledLines.Count + 2;
+        var normalPlacement = SpellSelectorWindow.Place(ConsoleRenderer.PlayfieldWidth,
+            ConsoleRenderer.PlayfieldHeight, frameHeight, new Position(1, 1));
+        var avoidingPlacement = SpellSelectorWindow.Place(ConsoleRenderer.PlayfieldWidth,
+            ConsoleRenderer.PlayfieldHeight, frameHeight, new Position(50, 15));
+        var leaderCovered = 50 >= avoidingPlacement.X &&
+                            50 < avoidingPlacement.X + SpellSelectorWindow.Width &&
+                            15 >= avoidingPlacement.Y && 15 < avoidingPlacement.Y + frameHeight;
+        Assert(normalPlacement.X > 2 && avoidingPlacement != normalPlacement && !leaderCovered,
+            "A varázsválasztó nem középen jelenik meg, vagy nem tér ki egy biztonságos sarokba a csapatvezető elől.");
     }
 
     static void SpellTargetingExplainsInvalidTargets()

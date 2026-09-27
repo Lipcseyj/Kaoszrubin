@@ -189,6 +189,29 @@ public static class SpellSelectorWindow
     public const int Width = 76;
     public const int PageSize = 12;
 
+    public static Position Place(int playfieldWidth, int playfieldHeight, int frameHeight,
+        Position protectedPosition)
+    {
+        var centered = new Position(Math.Max(0, (playfieldWidth - Width) / 2),
+            Math.Max(1, (playfieldHeight - frameHeight) / 2));
+        if (!Contains(centered, frameHeight, protectedPosition)) return centered;
+
+        var candidates = new[]
+        {
+            new Position(2, 2),
+            new Position(Math.Max(0, playfieldWidth - Width - 2), 2),
+            new Position(2, Math.Max(1, playfieldHeight - frameHeight - 1)),
+            new Position(Math.Max(0, playfieldWidth - Width - 2),
+                Math.Max(1, playfieldHeight - frameHeight - 1))
+        };
+        return candidates.FirstOrDefault(candidate => !Contains(candidate, frameHeight, protectedPosition),
+            candidates[0]);
+    }
+
+    private static bool Contains(Position origin, int frameHeight, Position position) =>
+        position.X >= origin.X && position.X < origin.X + Width &&
+        position.Y >= origin.Y && position.Y < origin.Y + frameHeight;
+
     public static IReadOnlyList<(string Text, ConsoleColor Color)> Build(string characterName, int currentMana,
         int maximumMana, bool inCombat, IReadOnlyList<SpellSelectorOption> options, int selectedIndex,
         int firstVisibleIndex, int casterIndex = 0, int casterCount = 1)

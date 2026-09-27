@@ -55,11 +55,7 @@ public sealed partial class Game
 
     private void BeginExplorationSpellCasting(SpellDefinition? quickSpell = null)
     {
-        var spell = quickSpell;
-        MagicItemDefinition? castingItem = null;
-        int? castingItemSlotIndex = null;
-        var caster = PartyLeader;
-        if (spell is null)
+        if (quickSpell is null)
         {
             var casters = GetSpellcastingPartyMembers();
             if (casters.Count == 0)
@@ -68,22 +64,94 @@ public sealed partial class Game
                 return;
             }
             var startIndex = Math.Max(0, casters.IndexOf(PartyLeader));
-            var selection = _renderer.DrawSpellCastingScreen(casters, startIndex, inCombat: false, _maze, _fogOfWar,
-                GetCasterPosition, ShowInGameHelp);
-            _renderer.RestoreSpellCastingOverlay();
-            if (selection is null) return;
-            spell = selection.Spell;
-            caster = selection.Caster;
-            castingItem = selection.CastingItem;
-            castingItemSlotIndex = selection.CastingItemSlotIndex;
+            _hostSpellSelector = new HostSpellSelectorState(casters, startIndex, inCombat: false);
+            DrawHostSpellSelector();
+            return;
         }
-        var result = TryCastSpell(caster, GetCasterPosition(caster), spell, inCombat: false,
-            currentEnemy: null, castingItem: castingItem, castingItemSlotIndex: castingItemSlotIndex);
+        CompleteExplorationSpellSelection(new SpellCastSelection(quickSpell, PartyLeader));
+    }
+
+    private void CompleteExplorationSpellSelection(SpellCastSelection selection)
+    {
+        var result = TryCastSpell(selection.Caster, GetCasterPosition(selection.Caster), selection.Spell,
+            inCombat: false, currentEnemy: null, castingItem: selection.CastingItem,
+            castingItemSlotIndex: selection.CastingItemSlotIndex);
         if (result is not null)
         {
             _renderer.CharacterSheet.RefreshBattleStatusRows();
             _renderer.DrawInventoryMessage(result.Message, result.Kind == BattleLogKind.Information ? ConsoleColor.Red : ConsoleColor.Magenta);
         }
+    }
+
+    private void DrawHostSpellSelector()
+    {
+        if (_hostSpellSelector is not { } state) return;
+        _renderer.DrawNonBlockingSpellSelector(state.Casters, state.CasterIndex, state.InCombat,
+            state.SelectedIndex, _maze, _fogOfWar, _player.Position);
+    }
+
+    private void SynchronizeHostSpellSelector()
+    {
+        if (_hostSpellSelector is not { InCombat: true } state) return;
+        if (_activeBattle is not null && _activeBattle.CurrentCharacter == state.Casters[state.CasterIndex]) return;
+        CloseHostSpellSelector();
+    }
+
+    private void CloseHostSpellSelector()
+    {
+        if (_hostSpellSelector is null) return;
+        _hostSpellSelector = null;
+        _renderer.RestoreSpellCastingOverlay();
+        _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
+    }
+
+    private void HandleHostSpellSelectorInput(ConsoleKeyInfo key)
+    {
+        if (_hostSpellSelector is not { } state) return;
+        if (IsHelpShortcut(key))
+        {
+            _renderer.RestoreSpellCastingOverlay();
+            ShowInGameHelp();
+            _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
+            DrawHostSpellSelector();
+            return;
+        }
+        var character = state.Casters[state.CasterIndex];
+        var choices = _renderer.SpellCastingChoices(character, state.InCombat);
+        state.SelectedIndex = choices.Count == 0 ? 0 : Math.Clamp(state.SelectedIndex, 0, choices.Count - 1);
+        switch (key.Key)
+        {
+            case ConsoleKey.Escape:
+            case ConsoleKey.V:
+                CloseHostSpellSelector();
+                return;
+            case ConsoleKey.UpArrow when choices.Count > 0:
+                state.SelectedIndex = (state.SelectedIndex - 1 + choices.Count) % choices.Count;
+                break;
+            case ConsoleKey.DownArrow when choices.Count > 0:
+                state.SelectedIndex = (state.SelectedIndex + 1) % choices.Count;
+                break;
+            case ConsoleKey.LeftArrow when state.Casters.Count > 1:
+                _renderer.RestoreSpellCastingOverlay();
+                _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
+                state.CasterIndex = (state.CasterIndex - 1 + state.Casters.Count) % state.Casters.Count;
+                state.SelectedIndex = 0;
+                break;
+            case ConsoleKey.RightArrow when state.Casters.Count > 1:
+                _renderer.RestoreSpellCastingOverlay();
+                _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
+                state.CasterIndex = (state.CasterIndex + 1) % state.Casters.Count;
+                state.SelectedIndex = 0;
+                break;
+            case ConsoleKey.Enter when choices.Count > 0:
+                var selection = choices[state.SelectedIndex];
+                var inCombat = state.InCombat;
+                CloseHostSpellSelector();
+                if (inCombat) CompleteBattleSpellSelection(selection);
+                else CompleteExplorationSpellSelection(selection);
+                return;
+        }
+        DrawHostSpellSelector();
     }
 
     private List<LiveCharacter> GetSpellcastingPartyMembers() => CharacterRoster.Party.Members

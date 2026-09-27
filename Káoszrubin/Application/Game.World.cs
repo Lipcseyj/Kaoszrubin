@@ -402,13 +402,20 @@ public sealed partial class Game
                 if (TerminalViewport.TryGetSize(out var currentViewport) && currentViewport != previousViewport)
                 {
                     previousViewport = currentViewport;
+                    if (_hostSpellSelector is not null) _renderer.RestoreSpellCastingOverlay();
                     _renderer.DrawInitialState(_maze, _player, _fogOfWar, _difficultyLevel);
                     _renderer.CharacterSheet.SetCharacterSheetFocused(_characterSheetFocused);
+                    if (_hostSpellSelector is not null) DrawHostSpellSelector();
                 }
                 _renderer.UpdateSpellImpacts(_maze, _fogOfWar, _player.Position);
                 if (Console.KeyAvailable)
                 {
                     var keyInfo = Console.ReadKey(intercept: true);
+                    if (_hostSpellSelector is not null)
+                    {
+                        HandleHostSpellSelectorInput(keyInfo);
+                        continue;
+                    }
                     if (_activeBattle is not null && !_isQuickBattle &&
                         GameInputBindings.BattleDetailsPageDirection(keyInfo) is var detailDirection && detailDirection != 0)
                     {
@@ -609,6 +616,8 @@ public sealed partial class Game
 
                 _renderer.UpdateIlluminatedWalls(_maze, _fogOfWar, _player.Position,
                     CurrentIlluminatedWallPositions());
+
+                SynchronizeHostSpellSelector();
 
                 TryPublishScheduledCoopSnapshot(now);
 

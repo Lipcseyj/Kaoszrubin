@@ -2023,12 +2023,63 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
         _spellCastingOverlaySnapshot = null;
     }
 
+    public IReadOnlyList<SpellCastSelection> SpellCastingChoices(LiveCharacter character, bool inCombat) =>
+        character.MemorizedSpells
+            .Where(spell => !spell.EnemyOnly && (inCombat ? spell.CanUseInCombat : spell.CanUseDuringExploration))
+            .Select(spell => new SpellCastSelection(spell, character))
+            .Concat(character.MagicItems.Select((item, index) => (Item: item, Index: index))
+                .Where(entry => entry.Item?.Kind is MagicItemKind.Scroll or MagicItemKind.Wand &&
+                    entry.Item.SpellId is not null && character.MagicItemCharges[entry.Index] > 0)
+                .Select(entry => new SpellCastSelection(_gameData.GetSpell(entry.Item!.SpellId!), character,
+                    entry.Item, entry.Index))
+                .Where(entry => !entry.Spell.EnemyOnly)
+                .Where(entry => SpellcastingRules.CanUseCastingItem(character, entry.CastingItem!, entry.Spell))
+                .Where(entry => inCombat ? entry.Spell.CanUseInCombat : entry.Spell.CanUseDuringExploration))
+            .OrderBy(entry => entry.Spell.Level).ThenBy(entry => entry.Spell.Name)
+            .ThenBy(entry => entry.CastingItem is not null).ToArray();
+
+    public void DrawNonBlockingSpellSelector(IReadOnlyList<LiveCharacter> casters, int casterIndex, bool inCombat,
+        int selectedIndex, Maze maze, FogOfWar fogOfWar, Position leaderPosition)
+    {
+        var character = casters[casterIndex];
+        var choices = SpellCastingChoices(character, inCombat);
+        selectedIndex = choices.Count == 0 ? 0 : Math.Clamp(selectedIndex, 0, choices.Count - 1);
+        var firstVisibleIndex = choices.Count == 0 ? 0 : Math.Clamp(
+            selectedIndex - SpellSelectorWindow.PageSize / FrameBorderWidth, 0,
+            Math.Max(0, choices.Count - SpellSelectorWindow.PageSize));
+        var projected = choices.Select(choice =>
+        {
+            var quickIndex = character.QuickSpells.ToList().FindIndex(candidate =>
+                string.Equals(candidate?.Id, choice.Spell.Id, StringComparison.OrdinalIgnoreCase));
+            var quick = choice.CastingItem?.Kind switch
+            {
+                MagicItemKind.Scroll => "📜",
+                MagicItemKind.Wand => $"{WandIcon}{character.MagicItemCharges[choice.CastingItemSlotIndex!.Value]}",
+                _ => quickIndex >= 0 ? $"F{quickIndex + 1}" : "--"
+            };
+            var manaCost = choice.CastingItem is null
+                ? SpellcastingRules.EffectiveManaCost(character, choice.Spell)
+                : 0;
+            return new SpellSelectorOption(choice.Spell.Name, choice.Spell.Level, manaCost,
+                choice.Spell.TargetType, quick, character.CurrentMana >= manaCost);
+        }).ToArray();
+        var lines = SpellSelectorWindow.Build(character.Name, character.CurrentMana, character.MaximumMana,
+            inCombat, projected, selectedIndex, firstVisibleIndex, casterIndex, casters.Count);
+        DrawSpellCastingOverlay(SpellSelectorWindow.Width, lines, maze, fogOfWar, leaderPosition,
+            FramedWindow.SpellSelector, leaderPosition);
+    }
+
     private void DrawSpellCastingOverlay(int frameWidth, IReadOnlyList<(string Text, ConsoleColor Color)> lines,
-        Maze maze, FogOfWar fogOfWar, Position playerPosition, FramedWindow? framedWindow = null)
+        Maze maze, FogOfWar fogOfWar, Position playerPosition, FramedWindow? framedWindow = null,
+        Position? avoidPosition = null)
     {
         var frameHeight = lines.Count + FrameBorderWidth;
-        var left = Math.Max(0, (PlayfieldWidth - frameWidth) / FrameBorderWidth);
-        var top = Math.Max(MinimumCenteredFrameTop, (PlayfieldHeight - frameHeight) / FrameBorderWidth);
+        var placement = avoidPosition is { } protectedPosition && frameWidth == SpellSelectorWindow.Width
+            ? SpellSelectorWindow.Place(PlayfieldWidth, PlayfieldHeight, frameHeight, protectedPosition)
+            : new Position(Math.Max(0, (PlayfieldWidth - frameWidth) / FrameBorderWidth),
+                Math.Max(MinimumCenteredFrameTop, (PlayfieldHeight - frameHeight) / FrameBorderWidth));
+        var left = placement.X;
+        var top = placement.Y;
         if (_spellCastingOverlaySnapshot is null)
         {
             _spellCastingOverlaySnapshot = [];
