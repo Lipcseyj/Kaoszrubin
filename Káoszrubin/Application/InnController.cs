@@ -176,6 +176,7 @@ internal sealed class InnController
         InnVendorKind.BlacksmithRepair => "Kovácsmester javítóműhelye",
         InnVendorKind.ArmorerRepair => "Páncélmíves javítóműhelye",
         InnVendorKind.WanderingMage => "Vándormágus portéka",
+        InnVendorKind.Bowyer => "Íjkészítő mester",
         _ => vendor.ToString()
     };
 
@@ -235,17 +236,20 @@ internal sealed class InnController
         var blacksmithPresent = _random.Next(2) == 0;
         var armorerPresent = _random.Next(2) == 0;
         var wanderingMagePresent = _random.Next(100) < 30;
+        var bowyerPresent = _random.Next(2) == 0;
         var blacksmithStock = blacksmithPresent ? CreateSpecialistStock(completedLevel, ItemCategory.Weapon) : [];
         var armorerStock = armorerPresent ? CreateSpecialistStock(completedLevel, ItemCategory.Armor) : [];
         if (blacksmithPresent) AddRepairKitStock(blacksmithStock, completedLevel);
         if (armorerPresent) AddRepairKitStock(armorerStock, completedLevel);
         var wanderingMageStock = wanderingMagePresent ? CreateWanderingMageStock() : [];
+        var bowyerStock = bowyerPresent ? CreateBowyerStock(completedLevel) : [];
         _vendorStocks.Clear();
         _vendorStocks[InnVendorKind.Market] = CreateMerchantStock(completedLevel).ToList();
         _vendorStocks[InnVendorKind.Witcher] = CreateWitcherStock(completedLevel).ToList();
         if (blacksmithPresent) _vendorStocks[InnVendorKind.Blacksmith] = blacksmithStock;
         if (armorerPresent) _vendorStocks[InnVendorKind.Armorer] = armorerStock;
         if (wanderingMagePresent) _vendorStocks[InnVendorKind.WanderingMage] = wanderingMageStock;
+        if (bowyerPresent) _vendorStocks[InnVendorKind.Bowyer] = bowyerStock;
         _buybackPrices.Clear();
         foreach (var item in AllTradableItems())
             _buybackPrices[item.Id] = Math.Max(1, item.BasePrice * _random.Next(40, 71) / 100);
@@ -298,6 +302,7 @@ internal sealed class InnController
         if (blacksmithPresent) presentVisitors.Add("a Kovácsmester");
         if (armorerPresent) presentVisitors.Add("a Páncélmíves");
         if (wanderingMagePresent) presentVisitors.Add("a Vándormágus");
+        if (bowyerPresent) presentVisitors.Add("az Íjkészítő mester");
         _artisanNotice = presentVisitors.Count == 0
             ? "A fogadós jelzi: ma egyik vándormester sincs jelen."
             : $"A fogadós jelzi: ma {HungarianList(presentVisitors)} van jelen.";
@@ -320,6 +325,7 @@ internal sealed class InnController
             options.Add(new InnMenuOptionSnapshot(InnMenuOptionKind.ArmorerRepair, $"{ConsoleRenderer.ArmorRepairIcon} Páncéljavítás", "A Páncélmíves teljesen helyreállítja a parti sérült vértezeteit.", InnVendorKind.ArmorerRepair));
         }
         if (wanderingMagePresent) options.Add(new(InnMenuOptionKind.WanderingMage, "🧙 Vándormágus", "Varázspálcák feltöltése, különleges portéka, azonosítás és tárgyátkok megtörése.", InnVendorKind.WanderingMage));
+        if (bowyerPresent) options.Add(new(InnMenuOptionKind.Bowyer, "🏹 Íjkészítő mester", "Íjak, íjpuskák, nyilak és íjpuskalövedékek, csak vásárlásra.", InnVendorKind.Bowyer));
         options.Add(new(InnMenuOptionKind.Recruit, "⚔️ Zsoldosok toborzása", "Új partitagok felfogadása.", LeaderOnly: true));
         options.Add(new(InnMenuOptionKind.Retraining, "🏛️ Veterán kiképző",
             "Osztályképességek, taktikai diszciplínák vagy fegyverjártasságok fizetős újraosztása.",
@@ -388,6 +394,8 @@ internal sealed class InnController
                     case InnMenuOptionKind.ArmorerRepair: RunRepairMarket(InnVendorKind.ArmorerRepair); break;
                     case InnMenuOptionKind.WanderingMage: RunWanderingMage(
                         _vendorStocks.GetValueOrDefault(InnVendorKind.WanderingMage) ?? []); break;
+                    case InnMenuOptionKind.Bowyer: RunSpecialistMarket("🏹 ÍJKÉSZÍTŐ MESTER",
+                        _vendorStocks.GetValueOrDefault(InnVendorKind.Bowyer) ?? []); break;
                     case InnMenuOptionKind.Recruit: RunInnRecruitment(); break;
                     case InnMenuOptionKind.Retraining: RunInnRetraining(); break;
                     case InnMenuOptionKind.Feast: RunInnFeast(completedLevel); break;
@@ -607,7 +615,6 @@ internal sealed class InnController
     {
         var stock = CreateMerchantStock(completedLevel, completedLevel, 1.0, includePremiumStock: true,
             includeRandomLegendary: true, includePremiumSupplies: false).ToList();
-        AddRangedGeneralStock(stock, completedLevel);
         return stock.OrderBy(offer => offer.Price).ToList();
     }
 
@@ -757,9 +764,11 @@ internal sealed class InnController
     {
         var specialPool = completedLevel <= 5
             ? AllTradableItems().Where(item => item.Rarity == ItemRarity.Magic && item.MagicPower == 3 &&
+                    !IsDedicatedRangedStockItem(item) &&
                     item.Category is ItemCategory.Weapon or ItemCategory.Armor)
                 .OrderBy(item => item.BasePrice).Take(12).ToList()
-            : AllTradableItems().Where(item => item.Rarity == ItemRarity.Legendary)
+            : AllTradableItems().Where(item => item.Rarity == ItemRarity.Legendary &&
+                    !IsDedicatedRangedStockItem(item))
                 .OrderBy(item => item.BasePrice).Take(Math.Min(12, Math.Max(4, secretLevel * 2))).ToList();
         if (specialPool.Count == 0) return;
         if (stock.Count > 0) stock.Remove(stock.OrderBy(offer => offer.Price).First());
@@ -796,25 +805,32 @@ internal sealed class InnController
         return new InnStockOffer(item, price, Math.Max(1, quantity));
     }
 
-    private void AddRangedGeneralStock(ICollection<InnStockOffer> stock, int completedLevel)
+    internal List<InnStockOffer> CreateBowyerStock(int completedLevel)
     {
+        var stock = new List<InnStockOffer>();
         foreach (var ammunitionId in new[] { AmmunitionIds.Arrow, AmmunitionIds.CrossbowBolt })
         {
             var ammunition = _gameData.Items.FirstOrDefault(item => string.Equals(item.Id, ammunitionId,
                 StringComparison.OrdinalIgnoreCase));
-            if (ammunition is not null)
+            if (ammunition is null) continue;
+            var bundleCount = _random.Next(5, 13);
+            for (var index = 0; index < bundleCount; index++)
                 stock.Add(CreateMerchantStockOffer(ammunition, 1.0, completedLevel, AmmunitionBundleSize));
         }
 
-        foreach (var family in new[] { WeaponFamilies.Bow, WeaponFamilies.Crossbow })
-        {
-            var current = UnlockedRangedWeapons(completedLevel)
-                .Where(weapon => WeaponFamilies.ForWeapon(weapon) == family)
-                .OrderByDescending(weapon =>
-                    _gameData.CharacterGenerationEquipmentByItemId[weapon.Id].MinimumLevel)
-                .ThenByDescending(weapon => weapon.BasePrice).FirstOrDefault();
-            if (current is not null) stock.Add(CreateMerchantStockOffer(current, 1.0, completedLevel));
-        }
+        var unlocked = UnlockedRangedWeapons(completedLevel).ToList();
+        foreach (var weapon in unlocked.Where(weapon => weapon.Rarity == ItemRarity.Normal))
+            stock.Add(CreateMerchantStockOffer(weapon, 1.0, completedLevel));
+
+        var magicPower = completedLevel switch { >= 12 => 3, >= 8 => 2, >= 4 => 1, _ => 0 };
+        var magicCount = completedLevel switch { >= 15 => 4, >= 10 => 3, >= 5 => 2, >= 4 => 1, _ => 0 };
+        var magicPool = unlocked.Where(weapon => weapon.Rarity == ItemRarity.Magic &&
+                weapon.MagicPower == magicPower)
+            .OrderBy(_ => _random.Next()).ToList();
+        foreach (var weapon in magicPool.Take(magicCount))
+            stock.Add(CreateMerchantStockOffer(weapon, 1.0, completedLevel));
+
+        return stock.OrderBy(offer => offer.Price).ToList();
     }
 
     private static bool CanFitOffer(LiveCharacter character, InnStockOffer offer) =>
@@ -1169,7 +1185,7 @@ internal sealed class InnController
     private IEnumerable<WeaponDefinition> UnlockedRangedWeapons(int completedLevel) => _gameData.Weapons
         .Where(weapon => weapon is { IsRanged: true, IsMonsterOnly: false } &&
             !_gameData.IsTradeExcluded(weapon.Id) &&
-            _gameData.CharacterGenerationEquipmentByItemId.TryGetValue(weapon.Id, out var rule) &&
+            _gameData.CharacterGenerationEquipmentByItemId.TryGetValue(weapon.BaseWeaponId ?? weapon.Id, out var rule) &&
             rule.MinimumLevel <= completedLevel);
 
     private IReadOnlyList<InnStockOffer> CreateWitcherStock(int completedLevel)
@@ -1311,11 +1327,6 @@ internal sealed class InnController
         var stock = selected.Select(item => new InnStockOffer(item,
                 Math.Max(1, (int)Math.Round(item.BasePrice * _random.Next(90, 151) / 100.0))))
             .OrderBy(offer => offer.Price).ToList();
-        if (category == ItemCategory.Weapon)
-        {
-            foreach (var weapon in UnlockedRangedWeapons(completedLevel))
-                stock.Add(CreateMerchantStockOffer(weapon, 1.0, completedLevel));
-        }
         return stock.OrderBy(offer => offer.Price).ToList();
     }
 

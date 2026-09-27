@@ -86,6 +86,15 @@ internal static partial class Program
             100, 3, status, "A Törött Kard");
         Assert(lines[^2] == (status, ConsoleColor.Magenta),
             "A guest tranzakciója nem ugyanabba a magenta kereskedői státuszsorba kerül, mint a hoston.");
+        Assert(ConsoleRenderer.FormatInnOfferName("nyíl", 12) == "nyíl ×12" &&
+               ConsoleRenderer.FormatInnOfferName("rövidíj", 1) == "rövidíj",
+            "A kijelölés újrarajzolása elveszíti a lőszercsomag darabszámát.");
+
+        var bowyer = new InnVendorSnapshot(InnVendorKind.Bowyer, "Íjkészítő mester", []);
+        var bowyerLines = ConsoleRenderer.BuildInnVendorLines(bowyer, InnMarketMode.Buy, [], 0,
+            100, 3, string.Empty, "A Törött Kard");
+        Assert(bowyerLines[0].Text.Contains("ÍJKÉSZÍTŐ", StringComparison.Ordinal),
+            "A guest nem az Íjkészítő mester saját kereskedőablakát jeleníti meg.");
     }
 
     static void GuestMapRenderingBatchesChangedCells()

@@ -10,7 +10,7 @@ namespace KaoszRubin.Application;
 /// <summary>A hálózati szerződés jelenlegi verziója. Inkompatibilis DTO-változáskor növelendő.</summary>
 public static class SessionProtocol
 {
-    public const int Version = 94;
+    public const int Version = 95;
 }
 
 /// <summary>A host doménállapotától leválasztott, JSON-nal továbbítható teljes session-kép.</summary>
@@ -121,12 +121,12 @@ public sealed record BossPresentationSnapshot(string Name, string Appearance, in
 
 public enum InnVendorKind
 {
-    Market, Witcher, Blacksmith, Armorer, WanderingMage, BlacksmithRepair, ArmorerRepair
+    Market, Witcher, Blacksmith, Armorer, WanderingMage, Bowyer, BlacksmithRepair, ArmorerRepair
 }
 
 public enum InnMenuOptionKind
 {
-    Rest, Market, Witcher, Feast, SecretStash, Blacksmith, Armorer, WanderingMage, Recruit, Rumors,
+    Rest, Market, Witcher, Feast, SecretStash, Blacksmith, Armorer, WanderingMage, Bowyer, Recruit, Rumors,
     Retraining, BlacksmithRepair, ArmorerRepair, ReturnExpedition, Leave
 }
 

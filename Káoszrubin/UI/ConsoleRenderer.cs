@@ -995,6 +995,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
             InnVendorKind.BlacksmithRepair => "🏰🍺  🔧 FEGYVERJAVÍTÁS  ✨",
             InnVendorKind.ArmorerRepair => "🏰🍺  " + ConsoleRenderer.ArmorRepairIcon + " PÁNCÉLJAVÍTÁS  ✨",
             InnVendorKind.WanderingMage => "🏰🍺  🧙 VÁNDORMÁGUS PORTÉKÁI  ✨",
+            InnVendorKind.Bowyer => "🏰🍺  🏹 ÍJKÉSZÍTŐ MESTER  ✨",
             _ => $"🏰🍺  {innName} FOGADÓ KERESKEDŐJE  🛒✨"
         };
         var lines = new List<(string Text, ConsoleColor Color)>
@@ -1025,7 +1026,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
             if (buying)
             {
                 var offer = vendor.Offers[index];
-                var itemName = offer.Item.Name + (offer.Item.Quantity > 1 ? $" ×{offer.Item.Quantity}" : string.Empty);
+                var itemName = FormatInnOfferName(offer.Item.Name, offer.Item.Quantity);
                 lines.Add((usesRepairLayout
                     ? $"{(selected ? "▶" : " ")} {ItemCategoryIcon(offer.Item.Category)} {itemName,-32} javítás {offer.Price,5} {MoneyIcon}"
                     : $"{(selected ? "▶" : " ")} {ItemCategoryIcon(offer.Item.Category)} {itemName,-24} alapár {offer.Item.BasePrice * offer.Item.Quantity,5}   fogadói ár {offer.Price,5} {MoneyIcon}",
@@ -1371,6 +1372,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
         ClearInnMenuScreen();
         var kind = title.Contains("KOVÁCS", StringComparison.OrdinalIgnoreCase) ? InnVendorKind.Blacksmith
             : title.Contains("PÁNCÉL", StringComparison.OrdinalIgnoreCase) ? InnVendorKind.Armorer
+            : title.Contains("ÍJKÉSZÍTŐ", StringComparison.OrdinalIgnoreCase) ? InnVendorKind.Bowyer
             : InnVendorKind.WanderingMage;
         var vendor = new InnVendorSnapshot(kind, title, stock.Select((offer, index) =>
             new InnOfferSnapshot(index, ToInventoryItemSnapshot(offer.Item) with { Quantity = offer.Quantity },
@@ -2830,8 +2832,14 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
         return entryCount == 0 ? 0 : Math.Clamp(selectedIndex - InnMarketPageSize / FrameBorderWidth, 0, Math.Max(0, entryCount - InnMarketPageSize));
     }
 
-    private string InnStockLine(InnStockOffer offer, bool selected) =>
-        $"{(selected ? "▶" : " ")} {ItemCategoryIcon(offer.Item)} {offer.Item.Name,-24} alapár {offer.Item.BasePrice,5}   fogadói ár {offer.Price,5} {MoneyIcon}";
+    internal static string FormatInnOfferName(string name, int quantity) =>
+        name + (quantity > 1 ? $" ×{quantity}" : string.Empty);
+
+    private string InnStockLine(InnStockOffer offer, bool selected)
+    {
+        var itemName = FormatInnOfferName(offer.Item.Name, offer.Quantity);
+        return $"{(selected ? "▶" : " ")} {ItemCategoryIcon(offer.Item)} {itemName,-24} alapár {offer.Item.BasePrice * offer.Quantity,5}   fogadói ár {offer.Price,5} {MoneyIcon}";
+    }
 
     private string InnSellLine(InnSellOffer offer, bool selected)
     {

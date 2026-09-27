@@ -1277,7 +1277,7 @@ public sealed class MainMenu
             ColoredText("🦯 Harci bot — Jártas: +1 védelem, -5% harci varázskudarc | Mester: +2 védelem, -10% harci varázskudarc.", ConsoleColor.Magenta),
             ColoredText("🏹 Íj — Ügyességgel támad, lövésenként egy nyilat használ. Jártas: +1 találat | Mester: közvetlen közelről sincs -3 találati büntetés.", ConsoleColor.Green),
             ColoredText("➶ Íjpuska — Ügyességgel támad, lövésenként egy íjpuskalövedéket használ és típustól függően páncélt tör. Jártas: +1 találat | Mester: közvetlen közelről sincs -3 találati büntetés.", ConsoleColor.DarkYellow),
-            Text("🎯 Távolsági fegyvernél a Harcos állásai Célzott, Páncéltörő és Biztosító lövésként, a Tolvaj megközelítései Rejtett lövésként, Gyengepont-lövésként és Mérgezett lövedékként jelennek meg. A fogadói kereskedő 12-es lőszercsomagokat, a kereskedő és a Kovácsmester pedig szinthez illő távolsági fegyvereket kínál a korábbi készleten felül."),
+            Text("🎯 Távolsági fegyvernél a Harcos állásai Célzott, Páncéltörő és Biztosító lövésként, a Tolvaj megközelítései Rejtett lövésként, Gyengepont-lövésként és Mérgezett lövedékként jelennek meg. A fogadóban időnként megjelenő Íjkészítő mester 12-es nyíl- és íjpuskalövedék-csomagokat, valamint szinthez illő normál és mágikus távolsági fegyvereket kínál."),
             Blank(),
             Text("💥 A többcélú fegyver fő célpontja teljes, mellékcélpontjai alapból 75% sebzést kapnak. A bárd ívben, a szálfegyver egyenes vonalban, a kétkezes zúzófegyver kis összefüggő területen hat. Bárdmester, dühöngő barbár vagy Erőteljes állású harcos teljes söprési sebzést okoz.")
         };

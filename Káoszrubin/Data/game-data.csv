@@ -256,8 +256,8 @@ T025;Fáklya;Olajos fáklya amely tizenkét körre kettővel növeli a hordozó 
 T026;Elesett lovag jelvénye;Megfakult rendjel Roderic egykori bajtársainak címerével.;1;None;0;nem
 T027;Az Ezüst Eskü pecsétje;Az Ezüst Eskü Rendjének ősi nagypecsétje. Egy kard előtt álló ezüst pajzs díszíti.;1;None;0;nem
 T028;Javítókészlet;Kalapácsot szegecseket bőrfoltot és fenőkövet tartalmazó készlet. Terepen egy felszerelést 50 ponttal javít de legfeljebb 75%-os állapotig.;180;RepairEquipment;50;nem;0.8
-T029;Nyíl;Vasból kovácsolt hegyű szabványos nyíl íjakhoz.;2;None;0;nem;0.05
-T030;Íjpuskalövedék;Rövid vastag vessző íjpuskákhoz.;3;None;0;nem;0.08
+T029;Nyíl;Vasból kovácsolt hegyű szabványos nyíl íjakhoz.;5;None;0;nem;0.05
+T030;Íjpuskalövedék;Rövid vastag vessző íjpuskákhoz.;6;None;0;nem;0.08
 
 #Varázstárgyak
 Id;Név;Típus;Kategória;Ár;Töltet;VarázslatId;Hatás;Érték;CsakMágus;Jellemzés;MágikusErő;Súly
@@ -564,6 +564,8 @@ W041;6;30
 W042;3;30
 W043;4;30
 W044;7;30
+W046;9;30
+W047;10;30
 A001;1;30
 A002;1;2
 A003;2;7
