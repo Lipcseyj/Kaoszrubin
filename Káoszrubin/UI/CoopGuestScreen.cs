@@ -74,6 +74,8 @@ public sealed class CoopGuestScreen
     private IReadOnlyList<Position> _doorTargetCandidates = [];
     private int _doorTargetSelection;
     private GuestRenderFrame? _lastFrame;
+    private BackgroundContentRestorer? _spellMenuBackground;
+    private GuestMapCell[,]? _spellMenuBaseMap;
     private Guid? _battleDetailsId;
     private int _battleDetailsPage;
     private Guid? _personalWindowId;
@@ -180,6 +182,8 @@ public sealed class CoopGuestScreen
                 if (viewport != previousViewport)
                 {
                     previousViewport = viewport;
+                    _spellMenuBackground = null;
+                    _spellMenuBaseMap = null;
                     _lastFrame = null;
                     Interlocked.Exchange(ref _redrawRequested, 1);
                 }
@@ -1526,8 +1530,43 @@ public sealed class CoopGuestScreen
             return;
         }
 
-        var frame = BuildFrame(client, selected, snapshot, world, activeSpellImpacts, now);
-        RenderFrame(frame, _lastFrame);
+        var frame = BuildFrame(client, selected, snapshot, world, activeSpellImpacts, now,
+            out var spellMenuBaseMap);
+        if (_battleSpellMenuOpen && spellMenuBaseMap is not null)
+        {
+            if (_spellMenuBackground is null)
+            {
+                if (_lastFrame is null)
+                {
+                    var baseFrame = frame with { Map = spellMenuBaseMap };
+                    RenderFrame(baseFrame, null);
+                    _lastFrame = baseFrame;
+                }
+                var background = new BackgroundContentRestorer(0, 0, frame.MapWidth, frame.MapHeight);
+                if (background.IsCaptured)
+                {
+                    _spellMenuBackground = background;
+                    _spellMenuBaseMap = (GuestMapCell[,])_lastFrame!.Map.Clone();
+                }
+            }
+            RenderFrame(frame, _lastFrame);
+        }
+        else if (_spellMenuBackground is not null && _spellMenuBaseMap is not null)
+        {
+            var restored = _spellMenuBackground.RestoreAndDispose();
+            _spellMenuBackground = null;
+            var previous = restored && _lastFrame is not null
+                ? _lastFrame with { Map = _spellMenuBaseMap }
+                : _lastFrame;
+            _spellMenuBaseMap = null;
+            RenderFrame(frame, previous);
+        }
+        else
+        {
+            _spellMenuBackground = null;
+            _spellMenuBaseMap = null;
+            RenderFrame(frame, _lastFrame);
+        }
         _lastFrame = frame;
         if (activeSpellImpacts.Count > 0) Interlocked.Exchange(ref _redrawRequested, 1);
     }
@@ -1610,7 +1649,7 @@ public sealed class CoopGuestScreen
 
     private GuestRenderFrame BuildFrame(CoopSignalRClient client, CoopCharacterOption selected,
         SessionSnapshot snapshot, WorldSnapshot world, IReadOnlyList<SpellImpactAnimation> activeSpellImpacts,
-        DateTime utcNow)
+        DateTime utcNow, out GuestMapCell[,]? spellMenuBaseMap)
     {
         var windowWidth = SafeWindowWidth();
         var windowHeight = SafeWindowHeight();
@@ -1716,6 +1755,7 @@ public sealed class CoopGuestScreen
             control.ConnectionState == PlayerConnectionState.Connected);
         var own = snapshot.Party.FirstOrDefault(character => character.CharacterId ==
             (_inventoryOpen ? _displayedCharacterId ?? selected.CharacterId : selected.CharacterId));
+        spellMenuBaseMap = _battleSpellMenuOpen ? (GuestMapCell[,])grid.Clone() : null;
         ApplyBattleSpellUi(grid, snapshot, own);
         ApplyBattleItemUi(grid, snapshot, own);
         ApplyInnUi(grid, snapshot, selected.CharacterId);
