@@ -84,6 +84,7 @@ public sealed class CoopGuestScreen
         ConsoleColor.DarkYellow, ConsoleColor.Black, new string('─', BattleCommandPanel.Width),
         ConsoleColor.Cyan);
     private readonly BattleCommandGate _battleCommandGate = new();
+    private Direction _explorationFacing = Direction.Right;
 
     public CoopGuestScreen(string applicationVersion, string catalogHash, GameDataCatalog gameData,
         GameSettingsService? musicSettings = null, BackgroundMusicPlayer? backgroundMusic = null)
@@ -747,8 +748,14 @@ public sealed class CoopGuestScreen
                 command = new CharacterActionCommand(client.PlayerId!.Value, client.NextCommandId(), characterId,
                     action);
         }
+        else if (snapshot.Phase == GameSessionPhase.Exploration && key == ConsoleKey.Spacebar)
+        {
+            command = new ExplorationRangedAttackCommand(client.PlayerId!.Value, client.NextCommandId(),
+                characterId, _explorationFacing);
+        }
         else if (snapshot.Phase == GameSessionPhase.Exploration && TryGetDirection(key, out var direction))
         {
+            _explorationFacing = direction;
             command = new MoveCharacterCommand(client.PlayerId!.Value, client.NextCommandId(), characterId, direction,
                 GameInputBindings.PreserveFormationFacing(modifiers));
         }

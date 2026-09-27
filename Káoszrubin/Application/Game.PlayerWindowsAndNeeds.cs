@@ -224,7 +224,7 @@ public sealed partial class Game
     private bool IsExplorationClockAdvancing => !_battleStarted &&
         _session.Phase == GameSessionPhase.Exploration && _openPlayerWindows.Count == 0 && !_gameOver;
 
-    private void ResolveExplorationStatusDefeat(LiveCharacter character)
+    private void ResolveExplorationStatusDefeat(LiveCharacter character, string? defeatMessage = null)
     {
         var avatar = _maze.PartyMembers.FirstOrDefault(member => member.Character == character);
         if (avatar is not null && IsQuestCriticalRoderic(avatar))
@@ -237,7 +237,7 @@ public sealed partial class Game
             return;
         }
 
-        var message = $"☠ {character.Name} elesett a csatán kívül ható állapottól.";
+        var message = defeatMessage ?? $"☠ {character.Name} elesett a csatán kívül ható állapottól.";
         if (avatar is not null)
         {
             var position = avatar.Position;

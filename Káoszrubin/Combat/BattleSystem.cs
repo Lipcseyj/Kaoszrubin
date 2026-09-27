@@ -207,6 +207,34 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                 .Select(attack => attack.ShieldBlock).ToArray());
     }
 
+    public BattleLogEntry ResolveCharacterFriendlyFire(LiveCharacter attacker, CharacterBattleChoices runtime,
+        LiveCharacter defender, WeaponDefinition attackWeapon, int attackWeaponSlotIndex,
+        int rangedHitModifier = 0)
+    {
+        ArgumentNullException.ThrowIfNull(attacker);
+        ArgumentNullException.ThrowIfNull(runtime);
+        ArgumentNullException.ThrowIfNull(defender);
+        ArgumentNullException.ThrowIfNull(attackWeapon);
+
+        if (!RangedWeaponRules.TryConsumeAmmunition(attacker, attackWeapon))
+            return new BattleLogEntry($"{attacker.Name} nem tud lőni: elfogyott a lőszere.",
+                BattleLogKind.Information);
+
+        var target = EnemyDefenseSnapshot.From(defender);
+        var attack = ResolveCharacterWeaponAttack(attacker, target, runtime.Context,
+            new PlayerAttackOptions(AttackWeapon: attackWeapon, AllowAmbush: false,
+                AttackWeaponSlotIndex: attackWeaponSlotIndex, WoundedTarget: target.IsWounded,
+                RangedHitModifier: rangedHitModifier));
+        if (attack.Hit) defender.ReceiveDamage(attack.Damage);
+        return new BattleLogEntry(
+            $"BARÁTI TŰZ — {FormatAttackSummary(attacker.Name, defender.Name, [attack],
+                defender.CurrentVitality, defender.MaximumVitality)}",
+            attack.Critical ? BattleLogKind.CriticalHit : BattleLogKind.PlayerAttack,
+            DescribeAction(attacker.Name, defender.Name, [attack], "Baráti tűz felfedezés közben."),
+            attack.DurabilityNotices,
+            attack.ShieldBlock.Attempted ? [attack.ShieldBlock] : []);
+    }
+
     public WeaponDefinition? SelectEnemyAttackWeapon(Enemy attacker)
     {
         ArgumentNullException.ThrowIfNull(attacker);
@@ -2423,6 +2451,22 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
                 enemy.EquippedShield is { } shield ? new ShieldDefenseSnapshot(shield) : null,
                 enemy.EquippedWeapon,
                 Math.Max(0, thickHidePercentPerPoint));
+        }
+
+        public static EnemyDefenseSnapshot From(LiveCharacter character)
+        {
+            var armor = character.OperationalArmor;
+            var armorCondition = character.InventoryItemCondition(InventorySlotKind.Armor, 0);
+            var armorRange = armor?.Defense is { } defense
+                ? new ValueRange(EquipmentDurabilityRules.ScaleDefense(defense.Minimum, armorCondition),
+                    EquipmentDurabilityRules.ScaleDefense(defense.Maximum, armorCondition))
+                : new ValueRange(0, 0);
+            var shield = character.OperationalWeapons.FirstOrDefault(ShieldRules.IsShield);
+            return new EnemyDefenseSnapshot(character.Name, character.CurrentVitality, character.MaximumVitality,
+                character.EffectiveAbilities.Dexterity, armorRange, 0, false, armor?.Resistances,
+                character.SpellEffectValue(ActiveSpellEffectType.PhysicalReduction),
+                shield is not null ? new ShieldDefenseSnapshot(shield) : null,
+                character.AttackWeapon, 0);
         }
     }
 

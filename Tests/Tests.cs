@@ -96,6 +96,8 @@ internal static partial class Program
     ("A CSV új fegyverei adatvezéreltek és örökítik a harci tulajdonságokat", WeaponCsvPropertiesAreInherited),
     ("A kijelölt lövős szörnyek távolsági fegyvert és távoli célpontot használnak", RangedMonstersUseRangedWeaponsAndTargets),
     ("A host mozgási parancsa átmegy", HostMovementIsAccepted),
+    ("A felfedezési lövedék a hatótávig halad és a fal előtt megáll", ExplorationProjectileStopsAtWallsAndRange),
+    ("A vendég felfedezés közben saját karakterével lőhet", RemotePlayerCanShootDuringExploration),
     ("A karakterszín palettáról módosítható és a coop parancs validált", CharacterColorCanBeChangedFromPalette),
     ("A vendég átvehet egy NPC-t", RemotePlayerCanTakeNpcControl),
     ("A vendég saját karakterrel beléphet a host partijába", RemotePlayerCanJoinOwnCharacter),

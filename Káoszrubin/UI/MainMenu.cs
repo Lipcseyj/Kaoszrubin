@@ -971,6 +971,7 @@ public sealed class MainMenu
             Blank(),
             Section("🧱 LABIRINTUS", ConsoleColor.Green),
             Hotkey("NYILAK", "👣 Mozgás a labirintusban."),
+            Hotkey("SPACE", "🏹 Lövés a nézési irányba a felszerelt lövőfegyverrel."),
             Hotkey("A", "🛡️ A beállított 2x2-es alakzat összeállítása vagy feloszlatása."),
             Hotkey("CTRL+← / →", "↪️ A zárt alakzat 90 fokos fordítása."),
             Hotkey("TAB", "📃 Váltás a térkép és a karakterlap között."),

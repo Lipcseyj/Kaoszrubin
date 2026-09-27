@@ -451,6 +451,39 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
         DrawPlayer(playerPosition);
     }
 
+    public void AnimateExplorationProjectile(Maze maze, FogOfWar fogOfWar, Position playerPosition,
+        IReadOnlyList<Position> path, Direction direction)
+    {
+        var glyph = direction switch
+        {
+            Direction.Up => "↑",
+            Direction.Down => "↓",
+            Direction.Left => "←",
+            _ => "→"
+        };
+        Position? previous = null;
+        foreach (var position in path)
+        {
+            if (!fogOfWar.IsCurrentlyVisible(position) && !fogOfWar.IsDeveloperRevealActive) continue;
+            if (previous is { } oldPosition)
+            {
+                if (oldPosition == playerPosition) DrawPlayer(playerPosition);
+                else DrawMapCell(maze, fogOfWar, oldPosition);
+            }
+            SetColors(ConsoleColor.Yellow, ConsoleColor.Black);
+            WriteAt(position.X, position.Y, glyph);
+            Console.Out.Flush();
+            Thread.Sleep(35);
+            previous = position;
+        }
+        if (previous is { } lastPosition)
+        {
+            if (lastPosition == playerPosition) DrawPlayer(playerPosition);
+            else DrawMapCell(maze, fogOfWar, lastPosition);
+            Console.Out.Flush();
+        }
+    }
+
     /// <summary>Csak a mozgó fényburokba belépő vagy abból kilépő falakat rajzolja újra.</summary>
     public void UpdateIlluminatedWalls(Maze maze, FogOfWar fogOfWar, Position playerPosition,
         IEnumerable<Position> illuminatedWalls)

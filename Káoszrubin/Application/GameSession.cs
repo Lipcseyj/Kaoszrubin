@@ -396,6 +396,13 @@ public sealed class GameSession
         if (command is MoveCharacterCommand && _formationMovementLocked &&
             control.ControllerKind == CharacterControllerKind.RemotePlayer)
             return Fail("Zárt alakzatban csak a vezető adhat mozgásparancsot.", out reason);
+        if (command is ExplorationRangedAttackCommand rangedAttack)
+        {
+            if (Phase != GameSessionPhase.Exploration || !Enum.IsDefined(rangedAttack.Direction))
+                return Fail("A távolsági támadás csak felfedezés közben, érvényes irányba indítható.", out reason);
+            reason = string.Empty;
+            return true;
+        }
         if (command is CharacterActionCommand characterAction)
         {
             if (!Enum.IsDefined(characterAction.Action))

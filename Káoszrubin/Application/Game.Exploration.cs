@@ -686,6 +686,9 @@ public sealed partial class Game
             key is ConsoleKey.LeftArrow or ConsoleKey.RightArrow)
             command = new LeaderActionCommand(_session.HostPlayerId, commandId, PartyLeader.Id,
                 key == ConsoleKey.LeftArrow ? LeaderAction.RotateFormationLeft : LeaderAction.RotateFormationRight);
+        else if (key == ConsoleKey.Spacebar)
+            command = new ExplorationRangedAttackCommand(_session.HostPlayerId, commandId, PartyLeader.Id,
+                _leaderFacing);
         else if (TryGetDirection(key, out var direction))
             command = new MoveCharacterCommand(_session.HostPlayerId, commandId, PartyLeader.Id, direction,
                 GameInputBindings.PreserveFormationFacing(keyInfo.Modifiers));

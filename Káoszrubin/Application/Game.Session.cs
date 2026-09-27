@@ -81,6 +81,9 @@ public sealed partial class Game
 
     void ISessionCommandHandler.OnMoveRemoteMember(MoveCharacterCommand command) => MoveRemotePartyMember(command);
 
+    void ISessionCommandHandler.OnExplorationRangedAttack(ExplorationRangedAttackCommand command) =>
+        ExecuteExplorationRangedAttack(command);
+
     void ISessionCommandHandler.OnCharacterAction(CharacterActionCommand command) => ExecuteCharacterAction(command);
 
     void ISessionCommandHandler.OnLeaderAction(LeaderAction action) => ExecuteLeaderAction(action);

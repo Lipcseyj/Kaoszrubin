@@ -63,6 +63,9 @@ public sealed record ChangeCharacterColorCommand(PlayerId SenderId, long Command
 public sealed record MoveCharacterCommand(PlayerId SenderId, long CommandId, CharacterId CharacterId,
     Direction Direction, bool PreserveFormationFacing = false) : GameCommand(SenderId, CommandId, CharacterId);
 
+public sealed record ExplorationRangedAttackCommand(PlayerId SenderId, long CommandId, CharacterId CharacterId,
+    Direction Direction) : GameCommand(SenderId, CommandId, CharacterId);
+
 public enum CharacterAction
 {
     OpenDoor,

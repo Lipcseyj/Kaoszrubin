@@ -9,6 +9,7 @@ public interface ISessionCommandHandler
     bool IsPausedByPlayerWindow();
     void OnMoveLeader(Direction direction, bool preserveFormationFacing);
     void OnMoveRemoteMember(MoveCharacterCommand command);
+    void OnExplorationRangedAttack(ExplorationRangedAttackCommand command);
     void OnCharacterAction(CharacterActionCommand command);
     void OnLeaderAction(LeaderAction action);
     void OnInventoryTransfer(InventoryTransferCommand command);
@@ -76,6 +77,9 @@ public sealed class SessionCommandDispatcher
                     break;
                 case MoveCharacterCommand move:
                     _handler.OnMoveRemoteMember(move);
+                    break;
+                case ExplorationRangedAttackCommand rangedAttack:
+                    _handler.OnExplorationRangedAttack(rangedAttack);
                     break;
                 case CharacterActionCommand characterAction:
                     _handler.OnCharacterAction(characterAction);

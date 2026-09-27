@@ -933,6 +933,41 @@ static void ResolveSkipsActionAfterSupportVictory()
             "A vendég saját küldetésnapló-bannerének szövege hiányzó alanyra utal.");
     }
 
+    static void ExplorationProjectileStopsAtWallsAndRange()
+    {
+        var maze = new Maze(9, 7);
+        maze.Carve(new Position(2, 2));
+        maze.Carve(new Position(3, 2));
+        maze.Carve(new Position(4, 2));
+        var blocked = ExplorationRangedAttackRules.Trace(maze, new Position(2, 2), Direction.Right, 6);
+        Assert(blocked.SequenceEqual([new Position(3, 2), new Position(4, 2)]),
+            "A lövedék átment a falon, vagy nem jutott el az utolsó járható mezőig.");
+
+        maze.Carve(new Position(5, 2));
+        maze.Carve(new Position(6, 2));
+        var ranged = ExplorationRangedAttackRules.Trace(maze, new Position(2, 2), Direction.Right, 3);
+        Assert(ranged.SequenceEqual([new Position(3, 2), new Position(4, 2), new Position(5, 2)]),
+            "A lövedék nem pontosan a fegyver maximális hatótávjáig haladt.");
+    }
+
+    static void RemotePlayerCanShootDuringExploration()
+    {
+        var (session, _, companion) = CreateSession();
+        var remote = session.RegisterRemotePlayer();
+        Assert(session.TryAssignRemoteControl(remote, companion.Id, out var error), error);
+        var command = new ExplorationRangedAttackCommand(remote, 1, companion.Id, Direction.Up);
+        Assert(session.Submit(command) && session.TryReadCommand(out var accepted) && accepted == command,
+            "A session elutasította a vendég saját felfedezési lövését.");
+        Assert(CoopProtocolJson.Decode(CoopProtocolJson.Encode(command)) is
+                   ExplorationRangedAttackCommand decoded && decoded == command,
+            "A felfedezési lövés nem élte túl a hálózati wire-körutat.");
+
+        session.SetPhase(GameSessionPhase.Inn);
+        session.Submit(new ExplorationRangedAttackCommand(remote, 2, companion.Id, Direction.Left));
+        Assert(!session.TryReadCommand(out _),
+            "A session a fogadóban is elfogadta a felfedezési lövést.");
+    }
+
     static void GuestSeesOtherPlayersBlockingWindows()
     {
         var (session, leader, companion) = CreateSession();
