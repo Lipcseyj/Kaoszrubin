@@ -49,10 +49,10 @@ public static class WeaponFamilies
             "W010" or "W017" => Axe,
             "W005" or "W006" or "W007" or "W008" or "W013" => Blunt,
             "W011" or "W012" => Polearm,
-            "W014" or "W015" or "W016" => Shield,
+            "W024" or "W036" or "W025" or "W014" or "W026" or "W027" or "W028" or "W015" or "W029" or "W030" or "W016" or "W031" or "W032" or "W033" or "W034" or "W035" => Shield,
             "W018" => Staff,
-            "W039" or "W040" or "W041" => Bow,
-            "W042" or "W043" or "W044" => Crossbow,
+            "W039" or "W040" or "W041" or "W046" => Bow,
+            "W042" or "W043" or "W044" or "W047" => Crossbow,
             _ => null
         };
     }
