@@ -1981,9 +1981,8 @@ public sealed class CoopGuestScreen
         FramedWindow? frame = Enum.TryParse<FramedWindow>(window.Frame, out var parsedFrame)
             ? parsedFrame
             : null;
-        var borderColor = frame is { } framed &&
-                          WindowFrameConfiguration.For(framed) == WindowFrameStyle.Sword
-            ? ConsoleColor.Yellow
+        var borderColor = frame is { } framed
+            ? WindowFrameConfiguration.BorderColor(WindowFrameConfiguration.For(framed))
             : ConsoleColor.Magenta;
         var lines = window.Lines.Select(line => (line.Text, line.Color)).ToList();
         if (lines.Count == 0)
@@ -2362,6 +2361,8 @@ public sealed class CoopGuestScreen
         var style = framedWindow is { } window
             ? WindowFrameConfiguration.For(window)
             : WindowFrameStyle.Double;
+        if (framedWindow is not null)
+            borderColor = WindowFrameConfiguration.BorderColor(style);
         var topAdornment = WindowFrameCatalog.Adornment(style, width);
         var bottomAdornment = WindowFrameCatalog.Adornment(style, width, bottom: true);
         var adornmentRows = topAdornment is null ? 0 : 2;

@@ -73,6 +73,21 @@ internal static partial class Program
             "A sorfutam a dupla szélességű konzoljelet vagy annak folytatócelláját hibásan kezeli.");
     }
 
+    static void HostProgressionWindowsSharePlayfieldCenter()
+    {
+        var summary = ConsoleRenderer.GameplayFrameOrigin(88, 18);
+        var choice = ConsoleRenderer.GameplayFrameOrigin(112, 24);
+        Assert(summary.Left == 41 && summary.Top == 13 &&
+               choice.Left == 29 && choice.Top == 10 &&
+               summary.Left * 2 + 88 == ConsoleRenderer.PlayfieldWidth &&
+               choice.Left * 2 + 112 == ConsoleRenderer.PlayfieldWidth,
+            "A különböző méretű fejlődési ablakok nem ugyanahhoz a játéktér-középponthoz igazodnak.");
+        Assert(WindowFrameConfiguration.BorderColor(WindowFrameStyle.Scroll) == ConsoleColor.Magenta &&
+               WindowFrameConfiguration.BorderColor(WindowFrameStyle.Scroll2) == ConsoleColor.Magenta &&
+               WindowFrameConfiguration.BorderColor(WindowFrameStyle.Sword) == ConsoleColor.Yellow,
+            "A host és guest közös keretszínszabálya eltér a scroll/scroll2 ablakoknál.");
+    }
+
     static void NpcThiefTrapCommandAcceptsTemporaryFollowers()
     {
         var leaderPosition = new Position(5, 5);

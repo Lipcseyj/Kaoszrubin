@@ -299,7 +299,6 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
     public void DrawInitialState(Maze maze, Player player, FogOfWar fogOfWar, int mazeLevel)
     {
         ResetColorCache();
-        _messageLog.Clear();
         _messageLogScrollOffset = 0;
         _mazeLevel = mazeLevel;
         _battleActive = false;
@@ -1135,6 +1134,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
                 ConsoleBackdropCatalog.BuildRow(_innBackdropStyle, y, region.Width, region.Left));
         }
         CharacterSheet.DrawInnCharacterSheet(_innSurfaceLeader);
+        RenderMessageLog();
         _innWindowBackground = new BackgroundContentRestorer(region.Left, region.Top,
             region.Width, region.Height, ResetColorCache);
     }
@@ -2143,9 +2143,12 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
     {
         if (window == FramedWindow.Inn && _innSurfaceLeader is not null)
             return InnSurfaceRegion.ForViewport(SafeConsoleWindowWidth(), SafeConsoleWindowHeight()).Center(width, height);
-        return (Math.Max(0, (Console.WindowWidth - width) / FrameBorderWidth),
-            Math.Max(MinimumCenteredFrameTop, (Console.WindowHeight - height) / FrameBorderWidth));
+        return GameplayFrameOrigin(width, height);
     }
+
+    internal static (int Left, int Top) GameplayFrameOrigin(int width, int height) =>
+        (Math.Max(0, (PlayfieldWidth - width) / FrameBorderWidth),
+            Math.Max(MinimumCenteredFrameTop, (PlayfieldHeight - height) / FrameBorderWidth));
 
     private void DrawCenteredFrame(int frameWidth, IReadOnlyList<(string Text, ConsoleColor Color)> lines, FramedWindow? framedWindow = null)
     {
@@ -2162,7 +2165,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
         var contentPadding = WindowFrameCatalog.ContentPadding(style);
         var contentWidth = frameWidth - contentPadding * FrameBorderWidth;
         var frameTop = topAdornment is null ? top : top + 1;
-        var borderColor = style == WindowFrameStyle.Sword ? ConsoleColor.Yellow : ConsoleColor.Magenta;
+        var borderColor = WindowFrameConfiguration.BorderColor(style);
         SetColors(borderColor, ConsoleColor.Black);
         if (topAdornment is not null) WriteAt(left, top, topAdornment);
         WriteAt(left, frameTop, WindowFrameCatalog.Horizontal(style, frameWidth));

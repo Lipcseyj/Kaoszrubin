@@ -34,6 +34,9 @@ public static class WindowFrameConfiguration
         };
 
     public static WindowFrameStyle For(FramedWindow window) => Styles[window];
+
+    public static ConsoleColor BorderColor(WindowFrameStyle style) =>
+        style == WindowFrameStyle.Sword ? ConsoleColor.Yellow : ConsoleColor.Magenta;
 }
 
 public readonly record struct WindowFrameRow(string Left, string Right);
