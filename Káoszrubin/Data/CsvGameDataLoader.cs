@@ -539,7 +539,7 @@ public static class CsvGameDataLoader
                     RequiredWeaponRange(cells, 23,
                         attackMode == WeaponAttackMode.Melee && IsYes(cells, 17) ? 2 : 1, id, "maximum hatótáv"),
                     EmptyAsNull(Cell(cells, 24)), WeaponArmorPenetration(cells, twoHanded),
-                    ParseWeaponAttackShape(cells, 27)));
+                    ParseWeaponAttackShape(cells, 27), WeaponExplorationShotDelay(cells, attackMode, id)));
                 break;
             case DataSection.Armors:
                 armors.Add(new ArmorDefinition(id, name, ValueRangeFrom(cells, 2),
@@ -1587,6 +1587,9 @@ public static class CsvGameDataLoader
                 if (weapon.AmmunitionItemId is not { Length: > 0 } ammunitionId ||
                     !itemIds.Contains(ammunitionId) || !AmmunitionIds.IsAmmunition(ammunitionId))
                     throw new InvalidDataException($"A(z) {weapon.Id} lövedékes fegyver lőszere hiányzik vagy érvénytelen.");
+                if (weapon.ExplorationShotDelayMilliseconds is < 100 or > 5000)
+                    throw new InvalidDataException(
+                        $"A(z) {weapon.Id} lövedékes fegyver felfedezési lövéskésleltetése 100 és 5000 ms közötti legyen.");
             }
             if (weapon.AttackMode == WeaponAttackMode.NaturalRanged && weapon.AmmunitionItemId is not null)
                 throw new InvalidDataException($"A(z) {weapon.Id} természetes távolsági fegyver nem használhat tárgyi lőszert.");
@@ -1594,6 +1597,15 @@ public static class CsvGameDataLoader
                 throw new InvalidDataException(
                     $"A(z) {weapon.Id} tölcséres támadásának legalább 2 MaxCélpont szükséges.");
         }
+    }
+
+    private static int WeaponExplorationShotDelay(string[] cells, WeaponAttackMode attackMode, string id)
+    {
+        var value = Integer(cells, 28) ?? 0;
+        if (attackMode == WeaponAttackMode.Projectile && value is < 100 or > 5000)
+            throw new InvalidDataException(
+                $"A(z) {id} lövedékes fegyver LövésiKésleltetésMs értéke hiányzik vagy érvénytelen.");
+        return Math.Max(0, value);
     }
 
     private static CreatureQuoteDefinition ParseCreatureQuote(string id, string[] cells)

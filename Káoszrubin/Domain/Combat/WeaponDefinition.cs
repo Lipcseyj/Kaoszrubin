@@ -22,7 +22,8 @@ public sealed record WeaponDefinition(string Id, string Name, string? WeaponType
     string? FamilyId = null, int MaximumDurability = 100, int ShieldTier = 0,
     WeaponAttackMode AttackMode = WeaponAttackMode.Melee, int MinimumRange = 1, int MaximumRange = 1,
     string? AmmunitionItemId = null, int? ArmorPenetrationPercent = null,
-    WeaponAttackShape AttackShape = WeaponAttackShape.Automatic) : IDurableItemDefinition
+    WeaponAttackShape AttackShape = WeaponAttackShape.Automatic,
+    int ExplorationShotDelayMilliseconds = 0) : IDurableItemDefinition
 {
     public ItemCategory Category => ItemCategory.Weapon;
     public bool IsMonsterOnly => BasePrice <= 0 || FamilyId == "NATURAL";

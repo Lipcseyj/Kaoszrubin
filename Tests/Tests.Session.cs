@@ -976,6 +976,27 @@ static void ResolveSkipsActionAfterSupportVictory()
             "Egy befejezett gyorsharc állapota elnyelte a felfedezési támadás naplóját.");
     }
 
+    static void RangedWeaponsHaveConfiguredShotDelays()
+    {
+        var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory,
+            CsvGameDataLoader.GameDataFileName));
+        var expected = new Dictionary<string, int>
+        {
+            ["W039"] = 250,
+            ["W040"] = 350,
+            ["W041"] = 450,
+            ["W042"] = 500,
+            ["W043"] = 700,
+            ["W044"] = 1000
+        };
+        Assert(expected.All(pair => data.GetWeapon(pair.Key).ExplorationShotDelayMilliseconds == pair.Value),
+            "A CSV-ből betöltött íj- vagy íjpuska-késleltetés hibás.");
+        Assert(data.Weapons.Where(weapon => weapon.BaseWeaponId is not null &&
+                    expected.ContainsKey(weapon.BaseWeaponId))
+                .All(weapon => weapon.ExplorationShotDelayMilliseconds == expected[weapon.BaseWeaponId!]),
+            "A mágikus lövőfegyverek nem örökölték az alapfegyver lövési késleltetését.");
+    }
+
     static void GuestSeesOtherPlayersBlockingWindows()
     {
         var (session, leader, companion) = CreateSession();

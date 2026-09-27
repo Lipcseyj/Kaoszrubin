@@ -37,6 +37,24 @@ public sealed partial class Game
             return;
         }
 
+        var shotStartedUtc = DateTime.UtcNow;
+        var nextShotUtc = _nextExplorationShotUtc.GetValueOrDefault(attacker.Id);
+        if (shotStartedUtc < nextShotUtc)
+        {
+            if (_nextExplorationShotNoticeUtc.GetValueOrDefault(attacker.Id) <= shotStartedUtc)
+            {
+                var remainingSeconds = Math.Max(0.1, (nextShotUtc - shotStartedUtc).TotalSeconds);
+                PresentBattleEntries([new BattleLogEntry(
+                    $"🏹 {attacker.Name}: {rangedWeapon.Weapon.Name} — a következő lövésig még " +
+                    $"{remainingSeconds:0.0} mp.", BattleLogKind.Information)]);
+                _nextExplorationShotNoticeUtc[attacker.Id] = shotStartedUtc + TimeSpan.FromMilliseconds(500);
+            }
+            return;
+        }
+        _nextExplorationShotUtc[attacker.Id] = shotStartedUtc +
+            TimeSpan.FromMilliseconds(rangedWeapon.Weapon.ExplorationShotDelayMilliseconds);
+        _nextExplorationShotNoticeUtc.Remove(attacker.Id);
+
         var tracedPath = ExplorationRangedAttackRules.Trace(_maze, origin.Value, command.Direction,
             rangedWeapon.Weapon.MaximumRange);
         var flightPath = new List<Position>(tracedPath.Count);

@@ -345,7 +345,7 @@ WT002;Ügyesség
 WT003;Védelem
 
 #Fegyverek
-Id;Név;Típus;Sebzés;MinimumErő;Kétkezes;Tolvaj;Pap;Mágus;Jellemzés;Ár;Kategória;AlapId;MágikusErő;Súly;Sebzéstípus;MaxCélpont;HátsóSor;Fegyvercsalád;MaxTartósság;PajzsTier;Támadásmód;MinHatótáv;MaxHatótáv;LőszerId;Páncéltörés%;EngedélyezettKasztIds;TámadásAlakzat
+Id;Név;Típus;Sebzés;MinimumErő;Kétkezes;Tolvaj;Pap;Mágus;Jellemzés;Ár;Kategória;AlapId;MágikusErő;Súly;Sebzéstípus;MaxCélpont;HátsóSor;Fegyvercsalád;MaxTartósság;PajzsTier;Támadásmód;MinHatótáv;MaxHatótáv;LőszerId;Páncéltörés%;EngedélyezettKasztIds;TámadásAlakzat;LövésiKésleltetésMs
 W001;tőr;WT002;2-5;1;nem;igen;nem;igen;Könnyű és gyors penge közelharcra vagy váratlan támadáshoz.;35;;;;1;szúrás;1;nem;DAGGER
 W002;rövid kard;WT002;3-7;3;nem;igen;nem;nem;Fordulékony egykezes kard amely szűk helyen is jól használható.;70;;;;2;szúrás;1;nem;SWORD
 W003;katana;WT002;5-10;4;igen;igen;nem;nem;Kiválóan kiegyensúlyozott ívelt penge a fürge harcosok kezébe.;420;;;;4;vágás;1;nem;SWORD
@@ -368,12 +368,12 @@ W022;elf tőr;WT002;3-6;1;nem;igen;nem;igen;Hosszabb hajlított pengéjű elf t�
 W023;szellemkasza;WT001;8-17;8;igen;nem;nem;nem;Hosszú nyelű, széles pengéjű kasza, amelyet élőholt aratók és más szörnyek használnak.;0;;;;6;vágás;2;igen;POLEARM;
 W037;óriásbalta;WT001;9-25;9;igen;nem;nem;nem;Óriásoknak készül brutális méretű csatabárd.;500;;;;15;vágás;2;nem;AXE
 W038;óriáspallos;WT001;12-22;9;igen;nem;nem;nem;Hatalmas kétkezes kard kiemelkedő sebzéssel és tekintélyes súllyal.;550;;;;14;vágás;2;nem;SWORD
-W039;rövidíj;WT002;3-6;2;igen;igen;nem;nem;Könnyű íj gyors lövésekhez és szűk folyosókhoz.;250;;;;2;szúrás;1;nem;BOW;90;0;Projectile;1;4;T029;0;C001|C004
-W040;hosszúíj;WT002;4-9;5;igen;nem;nem;nem;Nagy húzóerejű hosszúíj pontos távoli lövésekhez.;560;;;;4;szúrás;1;nem;BOW;110;0;Projectile;1;5;T029;0;C001
-W041;harci íj;WT002;6-12;8;igen;nem;nem;nem;Megerősített harci íj amely csak erős és gyakorlott kézben engedelmes.;820;;;;6;szúrás;1;nem;BOW;130;0;Projectile;1;5;T029;0;C001
-W042;kézi íjpuska;WT002;4-7;2;nem;igen;nem;nem;Egy kézzel is elsüthető rövid íjpuska közelibb célpontok ellen.;380;;;;2;szúrás;1;nem;CROSSBOW;100;0;Projectile;1;3;T030;10;C001|C004
-W043;könnyű íjpuska;WT002;5-10;4;igen;igen;nem;nem;Kétkezes könnyű íjpuska biztos mechanikával és jó átütőerővel.;640;;;;4;szúrás;1;nem;CROSSBOW;130;0;Projectile;1;4;T030;20;C001|C004
-W044;nehéz íjpuska;WT002;7-14;7;igen;nem;nem;nem;Acélíves nehéz íjpuska páncélozott célpontok átütésére.;980;;;;7;szúrás;1;nem;CROSSBOW;160;0;Projectile;1;5;T030;30;C001
+W039;rövidíj;WT002;3-6;2;igen;igen;nem;nem;Könnyű íj gyors lövésekhez és szűk folyosókhoz.;250;;;;2;szúrás;1;nem;BOW;90;0;Projectile;1;4;T029;0;C001|C004;;250
+W040;hosszúíj;WT002;4-9;5;igen;nem;nem;nem;Nagy húzóerejű hosszúíj pontos távoli lövésekhez.;560;;;;4;szúrás;1;nem;BOW;110;0;Projectile;1;5;T029;0;C001;;350
+W041;harci íj;WT002;6-12;8;igen;nem;nem;nem;Megerősített harci íj amely csak erős és gyakorlott kézben engedelmes.;820;;;;6;szúrás;1;nem;BOW;130;0;Projectile;2;6;T029;0;C001;;450
+W042;kézi íjpuska;WT002;4-7;2;nem;igen;nem;nem;Egy kézzel is elsüthető rövid íjpuska közelibb célpontok ellen.;380;;;;2;szúrás;1;nem;CROSSBOW;100;0;Projectile;1;3;T030;10;C001|C004;;500
+W043;könnyű íjpuska;WT002;5-10;4;igen;igen;nem;nem;Kétkezes könnyű íjpuska biztos mechanikával és jó átütőerővel.;640;;;;4;szúrás;1;nem;CROSSBOW;130;0;Projectile;1;4;T030;20;C001|C004;;700
+W044;nehéz íjpuska;WT002;7-14;7;igen;nem;nem;nem;Acélíves nehéz íjpuska páncélozott célpontok átütésére.;980;;;;7;szúrás;1;nem;CROSSBOW;160;0;Projectile;1;5;T030;30;C001;;1000
 W045;Főnökhasító;WT002;4-8;3;nem;igen;nem;nem;Csorba, széles pengéjű rövid kard, amelynek markolatát goblinfogak és vörös rongyok díszítik. Nem szép munka, de a főnök sok ellenfelét túlélte vele.;180;;;;2;vágás;1;nem;SWORD;75;0;Melee;1;1;;0;C001|C004
 
 WN001;fogak;WT001;2-6;1;nem;nem;nem;nem;Természetes harapás.;0;;;;1;szúrás;1;nem;NATURAL

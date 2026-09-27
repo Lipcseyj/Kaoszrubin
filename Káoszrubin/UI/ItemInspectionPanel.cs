@@ -151,6 +151,9 @@ public static class ItemInspectionPanel
                 if (weapon.IsRanged)
                 {
                     yield return ($"🏹 Hatótáv: {weapon.MinimumRange}–{weapon.MaximumRange} mező", ConsoleColor.Cyan);
+                    if (weapon.ExplorationShotDelayMilliseconds > 0)
+                        yield return ($"⏱ Felfedezési lövésköz: " +
+                            $"{weapon.ExplorationShotDelayMilliseconds / 1000d:0.##} mp", ConsoleColor.Cyan);
                     if (weapon.AmmunitionItemId is { } ammunitionId)
                         yield return ($"➶ Lőszer: {gameData.GetItem(ammunitionId).Name}", ConsoleColor.Cyan);
                 }
