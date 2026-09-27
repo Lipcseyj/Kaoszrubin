@@ -152,6 +152,7 @@ public sealed class LiveCharacter
     public IReadOnlyList<SpellDefinition?> QuickSpells => _quickSpells;
     public IReadOnlyList<ActiveSpellEffect> ActiveSpellEffects => _activeSpellEffects;
     public IReadOnlyDictionary<string, int> MonsterKills => _monsterKills;
+    public string? SourceNpcDefinitionId { get; private set; }
     public int? NpcJoinedMazeLevel { get; private set; }
     public string? NpcJoinedLocation { get; private set; }
     public long InventoryRevision { get; private set; }
@@ -250,6 +251,17 @@ public sealed class LiveCharacter
     public const int MaximumQuickSpellCount = 8;
 
     public void SetNpcBehavior(NpcBehavior? behavior) => NpcBehavior = behavior;
+
+    public void SetSourceNpcDefinitionId(string definitionId)
+    {
+        if (string.IsNullOrWhiteSpace(definitionId))
+            throw new ArgumentException("Az NPC-forrásazonosító nem lehet üres.", nameof(definitionId));
+        var normalized = definitionId.Trim();
+        if (SourceNpcDefinitionId is not null &&
+            !string.Equals(SourceNpcDefinitionId, normalized, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("A karakter NPC-forrásazonosítója nem módosítható.");
+        SourceNpcDefinitionId = normalized;
+    }
 
     public void RecordMonsterKill(string enemyDefinitionId, int count = 1)
     {

@@ -437,9 +437,11 @@ public sealed class MainMenu
             "Üres Enter = localhost:5127"
         ]);
         var inputLeft = Math.Min(SideMenuLeft, Math.Max(0, Console.WindowWidth - SideMenuWidth - 1)) + 4;
-        Console.SetCursorPosition(inputLeft, SideMenuTop + 7);
+        Console.SetCursorPosition(inputLeft, SideMenuTop + 6);
         Console.ForegroundColor = ConsoleColor.Cyan;
+        Console.CursorVisible = true;
         var hostUrl = Console.ReadLine();
+        Console.CursorVisible = false;
         if (string.IsNullOrWhiteSpace(hostUrl)) hostUrl = "http://localhost:5127";
         try
         {

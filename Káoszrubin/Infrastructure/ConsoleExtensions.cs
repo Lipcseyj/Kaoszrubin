@@ -11,6 +11,7 @@ public static class ConsoleExtensions
     /// </summary>
     public static string ReadLine(int maxLength)
     {
+        Console.CursorVisible = true;
         if (maxLength < 1)
             throw new ArgumentOutOfRangeException(
                 nameof(maxLength),
@@ -30,6 +31,7 @@ public static class ConsoleExtensions
             {
                 case ConsoleKey.Enter:
                     Console.WriteLine();
+                    Console.CursorVisible = false;
                     return new string(text.ToArray());
 
                 case ConsoleKey.Backspace:

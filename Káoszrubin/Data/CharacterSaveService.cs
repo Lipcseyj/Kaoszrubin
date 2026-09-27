@@ -95,6 +95,11 @@ public sealed class CharacterSaveService
         character.SetProgress(saved.Level ?? 1, saved.Experience ?? 0);
         character.RestoreAbilityIncreasesClaimed(saved.AbilityIncreasesClaimed ?? 0);
         character.SetNpcBehavior(saved.NpcBehavior);
+        if (saved.SourceNpcDefinitionId is { } sourceNpcDefinitionId)
+        {
+            _gameData.GetNpc(sourceNpcDefinitionId);
+            character.SetSourceNpcDefinitionId(sourceNpcDefinitionId);
+        }
         if (saved.NpcJoinedMazeLevel is { } joinedLevel && saved.NpcJoinedLocation is { } joinedLocation)
             character.SetNpcJoinOrigin(joinedLevel, joinedLocation);
         foreach (var kill in saved.MonsterKills) character.RecordMonsterKill(kill.EnemyDefinitionId, kill.Count);
@@ -206,6 +211,7 @@ public sealed class CharacterSaveService
         Name = character.Name,
         Color = character.Color,
         NpcBehavior = character.NpcBehavior,
+        SourceNpcDefinitionId = character.SourceNpcDefinitionId,
         NpcJoinedMazeLevel = character.NpcJoinedMazeLevel,
         NpcJoinedLocation = character.NpcJoinedLocation,
         MonsterKills = character.MonsterKills.Select(pair => new MonsterKillSaveData(pair.Key, pair.Value)).ToList(),
@@ -311,6 +317,7 @@ public sealed class CharacterSaveService
         public string Name { get; init; } = string.Empty;
         public ConsoleColor? Color { get; init; }
         public NpcBehavior? NpcBehavior { get; init; }
+        public string? SourceNpcDefinitionId { get; init; }
         public int? NpcJoinedMazeLevel { get; init; }
         public string? NpcJoinedLocation { get; init; }
         public List<MonsterKillSaveData> MonsterKills { get; init; } = [];

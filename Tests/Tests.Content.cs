@@ -608,6 +608,17 @@ internal static partial class Program
             "A parti megjegyzésének név- vagy állapotszint-formátuma hibás.");
     }
 
+    static void UniqueNpcPlacementUsesDefinitionIdentityInsteadOfName()
+    {
+        var playerNamedLikeNpc = CreateCharacter("Sir Roderic");
+        var actualNpc = CreateCharacter("Másik név");
+        actualNpc.SetSourceNpcDefinitionId("NPC021");
+
+        Assert(!Game.HasUniqueNpcInRoster([playerNamedLikeNpc], "NPC021") &&
+               Game.HasUniqueNpcInRoster([actualNpc], "npc021"),
+            "Az egyedi NPC lerakását még mindig a játékos által választott név blokkolja, vagy az NPC-ID nem stabil.");
+    }
+
     static void WorldNpcGenerationExcludesWhiteColor()
     {
         Assert(CharacterColors.Selectable.Contains(ConsoleColor.White) &&

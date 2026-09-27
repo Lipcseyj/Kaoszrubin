@@ -269,6 +269,10 @@ public sealed partial class Game
     private void RestoreGame(GameSaveData state)
     {
         var questStates = _questSaveAdapter.PrepareRestore(state, CharacterRoster);
+        foreach (var character in CharacterRoster.Characters.Where(character =>
+                     character.SourceNpcDefinitionId is null))
+            if (_questNpcInstanceRegistry.TryGetNpcId(character.Id, out var npcId))
+                character.SetSourceNpcDefinitionId(LegacyNpcIdMap.ToExternalId(npcId));
         var restored = _gameStateMapper.Restore(state);
         _mazeLevel = restored.MazeLevel;
         _locationKind = state.LocationKind;

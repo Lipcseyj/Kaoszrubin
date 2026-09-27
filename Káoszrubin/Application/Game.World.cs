@@ -1329,8 +1329,7 @@ public sealed partial class Game
             _maze = targetArea.Maze;
             _fogOfWar = targetArea.FogOfWar;
             var definition = _gameData.GetNpc(encounter.NpcId);
-            if (definition.Unique && CharacterRoster.Characters.Any(character =>
-                    string.Equals(character.Name, definition.Name, StringComparison.OrdinalIgnoreCase))) 
+            if (definition.Unique && HasUniqueNpcInRoster(CharacterRoster.Characters, definition.Id))
             { 
                 Log.Warning($"A(z) '{definition.Id}' egyedi NPC már szerepel a karakterlistában, ezért nem kerül elhelyezésre a pályán.");
                 continue; 
@@ -1369,6 +1368,7 @@ public sealed partial class Game
                         _gameData.GetCharacterClass(definition.CharacterClassId), PartyLeader.Level)
                 : generator.GenerateWorldNpc(_gameData.GetCharacterClass(definition.CharacterClassId),
                     PartyLeader.Level, CharacterRoster.Characters.Select(character => character.Name).ToArray());
+            recruit.SetSourceNpcDefinitionId(definition.Id);
             CharacterRoster.Add(recruit);
             var friendliness = definition.Unique ? 4 : RollNpcFriendliness(definition);
             var completionDialogueIds = _gameData.Quests.All
@@ -1388,6 +1388,10 @@ public sealed partial class Game
         _maze = activeArea.Maze;
         _fogOfWar = activeArea.FogOfWar;
     }
+
+    internal static bool HasUniqueNpcInRoster(IEnumerable<LiveCharacter> characters, string npcDefinitionId) =>
+        characters.Any(character => string.Equals(character.SourceNpcDefinitionId, npcDefinitionId,
+            StringComparison.OrdinalIgnoreCase));
 
     private void PlaceQuestRoomEnemies(MazeLevelConfiguration configuration)
     {

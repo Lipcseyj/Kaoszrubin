@@ -161,6 +161,7 @@ internal static partial class Program
     ("A parti megjegyzései CSV-ből, teljes idézőjeles szöveggel töltődnek", PartyRemarksLoadFromCsv),
     ("A parti megjegyzéseinek esélyei és beszélőszámai követik a szabályt", PartyRemarkProbabilitiesFollowRules),
     ("A world-NPC generálás kizárja a fehér és sárga karakterszínt", WorldNpcGenerationExcludesWhiteColor),
+    ("Az egyedi NPC lerakását definíció-ID és nem karakternév védi", UniqueNpcPlacementUsesDefinitionIdentityInsteadOfName),
     ("A karaktergenerátor felszerelési profiljai szinthez kötöttek és konfigurálhatók", GeneratedCharacterEquipmentProfilesAreLevelBounded),
     ("Az 5. pálya utáni zsoldos legalább egy szinttel gyengébb és fizetős", LateInnRecruitsAreLowerLevelAndStillCostGold),
     ("Az elküldött társ két fogadós ajánlata standard árú és menthető", DismissedCompanionOfferIsStandardPricedAndPersisted),

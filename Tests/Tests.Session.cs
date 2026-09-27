@@ -274,11 +274,13 @@ internal static partial class Program
         var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
         var character = CreateCharacter("Krónikás");
         character.SetNpcBehavior(NpcBehavior.Defensive);
+        character.SetSourceNpcDefinitionId("NPC022");
         character.SetNpcJoinOrigin(4, "A Kormos Griff");
         character.RecordMonsterKill(data.Enemies[0].Id, 3);
         var service = new CharacterSaveService(Path.Combine(Path.GetTempPath(), "unused-history-save.json"), data);
         var restored = service.DeserializeCharacter(service.SerializeCharacter(character));
-        Assert(restored.NpcJoinedMazeLevel == 4 && restored.NpcJoinedLocation == "A Kormos Griff" &&
+        Assert(restored.SourceNpcDefinitionId == "NPC022" &&
+               restored.NpcJoinedMazeLevel == 4 && restored.NpcJoinedLocation == "A Kormos Griff" &&
                restored.MonsterKills.GetValueOrDefault(data.Enemies[0].Id) == 3,
             "A karakter történeti adatai nem élték túl a mentési körutat.");
     }

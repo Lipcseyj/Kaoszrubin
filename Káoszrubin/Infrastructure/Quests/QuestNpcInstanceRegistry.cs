@@ -39,6 +39,17 @@ public sealed class QuestNpcInstanceRegistry
     public IReadOnlyList<QuestNpcIdentity> Export() =>
         _identities.Values.OrderBy(identity => identity.InstanceId.Value).ToArray();
 
+    public bool TryGetNpcId(CharacterId characterId, out QuestNpcId npcId)
+    {
+        if (_identities.TryGetValue(characterId, out var identity))
+        {
+            npcId = identity.NpcId;
+            return true;
+        }
+        npcId = QuestNpcId.None;
+        return false;
+    }
+
     public void Import(IEnumerable<QuestNpcIdentity> identities)
     {
         ArgumentNullException.ThrowIfNull(identities);
