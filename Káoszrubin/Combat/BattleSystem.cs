@@ -305,8 +305,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
             ? [equipped]
             : attacker.AttackWeapons;
         if (ability.WeaponIds is { Count: > 0 })
-            weapons = weapons.Where(weapon => ability.WeaponIds.Contains(weapon.Id,
-                StringComparer.OrdinalIgnoreCase));
+            weapons = weapons.Where(weapon => AbilityUsesWeapon(ability, weapon));
         return weapons.Where(weapon => attacker.IsWeaponReady(weapon.Id) &&
                                        (weapon.IsRanged
                                            ? RangedWeaponRules.CanReach(weapon, targetDistance)
@@ -1554,8 +1553,9 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var attackerSpeed = attacker.EffectiveSpeed;
         var attackWeapon = options.AttackWeapon;
         var allowWeaponFallback = options.AllowWeaponFallback;
+        var resolvedAttackWeapon = attackWeapon ?? (allowWeaponFallback ? SelectEnemyAttackWeapon(attacker) : null);
         var alliedGuardDefense = options.AlliedGuardDefense;
-        var packAttackBonus = attackWeapon?.IsRanged == true ? 0 : Math.Max(0, options.PackAttackBonus);
+        var packAttackBonus = resolvedAttackWeapon?.IsRanged == true ? 0 : Math.Max(0, options.PackAttackBonus);
         var packAttackEffects = packAttackBonus > 0
             ? new[] { $"🐺 FALKATÁMADÁS: +{packAttackBonus} TALÁLAT ({Math.Max(2, options.PackSize)} TAG)" }
             : [];
@@ -1648,7 +1648,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
 
         var spellHitModifier = attacker.SpellEffectValue(ActiveSpellEffectType.HitBonus);
         var rangedHitModifier = options.RangedHitModifier;
-        var hitModifier = spellHitModifier + rangedHitModifier + packAttackBonus;
+        var magicWeaponHitModifier = resolvedAttackWeapon?.MagicPower ?? 0;
+        var hitModifier = spellHitModifier + rangedHitModifier + packAttackBonus + magicWeaponHitModifier;
         var hit = HitRoll(attackerSpeed, defender.EffectiveAbilities.Dexterity, hitModifier, false);
         hitDescription = hit.Description;
 
@@ -1656,12 +1657,19 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         var totalHitModifier = hitModifier;
         var totalHitRoll = hit.NaturalRoll + attackerSpeed + totalHitModifier;
 
+        var magicCriticalChanceBonus = resolvedAttackWeapon?.MagicPower switch
+        {
+            2 => 5,
+            >= 3 => 10,
+            _ => 0
+        };
+        var criticalNaturalRollMinimum = 20 - magicCriticalChanceBonus / 5;
         criticalChance = Enumerable.Range(1, 20).Count(roll =>
             roll != 1 &&
             (roll == 20 || roll + attackerSpeed + hitModifier >= hitTarget) &&
-            roll == 20) * 5d;
+            roll >= criticalNaturalRollMinimum) * 5d;
 
-        var criticalMultiplier = hit.NaturalRoll == 20 ? 2 : 1;
+        var criticalMultiplier = hit.NaturalRoll >= criticalNaturalRollMinimum ? 2 : 1;
         // ============================================================
 
 
@@ -1673,6 +1681,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         hitCalculations.Add($"🎯 Cél: 11 + ügyesség {defender.EffectiveAbilities.Dexterity} = {hitTarget}");
         hitCalculations.Add($"🎯 Összes módosító: {totalHitModifier:+#;-#;0}");
         Modifier(hitCalculations, "🎯 Varázshatás", spellHitModifier);
+        Modifier(hitCalculations, "🎯 Mágikus fegyver", magicWeaponHitModifier);
         Modifier(hitCalculations, "🎯 Közeli lövés", rangedHitModifier);
         Modifier(hitCalculations, $"🐺 Falkatámadás ({Math.Max(1, options.PackSize)} tag)", packAttackBonus);
         // ============================================================
@@ -1682,8 +1691,8 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         // KRITIKUS TALÁLAT INFORMÁCIÓI
         // ============================================================
 
-        criticalCalculations.Add("🎲 Kritikus alap 5%; bónusz +0%");
-        criticalCalculations.Add("🎲 Kritikus küszöb: 20–20");
+        criticalCalculations.Add($"🎲 Kritikus alap 5%; mágikus fegyver +{magicCriticalChanceBonus}%");
+        criticalCalculations.Add($"🎲 Kritikus küszöb: {criticalNaturalRollMinimum}–20");
         criticalCalculations.Add($"🎲 Tényleges kritikus esély: {criticalChance:0.##}%");
         // ============================================================
 
@@ -1723,7 +1732,7 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         // ============================================================
 
         var strength = definition.Strength ?? 1;
-        var enemyWeapon = attackWeapon ?? (allowWeaponFallback ? SelectEnemyAttackWeapon(attacker) : null);
+        var enemyWeapon = resolvedAttackWeapon;
         var baseDamage = Roll(enemyWeapon?.Damage ?? new ValueRange(1, 2));
         var strengthBonus = AbilityDamageBonus(strength);
         var damageType = enemyWeapon?.DamageType ?? DamageType.Bludgeoning;
@@ -2214,8 +2223,11 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
     };
 
     private static bool AppliesToWeapon(MonsterAbilityDefinition ability, WeaponDefinition? weapon) =>
-        ability.WeaponIds is not { Count: > 0 } || weapon is not null &&
-        ability.WeaponIds.Contains(weapon.Id, StringComparer.OrdinalIgnoreCase);
+        ability.WeaponIds is not { Count: > 0 } || weapon is not null && AbilityUsesWeapon(ability, weapon);
+
+    private static bool AbilityUsesWeapon(MonsterAbilityDefinition ability, WeaponDefinition weapon) =>
+        ability.WeaponIds?.Contains(weapon.BaseWeaponId ?? weapon.Id,
+            StringComparer.OrdinalIgnoreCase) == true;
 
     private static bool IsStatusEffect(MonsterAbilityEffect effect) => effect is
         MonsterAbilityEffect.Poison or MonsterAbilityEffect.Disease or MonsterAbilityEffect.Bleeding or

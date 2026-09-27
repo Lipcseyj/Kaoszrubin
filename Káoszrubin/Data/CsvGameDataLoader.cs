@@ -34,6 +34,8 @@ public static class CsvGameDataLoader
         var monsterLoot = new List<MonsterLootDefinition>();
         var lootRuleValues = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         var doorAttemptRuleValues = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var enemyMagicWeaponChances = new List<EnemyMagicWeaponChanceRule>();
+        var enemyMagicWeaponQualities = new List<EnemyMagicWeaponQualityRule>();
         var weaponTypes = new List<WeaponTypeDefinition>();
         var weapons = new List<WeaponDefinition>();
         var armors = new List<ArmorDefinition>();
@@ -129,6 +131,20 @@ public static class CsvGameDataLoader
                     monsterSummons.Add(new MonsterSummonDefinition(Cell(cells, 0), Cell(cells, 1),
                         IdList(Cell(cells, 2)), Integer(cells, 3) ?? 1, Integer(cells, 4) ?? 1,
                         Integer(cells, 5) ?? 1, Integer(cells, 6) ?? 1, IsYes(cells, 7), IsYes(cells, 8)));
+                    continue;
+                }
+                if (section == DataSection.EnemyMagicWeaponChances)
+                {
+                    enemyMagicWeaponChances.Add(new EnemyMagicWeaponChanceRule(
+                        Integer(cells, 0) ?? 0, Double(cells, 1) ?? -1,
+                        Double(cells, 2) ?? -1, Double(cells, 3) ?? -1));
+                    continue;
+                }
+                if (section == DataSection.EnemyMagicWeaponQualities)
+                {
+                    enemyMagicWeaponQualities.Add(new EnemyMagicWeaponQualityRule(
+                        Integer(cells, 0) ?? 0, Integer(cells, 1) ?? 0, Integer(cells, 2) ?? 0,
+                        Double(cells, 3) ?? -1, Double(cells, 4) ?? -1, Double(cells, 5) ?? -1));
                     continue;
                 }
                 AddDefinition(section, cells, races, characterClasses, enemies, monsterAbilities, strengthHitBonuses,
@@ -269,6 +285,8 @@ public static class CsvGameDataLoader
         ValidateMonsterAbilities(monsterAbilities, statuses, weapons);
         ValidateStrengthHitBonuses(characterClasses, strengthHitBonuses);
         ValidateMonsterLoot(enemies, monsterLoot);
+        var enemyMagicWeaponRules = CreateEnemyMagicWeaponRules(enemyMagicWeaponChances,
+            enemyMagicWeaponQualities, itemUpgrades);
         if (itemUpgrades.Any(upgrade => upgrade.DurabilityBonusPercent < 0))
             throw new InvalidOperationException("A tárgybővítések tartósságbónusza nem lehet negatív.");
         ValidateCharacterGenerationEquipment(weapons, armors, itemUpgrades,
@@ -302,6 +320,7 @@ public static class CsvGameDataLoader
             MonsterLoot = monsterLoot,
             LootRules = lootRules,
             DoorAttemptRules = doorAttemptRules,
+            EnemyMagicWeaponRules = enemyMagicWeaponRules,
             WeaponTypes = weaponTypes,
             Weapons = CreateUpgradedWeapons(weapons, itemUpgrades),
             Armors = CreateUpgradedArmors(armors, itemUpgrades),
@@ -1907,6 +1926,29 @@ public static class CsvGameDataLoader
         return rules;
     }
 
+    private static EnemyMagicWeaponRules CreateEnemyMagicWeaponRules(
+        IReadOnlyList<EnemyMagicWeaponChanceRule> chances,
+        IReadOnlyList<EnemyMagicWeaponQualityRule> qualities,
+        IReadOnlyCollection<ItemUpgradeDefinition> upgrades)
+    {
+        if (chances.Select(rule => rule.StrengthTier).Distinct().Order().SequenceEqual(Enumerable.Range(1, 5)) == false)
+            throw new InvalidDataException(
+                "Az #Ellenséges mágikus fegyver esélyek fejezetben pontosan az 1–5 tierek szerepeljenek.");
+        if (chances.Any(rule => rule.BaseChancePercent < 0 || rule.ChancePerLevelPercent < 0 ||
+                                rule.MaximumChancePercent is < 0 or > 100 ||
+                                rule.BaseChancePercent > rule.MaximumChancePercent))
+            throw new InvalidDataException("Az ellenséges mágikus fegyver esélyértékek érvénytelenek.");
+
+        var upgradePowers = upgrades.Select(upgrade => upgrade.MagicPower).Order().ToArray();
+        if (!qualities.Select(rule => rule.MagicPower).Order().SequenceEqual(upgradePowers))
+            throw new InvalidDataException(
+                "Az #Ellenséges mágikus fegyver fokozatok minden tárgybővítés mágikus erejét pontosan egyszer tartalmazza.");
+        if (qualities.Any(rule => rule.MinimumLevel < 1 || rule.MinimumStrengthTier is < 1 or > 5 ||
+                                  rule.BaseWeight <= 0 || rule.WeightPerLevel < 0 || rule.WeightPerTier < 0))
+            throw new InvalidDataException("Az ellenséges mágikus fegyver fokozatsúlyok érvénytelenek.");
+        return new EnemyMagicWeaponRules(chances, qualities);
+    }
+
     private static IReadOnlyList<WeaponDefinition> CreateUpgradedWeapons(
         IReadOnlyCollection<WeaponDefinition> weapons, IReadOnlyCollection<ItemUpgradeDefinition> upgrades)
     {
@@ -2015,7 +2057,8 @@ public static class CsvGameDataLoader
     }
 
     private static bool IsHeaderRow(string value) => Normalize(value) is "id" or "npcid" or "fajid" or "osztalyid" or
-        "szornyid" or "ellensegid" or "kepessegid" or "szituacioid" or "egeszseg" or "intelligencia" or "szint";
+        "szornyid" or "ellensegid" or "kepessegid" or "szituacioid" or "egeszseg" or "intelligencia" or "szint" or
+        "tier" or "magikusero";
     private static string Cell(string[] cells, int index) => index < cells.Length ? cells[index] : string.Empty;
     private static string? EmptyAsNull(string value) => string.IsNullOrWhiteSpace(value) ? null : value;
 
@@ -2153,6 +2196,8 @@ public static class CsvGameDataLoader
         "kereskedelembol tiltott targyak" => DataSection.TradeExcludedItems,
         "karaktergeneralasi felszereles" => DataSection.CharacterGenerationEquipment,
         "karaktergeneralasi targybovitesek" => DataSection.CharacterGenerationUpgrades,
+        "ellenseges magikus fegyver eselyek" => DataSection.EnemyMagicWeaponChances,
+        "ellenseges magikus fegyver fokozatok" => DataSection.EnemyMagicWeaponQualities,
         _ => DataSection.None
     };
 
@@ -2216,7 +2261,9 @@ public static class CsvGameDataLoader
         ItemUpgrades,
         TradeExcludedItems,
         CharacterGenerationEquipment,
-        CharacterGenerationUpgrades
+        CharacterGenerationUpgrades,
+        EnemyMagicWeaponChances,
+        EnemyMagicWeaponQualities
     }
 }
 

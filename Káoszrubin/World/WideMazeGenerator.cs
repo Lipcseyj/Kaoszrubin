@@ -7,8 +7,9 @@ public sealed class WideMazeGenerator : MazeGenerator
 {
     public WideMazeGenerator(MazeGenerationSettings settings,
         IReadOnlyList<ResolvedEnemyEncounter> roomEncounters,
-        IReadOnlyList<ResolvedEnemyEncounter> corridorEncounters, Random? random = null)
-        : base(settings, roomEncounters, corridorEncounters, random) { }
+        IReadOnlyList<ResolvedEnemyEncounter> corridorEncounters, Random? random = null,
+        EnemyMagicWeaponContext? enemyMagicWeaponContext = null)
+        : base(settings, roomEncounters, corridorEncounters, random, enemyMagicWeaponContext) { }
 
     protected override int CorridorNodeWidth => 3;
     protected override int GridStep => 6;

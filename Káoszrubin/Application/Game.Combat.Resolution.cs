@@ -1742,7 +1742,8 @@ public sealed partial class Game
         for (var index = 0; index < positions.Length; index++)
         {
             var definition = _gameData.GetEnemy(summon.EnemyIds[_random.Next(summon.EnemyIds.Count)]);
-            var summoned = new ConfiguredEnemy(positions[index], definition, _random);
+            var summoned = new ConfiguredEnemy(positions[index], definition, _random,
+                magicWeaponContext: CreateEnemyMagicWeaponContext(_difficultyLevel));
             summoned.ConfigureMovement(EnemyMovementProfile.Wander, Direction.Right);
             summoned.ConfigureGroup(caster.GroupId);
             summoned.ConfigureSummon(caster.Id, summon.GrantsRewardsAndLoot);

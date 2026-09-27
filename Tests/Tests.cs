@@ -94,6 +94,7 @@ internal static partial class Program
     ("A kétkezes tartalékfegyver atomian elteszi a pajzsot", ReserveTwoHandedSwapStowsShield),
     ("A sebzéstípusok és a szörnyfegyverek módosítják a valódi sebzést", PhysicalDamageUsesTypesAndWeapons),
     ("A CSV új fegyverei adatvezéreltek és örökítik a harci tulajdonságokat", WeaponCsvPropertiesAreInherited),
+    ("Az ellenséges mágikus fegyverek ritka CSV-esélyekkel skálázódnak és menthetők", EnemyMagicWeaponsScaleFromCsvAndPersist),
     ("A kijelölt lövős szörnyek távolsági fegyvert és távoli célpontot használnak", RangedMonstersUseRangedWeaponsAndTargets),
     ("A host mozgási parancsa átmegy", HostMovementIsAccepted),
     ("A felfedezési lövedék a hatótávig halad és a fal előtt megáll", ExplorationProjectileStopsAtWallsAndRange),

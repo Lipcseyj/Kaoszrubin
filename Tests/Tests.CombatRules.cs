@@ -1369,6 +1369,85 @@ internal static partial class Program
             "Nincs mind a négy új sebzéstípushoz két erős, eltérő alaptípusú legendás páncél.");
     }
 
+    static void EnemyMagicWeaponsScaleFromCsvAndPersist()
+    {
+        var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
+        var rules = data.EnemyMagicWeaponRules;
+        Assert(rules.ChanceRules.Count == 5 &&
+               rules.ChanceRules.Single(rule => rule.StrengthTier == 1).MaximumChancePercent == 8 &&
+               rules.ChanceRules.Single(rule => rule.StrengthTier == 2).MaximumChancePercent == 14 &&
+               rules.ChanceRules.Single(rule => rule.StrengthTier == 5).MaximumChancePercent == 36,
+            "Az ellenséges mágikusfegyver-esélyek nem a CSV hangolását követik.");
+
+        static int[] Sample(EnemyMagicWeaponRules configuredRules, int tier)
+        {
+            var random = new Random(9100 + tier);
+            var result = new int[4];
+            for (var index = 0; index < 100_000; index++)
+                result[configuredRules.RollMagicPower(21, tier, random)]++;
+            return result;
+        }
+
+        var tier1 = Sample(rules, 1);
+        var tier2 = Sample(rules, 2);
+        var tier5 = Sample(rules, 5);
+        Assert(tier1[0] > 91_000 && tier1[2] == 0 && tier1[3] == 0 &&
+               tier2[0] > 85_000 && tier2[3] == 0 &&
+               tier5[0] > 63_000 && tier5[3] < tier5[1] && tier5[3] < tier5[2],
+            $"A lefelé hangolt tier- vagy fokozateloszlás hibás: " +
+            $"T1={string.Join('/', tier1)}, T2={string.Join('/', tier2)}, T5={string.Join('/', tier5)}.");
+
+        var minotaur = data.GetEnemy("E014");
+        var forcedContext = new EnemyMagicWeaponContext(21, rules, data.Weapons, RestoredMagicPower: 3);
+        var upgraded = new ConfiguredEnemy(new Position(2, 2), minotaur, new Random(4),
+            magicWeaponContext: forcedContext);
+        Assert(upgraded.WeaponMagicPower == 3 &&
+               upgraded.AttackWeapons.Any(weapon => weapon.Id == "W017-PLUS3") &&
+               upgraded.AttackWeapons.Any(weapon => weapon.Id == "WN009") &&
+               upgraded.CarriedWeaponIds.SequenceEqual(["W017-PLUS3"]),
+            "A mágikus fokozat nem csak a normál szörnyfegyvert cserélte le, vagy nem került a tetemzsákmányba.");
+
+        var goblin = data.GetEnemy(MonsterIds.Goblin);
+        var magicGoblinContext = new EnemyMagicWeaponContext(21, rules, data.Weapons, RestoredMagicPower: 2);
+        var magicGoblin = new ConfiguredEnemy(new Position(1, 1), goblin, new Random(7),
+            magicWeaponContext: magicGoblinContext);
+        var savedEquipment = JsonSerializer.Deserialize<EnemyEquipmentSaveData>(JsonSerializer.Serialize(
+            new EnemyEquipmentSaveData(magicGoblin.EquippedWeapon?.Id, magicGoblin.EquippedShield?.Id,
+                magicGoblin.WeaponMagicPower)))!;
+        var restored = new ConfiguredEnemy(magicGoblin.Position, goblin, new Random(99),
+            new EnemyEquipmentSelection(savedEquipment.WeaponId, savedEquipment.ShieldId),
+            magicWeaponContext: new EnemyMagicWeaponContext(21, rules, data.Weapons,
+                savedEquipment.MagicPower));
+        Assert(magicGoblin.EquippedWeapon?.MagicPower == 2 && restored.EquippedWeapon?.Id ==
+               magicGoblin.EquippedWeapon.Id && restored.WeaponMagicPower == 2,
+            "A kiválasztott mágikus szörnyfegyver nem élte túl a mentési kört.");
+
+        var boundAbility = data.MonsterAbilities.First(ability => ability.WeaponIds is { Count: > 0 } &&
+            ability.WeaponIds.Select(data.GetWeapon).Any(weapon => !weapon.IsMonsterOnly &&
+                weapon.Rarity == ItemRarity.Normal));
+        var boundBaseWeapon = boundAbility.WeaponIds!.Select(data.GetWeapon).First(weapon =>
+            !weapon.IsMonsterOnly && weapon.Rarity == ItemRarity.Normal);
+        var abilityEnemyDefinition = goblin with
+        {
+            WeaponIds = [boundBaseWeapon.Id], Weapons = [boundBaseWeapon], ChoosesWeapon = false,
+            ShieldId = null, ShieldOption = null
+        };
+        var abilityEnemy = new ConfiguredEnemy(new Position(1, 1), abilityEnemyDefinition, new Random(3),
+            magicWeaponContext: forcedContext);
+        Assert(CreateBattleSystem(3).SelectEnemyAbilityWeapon(abilityEnemy, boundAbility,
+                   boundBaseWeapon.IsRanged ? boundBaseWeapon.MinimumRange : 1)?.BaseWeaponId == boundBaseWeapon.Id,
+            "A mágikus változat elvesztette az alapfegyverhez kötött szörnyképességet.");
+
+        var defender = CreateCharacter("Varázscél", 200);
+        var system = CreateBattleSystem(8123);
+        var resolution = system.ResolveEnemyActionDetailed(restored, defender, system.PrepareCharacter(defender).Runtime,
+            restored.EquippedWeapon);
+        Assert(resolution.Entry.Details?.Calculation.Any(line =>
+                   line.Contains("Mágikus fegyver", StringComparison.Ordinal) && line.Contains("+2", StringComparison.Ordinal)) == true &&
+               resolution.Entry.Details.Calculation.Any(line => line.Contains("19–20", StringComparison.Ordinal)),
+            "Az ellenség mágikus fegyvere nem ad találati és kritikus bónuszt.");
+    }
+
     static void RangedMonstersUseRangedWeaponsAndTargets()
     {
         var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory,

@@ -711,11 +711,13 @@ public sealed partial class Game
     {
         if (_dungeonLevel is null)
         {
-            _expeditionCoordinator.ReplenishExpeditionEnemies(_levelEnemyTemplates, _maze);
+            _expeditionCoordinator.ReplenishExpeditionEnemies(_levelEnemyTemplates, _maze,
+                difficultyLevel: _difficultyLevel);
             return;
         }
         foreach (var area in _dungeonLevel.Areas)
-            _expeditionCoordinator.ReplenishExpeditionEnemies(_levelEnemyTemplates, area.Maze, area.Id);
+            _expeditionCoordinator.ReplenishExpeditionEnemies(_levelEnemyTemplates, area.Maze, area.Id,
+                _difficultyLevel);
     }
 
     private Position? FindExpeditionSpawnPosition(Position preferred) =>

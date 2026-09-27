@@ -501,6 +501,20 @@ PLUS1;+1;1;2.0;1;15
 PLUS2;+2;2;4.0;2;30
 PLUS3;+3;3;7.0;3;50
 
+#Ellenséges mágikus fegyver esélyek
+Tier;AlapEsély%;SzintenkéntiEsély%;MaxEsély%
+1;0;0.4;8
+2;1;0.6;14
+3;3;0.8;20
+4;5;1.0;28
+5;8;1.2;36
+
+#Ellenséges mágikus fegyver fokozatok
+MágikusErő;MinimumSzint;MinimumTier;AlapSúly;SzintenkéntiSúly;TierenkéntiSúly
+1;3;1;100;0;0
+2;8;2;10;2;8
+3;14;3;2;1;4
+
 #Kereskedelemből tiltott tárgyak
 Id
 W001

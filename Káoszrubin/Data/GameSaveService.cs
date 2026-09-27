@@ -98,7 +98,7 @@ public sealed class GameSaveService
 public static class GameSaveFormat
 {
     public const int OldestSupportedVersion = 1;
-    public const int CurrentVersion = 30;
+    public const int CurrentVersion = 31;
 
     public static GameSaveData MigrateToCurrent(GameSaveData state)
     {
@@ -140,10 +140,18 @@ public static class GameSaveFormat
                 27 => MigrateVersion27To28(state),
                 28 => MigrateVersion28To29(state),
                 29 => MigrateVersion29To30(state),
+                30 => MigrateVersion30To31(state),
                 _ => throw new InvalidOperationException($"Hiányzó mentésmigráció a(z) {state.Version}. verzióhoz.")
             };
         }
         if (state.SuspendedCampaign is { } suspended) MigrateToCurrent(suspended);
+        return state;
+    }
+
+    private static GameSaveData MigrateVersion30To31(GameSaveData state)
+    {
+        // A régi ellenfelek megtartják a nem mágikus felszerelésüket.
+        state.Version = 31;
         return state;
     }
 
@@ -497,7 +505,7 @@ public sealed record EnemySaveData(Position Position, string DefinitionId, int C
     WorldEntityId? SummonerId = null,
     bool GrantsRewardsAndLoot = true,
     bool PreparedAbilityRequiresHeavyStagger = false);
-public sealed record EnemyEquipmentSaveData(string? WeaponId, string? ShieldId);
+public sealed record EnemyEquipmentSaveData(string? WeaponId, string? ShieldId, int MagicPower = 0);
 public sealed record CorpseSaveData(Position Position, string FormerName, int? PartyCharacterIndex,
     string? EnemyDefinitionId = null, bool IsSearched = false, List<string>? GuaranteedLootIds = null,
     List<string>? CarriedWeaponIds = null);

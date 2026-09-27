@@ -857,6 +857,8 @@ public sealed partial class Game
 
     private DungeonLevel GenerateDungeonLevel(MazeLevelConfiguration configuration)
     {
+        var magicWeaponContext = CreateEnemyMagicWeaponContext(
+            _difficultyLevel > 0 ? _difficultyLevel : configuration.Level);
         ResolvedEnemyEncounter ResolveEncounter(EnemyEncounterConfiguration encounter) => new(
             encounter.GroupCount,
             encounter.Members.Select(member => new ResolvedEnemyGroupMember(
@@ -883,8 +885,10 @@ public sealed partial class Game
             var isFinal = index == areaCount - 1;
             var settings = AreaGenerationSettings(rolledSettings, index, areaCount, isFinal);
             _generator = layout.Style == MazeLayoutStyle.Wide
-                ? new WideMazeGenerator(settings, roomBuckets[index], corridorBuckets[index], _random)
-                : new MazeGenerator(settings, roomBuckets[index], corridorBuckets[index], _random);
+                ? new WideMazeGenerator(settings, roomBuckets[index], corridorBuckets[index], _random,
+                    magicWeaponContext)
+                : new MazeGenerator(settings, roomBuckets[index], corridorBuckets[index], _random,
+                    magicWeaponContext);
             var maze = _generator.Create(MazeWidth, MazeHeight);
             areas.Add(new DungeonArea($"AREA_{index + 1}", maze,
                 new FogOfWar(maze.Width, maze.Height, CharacterClassRules.BaseVisionRange)));
@@ -994,7 +998,8 @@ public sealed partial class Game
             encounter.ScreenNumber);
         _generator = new MazeGenerator(configuration.CreateGenerationSettings(_random),
             configuration.RoomEncounters.Select(ResolveEncounter).ToList(),
-            configuration.CorridorEncounters.Select(ResolveEncounter).ToList());
+            configuration.CorridorEncounters.Select(ResolveEncounter).ToList(), _random,
+            CreateEnemyMagicWeaponContext(_difficultyLevel));
         _maze = _generator.Create(MazeWidth, MazeHeight);
         _player = new Player(_maze.Entrance, PartyLeader);
         _leaderTrail.Clear();
@@ -1394,6 +1399,10 @@ public sealed partial class Game
         _fogOfWar = activeArea.FogOfWar;
     }
 
+    private EnemyMagicWeaponContext CreateEnemyMagicWeaponContext(int difficultyLevel,
+        int? restoredMagicPower = null) => new(difficultyLevel, _gameData.EnemyMagicWeaponRules,
+        _gameData.Weapons, restoredMagicPower);
+
     internal static bool HasUniqueNpcInRoster(IEnumerable<LiveCharacter> characters, string npcDefinitionId) =>
         characters.Any(character => string.Equals(character.SourceNpcDefinitionId, npcDefinitionId,
             StringComparison.OrdinalIgnoreCase));
@@ -1414,7 +1423,8 @@ public sealed partial class Game
                                                     $"{encounter.Count} ellenfélnek.");
             foreach (var position in positions)
             {
-                var enemy = new ConfiguredEnemy(position, _gameData.GetEnemy(encounter.EnemyId), _random);
+                var enemy = new ConfiguredEnemy(position, _gameData.GetEnemy(encounter.EnemyId), _random,
+                    magicWeaponContext: CreateEnemyMagicWeaponContext(_difficultyLevel));
                 enemy.ConfigureMovement(EnemyMovementProfile.Stationary, Direction.Right);
                 enemy.ConfigureGroup($"QUEST:{encounter.RoomId}");
                 if (encounter.GuaranteedItemId is { } itemId) enemy.ConfigureGuaranteedLoot([itemId]);

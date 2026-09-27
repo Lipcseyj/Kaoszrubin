@@ -43,7 +43,8 @@ public sealed class DungeonExpeditionCoordinator
     public void ReplenishExpeditionEnemies(
         List<ExpeditionEnemyTemplate> templates,
         Maze maze,
-        string areaId = "AREA_1")
+        string areaId = "AREA_1",
+        int difficultyLevel = 1)
     {
         templates = templates.Where(template => string.Equals(template.AreaId, areaId,
             StringComparison.Ordinal)).ToList();
@@ -56,7 +57,10 @@ public sealed class DungeonExpeditionCoordinator
             if (needed <= 0) break;
             var position = FindExpeditionSpawnPosition(maze, template.Position);
             if (position is null) continue;
-            var enemy = new ConfiguredEnemy(position.Value, _gameData.GetEnemy(template.DefinitionId), _random);
+            var magicWeaponContext = new EnemyMagicWeaponContext(difficultyLevel,
+                _gameData.EnemyMagicWeaponRules, _gameData.Weapons);
+            var enemy = new ConfiguredEnemy(position.Value, _gameData.GetEnemy(template.DefinitionId), _random,
+                magicWeaponContext: magicWeaponContext);
             enemy.ConfigureMovement(template.MovementProfile, template.PatrolDirection);
             enemy.ConfigureGroup(template.GroupId, template.GroupRole);
             maze.AddEnemy(enemy);

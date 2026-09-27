@@ -64,7 +64,8 @@ internal sealed class GameStateMapper
                     StringComparer.OrdinalIgnoreCase), enemy.LastKnownTargetDirection,
                 enemy.ConsecutivePursuitPathFailures, enemy.SearchAnchorPosition,
                 enemy.SearchVisitedPositions.ToList(),
-                new EnemyEquipmentSaveData(enemy.EquippedWeapon?.Id, enemy.EquippedShield?.Id),
+                new EnemyEquipmentSaveData(enemy.EquippedWeapon?.Id, enemy.EquippedShield?.Id,
+                    enemy.WeaponMagicPower),
                 enemy.HordeDestination,
                 enemy.HordeCampUntilUtc is { } campUntil
                     ? Math.Max(0, (int)(campUntil - now).TotalMilliseconds) : 0,
@@ -189,11 +190,15 @@ internal sealed class GameStateMapper
                 ? new EnemyEquipmentSelection(savedEquipment.WeaponId, savedEquipment.ShieldId)
                 : null;
             var definition = _gameData.GetEnemy(savedEnemy.DefinitionId);
+            var magicWeaponContext = new EnemyMagicWeaponContext(mazeLevel,
+                _gameData.EnemyMagicWeaponRules, _gameData.Weapons,
+                savedEnemy.Equipment?.MagicPower ?? 0);
             var enemy = equipment is null
                 ? ConfiguredEnemy.RestoreLegacy(savedEnemy.Position, definition, savedEnemy.SelectedWeaponId,
                     bossHitPointBonusPercent: savedEnemy.BossHitPointBonusPercent)
                 : new ConfiguredEnemy(savedEnemy.Position, definition, equipment: equipment,
-                    bossHitPointBonusPercent: savedEnemy.BossHitPointBonusPercent);
+                    bossHitPointBonusPercent: savedEnemy.BossHitPointBonusPercent,
+                    magicWeaponContext: magicWeaponContext);
             var bossBonus = definition.IsBoss && definition.Rank == EnemyRank.Boss &&
                             savedEnemy.BossHitPointBonusPercent == 0
                 ? Random.Shared.Next(10, 51) // Régi mentésben még nem volt példányonkénti bossbónusz.

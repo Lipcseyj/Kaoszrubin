@@ -359,7 +359,8 @@ public sealed partial class Game
         _session.SynchronizeParty();
 
         var scenario = DeveloperBattleTestScenarioBuilder.Create(MazeWidth, MazeHeight, options,
-            _gameData.Enemies, _random, maximumLevel);
+            _gameData.Enemies, _random, maximumLevel,
+            CreateEnemyMagicWeaponContext(options.PartyLevel));
         _locationKind = AdventureLocationKind.Campaign;
         _locationId = DeveloperBattleTestLocationId;
         _mazeLevel = options.PartyLevel;

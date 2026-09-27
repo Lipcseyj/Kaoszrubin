@@ -12,14 +12,17 @@ public class MazeGenerator
     protected readonly MazeGenerationSettings Settings;
     private readonly IReadOnlyList<ResolvedEnemyEncounter> _roomEncounters;
     private readonly IReadOnlyList<ResolvedEnemyEncounter> _corridorEncounters;
+    private readonly EnemyMagicWeaponContext? _enemyMagicWeaponContext;
 
     public MazeGenerator(MazeGenerationSettings settings, IReadOnlyList<ResolvedEnemyEncounter> roomEncounters,
-        IReadOnlyList<ResolvedEnemyEncounter> corridorEncounters, Random? random = null)
+        IReadOnlyList<ResolvedEnemyEncounter> corridorEncounters, Random? random = null,
+        EnemyMagicWeaponContext? enemyMagicWeaponContext = null)
     {
         Settings = settings;
         Random = random ?? new Random();
         _roomEncounters = roomEncounters;
         _corridorEncounters = corridorEncounters;
+        _enemyMagicWeaponContext = enemyMagicWeaponContext;
         ValidateSettings(Settings);
     }
 
@@ -304,7 +307,8 @@ public class MazeGenerator
         var profile = configuredProfile ?? (roll < stationaryChance
             ? EnemyMovementProfile.Stationary
             : (roll - stationaryChance) % 2 == 0 ? EnemyMovementProfile.Wander : EnemyMovementProfile.Patrol);
-        var enemy = new ConfiguredEnemy(position, definition, Random);
+        var enemy = new ConfiguredEnemy(position, definition, Random,
+            magicWeaponContext: _enemyMagicWeaponContext);
         enemy.ConfigureMovement(profile, Directions[Random.Next(Directions.Length)]);
         return enemy;
     }

@@ -27,6 +27,7 @@ public abstract class Enemy(Position position) : WorldObject(position)
     public IReadOnlyList<WeaponDefinition> AttackWeapons { get; protected init; } = [];
     public WeaponDefinition? EquippedWeapon { get; protected init; }
     public WeaponDefinition? EquippedShield { get; protected init; }
+    public int WeaponMagicPower { get; protected init; }
     public string LongName => Definition.ChoosesWeapon && EquippedWeapon is { } weapon
         ? (EquippedShield is { } shield ? $"{Definition.Name} ({weapon.Name} + {shield.Name})" : $"{Definition.Name} ({weapon.Name})")
         : Definition.Name;
@@ -580,16 +581,19 @@ public sealed class ConfiguredEnemy : Enemy
         EnemyDefinition definition,
         Random? random = null,
         EnemyEquipmentSelection? equipment = null,
-        int? bossHitPointBonusPercent = null)
-        : this(position, definition, random, equipment, null, bossHitPointBonusPercent)
+        int? bossHitPointBonusPercent = null,
+        EnemyMagicWeaponContext? magicWeaponContext = null)
+        : this(position, definition, random, equipment, null, bossHitPointBonusPercent, magicWeaponContext)
     {
     }
 
     private ConfiguredEnemy(Position position, EnemyDefinition definition, Random? random,
         EnemyEquipmentSelection? equipment, string? legacySelectedWeaponId,
-        int? bossHitPointBonusPercent) : base(position)
+        int? bossHitPointBonusPercent, EnemyMagicWeaponContext? magicWeaponContext) : base(position)
     {
         var rng = random ?? Random.Shared;
+        var magicPower = magicWeaponContext?.ResolveMagicPower(definition, rng) ?? 0;
+        definition = magicWeaponContext?.Apply(definition, magicPower) ?? definition;
         var weapons = definition.Weapons ?? [];
 
         var oneHandedWeapons = weapons
@@ -660,6 +664,7 @@ public sealed class ConfiguredEnemy : Enemy
         AttackWeapons = usableWeapons;
         EquippedWeapon = definition.ChoosesWeapon ? selectedWeapon : null;
         EquippedShield = selectedShield;
+        WeaponMagicPower = weapons.Any(weapon => weapon.MagicPower == magicPower) ? magicPower : 0;
 
         if (definition.IsBoss && definition.Rank == EnemyRank.Boss)
             ConfigureBossHitPointBonus(bossHitPointBonusPercent ?? rng.Next(10, 51));
@@ -668,7 +673,7 @@ public sealed class ConfiguredEnemy : Enemy
 
     public static ConfiguredEnemy RestoreLegacy(Position position, EnemyDefinition definition,
         string? selectedWeaponId, Random? random = null, int? bossHitPointBonusPercent = null) =>
-        new(position, definition, random, null, selectedWeaponId, bossHitPointBonusPercent);
+        new(position, definition, random, null, selectedWeaponId, bossHitPointBonusPercent, null);
 
     public override EnemyDefinition Definition { get; }
     public override Rune Symbol => Rune.GetRuneAt(Definition.Appearance, 0);

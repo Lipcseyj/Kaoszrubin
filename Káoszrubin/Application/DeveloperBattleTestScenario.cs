@@ -38,7 +38,7 @@ public static class DeveloperBattleTestScenarioBuilder
 
     public static DeveloperBattleTestScenario Create(int width, int height,
         DeveloperBattleTestOptions options, IReadOnlyList<EnemyDefinition> enemyDefinitions,
-        Random random, int maximumPartyLevel)
+        Random random, int maximumPartyLevel, EnemyMagicWeaponContext? magicWeaponContext = null)
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(enemyDefinitions);
@@ -75,7 +75,8 @@ public static class DeveloperBattleTestScenarioBuilder
             {
                 var position = new Position(startX + memberIndex % GroupWidth,
                     startY + memberIndex / GroupWidth);
-                var enemy = new ConfiguredEnemy(position, definitions[random.Next(definitions.Count)], random);
+                var enemy = new ConfiguredEnemy(position, definitions[random.Next(definitions.Count)], random,
+                    magicWeaponContext: magicWeaponContext);
                 enemy.ConfigureMovement(EnemyMovementProfile.Stationary, Direction.Down);
                 enemy.ConfigureGroup(groupId, memberIndex == 0 ? EnemyGroupRole.Leader : EnemyGroupRole.Member);
                 enemy.ConfigureAwareness(EnemyAlertness.Alert);
