@@ -1065,7 +1065,7 @@ public sealed class CoopGuestScreen
         SessionSnapshot snapshot, ConsoleKey key)
     {
         var options = CurrentSpellOptions(snapshot, characterId);
-        if (key == ConsoleKey.Escape)
+        if (key == ConsoleKey.Escape || key == ConsoleKey.V)
         {
             _battleSpellMenuOpen = false;
         }
