@@ -89,6 +89,11 @@ internal static partial class Program
         Assert(ConsoleRenderer.FormatInnOfferName("nyíl", 12) == "nyíl ×12" &&
                ConsoleRenderer.FormatInnOfferName("rövidíj", 1) == "rövidíj",
             "A kijelölés újrarajzolása elveszíti a lőszercsomag darabszámát.");
+        Assert(ConsoleRenderer.FormatInnOfferName("gyógyital", 1, 4) ==
+               "gyógyital  [készlet: 4]" &&
+               ConsoleRenderer.FormatInnOfferName("nyíl", 12, 7) ==
+               "nyíl ×12  [készlet: 7]",
+            "A kereskedői sor nem különíti el a csomagméretet a csökkenő készletszámtól.");
 
         var bowyer = new InnVendorSnapshot(InnVendorKind.Bowyer, "Íjkészítő mester", []);
         var bowyerLines = ConsoleRenderer.BuildInnVendorLines(bowyer, InnMarketMode.Buy, [], 0,

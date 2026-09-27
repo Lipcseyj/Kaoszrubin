@@ -10,7 +10,7 @@ namespace KaoszRubin.Application;
 /// <summary>A hálózati szerződés jelenlegi verziója. Inkompatibilis DTO-változáskor növelendő.</summary>
 public static class SessionProtocol
 {
-    public const int Version = 95;
+    public const int Version = 96;
 }
 
 /// <summary>A host doménállapotától leválasztott, JSON-nal továbbítható teljes session-kép.</summary>
@@ -162,7 +162,7 @@ public sealed record InnTransactionSnapshot(long Sequence, InnTransactionKind Ki
 public sealed record InnVendorSnapshot(InnVendorKind Kind, string Name, IReadOnlyList<InnOfferSnapshot> Offers);
 
 public sealed record InnOfferSnapshot(int Index, InventoryItemSnapshot Item, int Price,
-    CharacterId? InventoryOwnerId = null);
+    CharacterId? InventoryOwnerId = null, int StockCount = 1);
 
 public sealed record SessionCharacterSnapshot(CharacterId CharacterId, string Name, string RaceId,
     string CharacterClassId, int Level, int CurrentVitality, int MaximumVitality, int CurrentMana,

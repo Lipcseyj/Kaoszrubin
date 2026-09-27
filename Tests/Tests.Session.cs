@@ -1056,7 +1056,11 @@ static void ResolveSkipsActionAfterSupportVictory()
     static void InnSnapshotCarriesSharedRumors()
     {
         var completionId = Guid.NewGuid();
-        var snapshot = new InnSnapshot(3, 120, [],
+        var stockItem = new InventoryItemSnapshot("T-STACK", "Gyógyital", ItemCategory.Miscellaneous,
+            ItemRarity.Normal, 0, 0, BasePrice: 20);
+        var snapshot = new InnSnapshot(3, 120,
+            [new InnVendorSnapshot(InnVendorKind.Market, "Kereskedő",
+                [new InnOfferSnapshot(0, stockItem, 25, StockCount: 6)])],
             [new InnRumorSnapshot("Úti hír", ["Ugyanazt hallja a host és a vendég."], ConsoleColor.Yellow)],
             [new InnTransactionSnapshot(1, InnTransactionKind.Purchase, "Vendég", "Kard", 50, "Vendég")],
             [new InnSellPriceSnapshot("W-TEST", 25)],
@@ -1072,6 +1076,7 @@ static void ResolveSkipsActionAfterSupportVictory()
                restored.Rumors[0].Color == ConsoleColor.Yellow && restored.Transactions is [{ ActorName: "Vendég" }] &&
                restored.SellPrices is [{ Price: 25 }] && restored.MenuOptions is [{ LeaderOnly: true }, ..] &&
                restored.MenuOptions[1].Vendor == InnVendorKind.Market && restored.PartyCount == 2 &&
+               restored.Vendors is [{ Offers: [{ StockCount: 6 }] }] &&
                restored.PartyFreeBackpackSlots == 7 && restored.LevelCompletion?.CompletionId == completionId &&
                restored.LevelCompletion.FallenCharacters is [{ Name: "Elesett" }] &&
                restored.InnName == "A Törött Kard" && restored.MazeLevel == 2,

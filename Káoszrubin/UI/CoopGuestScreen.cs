@@ -1235,7 +1235,7 @@ public sealed class CoopGuestScreen
             character.CharacterId == (_displayedCharacterId ?? characterId));
         if (own?.IsTemporaryFollower == true)
         {
-            if (GameInputBindings.IsCharacterSheetToggle(key))
+            if (GameInputBindings.IsCharacterSheetToggle(key) || key == ConsoleKey.Escape)
                 await CloseInventoryAsync(client, characterId, cancellationToken);
             else SetMessage("A követő NPC inventoryja csak megtekinthető.", ConsoleColor.DarkYellow);
             return;
@@ -1243,7 +1243,7 @@ public sealed class CoopGuestScreen
         var inventory = own?.Inventory;
         if (inventory is null)
         {
-            if (GameInputBindings.IsCharacterSheetToggle(key))
+            if (GameInputBindings.IsCharacterSheetToggle(key) || key == ConsoleKey.Escape)
                 await CloseInventoryAsync(client, characterId, cancellationToken);
             else SetMessage("A követő NPC inventoryja nem módosítható.", ConsoleColor.DarkYellow);
             return;
@@ -1253,7 +1253,7 @@ public sealed class CoopGuestScreen
         var panelWidth = _lastFrame?.PanelWidth ?? CharacterSheetPanel.Width;
         _inventorySelection = Math.Clamp(_inventorySelection, 0, Math.Max(0, slots.Count - 1));
         GameCommand? command = null;
-        if (GameInputBindings.IsCharacterSheetToggle(key))
+        if (GameInputBindings.IsCharacterSheetToggle(key) || key == ConsoleKey.Escape)
         {
             await CloseInventoryAsync(client, characterId, cancellationToken);
             return;
