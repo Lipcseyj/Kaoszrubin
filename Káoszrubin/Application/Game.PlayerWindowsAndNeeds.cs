@@ -132,6 +132,7 @@ public sealed partial class Game
     private static string PlayerWindowTitle(PlayerWindowKind kind) => kind switch
     {
         PlayerWindowKind.Help => "súgó",
+        PlayerWindowKind.Bestiary => "bestiárium",
         PlayerWindowKind.Settings => "beállítások",
         PlayerWindowKind.QuestJournal => "küldetésnapló",
         PlayerWindowKind.Inventory => "felszerelés",
@@ -143,6 +144,7 @@ public sealed partial class Game
     private static string PlayerWindowActivity(PlayerWindowKind kind) => kind switch
     {
         PlayerWindowKind.Help => "a súgót olvassa",
+        PlayerWindowKind.Bestiary => "a bestiáriumot lapozza",
         PlayerWindowKind.Settings => "a beállításokat kezeli",
         PlayerWindowKind.QuestJournal => "a küldetésnaplót böngészi",
         PlayerWindowKind.Inventory => "a felszerelését rendezi",

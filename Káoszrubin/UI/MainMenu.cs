@@ -967,6 +967,7 @@ public sealed class MainMenu
             Hotkey("ESC", "Visszatérés a főmenübe, megerősítéssel."),
             Hotkey("SHIFT+F1", "A súgó megnyitása."),
             Hotkey("SHIFT+F2", "Beállítások megnyitása."),
+            Hotkey("SHIFT+F3", "A legyőzött szörnyek bestiáriumának megnyitása."),
             Hotkey("F12", "🖥️ Képernyő teljes újrarajzolása (hasznos ha szétesne a kép)"),
             Blank(),
             Section("🧱 LABIRINTUS", ConsoleColor.Green),

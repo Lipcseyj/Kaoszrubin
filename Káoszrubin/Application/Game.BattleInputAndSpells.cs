@@ -34,6 +34,13 @@ public sealed partial class Game
             ContinueBattle();
             return;
         }
+        if (GameInput.IsBestiaryShortcut(key))
+        {
+            ShowBestiary();
+            _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
+            ContinueBattle();
+            return;
+        }
         if (IsSaveGameShortcut(key))
         {
             _saveAfterBattle = true;

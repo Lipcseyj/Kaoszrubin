@@ -18,6 +18,21 @@ internal static partial class Program
         Assert(creature is not null && creature.Portrait.Lines.Count == 5 &&
                creature.Quotes.Quotes.Contains(creature.Quotes.Quotes[0]),
             "A főmenü nem tudott a betöltött mondatokhoz portréval rendelkező lényt választani.");
+
+        var entries = BestiaryWindow.CreateEntries(catalog,
+            new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["E001"] = 3,
+                ["E003"] = 0,
+                ["NEMLETEZIK"] = 8
+            });
+        var details = BestiaryWindow.BuildDetails(catalog, entries.Single());
+        Assert(entries is [{ Enemy.Id: "E001", KillCount: 3 }] &&
+               AsciiPortraits.ForEnemy(entries[0].Enemy.Id).Lines.Count > 0 &&
+               details.Any(line => line.Text.Contains("Legyőzve: 3", StringComparison.Ordinal)) &&
+               details.Any(line => line.Text.Contains("HP:", StringComparison.Ordinal)) &&
+               details.Any(line => line.Text.Contains("Képességek", StringComparison.Ordinal)),
+            "A bestiárium nem kizárólag a legyőzött, feloldható szörnyeket vagy nem a teljes adatlapjukat adja.");
     }
 
     static void RaceTraitsAreLoadedFromData()

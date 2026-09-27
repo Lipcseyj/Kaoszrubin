@@ -41,6 +41,7 @@ public abstract record GameCommand(PlayerId SenderId, long CommandId, CharacterI
 public enum PlayerWindowKind
 {
     Help,
+    Bestiary,
     Settings,
     QuestJournal,
     Inventory,

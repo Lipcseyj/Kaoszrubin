@@ -193,6 +193,9 @@ internal static partial class Program
 
     static void HostAndGuestUseSharedInputBindings()
     {
+        Assert(GameInput.IsBestiaryShortcut(new ConsoleKeyInfo('\0', ConsoleKey.F3, true, false, false)) &&
+               !GameInput.IsBestiaryShortcut(new ConsoleKeyInfo('\0', ConsoleKey.F3, false, false, false)),
+            "A Shift+F3 bestiárium-gyorsbillentyű nem különül el a harmadik gyorsvarázslattól.");
         Assert(GameInputBindings.IsCharacterSheetToggle(ConsoleKey.Tab), "A Tab nem vált karakterlapfókuszt.");
         Assert(GameInputBindings.InventoryAction(ConsoleKey.Enter) == InventoryInputAction.Use &&
                GameInputBindings.InventoryAction(ConsoleKey.D) == InventoryInputAction.Drop &&

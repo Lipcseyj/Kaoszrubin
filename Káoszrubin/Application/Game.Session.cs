@@ -168,6 +168,11 @@ public sealed partial class Game
             ManageCharacterSheetAtInn();
             return new ConsoleKeyInfo('\0', InnController.StateChangedKey, false, false, false);
         }
+        if (GameInput.IsBestiaryShortcut(key))
+        {
+            ShowBestiary();
+            return new ConsoleKeyInfo('\0', InnController.StateChangedKey, false, false, false);
+        }
         return key;
     }
 
@@ -198,6 +203,12 @@ public sealed partial class Game
             var keyInfo = ReadInnKeyCore();
             if (keyInfo.Key == InnController.StateChangedKey)
             {
+                _renderer.RefreshCharacterSheet(PartyLeader);
+                continue;
+            }
+            if (GameInput.IsBestiaryShortcut(keyInfo))
+            {
+                ShowBestiary();
                 _renderer.RefreshCharacterSheet(PartyLeader);
                 continue;
             }

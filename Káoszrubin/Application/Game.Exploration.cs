@@ -71,6 +71,13 @@ public sealed partial class Game
         CompleteExplorationSpellSelection(new SpellCastSelection(quickSpell, PartyLeader));
     }
 
+    private void ShowBestiary()
+    {
+        var kills = BestiaryWindow.AggregateKills(CharacterRoster.Party.Members);
+        RunHostPersonalWindow(PlayerWindowKind.Bestiary,
+            () => BestiaryWindow.Show(_gameData, kills, CurrentHostCoopWindowStatus));
+    }
+
     private void CompleteExplorationSpellSelection(SpellCastSelection selection)
     {
         var result = TryCastSpell(selection.Caster, GetCasterPosition(selection.Caster), selection.Spell,
@@ -111,6 +118,14 @@ public sealed partial class Game
         {
             _renderer.RestoreSpellCastingOverlay();
             ShowInGameHelp();
+            _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
+            DrawHostSpellSelector();
+            return;
+        }
+        if (GameInput.IsBestiaryShortcut(key))
+        {
+            _renderer.RestoreSpellCastingOverlay();
+            ShowBestiary();
             _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
             DrawHostSpellSelector();
             return;

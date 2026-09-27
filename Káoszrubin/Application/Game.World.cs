@@ -445,6 +445,11 @@ public sealed partial class Game
                         ShowInGameHelp();
                         continue;
                     }
+                    if (GameInput.IsBestiaryShortcut(keyInfo))
+                    {
+                        ShowBestiary();
+                        continue;
+                    }
                     if (IsSaveGameShortcut(keyInfo))
                     {
                         SaveGame();

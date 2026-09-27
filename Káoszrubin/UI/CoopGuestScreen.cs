@@ -243,6 +243,16 @@ public sealed class CoopGuestScreen
                             cancellationToken);
                         continue;
                     }
+                    if (GameInput.IsBestiaryShortcut(key))
+                    {
+                        var kills = BestiaryWindow.AggregateKills(client.CurrentSnapshot?.Party ?? []);
+                        await RunPersonalWindowAsync(client, selected.CharacterId, PlayerWindowKind.Bestiary,
+                            () => BestiaryWindow.Show(_gameData, kills,
+                                () => CurrentCoopWindowStatus(client, selected.CharacterId)), cancellationToken);
+                        _lastFrame = null;
+                        Interlocked.Exchange(ref _redrawRequested, 1);
+                        continue;
+                    }
                     if (key.Key == ConsoleKey.Q &&
                         client.CurrentSnapshot is { Phase: GameSessionPhase.Exploration or GameSessionPhase.Inn } questSnapshot &&
                         questSnapshot.Narrative is null && questSnapshot.RestNotice is null &&
@@ -2118,6 +2128,7 @@ public sealed class CoopGuestScreen
     public static string PlayerWindowActivityText(PlayerWindowKind kind) => kind switch
     {
         PlayerWindowKind.Help => "a súgót olvassa",
+        PlayerWindowKind.Bestiary => "a bestiáriumot lapozza",
         PlayerWindowKind.Settings => "a beállításokat kezeli",
         PlayerWindowKind.QuestJournal => "a küldetésnaplót böngészi",
         PlayerWindowKind.Inventory => "a felszerelését rendezi",
@@ -2129,6 +2140,7 @@ public sealed class CoopGuestScreen
     public static string LocalPlayerWindowStatusText(PlayerWindowKind kind) => kind switch
     {
         PlayerWindowKind.Help => "súgó megnyitva",
+        PlayerWindowKind.Bestiary => "bestiárium megnyitva",
         PlayerWindowKind.Settings => "beállítások megnyitva",
         PlayerWindowKind.QuestJournal => "küldetésnapló megnyitva",
         PlayerWindowKind.CharacterDetails => "részletes karakterinformáció megnyitva",
