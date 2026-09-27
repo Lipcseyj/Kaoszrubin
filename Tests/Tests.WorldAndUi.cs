@@ -50,14 +50,20 @@ internal static partial class Program
         var unfocusedTitle = CharacterSheetPanel.WithFocusMarker(title, false, width);
 
         Assert(focusedWorld.Text.StartsWith('»') && focusedTitle.Text.StartsWith('»') &&
-               focusedWorld.Background == ConsoleColor.Cyan && focusedTitle.Background == ConsoleColor.Cyan,
-            "A fókuszált karakterlap két fejlécsora nem kapta meg a jobb nyilat és a cián hátteret.");
+               focusedWorld.Background == ConsoleColor.DarkCyan && focusedTitle.Background == ConsoleColor.DarkCyan,
+            "A fókuszált karakterlap két fejlécsora nem kapta meg a jobb nyilat és a sötétcián hátteret.");
         Assert(unfocusedWorld.Text.StartsWith('«') && unfocusedTitle.Text.StartsWith('«') &&
                unfocusedWorld.Background == ConsoleColor.Black && unfocusedTitle.Background == ConsoleColor.Black,
             "A fókusz nélküli karakterlap két fejlécsora nem kapta meg a bal nyilat és a fekete hátteret.");
         Assert(focusedWorld.Text.Contains("⌛⏸", StringComparison.Ordinal) &&
                focusedWorld.Text.Length <= width && focusedTitle.Text.Length <= width,
             "A fókuszjelző eltolta vagy levágta az időjelzőt a karakterlap fejlécéből.");
+        Assert(ConsoleRenderer.RightSheetWidthForViewport(200) == 27 &&
+               CoopGuestScreen.CharacterPanelWidthForViewport(200, 170) == 27,
+            "A host vagy guest karakterlapja eléri a sortörést okozó utolsó termináloszlopot.");
+        var fittedHeader = BattleCommandPanel.FitToDisplayWidth(focusedWorld.Text, 27);
+        Assert(BattleCommandPanel.DisplayWidth(fittedHeader) == 27,
+            "Az emojikat tartalmazó karakterlapfejléc nem kijelzett szélesség szerint lett kitöltve.");
     }
 
     static void InnSharedWindowUsesContextualBanner()

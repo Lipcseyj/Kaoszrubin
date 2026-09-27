@@ -93,7 +93,11 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
     private const int ResourceIconStep = 10;
     private const int PortraitInteriorWidth = 25;
     private static int RightSheetWidthForWindow() =>
-        Math.Max(RightSheetWidth, SafeConsoleWindowWidth() - RightSheetX);
+        RightSheetWidthForViewport(SafeConsoleWindowWidth());
+
+    // Az utolsó termináloszlopba írás automatikus sortörést okozhat, ezért azt szabadon hagyjuk.
+    internal static int RightSheetWidthForViewport(int windowWidth) =>
+        Math.Max(RightSheetWidth, windowWidth - RightSheetX - 1);
 
     private static int RightSheetExtendedWidthForWindow() =>
         BattleDetailsPanel.ExtendedWidthFor(RightSheetWidthForWindow());

@@ -208,6 +208,12 @@ public sealed class BattleCommandPanel
         return result.ToString();
     }
 
+    public static string FitToDisplayWidth(string text, int width)
+    {
+        var fitted = TruncateToDisplayWidth(text, Math.Max(0, width));
+        return fitted + new string(' ', Math.Max(0, width - DisplayWidth(fitted)));
+    }
+
     /// <summary>
     /// Centers text within the panel width. If text exceeds width, it is truncated.
     /// </summary>

@@ -698,13 +698,23 @@ public sealed partial class ConsoleRenderer
                 CharacterSheetPanel.BuildWorldHeaderLine(_owner._mazeLevel, _owner._goldenKeyCount,
                     MonsterIds.Bosses.Count, _owner._explorationClockIndicator, Math.Max(1, width - 1)),
                 _characterSheetFocused, width);
-            WriteSheetLine(worldHeader.Row, worldHeader.Text, worldHeader.Color, worldHeader.Background);
+            // Az emojik terminálfüggő cellaszélessége nem befolyásolhatja a háttér jobb szélét.
+            WriteSheetLine(worldHeader.Row, string.Empty, worldHeader.Color, worldHeader.Background);
+            SetColors(worldHeader.Color, worldHeader.Background);
+            WriteAt(RightSheetX, worldHeader.Row,
+                BattleCommandPanel.TruncateToDisplayWidth(worldHeader.Text, width));
             _lastCharacterSheetLines[worldHeader.Row] = worldHeader;
 
-            var background = _characterSheetFocused ? ConsoleColor.Cyan : ConsoleColor.Black;
+            var background = _characterSheetFocused ? ConsoleColor.DarkCyan : ConsoleColor.Black;
             var marker = _characterSheetFocused ? "»" : "«";
-            WriteSheetLine(CharacterSheetHeaderLine, marker + "KARAKTERLAP", ConsoleColor.Yellow, background,
-                " - " + character.Name, character.Color);
+            WriteSheetLine(CharacterSheetHeaderLine, string.Empty, ConsoleColor.Yellow, background);
+            var title = marker + "KARAKTERLAP";
+            SetColors(ConsoleColor.Yellow, background);
+            WriteAt(RightSheetX, CharacterSheetHeaderLine, title);
+            var titleWidth = BattleCommandPanel.DisplayWidth(title);
+            SetColors(character.Color, background);
+            WriteAt(RightSheetX + titleWidth, CharacterSheetHeaderLine,
+                BattleCommandPanel.TruncateToDisplayWidth(" - " + character.Name, width - titleWidth));
         }
 
         public void RefreshExplorationClockLine()
@@ -724,7 +734,12 @@ public sealed partial class ConsoleRenderer
             var prefixWidth = BattleCommandPanel.DisplayWidth(line.Text[..indicatorStart]);
             const int clockSegmentWidth = 4;
             var indicatorWidth = BattleCommandPanel.DisplayWidth(_owner._explorationClockIndicator);
-            SetColors(line.Color, line.Background);
+            // Más képernyőrészek közvetlenül is állítanak konzolszínt, ezért az időjelző
+            // részleges frissítésénél nem hagyatkozhatunk kizárólag a színcache-re.
+            Console.ForegroundColor = line.Color;
+            Console.BackgroundColor = line.Background;
+            _owner._currentForegroundColor = line.Color;
+            _owner._currentBackgroundColor = line.Background;
             Console.SetCursorPosition(RightSheetX + prefixWidth, line.Row);
             Console.Write(_owner._explorationClockIndicator);
             if (indicatorWidth < clockSegmentWidth)
@@ -939,9 +954,8 @@ public sealed partial class ConsoleRenderer
         private void WriteSheetLine(int y, string text, ConsoleColor foregroundColor, ConsoleColor backgroundColor)
         {
             var rightSheetWidth = RightSheetWidthForWindow();
-            var clippedText = text.Length <= rightSheetWidth ? text : text[..rightSheetWidth];
             SetColors(foregroundColor, backgroundColor);
-            WriteAt(RightSheetX, y, clippedText.PadRight(rightSheetWidth));
+            WriteAt(RightSheetX, y, BattleCommandPanel.FitToDisplayWidth(text, rightSheetWidth));
         }
 
         /// <summary>
@@ -961,13 +975,16 @@ public sealed partial class ConsoleRenderer
             var coloredPart = text[split..];
 
             WriteSheetLine(y, string.Empty, color, background);
+            var first = BattleCommandPanel.TruncateToDisplayWidth(firstPart, RightSheetWidthForWindow());
+            var remaining = Math.Max(0, RightSheetWidthForWindow() - BattleCommandPanel.DisplayWidth(first));
+            var colored = BattleCommandPanel.TruncateToDisplayWidth(coloredPart, remaining);
             Console.SetCursorPosition(RightSheetX, y);
 
             SetColors(color, background);
-            Console.Write(firstPart);
+            Console.Write(first);
 
             SetColors(coloredTextColor, background);
-            Console.Write(coloredPart);
+            Console.Write(colored);
         }
 
         /// <summary>
@@ -983,38 +1000,17 @@ public sealed partial class ConsoleRenderer
             ConsoleColor rightColor)
         {
             var rightSheetWidth = RightSheetWidthForWindow();
-            var leftMax = rightSheetWidth / FrameBorderWidth;
-            var rightMax = rightSheetWidth - leftMax;
-
-            string leftClipped;
-            string rightClipped;
-
-            if (leftText.Length <= leftMax)
-            {
-                leftClipped = leftText;
-                var remaining = rightSheetWidth - leftClipped.Length;
-                rightClipped = rightText.Length <= remaining ? rightText : rightText[..remaining];
-            }
-            else if (rightText.Length <= rightMax)
-            {
-                rightClipped = rightText;
-                var remaining = rightSheetWidth - rightClipped.Length;
-                leftClipped = leftText.Length <= remaining ? leftText : leftText[..remaining];
-            }
-            else
-            {
-                leftClipped = leftText[..leftMax];
-                rightClipped = rightText.Length <= rightMax ? rightText : rightText[..rightMax];
-            }
+            var leftClipped = BattleCommandPanel.TruncateToDisplayWidth(leftText, rightSheetWidth);
+            var leftWidth = BattleCommandPanel.DisplayWidth(leftClipped);
+            var rightClipped = BattleCommandPanel.TruncateToDisplayWidth(rightText, rightSheetWidth - leftWidth);
 
             SetColors(leftColor, leftColorBg);
-            var leftPadded = leftClipped.PadRight(leftClipped.Length);
-            WriteAt(RightSheetX, y, leftPadded);
+            WriteAt(RightSheetX, y, leftClipped);
 
             SetColors(rightColor, leftColorBg);
-            var secondX = RightSheetX + leftPadded.Length;
-            var remainingWidth = rightSheetWidth - leftPadded.Length;
-            var rightPadded = rightClipped.PadRight(remainingWidth);
+            var secondX = RightSheetX + leftWidth;
+            var remainingWidth = rightSheetWidth - leftWidth;
+            var rightPadded = BattleCommandPanel.FitToDisplayWidth(rightClipped, remainingWidth);
             WriteAt(secondX, y, rightPadded);
         }
 

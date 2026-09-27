@@ -1615,7 +1615,7 @@ public sealed class CoopGuestScreen
         var windowWidth = SafeWindowWidth();
         var windowHeight = SafeWindowHeight();
         var mapWidth = Math.Min(world.Width, Math.Max(1, windowWidth - CharacterSheetPanel.Width - 2));
-        var panelWidth = Math.Max(CharacterSheetPanel.Width, windowWidth - mapWidth - 2);
+        var panelWidth = CharacterPanelWidthForViewport(windowWidth, mapWidth);
         var mapHeight = Math.Min(world.Height, Math.Max(1, windowHeight - MessageLineCount));
         _messageLineWidth = Math.Max(1, mapWidth - 4);
         var grid = new GuestMapCell[mapWidth, mapHeight];
@@ -1797,7 +1797,8 @@ public sealed class CoopGuestScreen
                     line.InventorySlot is not null && line.InventorySlot == selectedSlot
                         ? ConsoleColor.DarkCyan
                         : line.Background, line.ColoredSuffix, line.ColoredSuffixColor,
-                    segments, line.ExtendsToDivider, CenterSegments: line.ColoredTextStart < 0);
+                    segments, line.ExtendsToDivider, CenterSegments: line.ColoredTextStart < 0,
+                    FillBackgroundFirst: !_spellInfoOpen && _itemInspectionPanel is null && y is 0 or 1);
             }
             else
                 panel[y] = new GuestTextLine(string.Empty, ConsoleColor.Gray, ConsoleColor.Black);
@@ -1941,6 +1942,10 @@ public sealed class CoopGuestScreen
         return new GuestRenderFrame(world.WorldId, windowWidth, windowHeight, mapWidth, mapHeight, panelWidth, grid, panel,
             partyStatuses, footer, resourceLine);
     }
+
+    // A terminál utolsó oszlopát itt is kihagyjuk, különben a teljes panelsor a bal szélre törhet át.
+    internal static int CharacterPanelWidthForViewport(int windowWidth, int mapWidth) =>
+        Math.Max(CharacterSheetPanel.Width, windowWidth - mapWidth - 3);
 
     internal static string? SpellTargetInvalidReason(BattleSpellOption spell, Position cursor,
         WorldSnapshot? world)
@@ -2610,40 +2615,56 @@ public sealed class CoopGuestScreen
         if (!TrySetCursorPosition(x, y)) return;
         Console.ForegroundColor = line.Foreground;
         Console.BackgroundColor = line.Background;
+        if (line.FillBackgroundFirst)
+        {
+            Console.Write(new string(' ', width));
+            if (!TrySetCursorPosition(x, y)) return;
+            Console.ForegroundColor = line.Foreground;
+            Console.BackgroundColor = line.Background;
+        }
         if (line.Segments is { Count: > 0 })
         {
             var text = string.Concat(line.Segments.Select(segment => segment.Text));
-            if (text.Length > width) text = text[..width];
-            var leftPadding = line.CenterSegments ? Math.Max(0, (width - text.Length) / 2) : 0;
+            text = BattleCommandPanel.TruncateToDisplayWidth(text, width);
+            var textWidth = BattleCommandPanel.DisplayWidth(text);
+            var leftPadding = line.CenterSegments ? Math.Max(0, (width - textWidth) / 2) : 0;
             Console.Write(new string(' ', leftPadding));
-            var remaining = Math.Min(width - leftPadding, text.Length);
-            var offset = 0;
+            var remaining = Math.Min(width - leftPadding, textWidth);
+            var writtenWidth = 0;
             foreach (var segment in line.Segments)
             {
-                if (offset >= remaining) break;
-                var segmentText = segment.Text[..Math.Min(segment.Text.Length, remaining - offset)];
+                if (writtenWidth >= remaining) break;
+                var segmentText = BattleCommandPanel.TruncateToDisplayWidth(segment.Text,
+                    remaining - writtenWidth);
                 Console.ForegroundColor = segment.Color ?? line.Foreground;
                 Console.Write(segmentText);
-                offset += segmentText.Length;
+                writtenWidth += BattleCommandPanel.DisplayWidth(segmentText);
             }
             Console.ForegroundColor = line.Foreground;
-            Console.Write(new string(' ', Math.Max(0, width - leftPadding - offset)));
-            return;
+            Console.Write(new string(' ', Math.Max(0, width - leftPadding - writtenWidth)));
         }
-        if (string.IsNullOrEmpty(line.ColoredSuffix))
+        else if (string.IsNullOrEmpty(line.ColoredSuffix))
         {
-            Console.Write(FitConsoleLine(ExpandTabs(line.Text), width));
-            return;
+            var text = ExpandTabs(line.Text);
+            Console.Write(line.FillBackgroundFirst
+                ? BattleCommandPanel.TruncateToDisplayWidth(text, width)
+                : FitConsoleLine(text, width));
         }
-        var suffix = line.ColoredSuffix[..Math.Min(line.ColoredSuffix.Length, width)];
-        var leftWidth = Math.Max(0, width - suffix.Length);
-        var expandedText = ExpandTabs(line.Text);
-        var left = expandedText.Length <= leftWidth ? expandedText : expandedText[..leftWidth];
-        Console.Write(left);
-        Console.ForegroundColor = line.ColoredSuffixColor;
-        Console.Write(suffix);
-        Console.ForegroundColor = line.Foreground;
-        Console.Write(new string(' ', Math.Max(0, width - left.Length - suffix.Length)));
+        else
+        {
+            var suffix = BattleCommandPanel.TruncateToDisplayWidth(line.ColoredSuffix, width);
+            var suffixWidth = BattleCommandPanel.DisplayWidth(suffix);
+            var leftWidth = Math.Max(0, width - suffixWidth);
+            var expandedText = ExpandTabs(line.Text);
+            var left = BattleCommandPanel.TruncateToDisplayWidth(expandedText, leftWidth);
+            var leftDisplayWidth = BattleCommandPanel.DisplayWidth(left);
+            Console.Write(left);
+            Console.ForegroundColor = line.ColoredSuffixColor;
+            Console.Write(suffix);
+            Console.ForegroundColor = line.Foreground;
+            Console.Write(new string(' ', Math.Max(0, width - leftDisplayWidth - suffixWidth)));
+        }
+
     }
 
     private static void WritePartyStatusAt(int x, int y, PartyStatusLine? status, int width)
@@ -2933,8 +2954,7 @@ public sealed class CoopGuestScreen
 
     private static string FitConsoleLine(string text, int width)
     {
-        if (text.Length > width) text = text[..width];
-        return text.PadRight(width);
+        return BattleCommandPanel.FitToDisplayWidth(text, width);
     }
 
     private static string ExpandTabs(string text, int tabWidth = 18)
@@ -2961,7 +2981,7 @@ public sealed class CoopGuestScreen
     private readonly record struct GuestTextLine(string Text, ConsoleColor Foreground, ConsoleColor Background,
         string ColoredSuffix = "", ConsoleColor ColoredSuffixColor = ConsoleColor.White,
         IReadOnlyList<TextSegment>? Segments = null, bool ExtendsToDivider = false,
-        bool CenterSegments = true);
+        bool CenterSegments = true, bool FillBackgroundFirst = false);
     private sealed record GuestRenderFrame(WorldId WorldId, int WindowWidth, int WindowHeight, int MapWidth,
         int MapHeight, int PanelWidth, GuestMapCell[,] Map, GuestTextLine[] Panel, PartyStatusLine?[] PartyStatuses,
         GuestTextLine[] Footers, CharacterResourceLine? CharacterVitalsOverlay);

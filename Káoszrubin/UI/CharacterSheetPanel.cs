@@ -327,7 +327,7 @@ public static class CharacterSheetPanel
         return line with
         {
             Text = (focused ? "»" : "«") + content,
-            Background = focused ? ConsoleColor.Cyan : ConsoleColor.Black
+            Background = focused ? ConsoleColor.DarkCyan : ConsoleColor.Black
         };
     }
 
