@@ -46,9 +46,15 @@ public sealed class BackgroundContentRestorer : IDisposable
 
     public void Dispose()
     {
-        if (_disposed) return;
+        RestoreAndDispose();
+    }
+
+    /// <summary>Restores the captured cells and releases this snapshot, reporting native restore success.</summary>
+    public bool RestoreAndDispose()
+    {
+        if (_disposed) return false;
         _disposed = true;
-        RestoreCore();
+        return RestoreCore();
     }
 
     /// <summary>

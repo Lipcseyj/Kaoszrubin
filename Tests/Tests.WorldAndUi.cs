@@ -1061,12 +1061,14 @@ static void BattleHitHighlightsDamageAndHealth()
                 VisionRange: 5, Stealth: 0, Noise: 4));
         noisyMaze.AddEnemy(noisy);
         var hearingFog = new FogOfWar(noisyMaze.Width, noisyMaze.Height, 1);
-        hearingFog.UpdatePartyVisibility(noisyMaze,
+        var hearingChanges = hearingFog.UpdatePartyVisibility(noisyMaze,
             [new PartyPerceptionSource(origin, 1, 4, 0)], false);
         var heard = WorldSnapshotProjector.Create(noisyMaze, hearingFog);
         Assert(heard.Enemies.Count == 0 && heard.LastKnownEnemies is
                    [{ IsSoundCue: true, Position: var heardPosition }] && heardPosition != enemyPosition,
             "A hallott ellenfél hangjele pontos helyet vagy teljes szörnyadatot árult el.");
+        Assert(hearingChanges.Contains(heard.LastKnownEnemies![0].Position),
+            "Az új hallásjel helye nem került be a kirajzolandó észlelésváltozások közé.");
     }
 
     static void VictorySummaryIsCompact()

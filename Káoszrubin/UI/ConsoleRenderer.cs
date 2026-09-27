@@ -126,6 +126,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
     private LiveCharacter? _spellInfoCharacter;
     private LiveCharacter? _battleActingCharacter;
     private List<MapCellSnapshot>? _spellCastingOverlaySnapshot;
+    private BackgroundContentRestorer? _spellCastingOverlayBackground;
     private (int Left, int Top, int Width, int Height)? _spellCastingOverlayBounds;
     private ConsoleColor? _currentForegroundColor;
     private ConsoleColor? _currentBackgroundColor;
@@ -2028,11 +2029,14 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
     public void RestoreSpellCastingOverlay()
     {
         if (_spellCastingOverlaySnapshot is null) return;
-        foreach (var cell in _spellCastingOverlaySnapshot)
-        {
-            Console.SetCursorPosition(cell.Position.X, cell.Position.Y);
-            WriteRuneWithColor(cell.Rune, cell.ForegroundColor, cell.BackgroundColor);
-        }
+        var restoredNatively = _spellCastingOverlayBackground?.RestoreAndDispose() ?? false;
+        _spellCastingOverlayBackground = null;
+        if (!restoredNatively)
+            foreach (var cell in _spellCastingOverlaySnapshot)
+            {
+                Console.SetCursorPosition(cell.Position.X, cell.Position.Y);
+                WriteRuneWithColor(cell.Rune, cell.ForegroundColor, cell.BackgroundColor);
+            }
         _spellCastingOverlaySnapshot = null;
         _spellCastingOverlayBounds = null;
     }
@@ -2097,6 +2101,8 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
         if (_spellCastingOverlaySnapshot is null)
         {
             _spellCastingOverlayBounds = (left, top, frameWidth, frameHeight);
+            _spellCastingOverlayBackground = new BackgroundContentRestorer(left, top, frameWidth, frameHeight,
+                ResetColorCache);
             _spellCastingOverlaySnapshot = [];
             for (var y = top; y < top + frameHeight; y++)
                 for (var x = left; x < left + frameWidth; x++)

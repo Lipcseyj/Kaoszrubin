@@ -133,13 +133,11 @@ public sealed partial class Game
                 break;
             case ConsoleKey.LeftArrow when state.Casters.Count > 1:
                 _renderer.RestoreSpellCastingOverlay();
-                _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
                 state.CasterIndex = (state.CasterIndex - 1 + state.Casters.Count) % state.Casters.Count;
                 state.SelectedIndex = 0;
                 break;
             case ConsoleKey.RightArrow when state.Casters.Count > 1:
                 _renderer.RestoreSpellCastingOverlay();
-                _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
                 state.CasterIndex = (state.CasterIndex + 1) % state.Casters.Count;
                 state.SelectedIndex = 0;
                 break;
