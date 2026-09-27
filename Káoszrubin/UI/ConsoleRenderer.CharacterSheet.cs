@@ -144,8 +144,7 @@ public sealed partial class ConsoleRenderer
         {
             _characterSheetFocused = focused;
             if (_displayedCharacter is null) return;
-            DrawCharacterSheetHeader(_displayedCharacter);
-            DrawSelectableCharacterSheetRows(_displayedCharacter);
+            DrawCharacterSheetHeaders(_displayedCharacter);
         }
 
         /// <summary>
@@ -457,7 +456,7 @@ public sealed partial class ConsoleRenderer
                 _owner._explorationClockIndicator);
 
             if (fullRedraw)
-                DrawCharacterSheetHeader(character);
+                DrawCharacterSheetHeaders(character);
 
             var resourceLine = CharacterSheetPanel.BuildResourceLine(character);
 
@@ -468,6 +467,7 @@ public sealed partial class ConsoleRenderer
             }
 
             foreach (var line in panelLines.Where(line =>
+                         line.Row != 0 &&
                          line.Row != CharacterSheetHeaderLine &&
                          line.Row != CharacterSheetVitalityLine &&
                          line.InventorySlot is null))
@@ -688,24 +688,34 @@ public sealed partial class ConsoleRenderer
         }
 
         /// <summary>
-        /// Draws the character-sheet header with focus-aware background.
+        /// Draws the two character-sheet header rows with focus-aware markers and background.
         /// Use this when displayed character or focus state changes.
         /// </summary>
-        private void DrawCharacterSheetHeader(LiveCharacter character) => WriteSheetLine(
-            CharacterSheetHeaderLine,
-            "KARAKTERLAP",
-            ConsoleColor.Yellow,
-            _characterSheetFocused ? ConsoleColor.DarkGreen : ConsoleColor.Black,
-            " - " + character.Name,
-            character.Color);
+        private void DrawCharacterSheetHeaders(LiveCharacter character)
+        {
+            var width = RightSheetWidthForWindow();
+            var worldHeader = CharacterSheetPanel.WithFocusMarker(
+                CharacterSheetPanel.BuildWorldHeaderLine(_owner._mazeLevel, _owner._goldenKeyCount,
+                    MonsterIds.Bosses.Count, _owner._explorationClockIndicator, Math.Max(1, width - 1)),
+                _characterSheetFocused, width);
+            WriteSheetLine(worldHeader.Row, worldHeader.Text, worldHeader.Color, worldHeader.Background);
+            _lastCharacterSheetLines[worldHeader.Row] = worldHeader;
+
+            var background = _characterSheetFocused ? ConsoleColor.Cyan : ConsoleColor.Black;
+            var marker = _characterSheetFocused ? "»" : "«";
+            WriteSheetLine(CharacterSheetHeaderLine, marker + "KARAKTERLAP", ConsoleColor.Yellow, background,
+                " - " + character.Name, character.Color);
+        }
 
         public void RefreshExplorationClockLine()
         {
             if (_owner._spellInfoCharacter is not null || _itemInspectionPanel is not null ||
                 _displayedCharacter is null) return;
-            var line = CharacterSheetPanel.BuildWorldHeaderLine(_owner._mazeLevel,
-                _owner._goldenKeyCount, MonsterIds.Bosses.Count, _owner._explorationClockIndicator,
-                RightSheetWidthForWindow());
+            var width = RightSheetWidthForWindow();
+            var line = CharacterSheetPanel.WithFocusMarker(
+                CharacterSheetPanel.BuildWorldHeaderLine(_owner._mazeLevel,
+                    _owner._goldenKeyCount, MonsterIds.Bosses.Count, _owner._explorationClockIndicator,
+                    Math.Max(1, width - 1)), _characterSheetFocused, width);
             var indicatorStart = line.Text.LastIndexOf(_owner._explorationClockIndicator,
                 StringComparison.Ordinal);
             if (indicatorStart < 0) return;
@@ -1001,7 +1011,7 @@ public sealed partial class ConsoleRenderer
             var leftPadded = leftClipped.PadRight(leftClipped.Length);
             WriteAt(RightSheetX, y, leftPadded);
 
-            SetColors(rightColor, ConsoleColor.Black);
+            SetColors(rightColor, leftColorBg);
             var secondX = RightSheetX + leftPadded.Length;
             var remainingWidth = rightSheetWidth - leftPadded.Length;
             var rightPadded = rightClipped.PadRight(remainingWidth);

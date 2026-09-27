@@ -1753,6 +1753,15 @@ public sealed class CoopGuestScreen
                         explorationClockIndicator: snapshot.ExplorationClockIndicator)
                         .ToDictionary(line => line.Row)
                     : [];
+        if (!_spellInfoOpen && _itemInspectionPanel is null && own?.CharacterSheet is not null &&
+            own.Inventory is not null)
+        {
+            panelLines[0] = CharacterSheetPanel.WithFocusMarker(
+                CharacterSheetPanel.BuildWorldHeaderLine(snapshot.MazeLevel, snapshot.GoldenKeyCount,
+                    snapshot.BossKeyCount, snapshot.ExplorationClockIndicator, Math.Max(1, panelWidth - 1)),
+                _inventoryOpen, panelWidth);
+            panelLines[1] = CharacterSheetPanel.WithFocusMarker(panelLines[1], _inventoryOpen, panelWidth);
+        }
         var actionDetails = snapshot.Battle?.ActionDetails;
         if (_battleDetailsId != actionDetails?.Id)
         {
@@ -1762,7 +1771,7 @@ public sealed class CoopGuestScreen
         if (!_spellInfoOpen && snapshot.Battle is { IsQuickBattle: false })
             foreach (var line in BattleDetailsPanel.Build(actionDetails, _battleDetailsPage, panelWidth))
                 panelLines[line.Row] = line;
-        var selectedSlot = _inventoryOpen && own is { IsTemporaryFollower: false,
+        var selectedSlot = own is { IsTemporaryFollower: false,
             Inventory.Slots.Count: > 0 } && own.Inventory is { } inventory
             ? new InventorySlotAddress(inventory.Slots[Math.Clamp(_inventorySelection, 0, inventory.Slots.Count - 1)].Kind,
                 inventory.Slots[Math.Clamp(_inventorySelection, 0, inventory.Slots.Count - 1)].Index)

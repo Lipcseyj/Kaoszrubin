@@ -318,6 +318,19 @@ public static class CharacterSheetPanel
             ConsoleColor.Green);
     }
 
+    /// <summary>Adds the two-row character-sheet focus marker without changing panel geometry.</summary>
+    internal static CharacterSheetPanelLine WithFocusMarker(CharacterSheetPanelLine line, bool focused,
+        int width = Width)
+    {
+        var contentWidth = Math.Max(0, width - 1);
+        var content = line.Text[..Math.Min(line.Text.Length, contentWidth)];
+        return line with
+        {
+            Text = (focused ? "»" : "«") + content,
+            Background = focused ? ConsoleColor.Cyan : ConsoleColor.Black
+        };
+    }
+
     /// <summary>
     /// Az inventory-hoz tartozó panelsorokat (fegyverek, páncél, varázstárgyak, hátizsák)
     /// hozzáfűzi a meglévő sorlistához. Kezeli a kétkezes fegyver miatti tiltott második

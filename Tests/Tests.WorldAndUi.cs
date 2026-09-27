@@ -39,6 +39,27 @@ internal static partial class Program
         }
     }
 
+    static void CharacterSheetFocusHeaderUsesTwoRowsAndKeepsClockLayout()
+    {
+        const int width = 34;
+        var world = CharacterSheetPanel.BuildWorldHeaderLine(12, 7, 12, "⌛⏸", width - 1);
+        var title = new CharacterSheetPanelLine(1, "KARAKTERLAP - Tesztelő", ConsoleColor.Yellow);
+        var focusedWorld = CharacterSheetPanel.WithFocusMarker(world, true, width);
+        var focusedTitle = CharacterSheetPanel.WithFocusMarker(title, true, width);
+        var unfocusedWorld = CharacterSheetPanel.WithFocusMarker(world, false, width);
+        var unfocusedTitle = CharacterSheetPanel.WithFocusMarker(title, false, width);
+
+        Assert(focusedWorld.Text.StartsWith('»') && focusedTitle.Text.StartsWith('»') &&
+               focusedWorld.Background == ConsoleColor.Cyan && focusedTitle.Background == ConsoleColor.Cyan,
+            "A fókuszált karakterlap két fejlécsora nem kapta meg a jobb nyilat és a cián hátteret.");
+        Assert(unfocusedWorld.Text.StartsWith('«') && unfocusedTitle.Text.StartsWith('«') &&
+               unfocusedWorld.Background == ConsoleColor.Black && unfocusedTitle.Background == ConsoleColor.Black,
+            "A fókusz nélküli karakterlap két fejlécsora nem kapta meg a bal nyilat és a fekete hátteret.");
+        Assert(focusedWorld.Text.Contains("⌛⏸", StringComparison.Ordinal) &&
+               focusedWorld.Text.Length <= width && focusedTitle.Text.Length <= width,
+            "A fókuszjelző eltolta vagy levágta az időjelzőt a karakterlap fejlécéből.");
+    }
+
     static void InnSharedWindowUsesContextualBanner()
     {
         var inn = Game.SharedWindowBanner(GameSessionPhase.Inn, "Lakomázás");
