@@ -5,9 +5,9 @@ internal static partial class Program
         var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory,
             CsvGameDataLoader.GameDataFileName));
 
-        Assert(catalog.CreatureQuotes.Count == 99 &&
+        Assert(catalog.CreatureQuotes.Count == 101 &&
                catalog.CreatureQuotes.Count(quote => quote.Kind == CreatureQuoteKind.CharacterClass) == 6 &&
-               catalog.CreatureQuotes.Count(quote => quote.Kind == CreatureQuoteKind.Enemy) == 93,
+               catalog.CreatureQuotes.Count(quote => quote.Kind == CreatureQuoteKind.Enemy) == 95,
             "A #Lény mondatok szekció nem minden osztály- és szörnymondatot olvasott be.");
         Assert(catalog.CreatureQuotes.Single(quote => quote.Id == "CS001").CreatureId == "C001" &&
                catalog.CreatureQuotes.Single(quote => quote.Id == "ES001").CreatureId == "E001" &&
@@ -221,19 +221,19 @@ internal static partial class Program
     static void NpcDefinitionsLoadFromCsv()
     {
         var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
-        Assert(catalog.Npcs.Count == 22 && catalog.NpcEncounters.Count == 30 &&
+        Assert(catalog.Npcs.Count == 23 && catalog.NpcEncounters.Count == 31 &&
                Enumerable.Range(1, MazeLevelConfigurations.FinalLevel).All(level =>
                    catalog.NpcEncounters.Any(encounter => encounter.MazeLevel == level)),
             "Az NPC-definíciók vagy valamelyik pálya találkozása hiányzik.");
-        Assert(catalog.NpcDialogues.Count == 112,
-            $"Az NPC-párbeszédek száma hibás: várt 112, tényleges {catalog.NpcDialogues.Count}.");
+        Assert(catalog.NpcDialogues.Count == 114,
+            $"Az NPC-párbeszédek száma hibás: várt 114, tényleges {catalog.NpcDialogues.Count}.");
         Assert(catalog.NpcStoryChoices.Count == 67,
             $"Az NPC történeti választások száma hibás: várt 67, tényleges {catalog.NpcStoryChoices.Count}.");
-        Assert(catalog.Quests.Count == 42,
-            $"Az NPC-küldetések száma hibás: várt 42, tényleges {catalog.Quests.Count}.");
+        Assert(catalog.Quests.Count == 43,
+            $"Az NPC-küldetések száma hibás: várt 43, tényleges {catalog.Quests.Count}.");
         foreach (var (type, expected) in new[]
         {
-        (typeof(QuestObjective.CollectItem), 8), (typeof(QuestObjective.KillEnemy), 18), (typeof(QuestObjective.KillEnemyWithTraits), 1),
+        (typeof(QuestObjective.CollectItem), 8), (typeof(QuestObjective.KillEnemy), 19), (typeof(QuestObjective.KillEnemyWithTraits), 1),
         (typeof(QuestObjective.ExploreLocation), 5), (typeof(QuestObjective.DisarmTraps), 3), (typeof(QuestObjective.OpenChests), 4), (typeof(QuestObjective.EscortNpc), 1), (typeof(QuestObjective.OpenQuestChest), 2)
     })
         {

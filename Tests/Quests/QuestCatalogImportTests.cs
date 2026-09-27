@@ -19,7 +19,7 @@ internal static class QuestCatalogImportTests
         var data = CsvGameDataLoader.Load(DataPath);
         var rows = File.ReadLines(DataPath).Where(line => line.StartsWith("NPCQ", StringComparison.Ordinal))
             .Select(line => line.Split(';')).ToArray();
-        Require(rows.Length == 42 && data.Quests.Count == 42 && data.Npcs.Count == 22,
+        Require(rows.Length == 43 && data.Quests.Count == 43 && data.Npcs.Count == 23,
             "A teljes quest/NPC katalógus hiányos.");
         Require(data.Quests.All.Select(q => q.Id).ToHashSet().SetEquals(
             Enum.GetValues<QuestId>().Where(id => id != QuestId.None)), "Hiányzó vagy duplikált questmapping.");

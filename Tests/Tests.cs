@@ -17,7 +17,7 @@ internal static partial class Program
     ("Aurelios ládája minden generálásnál lezárt questajtó mögé kerül", QuestDoorTests.AureliosChestAlwaysStaysBehindQuestDoor),
     ("Roderic és a lezárható mellékszobák 80 seeddel is elérhetők", RodericRoomPlacementTests.PlacementSurvivesMultipleSeeds),
     ("A szobagenerálás reprodukálható és elutasítja a hibás konfigurációt", RodericRoomPlacementTests.SeedAndConfigurationAreValidated),
-    ("Mind a 42 quest és 22 NPC típusos importja megőrzi a CSV-adatokat", QuestCatalogImportTests.AllDefinitionsPreserveCsvData),
+    ("Mind a 43 quest és 23 NPC típusos importja megőrzi a CSV-adatokat", QuestCatalogImportTests.AllDefinitionsPreserveCsvData),
     ("A hibás questdefiníció már CSV-betöltéskor meghiúsul", QuestCatalogImportTests.InvalidDefinitionsFailDuringLoading),
     ("A világpillanatkép típusos questállapotot és stabil kulcsot visz át", QuestReplicationTests.WorldUsesTypedStatesAndStableKeys),
     ("A questdelta csak a ténylegesen módosult NPC-t tartalmazza", QuestReplicationTests.DeltaChangesOnlyTheAffectedNpc),
