@@ -128,6 +128,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
     private List<MapCellSnapshot>? _spellCastingOverlaySnapshot;
     private BackgroundContentRestorer? _spellCastingOverlayBackground;
     private (int Left, int Top, int Width, int Height)? _spellCastingOverlayBounds;
+    private readonly HashSet<Position> _spellCastingOverlayDirtyCells = [];
     private ConsoleColor? _currentForegroundColor;
     private ConsoleColor? _currentBackgroundColor;
     private readonly HashSet<Position> _battleFocusPositions = [];
@@ -2026,9 +2027,13 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
         }
     }
 
-    public void RestoreSpellCastingOverlay()
+    public void RestoreSpellCastingOverlay(bool preserveDeferredMapChanges = false)
     {
-        if (_spellCastingOverlaySnapshot is null) return;
+        if (_spellCastingOverlaySnapshot is null)
+        {
+            if (!preserveDeferredMapChanges) _spellCastingOverlayDirtyCells.Clear();
+            return;
+        }
         var restoredNatively = _spellCastingOverlayBackground?.RestoreAndDispose() ?? false;
         _spellCastingOverlayBackground = null;
         if (!restoredNatively)
@@ -2039,6 +2044,16 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
             }
         _spellCastingOverlaySnapshot = null;
         _spellCastingOverlayBounds = null;
+        if (!preserveDeferredMapChanges) _spellCastingOverlayDirtyCells.Clear();
+    }
+
+    public void RestoreSpellCastingOverlay(Maze maze, FogOfWar fogOfWar, Position playerPosition)
+    {
+        RestoreSpellCastingOverlay(preserveDeferredMapChanges: true);
+        if (_spellCastingOverlayDirtyCells.Count == 0) return;
+        var changedPositions = _spellCastingOverlayDirtyCells.ToArray();
+        _spellCastingOverlayDirtyCells.Clear();
+        DrawMapCellsChanged(maze, fogOfWar, playerPosition, changedPositions);
     }
 
     public IReadOnlyList<SpellCastSelection> SpellCastingChoices(LiveCharacter character, bool inCombat) =>
@@ -2104,14 +2119,15 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
             _spellCastingOverlayBackground = new BackgroundContentRestorer(left, top, frameWidth, frameHeight,
                 ResetColorCache);
             _spellCastingOverlaySnapshot = [];
-            for (var y = top; y < top + frameHeight; y++)
-                for (var x = left; x < left + frameWidth; x++)
-                {
-                    var position = new Position(x, y);
-                    var visual = GetMapCellVisual(maze, fogOfWar, position, playerPosition);
-                    _spellCastingOverlaySnapshot.Add(new MapCellSnapshot(position, visual.Rune,
-                        visual.ForegroundColor, visual.BackgroundColor));
-                }
+            if (!_spellCastingOverlayBackground.IsCaptured)
+                for (var y = top; y < top + frameHeight; y++)
+                    for (var x = left; x < left + frameWidth; x++)
+                    {
+                        var position = new Position(x, y);
+                        var visual = GetMapCellVisual(maze, fogOfWar, position, playerPosition);
+                        _spellCastingOverlaySnapshot.Add(new MapCellSnapshot(position, visual.Rune,
+                            visual.ForegroundColor, visual.BackgroundColor));
+                    }
         }
 
         var style = framedWindow is { } window
@@ -2138,6 +2154,17 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
         }
         SetColors(ConsoleColor.Magenta, ConsoleColor.Black);
         WriteAt(left, top + lines.Count + 1, WindowFrameCatalog.Horizontal(style, frameWidth, bottom: true));
+        RedrawDeferredMapCellsOutsideOverlay(maze, fogOfWar, playerPosition);
+    }
+
+    private void RedrawDeferredMapCellsOutsideOverlay(Maze maze, FogOfWar fogOfWar, Position playerPosition)
+    {
+        foreach (var position in _spellCastingOverlayDirtyCells
+                     .Where(position => !IsCoveredBySpellCastingOverlay(position)).ToArray())
+        {
+            _spellCastingOverlayDirtyCells.Remove(position);
+            if (position != playerPosition) DrawMapCell(maze, fogOfWar, position);
+        }
     }
 
     /// <summary>
@@ -3008,7 +3035,11 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
     /// </summary>
     private void DrawMapCell(Maze maze, FogOfWar fogOfWar, Position position)
     {
-        if (IsCoveredBySpellCastingOverlay(position)) return;
+        if (IsCoveredBySpellCastingOverlay(position))
+        {
+            _spellCastingOverlayDirtyCells.Add(position);
+            return;
+        }
         Console.SetCursorPosition(position.X, position.Y);
         DrawMapRune(maze, fogOfWar, position);
     }

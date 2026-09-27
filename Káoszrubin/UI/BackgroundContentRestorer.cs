@@ -16,6 +16,8 @@ public sealed class BackgroundContentRestorer : IDisposable
     private readonly bool _captured;
     private bool _disposed;
 
+    public bool IsCaptured => _captured;
+
     public BackgroundContentRestorer(int left, int top, int width, int height, Action? invalidateColors = null)
     {
         _invalidateColors = invalidateColors;

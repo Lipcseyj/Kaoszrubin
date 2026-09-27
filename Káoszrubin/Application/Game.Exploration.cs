@@ -101,8 +101,7 @@ public sealed partial class Game
     {
         if (_hostSpellSelector is null) return;
         _hostSpellSelector = null;
-        _renderer.RestoreSpellCastingOverlay();
-        _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
+        _renderer.RestoreSpellCastingOverlay(_maze, _fogOfWar, _player.Position);
     }
 
     private void HandleHostSpellSelectorInput(ConsoleKeyInfo key)
@@ -132,12 +131,12 @@ public sealed partial class Game
                 state.SelectedIndex = (state.SelectedIndex + 1) % choices.Count;
                 break;
             case ConsoleKey.LeftArrow when state.Casters.Count > 1:
-                _renderer.RestoreSpellCastingOverlay();
+                _renderer.RestoreSpellCastingOverlay(preserveDeferredMapChanges: true);
                 state.CasterIndex = (state.CasterIndex - 1 + state.Casters.Count) % state.Casters.Count;
                 state.SelectedIndex = 0;
                 break;
             case ConsoleKey.RightArrow when state.Casters.Count > 1:
-                _renderer.RestoreSpellCastingOverlay();
+                _renderer.RestoreSpellCastingOverlay(preserveDeferredMapChanges: true);
                 state.CasterIndex = (state.CasterIndex + 1) % state.Casters.Count;
                 state.SelectedIndex = 0;
                 break;
