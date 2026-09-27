@@ -69,8 +69,8 @@ internal static partial class Program
             IsContinuation: true);
         current[2, 0] = new CoopGuestScreen.GuestMapCell("X", ConsoleColor.Yellow);
         var full = CoopGuestScreen.BuildMapWriteRuns(current, null, 0, fullRedraw: true);
-        Assert(full[0].X == 0 && full[0].Text == "🛒X",
-            "A sorfutam a dupla szélességű konzoljelet vagy annak folytatócelláját hibásan kezeli.");
+        Assert(full[0].X == 0 && full[0].Text == "🛒" && full[1].X == 2 && full[1].Text == "X",
+            "A sorfutam nem választotta le a terminálfüggő szélességű jelet, vagy hibásan kezelte a folytatócelláját.");
     }
 
     static void HostProgressionWindowsSharePlayfieldCenter()
@@ -86,6 +86,26 @@ internal static partial class Program
                WindowFrameConfiguration.BorderColor(WindowFrameStyle.Scroll2) == ConsoleColor.Magenta &&
                WindowFrameConfiguration.BorderColor(WindowFrameStyle.Sword) == ConsoleColor.Yellow,
             "A host és guest közös keretszínszabálya eltér a scroll/scroll2 ablakoknál.");
+    }
+
+    static void GuestLevelUpPromptHasOverlayPriority()
+    {
+        var sharedWindow = new ReplicatedWindowSnapshot(Guid.NewGuid(), 2, "Korábbi ablak", 88,
+            FramedWindow.LevelUp.ToString(),
+            [new ReplicatedWindowLineSnapshot("✨ Régi szintlépési sor", ConsoleColor.Yellow)]);
+        var (session, leader, companion) = CreateSession();
+        var prompt = new LevelUpPromptSnapshot(Guid.NewGuid(), companion.Id, companion.Name,
+            LevelUpPromptKind.PerkChoice, 3, 4, 5, 0,
+            [new LevelUpChoiceSnapshot("PERK", "Első csapás", "+10 kezdeményezés")],
+            "Válassz tehetséget.");
+        var snapshot = session.CreateSnapshot(new SessionSnapshotContext(1, "Szintlépés",
+            new Dictionary<CharacterId, Position>
+            {
+                [leader.Id] = new Position(1, 1),
+                [companion.Id] = new Position(2, 1)
+            })) with { SharedWindow = sharedWindow, LevelUpPrompt = prompt };
+        Assert(CoopGuestScreen.HasConcreteSnapshotOverlay(snapshot),
+            "A guest az aktuális szintlépési prompt helyett a korábbi általános ablakot rajzolná ki.");
     }
 
     static void NpcThiefTrapCommandAcceptsTemporaryFollowers()

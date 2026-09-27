@@ -1722,7 +1722,8 @@ public sealed class CoopGuestScreen
         var localPersonalWindowOpen = _personalWindowKind is not null;
         if (!localPersonalWindowOpen)
         {
-            if (snapshot.SharedWindow is { Lines.Count: > 0 } sharedWindow)
+            var hasConcreteSharedOverlay = HasConcreteSharedOverlay(snapshot);
+            if (!hasConcreteSharedOverlay && snapshot.SharedWindow is { Lines.Count: > 0 } sharedWindow)
                 ApplySharedWindowReplica(grid, sharedWindow, client.PlayerId);
             else
             {
@@ -1734,7 +1735,7 @@ public sealed class CoopGuestScreen
                 ApplyAdHocConversationUi(grid, snapshot.AdHocConversation);
                 ApplyQuestOfferUi(grid, snapshot);
                 ApplyQuestCompletionUi(grid, snapshot);
-                if (!HasConcreteSharedOverlay(snapshot) && snapshot.SharedWindow is { } pendingSharedWindow)
+                if (!hasConcreteSharedOverlay && snapshot.SharedWindow is { } pendingSharedWindow)
                     ApplySharedWindowReplica(grid, pendingSharedWindow, client.PlayerId);
             }
         }
@@ -2002,10 +2003,12 @@ public sealed class CoopGuestScreen
     }
 
     private bool HasConcreteSharedOverlay(SessionSnapshot snapshot) =>
+        HasConcreteSnapshotOverlay(snapshot) || _newQuestOffers.Count > 0 || _questCompletions.Count > 0;
+
+    internal static bool HasConcreteSnapshotOverlay(SessionSnapshot snapshot) =>
         snapshot.Narrative is not null || snapshot.RestNotice is not null ||
         snapshot.AdHocConversation is not null || snapshot.SpellPreparation is not null ||
-        snapshot.LevelUpPrompt is not null ||
-        _newQuestOffers.Count > 0 || _questCompletions.Count > 0;
+        snapshot.LevelUpPrompt is not null;
 
     private static void ApplyRemotePlayerWindowStatus(GuestMapCell[,] grid, SessionSnapshot snapshot,
         PlayerId? localPlayerId)
@@ -2555,6 +2558,7 @@ public sealed class CoopGuestScreen
             var color = cell.Color;
             var background = cell.Background;
             var text = new System.Text.StringBuilder();
+            var batchSafe = CanBatchMapGlyph(cell.Glyph);
             while (x < width)
             {
                 cell = map[x, y];
@@ -2564,15 +2568,24 @@ public sealed class CoopGuestScreen
                     continue;
                 }
                 if ((!fullRedraw && previous is not null && previous[x, y] == cell) ||
-                    cell.Color != color || cell.Background != background)
+                    cell.Color != color || cell.Background != background ||
+                    CanBatchMapGlyph(cell.Glyph) != batchSafe || (!batchSafe && text.Length > 0))
                     break;
                 text.Append(cell.Glyph);
                 x++;
                 while (x < width && map[x, y].IsContinuation) x++;
+                if (!batchSafe) break;
             }
             runs.Add(new GuestMapWriteRun(start, text.ToString(), color, background));
         }
         return runs;
+    }
+
+    private static bool CanBatchMapGlyph(string glyph)
+    {
+        if (glyph.Length != 1) return false;
+        var character = glyph[0];
+        return !char.IsSurrogate(character) && character <= '\u26ff';
     }
 
     private static void WriteMapRun(int x, int y, string text, ConsoleColor color, ConsoleColor background)
