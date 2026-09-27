@@ -126,6 +126,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
     private LiveCharacter? _spellInfoCharacter;
     private LiveCharacter? _battleActingCharacter;
     private List<MapCellSnapshot>? _spellCastingOverlaySnapshot;
+    private (int Left, int Top, int Width, int Height)? _spellCastingOverlayBounds;
     private ConsoleColor? _currentForegroundColor;
     private ConsoleColor? _currentBackgroundColor;
     private readonly HashSet<Position> _battleFocusPositions = [];
@@ -317,7 +318,9 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
         _battleDetailsPage = 0;
         _spellInfoCharacter = null;
         _spellCastingOverlaySnapshot = null;
+        _spellCastingOverlayBounds = null;
         if (_illuminatedWorldId != maze.Id) _illuminatedWallPositions.Clear();
+        CharacterSheet.InvalidateForSurfaceRebuild();
         Console.Clear();
         DrawPlayfield(maze, fogOfWar);
         DrawFrame();
@@ -337,6 +340,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
         _ragingBattleCharacterIds.Clear();
         _spellInfoCharacter = null;
         _spellCastingOverlaySnapshot = null;
+        _spellCastingOverlayBounds = null;
         CharacterSheet.RefreshCharacterSheet();
     }
 
@@ -380,11 +384,19 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
     /// Ellenség mozgásának kirajzolása: frissíti a korábbi és az aktuális mezőt,
     /// kivéve ha azok a játékos pozíciója (mivel a játékos karakterét külön kezeljük).
     /// </summary>
-    public void DrawEnemyMovement(Maze maze, FogOfWar fogOfWar, Position previousPosition, Position currentPosition, Position playerPosition)
+    public void DrawEnemyMovement(Maze maze, FogOfWar fogOfWar, Position previousPosition,
+        Position currentPosition, Position playerPosition, IReadOnlyList<Position>? perceptionChanges = null)
     {
-        if (previousPosition != playerPosition) DrawMapCell(maze, fogOfWar, previousPosition);
-        if (currentPosition != playerPosition) DrawMapCell(maze, fogOfWar, currentPosition);
+        foreach (var position in perceptionChanges ?? [])
+            if (position != playerPosition) DrawMapCell(maze, fogOfWar, position);
+        if (previousPosition != playerPosition && ShouldDrawEnemyMovementCell(fogOfWar, previousPosition))
+            DrawMapCell(maze, fogOfWar, previousPosition);
+        if (currentPosition != playerPosition && ShouldDrawEnemyMovementCell(fogOfWar, currentPosition))
+            DrawMapCell(maze, fogOfWar, currentPosition);
     }
+
+    internal static bool ShouldDrawEnemyMovementCell(FogOfWar fogOfWar, Position position) =>
+        fogOfWar.IsCurrentlyVisible(position) || fogOfWar.IsDeveloperRevealActive;
 
     public void DrawPartyMemberMovement(Maze maze, FogOfWar fogOfWar, Position previousPosition,
         Position currentPosition, IReadOnlyList<Position> newlyRevealed, Position playerPosition)
@@ -1129,6 +1141,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
         _innWindowBackground?.Dispose();
         _innWindowBackground = null;
         ResetColorCache();
+        CharacterSheet.InvalidateForSurfaceRebuild();
         Console.Clear();
         _innSurfaceWidth = SafeConsoleWindowWidth();
         _innSurfaceHeight = SafeConsoleWindowHeight();
@@ -2021,6 +2034,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
             WriteRuneWithColor(cell.Rune, cell.ForegroundColor, cell.BackgroundColor);
         }
         _spellCastingOverlaySnapshot = null;
+        _spellCastingOverlayBounds = null;
     }
 
     public IReadOnlyList<SpellCastSelection> SpellCastingChoices(LiveCharacter character, bool inCombat) =>
@@ -2082,6 +2096,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
         var top = placement.Y;
         if (_spellCastingOverlaySnapshot is null)
         {
+            _spellCastingOverlayBounds = (left, top, frameWidth, frameHeight);
             _spellCastingOverlaySnapshot = [];
             for (var y = top; y < top + frameHeight; y++)
                 for (var x = left; x < left + frameWidth; x++)
@@ -2987,9 +3002,15 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
     /// </summary>
     private void DrawMapCell(Maze maze, FogOfWar fogOfWar, Position position)
     {
+        if (IsCoveredBySpellCastingOverlay(position)) return;
         Console.SetCursorPosition(position.X, position.Y);
         DrawMapRune(maze, fogOfWar, position);
     }
+
+    private bool IsCoveredBySpellCastingOverlay(Position position) =>
+        _spellCastingOverlayBounds is { } bounds &&
+        position.X >= bounds.Left && position.X < bounds.Left + bounds.Width &&
+        position.Y >= bounds.Top && position.Y < bounds.Top + bounds.Height;
 
     /// <summary>
     /// Kiírja a mezőre vonatkozó Rune-t a megfelelő színekkel, figyelve a köd/láthatóság állapotára.

@@ -28,6 +28,9 @@ public sealed partial class ConsoleRenderer
         private readonly record struct SheetSelectionKey(SheetSelectionKind Kind, int Index);
         private sealed record SheetSelectionEntry(SheetSelectionKey Key);
         private readonly record struct PartyStatusRowState(PartyStatusLine? Status, ConsoleColor Background);
+        private readonly record struct InventoryRowState(CharacterSheetPanelLine Line, ConsoleColor Background);
+        private sealed record PicturePanelState(string Portrait, ConsoleColor Color, ConsoleColor Background,
+            int Width, WindowFrameStyle Style);
 
         private readonly ConsoleRenderer _owner;
         private readonly Party _party;
@@ -40,8 +43,10 @@ public sealed partial class ConsoleRenderer
 
         private CharacterId? _lastCharacterSheetCharacterId;
         private readonly Dictionary<int, CharacterSheetPanelLine> _lastCharacterSheetLines = [];
+        private readonly Dictionary<int, InventoryRowState> _lastInventoryRows = [];
         private CharacterResourceLine? _lastCharacterVitalsOverlay;
         private readonly Dictionary<int, PartyStatusRowState> _lastPartyStatusRows = [];
+        private PicturePanelState? _lastPicturePanelState;
 
         private PartyFormationSnapshot? _formation;
         private LiveCharacter? _displayedCharacter;
@@ -248,6 +253,7 @@ public sealed partial class ConsoleRenderer
             if (_owner._spellInfoCharacter is null) return;
             var character = _owner._spellInfoCharacter;
             _owner._spellInfoCharacter = null;
+            InvalidateCharacterSheetCache();
             DrawCharacterSheet(character);
         }
 
@@ -276,7 +282,10 @@ public sealed partial class ConsoleRenderer
             if (_itemInspectionPanel is null) return;
             _itemInspectionPanel = null;
             if (_displayedCharacter is not null)
+            {
+                InvalidateCharacterSheetCache();
                 DrawCharacterSheet(_displayedCharacter);
+            }
         }
 
         /// <summary>
@@ -374,6 +383,9 @@ public sealed partial class ConsoleRenderer
                 return;
             }
             WriteSheetLine(CharacterSheetControlsLine, FormationStatusText(formation),
+                formation.State == PartyFormationState.Locked ? ConsoleColor.Green : ConsoleColor.DarkCyan);
+            _lastCharacterSheetLines[CharacterSheetControlsLine] = new CharacterSheetPanelLine(
+                CharacterSheetControlsLine, FormationStatusText(formation),
                 formation.State == PartyFormationState.Locked ? ConsoleColor.Green : ConsoleColor.DarkCyan);
         }
 
@@ -488,16 +500,21 @@ public sealed partial class ConsoleRenderer
             if (_owner._battleActive && _owner._battleDetails is not null)
                 DrawBattleDetails(_owner._battleDetails);
 
-            WriteSheetLine(CharacterSheetReservedMessageLine, string.Empty, ConsoleColor.DarkGray);
+            if (fullRedraw)
+                WriteSheetLine(CharacterSheetReservedMessageLine, string.Empty, ConsoleColor.DarkGray);
 
-            WriteSheetLine(
-                CharacterSheetControlsLine,
+            var controlsLine = new CharacterSheetPanelLine(CharacterSheetControlsLine,
                 _formation is null ? string.Empty : FormationStatusText(_formation),
-                _formation?.State == PartyFormationState.Locked
-                    ? ConsoleColor.Green
-                    : ConsoleColor.DarkCyan);
+                _formation?.State == PartyFormationState.Locked ? ConsoleColor.Green : ConsoleColor.DarkCyan);
+            if (fullRedraw || !_lastCharacterSheetLines.TryGetValue(CharacterSheetControlsLine, out var oldControls) ||
+                !SheetLineEquals(oldControls, controlsLine))
+            {
+                WriteSheetLine(controlsLine.Row, controlsLine.Text, controlsLine.Color, controlsLine.Background);
+                _lastCharacterSheetLines[CharacterSheetControlsLine] = controlsLine;
+            }
 
             DrawPicturePanel();
+            _lastCharacterSheetCharacterId = character.Id;
         }
 
         /// <summary>
@@ -529,6 +546,9 @@ public sealed partial class ConsoleRenderer
                 : ConsoleColor.Black;
             var style = WindowFrameConfiguration.For(FramedWindow.CreaturePortrait);
             var rightSheetWidth = RightSheetWidthForWindow();
+            var pictureState = new PicturePanelState(string.Join('\n', portrait.Lines), color, background,
+                rightSheetWidth, style);
+            if (_lastPicturePanelState == pictureState) return;
             WriteSheetLine(PicturePanelTop, WindowFrameCatalog.Horizontal(style, rightSheetWidth), ConsoleColor.DarkCyan);
             for (var index = 0; index < PicturePanelHeight; index++)
             {
@@ -541,6 +561,7 @@ public sealed partial class ConsoleRenderer
             }
             WriteSheetLine(PicturePanelBottom, WindowFrameCatalog.Horizontal(style, rightSheetWidth, bottom: true),
                 ConsoleColor.DarkCyan);
+            _lastPicturePanelState = pictureState;
         }
 
         /// <summary>
@@ -558,9 +579,13 @@ public sealed partial class ConsoleRenderer
         {
             _lastCharacterSheetCharacterId = null;
             _lastCharacterSheetLines.Clear();
+            _lastInventoryRows.Clear();
             _lastCharacterVitalsOverlay = null;
             _lastPartyStatusRows.Clear();
+            _lastPicturePanelState = null;
         }
+
+        internal void InvalidateForSurfaceRebuild() => InvalidateCharacterSheetCache();
 
         /// <summary>
         /// Compares two panel lines to decide whether redraw is needed.
@@ -781,11 +806,16 @@ public sealed partial class ConsoleRenderer
                     _ => throw new ArgumentOutOfRangeException()
                 };
                 var background = SelectionBackground(new SheetSelectionKey(kind, slot.Index));
+                var state = new InventoryRowState(line, background);
+                if (_lastInventoryRows.TryGetValue(line.Row, out var previous) &&
+                    previous.Background == state.Background && SheetLineEquals(previous.Line, state.Line))
+                    continue;
                 if (line.ColoredTextStart >= 0)
                     WriteSheetLineWithColoredTail(line.Row, line.Text, line.ColoredTextStart,
                         line.Color, line.ColoredTextColor, background);
                 else
                     WriteSheetLine(line.Row, line.Text, line.Color, background);
+                _lastInventoryRows[line.Row] = state;
             }
         }
 

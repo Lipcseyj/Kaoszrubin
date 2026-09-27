@@ -419,8 +419,9 @@ public sealed partial class Game
             return true;
         }
         if (!_maze.TryMoveEnemy(enemy, destination)) return false;
-        RevealFor(PartyLeader, _player.Position);
-        _renderer.DrawEnemyMovement(_maze, _fogOfWar, previousPosition, enemy.Position, _player.Position);
+        var perceptionChanges = RevealFor(PartyLeader, _player.Position);
+        _renderer.DrawEnemyMovement(_maze, _fogOfWar, previousPosition, enemy.Position, _player.Position,
+            perceptionChanges);
         return true;
     }
 

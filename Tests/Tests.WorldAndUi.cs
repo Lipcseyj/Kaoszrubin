@@ -1007,6 +1007,25 @@ static void BattleHitHighlightsDamageAndHealth()
             "Az utolsó ismert szörnyhely három partimozgás után sem tűnt el.");
     }
 
+    static void HiddenEnemyMovementDoesNotRedrawMapCells()
+    {
+        var maze = new Maze(15, 9);
+        for (var x = 1; x < maze.Width - 1; x++)
+            maze.Carve(new Position(x, 2));
+        var fog = new FogOfWar(maze.Width, maze.Height, 2);
+        var visible = new Position(3, 2);
+        var hidden = new Position(12, 2);
+        fog.UpdatePartyVisibility(maze, [(new Position(2, 2), 2)], advanceEnemyMemory: false);
+
+        Assert(ConsoleRenderer.ShouldDrawEnemyMovementCell(fog, visible) &&
+               !ConsoleRenderer.ShouldDrawEnemyMovementCell(fog, hidden),
+            "A szörnymozgás kirajzolási szabálya nem különíti el az aktuális látóteret a rejtett mezőktől.");
+
+        fog.ToggleDeveloperReveal();
+        Assert(ConsoleRenderer.ShouldDrawEnemyMovementCell(fog, hidden),
+            "A fejlesztői térképfelfedés alatt a távoli szörnymozgás sem rajzolható ki.");
+    }
+
     static void PartyPerceptionDetectsStealthAndSound()
     {
         var maze = new Maze(11, 7);
