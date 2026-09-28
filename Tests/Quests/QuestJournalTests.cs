@@ -57,7 +57,7 @@ internal static class QuestJournalTests
         var secondNpc = Add(maze, fixture.Companion, "NPC002", 4);
         var first = fixture.Manager.Activate(definition.Id, registry.GetOrCreate(firstNpc));
         var second = fixture.Manager.Activate(definition.Id, registry.GetOrCreate(secondNpc));
-        fixture.Manager.RegisterTrapDisarmed();
+        fixture.Manager.RegisterTrapDisarmed(GenericTrap);
         var travel = new QuestTravelService(fixture.Manager, world);
         var options = travel.BuildOptions(maze.WorldNpcs, npc => npc == firstNpc ? 1 : 20);
         var selection = options.Single(option => option.Key == second.Key);
@@ -101,7 +101,7 @@ internal static class QuestJournalTests
         var (maze, _, world) = World();
         var original = Add(maze, fixture.SelectedCharacter, "NPC020", 2);
         fixture.Manager.Activate(definition.Id);
-        fixture.Manager.RegisterTrapDisarmed();
+        fixture.Manager.RegisterTrapDisarmed(GenericTrap);
         var travel = new QuestTravelService(fixture.Manager, world);
         var selection = travel.BuildOptions(maze.WorldNpcs, _ => 2).Single();
         Require(selection.Key.GiverInstanceId.IsNone && !selection.GiverInstanceId.IsNone,

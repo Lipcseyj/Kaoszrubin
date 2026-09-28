@@ -12,7 +12,7 @@ internal static class QuestPresentationTests
         var fixture = new QuestTestFixture(Define(new QuestObjective.DisarmTraps(2), scope: QuestScope.PerNpcInstance));
         var quest = fixture.Manager.Activate(QuestId.HerbalistHealingSupplies, new(7));
         var snapshot = QuestPresentationSnapshot.From(quest);
-        fixture.Manager.RegisterTrapDisarmed();
+        fixture.Manager.RegisterTrapDisarmed(GenericTrap);
         Require(snapshot.Key == quest.Key && snapshot.Progress == 0 && quest.Progress == 1,
             "A megjelenítési adat élő állapotot tartalmaz vagy elvesztette a futáskulcsot.");
         var lines = QuestTurnInWindow.Build("Megbízó", snapshot);

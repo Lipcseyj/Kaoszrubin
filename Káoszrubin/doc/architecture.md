@@ -100,6 +100,8 @@ Az indítás menete:
 
 - `Maze.cs`: a pályarács, a szobák és a térképi objektumok tárolója.
 - `MazeGenerator.cs`: labirintus, szobák, ládák és ellenfelek létrehozása.
+- `DungeonAreaGraph.cs`: a többképernyős szint absztrakt, kétdimenziós gráfja és a mellékágas/hurkos gráfgenerátor.
+- `DungeonLevel.cs`: a létrejött képernyők, az aktív képernyő, valamint a stabil bejárati és kijárati képernyő kezelése.
 - `MazeLevelConfiguration.cs`: szintenkénti nehézség és generálási tartományok.
 - `MazeGenerationSettings.cs`: egy konkrét generálás már kisorsolt beállításai.
 - `FogOfWar.cs`: felfedezett cellák, látóvonal és fejlesztői felfedés.
@@ -107,6 +109,21 @@ Az indítás menete:
 - `TreasureChest.cs`, `Corpse.cs`: felvehető vagy dekoratív világobjektumok.
 - `WorldObject.cs`: minden, pályaborítástól független objektum alaptípusa.
 - `Position.cs`, `Direction.cs`, `Room.cs`: alapvető térbeli értékobjektumok.
+
+### Többképernyős pályagráf
+
+A többképernyős szintet a futásidő már nem a `Areas` lista első és utolsó eleme alapján értelmezi.
+A `DungeonLevel` külön `EntranceAreaId` és `ExitAreaId` értéket őriz, ezért a képernyők sorrendje nem
+határozza meg a bejáratot, a valódi pályakijáratot vagy a visszatérő expedíció célját. A mentési formátum
+a képernyők kétdimenziós koordinátáját és topológiai szerepét is tárolja; a 31-es mentésekből a 32-es
+migráció a korábbi lineáris sorrendet állítja vissza.
+
+A `DungeonAreaGraphGenerator` összefüggő, ortogonális metarácsot készít. A konfiguráció megadja a
+képernyőszám tartományát, a bejárat és kijárat minimális gráftávolságát, a maximális csomóponti fokszámot,
+a mellékágak és a plusz hurkok esélyét. A generátor minden csomópontot bejárat, főút, elágazás, mellékág,
+zsákutca vagy kijárat szereppel jelöl. A képernyők közti átjárók a koordinátákból következő égtáj szerinti
+páros oldalon készülnek el. A klasszikus és széles pályák jelenleg ugyanezen modell lineáris tervét használják;
+az erdei generátor erre a közös alapra köti majd rá a procedurális gráfot.
 
 ### `Application`: játékmenet és futásvezérlés
 

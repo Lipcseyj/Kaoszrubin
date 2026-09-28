@@ -293,7 +293,7 @@ public sealed partial class Game
             [.. leaderRevealed, .. memberReveals],
             _player.Position,
             _player.Position == _maze.Exit && previousLeader != _maze.Exit &&
-            _dungeonLevel.ActiveArea == _dungeonLevel.Areas[^1]);
+            _dungeonLevel.ActiveArea == _dungeonLevel.ExitArea);
         if (_maze.GetPassageAt(_player.Position) is not null)
             _renderer.DrawInventoryMessage("⇄ Átjáró a szint másik területére. Enter: átkelés.", ConsoleColor.Cyan);
 
@@ -500,7 +500,7 @@ public sealed partial class Game
             ActivatePassage(passage);
             return;
         }
-        if (_player.Position != _maze.Exit || _dungeonLevel.ActiveArea != _dungeonLevel.Areas[^1]) return;
+        if (_player.Position != _maze.Exit || _dungeonLevel.ActiveArea != _dungeonLevel.ExitArea) return;
         if (_locationKind == AdventureLocationKind.Quest)
         {
             _renderer.DrawInventoryMessage(
@@ -604,11 +604,22 @@ public sealed partial class Game
         foreach (var member in _maze.PartyMembers) RevealFor(member.Character, member.Position);
         _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
         var areaIndex = _dungeonLevel.Areas.ToList().IndexOf(destinationArea) + 1;
-        var message = $"⇄ Átjártatok a szint {areaIndex}/{_dungeonLevel.Areas.Count}. területére.";
+        var direction = PassageDirectionName(sourceArea.Coordinate, destinationArea.Coordinate);
+        var message = $"⇄ {direction} → {destinationArea.Name} ({areaIndex}/{_dungeonLevel.Areas.Count}).";
         _renderer.DrawInventoryMessage(message, ConsoleColor.Cyan);
         RecordSessionActivity(SessionActivityKind.System, message, ConsoleColor.Cyan);
         ForceCoopSnapshotPublish();
     }
+
+    private static string PassageDirectionName(AreaCoordinate source, AreaCoordinate destination) =>
+        (destination.X - source.X, destination.Y - source.Y) switch
+        {
+            (0, < 0) => "Északi ösvény",
+            (> 0, 0) => "Keleti ösvény",
+            (0, > 0) => "Déli ösvény",
+            (< 0, 0) => "Nyugati ösvény",
+            _ => "Átjáró"
+        };
 
     private static void ShiftPausedHordeTimers(DungeonArea area, DateTime now, bool remainPaused)
     {
@@ -651,11 +662,11 @@ public sealed partial class Game
             .Select(member => (member.Character, member.TemporaryFollower)).ToList();
         foreach (var member in _maze.PartyMembers.ToArray()) _maze.RemovePartyMember(member);
         _dungeonLevel.ActiveArea.PausedAtUtc = DateTime.UtcNow;
-        var firstArea = _dungeonLevel.Areas[0];
-        _dungeonLevel.Activate(firstArea.Id);
-        ShiftPausedHordeTimers(firstArea, DateTime.UtcNow, remainPaused: false);
-        _maze = firstArea.Maze;
-        _fogOfWar = firstArea.FogOfWar;
+        var entranceArea = _dungeonLevel.EntranceArea;
+        _dungeonLevel.Activate(entranceArea.Id);
+        ShiftPausedHordeTimers(entranceArea, DateTime.UtcNow, remainPaused: false);
+        _maze = entranceArea.Maze;
+        _fogOfWar = entranceArea.FogOfWar;
         RepositionPartyAtEntrance(returningParty);
         foreach (var character in CharacterRoster.Party.Members.Where(character => character.IsAlive))
         {

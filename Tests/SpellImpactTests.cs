@@ -84,7 +84,7 @@ internal static class SpellImpactTests
         var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
         var spell = catalog.GetSpell("S001");
         var started = new DateTime(2026, 1, 1, 12, 0, 0, DateTimeKind.Utc);
-        var animation = new SpellImpactAnimation(spell, new Position(2, 2), [new Position(2, 2)], started);
+        var animation = new SpellImpactAnimation(spell, new Position(2, 2), [new Position(2, 2)], [], started);
 
         Require(animation.IsActiveAt(started) &&
                 animation.IsActiveAt(started.AddMilliseconds(spell.EffectiveImpactDurationMilliseconds - 1)) &&
@@ -107,7 +107,8 @@ internal static class SpellImpactTests
         var current = new SessionSpellImpactSnapshot(2, world, "S001", new(3, 2), [new(3, 2)]);
         var foreign = new SessionSpellImpactSnapshot(3, otherWorld, "S007", new(4, 2), [new(4, 2)]);
         var active = tracker.Observe(world, [old, current, foreign], catalog, started.AddMilliseconds(20));
-        Require(active.Count == 1 && active[0].Spell.Id == "S001" && active[0].Cells.SequenceEqual(current.Cells),
+        Require(active.Count == 1 && active[0].Spell.Id == "S001" &&
+                active[0].FixedCells.SequenceEqual(current.Cells),
             "A host friss varázseffektje nem jutott el egyszer a guest idővonalára.");
         Require(tracker.Observe(world, [old, current, foreign], catalog, started.AddMilliseconds(40)).Count == 1,
             "Az ismételt snapshot megkettőzte a guest varázseffektjét.");
@@ -140,7 +141,7 @@ internal static class SpellImpactTests
                 damageCount++;
                 victim.ReceiveSpellDamage(damage);
             }, (_, _) => false, (_, _) => "", (_, _) => "",
-            onOffensiveImpact: positions =>
+            onImpact: positions =>
             {
                 impactCount++;
                 Require(damageCount == 0 && enemy.CurrentHitPoints > 0 && second.CurrentHitPoints > 0,
@@ -152,8 +153,9 @@ internal static class SpellImpactTests
         service.ExecuteSpell(caster, new Position(2, 4), catalog.GetSpell("S021"), new Position(2, 4),
             false, null, false, ref timeStop, [(caster, new Position(2, 4))], maze,
             (_, _, _, _) => { }, (_, _) => false, (_, _) => "", (_, _) => "",
-            onOffensiveImpact: _ => impactCount++);
-        Require(impactCount == 1, "A védővarázslat támadó becsapódást indított.");
+            onImpact: _ => impactCount++);
+        Require(impactCount == 2,
+            "A pozitív becsapódási idejű védővarázslat nem indította el a közös vizuális effektet.");
     }
 
     private static void Require(bool condition, string message)

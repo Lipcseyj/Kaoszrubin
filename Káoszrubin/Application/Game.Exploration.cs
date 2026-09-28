@@ -221,11 +221,14 @@ public sealed partial class Game
         if (_dungeonLevel is not null)
         {
             state.ActiveAreaId = _dungeonLevel.ActiveAreaId;
+            state.EntranceAreaId = _dungeonLevel.EntranceAreaId;
+            state.ExitAreaId = _dungeonLevel.ExitAreaId;
             var now = DateTime.UtcNow;
             state.Areas = _dungeonLevel.Areas.Select(area =>
             {
                 if (area == _dungeonLevel.ActiveArea)
-                    return new DungeonAreaSaveData(area.Id, state.Maze, state.Fog);
+                    return new DungeonAreaSaveData(area.Id, state.Maze, state.Fog,
+                        area.Name, area.Coordinate.X, area.Coordinate.Y, area.Role);
                 ShiftPausedHordeTimers(area, now, remainPaused: true);
                 var schedule = area.Maze.Enemies.ToDictionary(enemy => enemy, enemy => now +
                     area.EnemyMoveDelays.GetValueOrDefault(enemy, EnemyMoveInterval(enemy)));
@@ -233,7 +236,8 @@ public sealed partial class Game
                     new Player(area.Maze.Entrance, PartyLeader), area.FogOfWar, _leaderFacing,
                     [area.Maze.Entrance], false, false, false, _dungeonRestState.HasRested(area.Id), null,
                     _nextNeedsDrain, schedule, [], []);
-                return new DungeonAreaSaveData(area.Id, areaState.Maze, areaState.Fog);
+                return new DungeonAreaSaveData(area.Id, areaState.Maze, areaState.Fog,
+                    area.Name, area.Coordinate.X, area.Coordinate.Y, area.Role);
             }).ToList();
         }
         state.RestedAreaIds = _dungeonRestState.RestedAreaIds.OrderBy(id => id, StringComparer.Ordinal).ToList();
@@ -382,8 +386,11 @@ public sealed partial class Game
         var savedAreas = state.Areas ?? [];
         if (savedAreas.Count == 0)
         {
-            restoredAreas.Add(new DungeonArea("AREA_1", activeState.Maze, activeState.FogOfWar));
+            restoredAreas.Add(new DungeonArea("AREA_1", activeState.Maze, activeState.FogOfWar,
+                activeState.Maze.LevelName, new AreaCoordinate(0, 0), DungeonAreaRole.EntranceAndExit));
             state.ActiveAreaId = "AREA_1";
+            state.EntranceAreaId = "AREA_1";
+            state.ExitAreaId = "AREA_1";
         }
         else
         {
@@ -398,7 +405,8 @@ public sealed partial class Game
                         Fog = savedArea.Fog,
                         PlayerPosition = new Position(2, 2)
                     }, skipDepartedNpcCharacters);
-                var area = new DungeonArea(savedArea.Id, areaState.Maze, areaState.FogOfWar);
+                var area = new DungeonArea(savedArea.Id, areaState.Maze, areaState.FogOfWar,
+                    savedArea.Name, new AreaCoordinate(savedArea.GridX, savedArea.GridY), savedArea.Role);
                 var now = DateTime.UtcNow;
                 foreach (var enemyMove in areaState.NextEnemyMoves)
                     area.EnemyMoveDelays[enemyMove.Key] = enemyMove.Value > now
@@ -406,7 +414,8 @@ public sealed partial class Game
                 restoredAreas.Add(area);
             }
         }
-        return new DungeonLevel(restoredAreas, state.ActiveAreaId);
+        return new DungeonLevel(restoredAreas, state.ActiveAreaId,
+            state.EntranceAreaId, state.ExitAreaId);
     }
 
     private void TryRestParty()
@@ -598,7 +607,7 @@ public sealed partial class Game
 
         var newlyRevealed = RevealFor(PartyLeader, _player.Position, advanceEnemyMemory: true);
         var justReachedExit = _player.Position == _maze.Exit && previousPosition != _maze.Exit &&
-                              _dungeonLevel.ActiveArea == _dungeonLevel.Areas[^1];
+                              _dungeonLevel.ActiveArea == _dungeonLevel.ExitArea;
         _renderer.DrawMovement(_maze, _fogOfWar, previousPosition, _player.Position, newlyRevealed, justReachedExit);
         if (_maze.GetPassageAt(_player.Position) is not null)
             _renderer.DrawInventoryMessage("⇄ Átjáró a szint másik területére. Enter: átkelés.", ConsoleColor.Cyan);
@@ -731,7 +740,7 @@ public sealed partial class Game
         {
             var action = GameInputBindings.LeaderAction(key,
                 _maze.GetPassageAt(_player.Position) is not null ||
-                _player.Position == _maze.Exit && _dungeonLevel.ActiveArea == _dungeonLevel.Areas[^1]);
+                _player.Position == _maze.Exit && _dungeonLevel.ActiveArea == _dungeonLevel.ExitArea);
             if (action is not null)
                 command = new LeaderActionCommand(_session.HostPlayerId, commandId, PartyLeader.Id, action.Value);
         }

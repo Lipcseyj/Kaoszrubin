@@ -1,6 +1,7 @@
 using KaoszRubin.Application;
 using KaoszRubin.Application.Quests;
 using KaoszRubin.Data;
+using KaoszRubin.Domain;
 using KaoszRubin.Domain.Characters;
 using KaoszRubin.Domain.Combat;
 using KaoszRubin.Domain.Inventory;
@@ -14,6 +15,8 @@ internal sealed class QuestTestFixture : IQuestWorldContext, IQuestRewardContext
 {
     public static readonly IItemDefinition Supplies = new MiscItemDefinition("TEST-SUPPLIES", "Készlet", "Tesztkészlet", 1);
     public static readonly IItemDefinition Reward = new MiscItemDefinition("TEST-REWARD", "Jutalom", "Tesztjutalom", 1);
+    public static readonly TrapDefinition GenericTrap = new("TEST-TRAP", "Tesztcsapda", new('^'),
+        TrapEffect.Damage, 1, 5, 5, 1, 2, 0, 0, 0, "Általános tesztcsapda.");
 
     public QuestManager Manager { get; }
     public Dictionary<IItemDefinition, int> Inventory { get; } = [];

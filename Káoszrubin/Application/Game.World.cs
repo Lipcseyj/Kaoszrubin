@@ -57,8 +57,8 @@ public sealed partial class Game
     {
         if (_dungeonLevel is not null)
         {
-            var finalArea = _dungeonLevel.Areas[^1];
-            return finalArea.FogOfWar.IsRevealed(finalArea.Maze.Exit);
+            var exitArea = _dungeonLevel.ExitArea;
+            return exitArea.FogOfWar.IsRevealed(exitArea.Maze.Exit);
         }
         return _fogOfWar is not null && _maze is not null && _fogOfWar.IsRevealed(_maze.Exit);
     }
@@ -875,40 +875,51 @@ public sealed partial class Game
             throw new InvalidOperationException("A széles pálya területszáma vagy szűkületi esélye érvénytelen.");
         var areaCount = layout is WideMazeLayoutConfiguration wide ? wide.AreaCount.Roll(_random) : 1;
         if (areaCount <= 0) throw new InvalidOperationException("A szint területszáma nem lehet nulla.");
+        var topology = DungeonAreaGraphPlan.Linear(areaCount);
 
         var roomBuckets = DistributeEncounters(configuration.RoomEncounters.Select(ResolveEncounter), areaCount, _random);
         var corridorBuckets = DistributeEncounters(configuration.CorridorEncounters.Select(ResolveEncounter), areaCount, _random);
         var rolledSettings = configuration.CreateGenerationSettings(_random);
         var areas = new List<DungeonArea>(areaCount);
-        for (var index = 0; index < areaCount; index++)
+        for (var index = 0; index < topology.Nodes.Count; index++)
         {
-            var isFinal = index == areaCount - 1;
-            var settings = AreaGenerationSettings(rolledSettings, index, areaCount, isFinal);
+            var node = topology.Nodes[index];
+            var containsLevelExit = string.Equals(node.Id, topology.ExitAreaId, StringComparison.Ordinal);
+            var settings = AreaGenerationSettings(rolledSettings, index, areaCount, containsLevelExit);
             _generator = layout.Style == MazeLayoutStyle.Wide
                 ? new WideMazeGenerator(settings, roomBuckets[index], corridorBuckets[index], _random,
                     magicWeaponContext)
                 : new MazeGenerator(settings, roomBuckets[index], corridorBuckets[index], _random,
                     magicWeaponContext);
             var maze = _generator.Create(MazeWidth, MazeHeight);
-            areas.Add(new DungeonArea($"AREA_{index + 1}", maze,
-                new FogOfWar(maze.Width, maze.Height, CharacterClassRules.BaseVisionRange)));
+            areas.Add(new DungeonArea(node.Id, maze,
+                new FogOfWar(maze.Width, maze.Height, CharacterClassRules.BaseVisionRange),
+                areaCount == 1 ? configuration.Name : $"{index + 1}. terület",
+                node.Coordinate, node.Role));
         }
 
-        for (var index = 0; index < areas.Count - 1; index++)
+        var areasById = areas.ToDictionary(area => area.Id, StringComparer.Ordinal);
+        foreach (var connection in topology.Connections)
         {
-            var source = areas[index];
-            var destination = areas[index + 1];
-            var sourcePassage = MazeEdgePassageCarver.Carve(source.Maze, _random);
+            var source = areasById[connection.FirstAreaId];
+            var destination = areasById[connection.SecondAreaId];
+            var sourcePassage = MazeEdgePassageCarver.Carve(source.Maze, _random, connection.FirstEdge);
             var destinationPassage = MazeEdgePassageCarver.Carve(destination.Maze, _random,
-                sourcePassage.OppositeEdge, sourcePassage.RelativeOffset);
-            // Köztes képernyőn nincs valódi szintkijárat: a régi jobb alsó jel helyét az átjáró veszi át.
-            source.Maze.PlaceExit(sourcePassage.Position);
+                connection.SecondEdge, sourcePassage.RelativeOffset);
             source.Maze.AddPassage(new MazePassage(sourcePassage.Position, destination.Id,
                 destinationPassage.Position));
             destination.Maze.AddPassage(new MazePassage(destinationPassage.Position, source.Id,
                 sourcePassage.Position));
         }
-        return new DungeonLevel(areas, areas[0].Id);
+
+        // Csak az explicit kijárati képernyő őrzi meg a valódi szintkijáratot. Más képernyők régi
+        // kijáratjelét egy átjáró alá rejtjük, így gráfban sincs véletlen, működésképtelen kijárat.
+        foreach (var area in areas.Where(area => !string.Equals(area.Id, topology.ExitAreaId,
+                     StringComparison.Ordinal) && area.Maze.Passages.Count > 0))
+            area.Maze.PlaceExit(area.Maze.Passages.First().Position);
+
+        return new DungeonLevel(areas, topology.EntranceAreaId,
+            topology.EntranceAreaId, topology.ExitAreaId);
     }
 
     internal static List<ResolvedEnemyEncounter>[] DistributeEncounters(

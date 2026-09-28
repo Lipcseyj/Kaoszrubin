@@ -98,7 +98,7 @@ public sealed class GameSaveService
 public static class GameSaveFormat
 {
     public const int OldestSupportedVersion = 1;
-    public const int CurrentVersion = 31;
+    public const int CurrentVersion = 32;
 
     public static GameSaveData MigrateToCurrent(GameSaveData state)
     {
@@ -141,10 +141,31 @@ public static class GameSaveFormat
                 28 => MigrateVersion28To29(state),
                 29 => MigrateVersion29To30(state),
                 30 => MigrateVersion30To31(state),
+                31 => MigrateVersion31To32(state),
                 _ => throw new InvalidOperationException($"Hiányzó mentésmigráció a(z) {state.Version}. verzióhoz.")
             };
         }
         if (state.SuspendedCampaign is { } suspended) MigrateToCurrent(suspended);
+        return state;
+    }
+
+    private static GameSaveData MigrateVersion31To32(GameSaveData state)
+    {
+        var areaIds = (state.Areas ?? []).Select(area => area.Id).ToArray();
+        state.EntranceAreaId = areaIds.FirstOrDefault() ?? "AREA_1";
+        state.ExitAreaId = areaIds.LastOrDefault() ?? state.EntranceAreaId;
+        state.Areas = (state.Areas ?? []).Select((area, index) => area with
+        {
+            Name = string.IsNullOrWhiteSpace(area.Name)
+                ? areaIds.Length == 1 ? area.Maze.LevelName : $"{index + 1}. terület"
+                : area.Name,
+            GridX = index,
+            GridY = 0,
+            Role = areaIds.Length == 1 ? DungeonAreaRole.EntranceAndExit
+                : index == 0 ? DungeonAreaRole.Entrance
+                : index == areaIds.Length - 1 ? DungeonAreaRole.Exit : DungeonAreaRole.MainRoute
+        }).ToList();
+        state.Version = 32;
         return state;
     }
 
@@ -407,6 +428,8 @@ public sealed class GameSaveData
     public MazeSaveData Maze { get; set; } = new();
     public FogSaveData Fog { get; set; } = new();
     public string ActiveAreaId { get; set; } = "AREA_1";
+    public string EntranceAreaId { get; set; } = "AREA_1";
+    public string ExitAreaId { get; set; } = "AREA_1";
     public List<DungeonAreaSaveData> Areas { get; set; } = [];
     public List<QuestJournalSaveData> QuestJournal { get; set; } = [];
     public QuestSaveData? Quests { get; set; }
@@ -448,7 +471,9 @@ public sealed class MazeSaveData
     public List<MazePassageSaveData> Passages { get; set; } = [];
 }
 
-public sealed record DungeonAreaSaveData(string Id, MazeSaveData Maze, FogSaveData Fog);
+public sealed record DungeonAreaSaveData(string Id, MazeSaveData Maze, FogSaveData Fog,
+    string? Name = null, int GridX = 0, int GridY = 0,
+    DungeonAreaRole Role = DungeonAreaRole.MainRoute);
 public sealed record MazePassageSaveData(Position Position, string DestinationAreaId, Position DestinationPosition);
 
 public sealed class FogSaveData

@@ -27,7 +27,7 @@ internal static class QuestManagerTests
         Require(npc.GetAvailableQuests().Count == 0 && quest.IsLocked, "A még fel nem vett küldetés kapuja nem zár vissza.");
         fixture.StoryStates[(definition.Giver, default)] = QuestStoryState.Trusted;
         quest.Activate();
-        fixture.Manager.RegisterTrapDisarmed();
+        fixture.Manager.RegisterTrapDisarmed(GenericTrap);
         fixture.StoryStates.Clear();
         Require(npc.GetAvailableQuests().Count == 0 && quest.IsActive && quest.Progress == 1,
             "A történet változása visszazárta vagy lenullázta az aktív küldetést.");
@@ -54,17 +54,17 @@ internal static class QuestManagerTests
     {
         var fixture = new QuestTestFixture(Define(new QuestObjective.DisarmTraps(2)));
         var quest = fixture.Manager.GetQuest(QuestId.HerbalistHealingSupplies);
-        Require(fixture.Manager.RegisterTrapDisarmed().Count == 0 && quest.Progress == 0,
+        Require(fixture.Manager.RegisterTrapDisarmed(GenericTrap).Count == 0 && quest.Progress == 0,
             "Felvétel előtt haladt a küldetés.");
         quest.Activate();
         Require(fixture.Manager.RegisterChestOpened().Count == 0, "Más objective eseménye növelte a haladást.");
-        var first = fixture.Manager.RegisterTrapDisarmed().Single();
+        var first = fixture.Manager.RegisterTrapDisarmed(GenericTrap).Single();
         Require(first.PreviousProgress == 0 && first.CurrentProgress == 1 && !first.BecameReadyToTurnIn,
             "Hibás a részhaladás eseménye.");
-        var last = fixture.Manager.RegisterTrapDisarmed().Single();
+        var last = fixture.Manager.RegisterTrapDisarmed(GenericTrap).Single();
         Require(last.PreviousState == QuestState.Active && last.BecameReadyToTurnIn && quest.IsReadyToTurnIn,
             "A cél elérése nem váltott leadható állapotra.");
-        Require(fixture.Manager.RegisterTrapDisarmed().Count == 0 && quest.Progress == 2,
+        Require(fixture.Manager.RegisterTrapDisarmed(GenericTrap).Count == 0 && quest.Progress == 2,
             "A leadható küldetés a szükséges mennyiségen túl haladt.");
         Require(fixture.Manager.GetActiveQuests().Single().Id == quest.Id &&
             fixture.Manager.GetReadyToTurnInQuests().Single().Id == quest.Id,
@@ -191,11 +191,11 @@ internal static class QuestManagerTests
         var first = firstNpc.GetQuest(definition.Id);
         var second = secondNpc.GetQuest(definition.Id);
         first.Activate();
-        fixture.Manager.RegisterTrapDisarmed();
+        fixture.Manager.RegisterTrapDisarmed(GenericTrap);
         Require(first.Progress == 1 && second.Progress == 0 && second.IsLocked,
             "Az egyik NPC felvett küldetése a másik példányt is módosította.");
         second.Activate();
-        var changes = fixture.Manager.RegisterTrapDisarmed();
+        var changes = fixture.Manager.RegisterTrapDisarmed(GenericTrap);
         Require(changes.Count == 2 && changes.Select(change => change.GiverInstanceId).ToHashSet()
             .SetEquals(new[] { first.GiverInstanceId, second.GiverInstanceId }) &&
             first.IsReadyToTurnIn && second.IsActive && second.Progress == 1,
@@ -204,7 +204,7 @@ internal static class QuestManagerTests
         second.Abandon();
         Require(first.IsCompleted && first.CompletionCount == 1 && second.IsFailed && second.CompletionCount == 0 &&
             firstNpc.AreAllQuestsResolved && secondNpc.AreAllQuestsResolved &&
-            fixture.Manager.RegisterTrapDisarmed().Count == 0,
+            fixture.Manager.RegisterTrapDisarmed(GenericTrap).Count == 0,
             "A célzott leadás/feladás a másik NPC példányát is lezárta vagy átírta.");
     }
 
@@ -215,7 +215,7 @@ internal static class QuestManagerTests
         var first = fixture.Manager.GetQuest(definition.Id);
         var second = fixture.Manager.GetQuest(definition.Id, new QuestNpcInstanceId(2));
         first.Activate();
-        fixture.Manager.RegisterTrapDisarmed();
+        fixture.Manager.RegisterTrapDisarmed(GenericTrap);
         Require(second.IsReadyToTurnIn && second.GiverInstanceId.IsNone && fixture.Manager.GetActiveQuests().Count == 1,
             "A globális küldetésből több állapot keletkezett NPC-példányazonosító megadásával.");
         Throws<InvalidOperationException>(() => fixture.Manager.For(QuestNpcId.SirRoderic).GetQuest(definition.Id));

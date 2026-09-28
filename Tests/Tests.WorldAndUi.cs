@@ -415,11 +415,12 @@ internal static partial class Program
         var final = MazeLevelConfigurations.Get(MazeLevelConfigurations.FinalLevel);
         Assert(first.TrapCount == new IntRange(3, 7) && first.TrapIds.SequenceEqual(["TR001"]),
             "Az első szint csapdakonfigurációja nem kezdőbarát.");
-        Assert(middle.TrapCount == new IntRange(5, 10) && middle.TrapIds.Contains("TR005") &&
-               middle.TrapIds.Contains("TR008") && !middle.TrapIds.Contains("TR006"),
+        Assert(middle.TrapCount == new IntRange(6, 11) && middle.TrapIds.Contains("TR005") &&
+               middle.TrapIds.Contains("TR008") && middle.TrapIds.Contains("TR106") &&
+               !middle.TrapIds.Contains("TR006"),
             "A középső szintek csapdakonfigurációja nem megfelelően nehezedik.");
-        Assert(final.TrapCount == new IntRange(6, 13) && final.TrapIds.Contains("TR007") &&
-               !final.TrapIds.Contains("TR001"),
+        Assert(final.TrapCount == new IntRange(7, 14) && final.TrapIds.Contains("TR007") &&
+               final.TrapIds.Contains("TR112") && !final.TrapIds.Contains("TR001"),
             "A végső szintek nem a legnehezebb csapdakészletet használják.");
         Assert(first.VisionModifier == 0 && MazeLevelConfigurations.Get(5).VisionModifier == -1 &&
                MazeLevelConfigurations.Get(9).VisionModifier == -2,

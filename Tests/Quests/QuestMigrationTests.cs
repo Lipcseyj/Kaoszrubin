@@ -170,7 +170,7 @@ internal static class QuestMigrationTests
         var rewardFixture = new QuestTestFixture(first, rewardQuest) { StoreRewardsInInventory = true };
         var collecting = rewardFixture.Manager.Activate(first.Id);
         rewardFixture.Manager.Activate(rewardQuest.Id);
-        rewardFixture.Manager.RegisterTrapDisarmed();
+        rewardFixture.Manager.RegisterTrapDisarmed(GenericTrap);
         rewardFixture.Manager.GetQuest(rewardQuest.Id).Complete();
         Require(collecting.IsReadyToTurnIn, "A nem collect küldetés jutalma nem frissítette a gyűjtést.");
     }
