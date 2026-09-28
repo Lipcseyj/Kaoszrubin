@@ -11,6 +11,8 @@ public sealed class ForestMazeGenerator : MazeGenerator
 {
     private static readonly Direction[] Directions = Enum.GetValues<Direction>();
     private readonly ForestGenerationConfiguration _forest;
+    private bool[,] _reserved = null!;
+    private ForestTerrainField _routeField = null!;
 
     public ForestMazeGenerator(MazeGenerationSettings settings, ForestGenerationConfiguration forest,
         IReadOnlyList<ResolvedEnemyEncounter> clearingEncounters,
@@ -27,20 +29,27 @@ public sealed class ForestMazeGenerator : MazeGenerator
         var palette = _forest.Palette;
         var maze = new Maze(width, height, palette.Tree.Rune, palette.Tree.ForegroundColor, Settings.LevelName);
         foreach (var style in palette.All) maze.RegisterTerrainStyle(style);
+        _reserved = new bool[width, height];
+        _routeField = new ForestTerrainField(width, height, new IntRange(4, 9), Random);
         FillForest(maze);
-        PlaceLakes(maze);
 
         var startingRoom = new Room(new Position(1, 1), 3, 3);
         CarveRoom(maze, startingRoom);
+        ReserveRoom(maze, startingRoom);
         maze.SetStartingRoom(startingRoom);
+        _reserved[maze.Exit.X, maze.Exit.Y] = true;
 
         var (clearings, buildings) = PlaceClearingsAndBuildings(maze);
+        PlaceWetlands(maze);
+        DecorateTerrain(maze);
         var connected = new List<Position> { maze.Entrance };
+        var trailEdges = new HashSet<(Position, Position)>();
         foreach (var clearing in clearings.OrderBy(_ => Random.Next()))
         {
             var center = Center(clearing);
             var anchor = connected.OrderBy(position => Manhattan(position, center)).First();
             CarveMeanderingTrail(maze, anchor, center);
+            trailEdges.Add((anchor, center));
             connected.Add(center);
         }
 
@@ -48,8 +57,21 @@ public sealed class ForestMazeGenerator : MazeGenerator
         var exitAnchor = connected.OrderBy(position => Manhattan(position, exit)).First();
         CarveMeanderingTrail(maze, exitAnchor, exit);
         maze.Carve(exit);
-        ExpandForestEdges(maze);
-        DecorateWalkableTerrain(maze);
+        connected.Add(exit);
+        trailEdges.Add((exitAnchor, exit));
+        foreach (var start in connected)
+        {
+            if (Random.NextDouble() >= _forest.ExtraTrailChance) continue;
+            var alternatives = connected.Where(end => end != start &&
+                    !trailEdges.Contains((start, end)) && !trailEdges.Contains((end, start)))
+                .OrderBy(end => Manhattan(start, end)).Take(3).ToArray();
+            if (alternatives.Length == 0) continue;
+            var end = alternatives[Random.Next(alternatives.Length)];
+            CarveMeanderingTrail(maze, start, end);
+            trailEdges.Add((start, end));
+        }
+        // A természetes tisztásokat is bekötjük: a közös labirintusjavító itt ajtókat tenne az erdőbe.
+        ConnectOpenRegions(maze);
         BuildStructures(maze, buildings);
         maze.PlaceExit(exit);
         var report = maze.EnsureFullAccessibility(() => DoorState.Open);
@@ -61,41 +83,77 @@ public sealed class ForestMazeGenerator : MazeGenerator
     private void FillForest(Maze maze)
     {
         var palette = _forest.Palette;
+        var woodland = new ForestTerrainField(maze.Width, maze.Height, _forest.GroveSize, Random);
+        var biome = new ForestTerrainField(maze.Width, maze.Height,
+            new IntRange(_forest.BiomeSize, _forest.BiomeSize), Random);
+        var thicket = new ForestTerrainField(maze.Width, maze.Height, _forest.BushGroupSize, Random);
+        var woodlandThreshold = woodland.Threshold(_forest.ForestDensity);
+        var pineThreshold = biome.Threshold(_forest.PineChance);
+        var thicketThreshold = thicket.Threshold(_forest.ThicketChance);
         for (var y = 0; y < maze.Height; y++)
         for (var x = 0; x < maze.Width; x++)
         {
             var position = new Position(x, y);
-            maze.SetTerrain(position, RollObstacle(palette));
+            var boundary = !IsInterior(maze, position);
+            if (!boundary && woodland[position] < woodlandThreshold)
+                maze.Carve(position);
+            else
+                maze.SetTerrain(position, thicket[position] >= thicketThreshold ? palette.Thicket :
+                    biome[position] >= pineThreshold ? palette.Pine : palette.Tree);
         }
     }
 
-    private MazeTerrainStyle RollObstacle(ForestTerrainPalette palette)
+    private void PlaceWetlands(Maze maze)
     {
-        var roll = Random.NextDouble();
-        if ((roll -= _forest.PineChance) < 0) return palette.Pine;
-        if ((roll -= _forest.BushChance) < 0) return palette.Bush;
-        if ((roll -= _forest.FlowerBushChance) < 0) return palette.FlowerBush;
-        if ((roll -= _forest.ThicketChance) < 0) return palette.Thicket;
-        return palette.Tree;
+        var shore = new ForestTerrainField(maze.Width, maze.Height, new IntRange(3, 6), Random);
+        var shoreThreshold = shore.Threshold(_forest.MarshChance);
+        PlacePatches(_forest.MarshCount.Roll(Random), _forest.MarshRadius, lake: false);
+        PlacePatches(_forest.LakeCount.Roll(Random), _forest.LakeRadius, lake: true);
+
+        void PlacePatches(int count, IntRange radiusRange, bool lake)
+        {
+            for (var index = 0; index < count; index++)
+            for (var attempt = 0; attempt < 60; attempt++)
+            {
+                var radius = radiusRange.Roll(Random);
+                var center = new Position(Random.Next(2, maze.Width - 2), Random.Next(2, maze.Height - 2));
+                var patch = OrganicPatch(maze, center, radius * (0.9 + Random.NextDouble() * 0.5),
+                    radius * (0.7 + Random.NextDouble() * 0.5), lake ? 1.4 : 1).ToArray();
+                if (patch.Length == 0 || patch.Any(cell => _reserved[cell.Position.X, cell.Position.Y]) ||
+                    !patch.Any(cell => cell.Distance <= 0.7)) continue;
+                foreach (var (position, distance) in patch)
+                {
+                    // Víz sosem zárja el a teljes képernyőt: a külső keret belső szomszédja száraz marad.
+                    if (position.X < 2 || position.Y < 2 ||
+                        position.X >= maze.Width - 2 || position.Y >= maze.Height - 2) continue;
+                    if (lake && distance <= 1)
+                        maze.SetTerrain(position, _forest.Palette.Water);
+                    else if (!lake || shore[position] >= shoreThreshold)
+                        maze.SetTerrain(position, _forest.Palette.Marsh);
+                }
+                break;
+            }
+        }
     }
 
-    private void PlaceLakes(Maze maze)
+    private IEnumerable<(Position Position, double Distance)> OrganicPatch(Maze maze, Position center,
+        double radiusX, double radiusY, double extent = 1)
     {
-        for (var index = 0; index < _forest.LakeCount.Roll(Random); index++)
+        var rotation = Random.NextDouble() * Math.PI;
+        var phase = Random.NextDouble() * Math.PI * 2;
+        var reach = Math.Min(Math.Max(maze.Width, maze.Height),
+            (int)Math.Ceiling(Math.Max(radiusX, radiusY) * extent * 2.1));
+        for (var y = Math.Max(1, center.Y - reach); y <= Math.Min(maze.Height - 2, center.Y + reach); y++)
+        for (var x = Math.Max(1, center.X - reach); x <= Math.Min(maze.Width - 2, center.X + reach); x++)
         {
-            var radiusX = _forest.LakeRadius.Roll(Random);
-            var radiusY = Math.Max(2, radiusX + Random.Next(-1, 2));
-            if (maze.Width <= radiusX * 2 + 6 || maze.Height <= radiusY * 2 + 6) continue;
-            var center = new Position(Random.Next(radiusX + 3, maze.Width - radiusX - 3),
-                Random.Next(radiusY + 3, maze.Height - radiusY - 3));
-            for (var y = center.Y - radiusY; y <= center.Y + radiusY; y++)
-            for (var x = center.X - radiusX; x <= center.X + radiusX; x++)
-            {
-                var normalized = Math.Pow((x - center.X) / (double)radiusX, 2) +
-                                 Math.Pow((y - center.Y) / (double)radiusY, 2);
-                if (normalized <= 1 + Random.NextDouble() * 0.16)
-                    maze.SetTerrain(new Position(x, y), _forest.Palette.Water);
-            }
+            var dx = (x - center.X) * 0.65;
+            var dy = (double)(y - center.Y);
+            var u = (dx * Math.Cos(rotation) - dy * Math.Sin(rotation)) / radiusX;
+            var v = (dx * Math.Sin(rotation) + dy * Math.Cos(rotation)) / radiusY;
+            var angle = Math.Atan2(v, u);
+            var edge = 1 + 0.17 * Math.Sin(angle * 3 + phase) + 0.10 * Math.Sin(angle * 5 - phase);
+            var distance = Math.Sqrt(u * u + v * v) / edge;
+            if (distance <= extent) yield return (new Position(x, y), distance);
         }
     }
 
@@ -119,6 +177,10 @@ public sealed class ForestMazeGenerator : MazeGenerator
                 result.Any(other => Overlaps(room, other)))
                 continue;
             CarveRoom(maze, room);
+            if (!isBuilding)
+                foreach (var (position, _) in OrganicPatch(maze, Center(room), width * 0.5 + 1, height * 0.5 + 1))
+                    maze.Carve(position);
+            ReserveRoom(maze, room);
             maze.AddRoom(room);
             result.Add(room);
             if (isBuilding) buildings.Add(room);
@@ -127,6 +189,13 @@ public sealed class ForestMazeGenerator : MazeGenerator
             throw new InvalidOperationException(
                 $"Az erdei képernyőn csak {result.Count}/{Settings.RoomCount} tisztás fért el.");
         return (result, buildings);
+    }
+
+    private void ReserveRoom(Maze maze, Room room)
+    {
+        for (var y = Math.Max(0, room.TopLeft.Y - 2); y <= Math.Min(maze.Height - 1, room.TopLeft.Y + room.Height + 1); y++)
+        for (var x = Math.Max(0, room.TopLeft.X - 2); x <= Math.Min(maze.Width - 1, room.TopLeft.X + room.Width + 1); x++)
+            _reserved[x, y] = true;
     }
 
     private void BuildStructures(Maze maze, IEnumerable<Room> buildings)
@@ -215,83 +284,177 @@ public sealed class ForestMazeGenerator : MazeGenerator
 
     private void CarveMeanderingTrail(Maze maze, Position start, Position destination)
     {
+        var dx = destination.X - start.X;
+        var dy = destination.Y - start.Y;
+        var length = Math.Sqrt(dx * dx + dy * dy);
+        var segments = Math.Max(1, (int)Math.Ceiling(length / 9));
+        var phase = Random.NextDouble() * Math.PI * 2;
+        var amplitude = Math.Min(10, length * 0.28) * _forest.TrailWinding;
         var current = start;
-        var safety = maze.Width * maze.Height;
-        while (current != destination && safety-- > 0)
+        for (var step = 1; step <= segments; step++)
         {
-            CarveTrailWidth(maze, current);
-            var horizontalDistance = destination.X - current.X;
-            var verticalDistance = destination.Y - current.Y;
-            var horizontal = horizontalDistance != 0 &&
-                             (verticalDistance == 0 || Random.Next(Math.Abs(horizontalDistance) +
-                                 Math.Abs(verticalDistance)) < Math.Abs(horizontalDistance));
-            current = horizontal
-                ? current with { X = current.X + Math.Sign(horizontalDistance) }
-                : current with { Y = current.Y + Math.Sign(verticalDistance) };
+            var t = step / (double)segments;
+            var offset = Math.Sin(t * Math.PI) * Math.Sin(t * Math.PI * 3 + phase) * amplitude;
+            var waypoint = step == segments ? destination : NearestDryPosition(maze, new Position(
+                Math.Clamp((int)Math.Round(start.X + dx * t - dy / Math.Max(1, length) * offset), 1, maze.Width - 2),
+                Math.Clamp((int)Math.Round(start.Y + dy * t + dx / Math.Max(1, length) * offset), 1, maze.Height - 2)));
+            foreach (var position in FindTrail(maze, current, waypoint)) CarveTrailWidth(maze, position);
+            current = waypoint;
         }
-        CarveTrailWidth(maze, destination);
+    }
+
+    private Position NearestDryPosition(Maze maze, Position center)
+    {
+        if (maze.GetTerrainStyle(center)?.Id != _forest.Palette.Water.Id) return center;
+        for (var radius = 1; radius < Math.Max(maze.Width, maze.Height); radius++)
+        for (var y = Math.Max(1, center.Y - radius); y <= Math.Min(maze.Height - 2, center.Y + radius); y++)
+        for (var x = Math.Max(1, center.X - radius); x <= Math.Min(maze.Width - 2, center.X + radius); x++)
+        {
+            if (Math.Abs(x - center.X) + Math.Abs(y - center.Y) != radius) continue;
+            var position = new Position(x, y);
+            if (maze.GetTerrainStyle(position)?.Id != _forest.Palette.Water.Id) return position;
+        }
+        throw new InvalidOperationException("Az erdei ösvényhez nincs száraz mező.");
+    }
+
+    private List<Position> FindTrail(Maze maze, Position start, Position? destination, bool[,]? network = null,
+        bool allowWater = false)
+    {
+        var frontier = new PriorityQueue<(Position Position, double Cost), double>();
+        var costs = new Dictionary<Position, double> { [start] = 0 };
+        var previous = new Dictionary<Position, Position>();
+        frontier.Enqueue((start, 0), 0);
+        while (frontier.TryDequeue(out var entry, out _))
+        {
+            var current = entry.Position;
+            if (entry.Cost > costs[current]) continue;
+            if (current == destination || network is not null && network[current.X, current.Y])
+            {
+                var path = new List<Position> { current };
+                while (current != start) { current = previous[current]; path.Add(current); }
+                path.Reverse();
+                return path;
+            }
+            foreach (var direction in Directions)
+            {
+                var next = current + direction;
+                if (!IsInterior(maze, next)) continue;
+                var terrain = maze.GetTerrainStyle(next);
+                var water = terrain?.Id == _forest.Palette.Water.Id;
+                if (water && !allowWater) continue;
+                var cost = water ? 80 : network is not null
+                    ? maze.IsWalkable(next) ? 1 : 8
+                    : 1 + _routeField[next] * 5 * _forest.TrailWinding +
+                      (terrain?.Id == _forest.Palette.Marsh.Id ? 5 : maze.IsWalkable(next) ? 0 : 1.5);
+                var total = entry.Cost + cost;
+                if (costs.TryGetValue(next, out var known) && known <= total) continue;
+                costs[next] = total;
+                previous[next] = current;
+                frontier.Enqueue((next, total), total + (destination is { } target ? Manhattan(next, target) : 0));
+            }
+        }
+        // Összeérő tavak körbezárhatnak egy száraz szigetet. Csak ilyenkor készül keskeny mocsári átkelő.
+        if (!allowWater) return FindTrail(maze, start, destination, network, allowWater: true);
+        throw new InvalidOperationException("Az erdei területeket nem sikerült ösvénnyel összekötni.");
     }
 
     private void CarveTrailWidth(Maze maze, Position center)
     {
+        if (maze.GetTerrainStyle(center)?.Id == _forest.Palette.Water.Id)
+        {
+            maze.SetTerrain(center, _forest.Palette.Marsh);
+            return;
+        }
         var left = (_forest.TrailWidth - 1) / 2;
         var right = _forest.TrailWidth / 2;
         for (var y = center.Y - left; y <= center.Y + right; y++)
         for (var x = center.X - left; x <= center.X + right; x++)
         {
             var position = new Position(x, y);
-            if (position.X <= 0 || position.X >= maze.Width - 1 ||
-                position.Y <= 0 || position.Y >= maze.Height - 1) continue;
+            if (!IsInterior(maze, position) ||
+                maze.GetTerrainStyle(position)?.Id == _forest.Palette.Water.Id) continue;
             maze.Carve(position);
         }
     }
 
-    private void ExpandForestEdges(Maze maze)
+    private void ConnectOpenRegions(Maze maze)
     {
-        var expansionChance = (1 - _forest.ForestDensity) * 0.42;
-        for (var pass = 0; pass < 3; pass++)
-        {
-            var candidates = new List<Position>();
-            for (var y = 1; y < maze.Height - 1; y++)
-            for (var x = 1; x < maze.Width - 1; x++)
-            {
-                var position = new Position(x, y);
-                if (maze.IsWalkable(position) || maze.GetTerrainStyle(position)?.Id == _forest.Palette.Water.Id)
-                    continue;
-                if (Directions.Any(direction => maze.IsWalkable(position + direction)) &&
-                    Random.NextDouble() < expansionChance) candidates.Add(position);
-            }
-            foreach (var position in candidates) maze.Carve(position);
-        }
-    }
-
-    private void DecorateWalkableTerrain(Maze maze)
-    {
-        var walkable = new List<Position>();
+        var network = new bool[maze.Width, maze.Height];
+        Flood(maze.Entrance);
         for (var y = 1; y < maze.Height - 1; y++)
         for (var x = 1; x < maze.Width - 1; x++)
         {
             var position = new Position(x, y);
-            if (maze.Tiles[x, y] == Maze.Floor && position != maze.Entrance && position != maze.Exit)
-                walkable.Add(position);
+            if (network[x, y] || !maze.IsWalkable(position)) continue;
+            var path = FindTrail(maze, position, null, network);
+            foreach (var cell in path) CarveTrailWidth(maze, cell);
+            // Az út kiszélesítése több korábbi szigetet is elérhetett.
+            foreach (var cell in path) Flood(cell);
         }
 
-        foreach (var position in walkable)
+        void Flood(Position start)
         {
-            if (Directions.Any(direction =>
-                    maze.GetTerrainStyle(position + direction)?.Id == _forest.Palette.Water.Id) &&
-                Random.NextDouble() < _forest.MarshChance)
+            var queue = new Queue<Position>();
+            network[start.X, start.Y] = true;
+            queue.Enqueue(start);
+            while (queue.TryDequeue(out var current))
+            foreach (var direction in Directions)
             {
-                maze.SetTerrain(position, _forest.Palette.Marsh);
-                continue;
+                var next = current + direction;
+                if (!IsInterior(maze, next) || network[next.X, next.Y] || !maze.IsWalkable(next)) continue;
+                network[next.X, next.Y] = true;
+                queue.Enqueue(next);
             }
-            var roll = Random.NextDouble();
-            if (roll < _forest.DenseUndergrowthChance)
+        }
+    }
+
+    private void DecorateTerrain(Maze maze)
+    {
+        var shrubs = new ForestTerrainField(maze.Width, maze.Height, _forest.BushGroupSize, Random);
+        var ground = new ForestTerrainField(maze.Width, maze.Height, new IntRange(3, 8), Random);
+        var bushThreshold = shrubs.Threshold(_forest.BushChance + _forest.FlowerBushChance);
+        var flowerThreshold = shrubs.Threshold(_forest.FlowerBushChance);
+        var undergrowthThreshold = ground.Threshold(_forest.UndergrowthChance + _forest.DenseUndergrowthChance);
+        var denseThreshold = ground.Threshold(_forest.DenseUndergrowthChance);
+        var edgeDistances = new int[maze.Width, maze.Height];
+        var frontier = new Queue<Position>();
+        for (var y = 1; y < maze.Height - 1; y++)
+        for (var x = 1; x < maze.Width - 1; x++)
+        {
+            var position = new Position(x, y);
+            edgeDistances[x, y] = int.MaxValue;
+            var style = maze.GetTerrainStyle(position);
+            if (style?.Id != _forest.Palette.Tree.Id && style?.Id != _forest.Palette.Pine.Id &&
+                style?.Id != _forest.Palette.Thicket.Id) continue;
+            edgeDistances[x, y] = 0;
+            frontier.Enqueue(position);
+        }
+        while (frontier.TryDequeue(out var current))
+        foreach (var direction in Directions)
+        {
+            var next = current + direction;
+            var distance = edgeDistances[current.X, current.Y] + 1;
+            if (!IsInterior(maze, next) || distance > _forest.ForestEdgeWidth ||
+                distance >= edgeDistances[next.X, next.Y]) continue;
+            edgeDistances[next.X, next.Y] = distance;
+            frontier.Enqueue(next);
+        }
+        for (var y = 1; y < maze.Height - 1; y++)
+        for (var x = 1; x < maze.Width - 1; x++)
+        {
+            var position = new Position(x, y);
+            if (_reserved[x, y] || maze.Tiles[x, y] != Maze.Floor) continue;
+            if (edgeDistances[x, y] <= _forest.ForestEdgeWidth && shrubs[position] >= bushThreshold)
+                maze.SetTerrain(position, shrubs[position] >= flowerThreshold ? _forest.Palette.FlowerBush : _forest.Palette.Bush);
+            else if (ground[position] >= denseThreshold)
                 maze.SetTerrain(position, _forest.Palette.DenseUndergrowth);
-            else if (roll < _forest.DenseUndergrowthChance + _forest.UndergrowthChance)
+            else if (ground[position] >= undergrowthThreshold)
                 maze.SetTerrain(position, _forest.Palette.Undergrowth);
         }
     }
+
+    private static bool IsInterior(Maze maze, Position position) =>
+        position.X > 0 && position.X < maze.Width - 1 && position.Y > 0 && position.Y < maze.Height - 1;
 
     private static Position Center(Room room) =>
         new(room.TopLeft.X + room.Width / 2, room.TopLeft.Y + room.Height / 2);
@@ -311,32 +474,28 @@ public sealed class ForestMazeGenerator : MazeGenerator
         {
             configuration.ForestDensity, configuration.PineChance, configuration.BushChance,
             configuration.FlowerBushChance, configuration.ThicketChance, configuration.UndergrowthChance,
-            configuration.DenseUndergrowthChance, configuration.MarshChance
+            configuration.DenseUndergrowthChance, configuration.MarshChance, configuration.TrailWinding,
+            configuration.ExtraTrailChance, configuration.BuildingPartitionChance,
+            configuration.LockedBuildingDoorChance, configuration.OpenBuildingDoorChance
         };
-        if (probabilities.Any(value => value is < 0 or > 1) ||
-            configuration.PineChance + configuration.BushChance + configuration.FlowerBushChance +
-            configuration.ThicketChance > 1 ||
-            configuration.UndergrowthChance + configuration.DenseUndergrowthChance > 1)
-            throw new ArgumentOutOfRangeException(nameof(configuration),
-                "Az erdei gyakoriságoknak 0 és 1 közé kell esniük, a részarányok összege legfeljebb 1 lehet.");
-        if (configuration.LakeCount.Minimum < 0 ||
-            configuration.LakeCount.Maximum < configuration.LakeCount.Minimum ||
-            configuration.LakeRadius.Minimum < 1 ||
-            configuration.LakeRadius.Maximum < configuration.LakeRadius.Minimum ||
-            configuration.BuildingCount.Minimum < 0 ||
-            configuration.BuildingCount.Maximum < configuration.BuildingCount.Minimum ||
-            configuration.BuildingSize.Minimum < 3 ||
-            configuration.BuildingSize.Maximum < configuration.BuildingSize.Minimum ||
-            configuration.TrailWidth is < 1 or > 5)
-            throw new ArgumentOutOfRangeException(nameof(configuration), "Az erdei méretbeállítások érvénytelenek.");
-        if (configuration.BuildingPartitionChance is < 0 or > 1 ||
-            configuration.LockedBuildingDoorChance is < 0 or > 1 ||
-            configuration.OpenBuildingDoorChance is < 0 or > 1 ||
+        if (probabilities.Any(value => !double.IsFinite(value) || value is < 0 or > 1) ||
+            configuration.BushChance + configuration.FlowerBushChance > 1 ||
+            configuration.UndergrowthChance + configuration.DenseUndergrowthChance > 1 ||
             configuration.LockedBuildingDoorChance + configuration.OpenBuildingDoorChance > 1)
             throw new ArgumentOutOfRangeException(nameof(configuration),
-                "Az erdei épületek ajtó- és tagolási esélyeinek 0 és 1 közé kell esniük.");
+                "Az erdei gyakoriságoknak 0 és 1 közé kell esniük, a részarányok összege legfeljebb 1 lehet.");
+        if (!ValidRange(configuration.LakeCount, 0) || !ValidRange(configuration.LakeRadius, 1) ||
+            !ValidRange(configuration.MarshCount, 0) || !ValidRange(configuration.MarshRadius, 1) ||
+            !ValidRange(configuration.GroveSize, 2) || !ValidRange(configuration.BushGroupSize, 1) ||
+            !ValidRange(configuration.BuildingCount, 0) || !ValidRange(configuration.BuildingSize, 3) ||
+            configuration.BiomeSize < 2 || configuration.ForestEdgeWidth is < 1 or > 10 ||
+            configuration.TrailWidth is < 1 or > 5)
+            throw new ArgumentOutOfRangeException(nameof(configuration), "Az erdei méretbeállítások érvénytelenek.");
         if (configuration.Palette.All.Select(style => style.Rune.Value).Distinct().Count() !=
             configuration.Palette.All.Count)
             throw new ArgumentException("Az erdei tereprúnáknak egyedinek kell lenniük.", nameof(configuration));
+
+        static bool ValidRange(IntRange range, int minimum) =>
+            range.Minimum >= minimum && range.Maximum >= range.Minimum && range.Maximum < int.MaxValue;
     }
 }

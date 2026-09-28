@@ -33,16 +33,33 @@ public sealed class ForestTerrainPalette
 /// <summary>Egy erdei képernyő terepeloszlásának szerkesztői beállításai.</summary>
 public sealed class ForestGenerationConfiguration
 {
-    /// <summary>Az összefüggő erdőtömeg sűrűsége 0 és 1 között.</summary>
+    /// <summary>
+    /// A belső terület fákkal/bozóttal borított hányada a tavak, tisztások és ösvények előtt.
+    /// 0: nyílt táj; 0.18: elszórt ligetek; 0.55: mozaikos erdő; 0.95–1: sűrű erdő ösvényekkel.
+    /// </summary>
     public double ForestDensity { get; init; } = 0.72;
 
-    /// <summary>Az akadálymezőkön a fenyők, bokrok, virágos bokrok és sűrű bozót aránya.</summary>
+    /// <summary>A facsoportok jellemző térbeli léptéke mezőben; több lépték keveredik, nem egyforma körök.</summary>
+    public IntRange GroveSize { get; init; } = new(5, 13);
+
+    /// <summary>A lombos és fenyves tájegységek léptéke; általában nagyobb, mint a facsoportoké.</summary>
+    public int BiomeSize { get; init; } = 20;
+
+    /// <summary>A fenyves tájegységek részaránya. A fajok csak a tájegységek határán találkoznak.</summary>
     public double PineChance { get; init; } = 0.16;
+
+    /// <summary>A nyílt erdőszegély bokros, illetve virágos bokros foltjainak aránya.</summary>
     public double BushChance { get; init; } = 0.16;
     public double FlowerBushChance { get; init; } = 0.04;
+
+    /// <summary>A bokorcsoportok térbeli léptéke és az erdőszegély szélessége mezőben.</summary>
+    public IntRange BushGroupSize { get; init; } = new(2, 5);
+    public int ForestEdgeWidth { get; init; } = 3;
+
+    /// <summary>A fás terület összefüggő, sűrű bozóttal helyettesített részaránya.</summary>
     public double ThicketChance { get; init; } = 0.12;
 
-    /// <summary>A már járható mezőkön megjelenő aljnövényzet aránya.</summary>
+    /// <summary>A szabad talajon megjelenő összefüggő aljnövényzetfoltok aránya.</summary>
     public double UndergrowthChance { get; init; } = 0.24;
     public double DenseUndergrowthChance { get; init; } = 0.10;
 
@@ -50,11 +67,21 @@ public sealed class ForestGenerationConfiguration
     public IntRange LakeCount { get; init; } = new(1, 3);
     public IntRange LakeRadius { get; init; } = new(2, 5);
 
-    /// <summary>A tóparttal szomszédos járható mezők mocsárrá válási esélye.</summary>
+    /// <summary>A mocsaras tópartszakaszok aránya; 0 esetén csak az önálló mocsarak maradnak.</summary>
     public double MarshChance { get; init; } = 0.55;
+
+    /// <summary>A tavaktól független, szabálytalan mocsárfoltok száma és közelítő sugara.</summary>
+    public IntRange MarshCount { get; init; } = new(1, 2);
+    public IntRange MarshRadius { get; init; } = new(3, 7);
 
     /// <summary>A fő ösvények szélessége mezőben.</summary>
     public int TrailWidth { get; init; } = 2;
+
+    /// <summary>Az ösvénykanyarok erőssége 0 (közvetlen) és 1 (erősen kanyargó) között.</summary>
+    public double TrailWinding { get; init; } = 0.65;
+
+    /// <summary>A tisztások további, hurkot/kerülőutat adó összeköttetésének esélye.</summary>
+    public double ExtraTrailChance { get; init; } = 0.30;
 
     /// <summary>
     /// A képernyőn létrehozott, ajtóval lezárt erdei épületek száma. Az épületek a

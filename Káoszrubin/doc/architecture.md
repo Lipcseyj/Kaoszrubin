@@ -134,10 +134,19 @@ az erdei generátor pedig erre a közös alapra köti rá a procedurális gráfo
 
 Az erdei elrendezéshez a pályakonfiguráció `Layout` mezője `ForestMazeLayoutConfiguration` értéket kap.
 A benne lévő `DungeonAreaGraphConfiguration` 6–10 vagy akár más számú képernyőből mellékágas, hurkolható
-gráfot készít. A `ForestGenerationConfiguration` szabályozza az erdősűrűséget, az egyes növényfajták
-arányát, az aljnövényzetet, a tavak számát és méretét, a mocsaras tópart esélyét, az ösvények szélességét,
+gráfot készít. A `ForestGenerationConfiguration` szabályozza a területi erdőborítást, a fa- és
+bokorcsoportok léptékét, a lombos és fenyves tájegységek arányát, az aljnövényzetet, a tavak és önálló
+mocsarak számát/méretét, a mocsaras tópart arányát, az ösvények szélességét, kanyargását és kerülőágait,
 valamint az épületek számát, méretét, belső tagolását és ajtóállapotainak esélyét.
 A `ForestTerrainPalette` minden tereptípus rúnáját, előtér- és háttérszínét külön engedi felülírni.
+Az összefüggő növényzetfoltok alapja a több léptékű, térben torzított `ForestTerrainField`.
+A borítási küszöböt a tényleges térkép kvantilise adja: a `ForestDensity` már a teljes belső területre
+hat, nem pusztán az ösvényszélek ritkítására. A fafajokat külön, nagyobb léptékű mező választja el;
+a bokrok csak a nyílt erdőszegélyen jelennek meg. A tavak és mocsarak szabálytalan, forgatott foltok,
+a tavakat kerülő ösvények hullámzó köztes pontokat kötnek össze súlyozott útkereséssel. Az elzárt
+természetes tisztások is bekötést kapnak; vízzel teljesen körbezárt száraz szigethez szükség esetén
+keskeny mocsári átkelő vezet. A véletlenmag az egész generálást reprodukálhatóvá teszi.
+Hangolási példák és a paraméterek pontos jelentése: [Erdei pályagenerálás](forest-generation.md).
 
 Az egy képernyőn belüli tisztások a közös `Room` modellt használják. Emiatt a `RoomEncounters` és a
 kincsesládák tisztásokra, a `CorridorEncounters` pedig ösvényekre és egyéb járható erdei területekre kerülnek.
