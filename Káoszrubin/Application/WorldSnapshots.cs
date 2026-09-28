@@ -86,11 +86,16 @@ public static class WorldSnapshotProjector
                 ? shownTrap.State == TrapState.Detected ? ConsoleColor.Yellow : ConsoleColor.DarkGray
                 : tile == maze.WallRune && illuminatedWalls?.Contains(position) == true
                 ? ConsoleColor.Yellow
+                : maze.GetPassageAt(position) is not null ? ConsoleColor.Cyan
+                : maze.GetTerrainStyle(position) is { } terrain
+                ? terrain.ForegroundColor
                 : tile == maze.WallRune
                 ? maze.WallColor
-                : maze.GetPassageAt(position) is not null ? ConsoleColor.Cyan
                 : tile == Maze.ExitMarker ? ConsoleColor.Green : ConsoleColor.Black;
-            cells.Add(new WorldCellSnapshot(position, tile.Value, color));
+            var background = shownTrap is null && maze.GetPassageAt(position) is null
+                ? maze.GetTerrainStyle(position)?.BackgroundColor ?? ConsoleColor.Black
+                : ConsoleColor.Black;
+            cells.Add(new WorldCellSnapshot(position, tile.Value, color, background));
         }
         bool IsVisible(Position position) => visible.Contains(position);
         var doors = maze.Doors.Where(door => IsVisible(door.Position))

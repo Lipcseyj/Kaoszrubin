@@ -39,7 +39,7 @@ public class MazeGenerator
         throw new InvalidOperationException("128 kísérletből sem sikerült a speciális szobák elhelyezése.");
     }
 
-    private Maze CreateLayout(int width, int height)
+    protected virtual Maze CreateLayout(int width, int height)
     {
         var maze = new Maze(width, height, Settings.WallRune, Settings.WallColor, Settings.LevelName);
         var gridWidth = (width - CorridorNodeWidth - 1) / GridStep + 1;

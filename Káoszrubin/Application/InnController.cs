@@ -1111,22 +1111,33 @@ internal sealed class InnController
         var leaders = configuration.RoomEncounters.SelectMany(encounter => encounter.Members)
             .Where(member => member.Role == EnemyGroupRole.Leader)
             .Select(member => _gameData.GetEnemy(member.EnemyId).Name).Distinct().ToList();
-        var corridorText = configuration.Layout is WideMazeLayoutConfiguration wide
-            ? $"{wide.AreaCount.Minimum}–{wide.AreaCount.Maximum} összekapcsolt terület, többnyire hárommezős folyosókkal"
-            : configuration.DoubleWidthCorridorChance switch
+        var corridorText = configuration.Layout switch
         {
-            >= 0.9 => "szinte mindenütt széles, páros folyosók",
-            >= 0.7 => "többnyire széles folyosók",
-            <= 0.25 => "szűk, egycellás átjárók a nagyobb terek között",
-            _ => "változó szélességű folyosók"
+            WideMazeLayoutConfiguration wide =>
+                $"{wide.AreaCount.Minimum}–{wide.AreaCount.Maximum} összekapcsolt terület, többnyire hárommezős folyosókkal",
+            ForestMazeLayoutConfiguration forest =>
+                $"{forest.Graph.AreaCount.Minimum}–{forest.Graph.AreaCount.Maximum} gráfba rendezett erdőrész, " +
+                $"{forest.Forest.ForestDensity:P0} erdősűrűséggel",
+            _ => configuration.DoubleWidthCorridorChance switch
+            {
+                >= 0.9 => "szinte mindenütt széles, páros folyosók",
+                >= 0.7 => "többnyire széles folyosók",
+                <= 0.25 => "szűk, egycellás átjárók a nagyobb terek között",
+                _ => "változó szélességű folyosók"
+            }
         };
-        var wall = $"{configuration.WallRune} ({configuration.WallColor})";
+        var wall = configuration.Layout is ForestMazeLayoutConfiguration forestLayout
+            ? $"{forestLayout.Forest.Palette.Tree.Rune} ({forestLayout.Forest.Palette.Tree.ForegroundColor})"
+            : $"{configuration.WallRune} ({configuration.WallColor})";
+        var roomKind = configuration.Layout is ForestMazeLayoutConfiguration ? "tisztás" : "szoba";
         return new InnRumor($"Úti pletyka: {configuration.Name}",
         [
             $"A következő út a(z) {level}. szintre vezet: {configuration.Name}.",
-            $"Terep: {configuration.RoomCount.Minimum}–{configuration.RoomCount.Maximum} szoba, " +
+            $"Terep: {configuration.RoomCount.Minimum}–{configuration.RoomCount.Maximum} {roomKind}, " +
             $"{configuration.RoomSize.Minimum}–{configuration.RoomSize.Maximum} mezős oldalakkal; {corridorText}.",
-            $"A falazat jele és színe: {wall}.",
+            configuration.Layout is ForestMazeLayoutConfiguration
+                ? $"Az erdőtömeg jellemző jele és színe: {wall}."
+                : $"A falazat jele és színe: {wall}.",
             configuration.VisionModifier < 0
                 ? $"A mélység itt szokatlanul sötét: a látótáv {configuration.VisionModifier} módosítást kap. Vigyetek fényforrást."
                 : "A környéken szokványosak a fényviszonyok.",

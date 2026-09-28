@@ -39,6 +39,9 @@ internal sealed class GameStateMapper
             WallCodePoint = maze.WallRune.Value,
             WallColor = maze.WallColor,
             LevelName = maze.LevelName,
+            TerrainStyles = maze.TerrainStyles.Select(style => new MazeTerrainStyleSaveData(
+                style.Id, style.Rune.Value, style.ForegroundColor, style.BackgroundColor,
+                style.Walkable, style.BlocksSight)).ToList(),
             Exit = maze.Exit,
             StartingRoom = maze.StartingRoom,
             Rooms = maze.Rooms.Where(room => room != maze.StartingRoom).ToList(),
@@ -142,6 +145,9 @@ internal sealed class GameStateMapper
             : Maze.Wall;
         var maze = new Maze(state.Maze.Width, state.Maze.Height, wallRune,
             state.Maze.WallColor, state.Maze.LevelName);
+        foreach (var style in state.Maze.TerrainStyles ?? [])
+            maze.RegisterTerrainStyle(new MazeTerrainStyle(style.Id, new Rune(style.RuneCodePoint),
+                style.ForegroundColor, style.BackgroundColor, style.Walkable, style.BlocksSight));
         var tileIndex = 0;
         for (var y = 0; y < maze.Height; y++)
         for (var x = 0; x < maze.Width; x++)

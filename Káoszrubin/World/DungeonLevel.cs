@@ -1,6 +1,6 @@
 namespace KaoszRubin.World;
 
-public enum MazeLayoutStyle { Classic, Wide }
+public enum MazeLayoutStyle { Classic, Wide, Forest }
 
 public abstract record MazeLayoutConfiguration(MazeLayoutStyle Style);
 
@@ -9,6 +9,15 @@ public sealed record ClassicMazeLayoutConfiguration(double DoubleWidthCorridorCh
 
 public sealed record WideMazeLayoutConfiguration(IntRange AreaCount, double NarrowingChance = 0.12)
     : MazeLayoutConfiguration(MazeLayoutStyle.Wide);
+
+/// <summary>
+/// Többképernyős, gráf szerkezetű erdei pálya. A Graph a képernyők kapcsolatát, a Forest az egyes
+/// képernyők növényzetét és vizes területeit szabályozza.
+/// </summary>
+public sealed record ForestMazeLayoutConfiguration(
+    DungeonAreaGraphConfiguration Graph,
+    ForestGenerationConfiguration Forest)
+    : MazeLayoutConfiguration(MazeLayoutStyle.Forest);
 
 public sealed class DungeonArea(string id, Maze maze, FogOfWar fogOfWar,
     string? name = null, AreaCoordinate? coordinate = null, DungeonAreaRole role = DungeonAreaRole.MainRoute)

@@ -278,6 +278,127 @@ internal static partial class Program
             position.X == candidate.Width - 1 || position.Y == candidate.Height - 1;
     }
 
+    static void ForestMazeBuildsAccessibleVariedTerrain()
+    {
+        var forest = new ForestGenerationConfiguration
+        {
+            ForestDensity = 0.70,
+            LakeCount = new IntRange(2, 2),
+            LakeRadius = new IntRange(2, 4),
+            TrailWidth = 2
+        };
+        var settings = new MazeGenerationSettings
+        {
+            RoomCount = 5,
+            MinimumRoomSize = 4,
+            MaximumRoomSize = 7,
+            TreasureChestCount = 0,
+            LevelName = "Erdei generátorteszt"
+        };
+        Maze? first = null;
+        for (var seed = 0; seed < 30; seed++)
+        {
+            var maze = new ForestMazeGenerator(settings, forest, [], [], new Random(seed)).Create(55, 31);
+            first ??= maze;
+            var water = Positions(maze).Where(position =>
+                maze.GetTerrainStyle(position)?.Id == forest.Palette.Water.Id).ToArray();
+            var undergrowth = Positions(maze).Where(position =>
+                maze.GetTerrainStyle(position)?.Id is "forest-undergrowth" or "forest-dense-undergrowth").ToArray();
+            Assert(maze.CheckFullAccessibility().IsFullyAccessible && maze.IsWalkable(maze.Entrance) &&
+                   maze.IsWalkable(maze.Exit) && maze.Rooms.Count == settings.RoomCount + 1,
+                $"A(z) {seed}. seed erdei képernyője nem teljesen bejárható vagy elvesztette a tisztásait.");
+            Assert(maze.TerrainStyles.Count == forest.Palette.All.Count && water.Length > 0 &&
+                   water.All(position => !maze.IsWalkable(position) && !maze.BlocksSight(position)) &&
+                   undergrowth.Length > 0 && undergrowth.All(maze.IsWalkable),
+                $"A(z) {seed}. seed erdei tereptípusai vagy járhatósági szabályai hibásak.");
+        }
+
+        var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
+        var character = CreateCharacter("Erdőjáró");
+        var roster = new CharacterRoster();
+        roster.Add(character);
+        roster.Select(character);
+        var mapper = new GameStateMapper(data, roster, character);
+        var fog = new FogOfWar(first!.Width, first.Height, 5);
+        var save = mapper.Create(6, first, new Player(first.Entrance, character), fog, Direction.Right,
+            [first.Entrance], false, false, false, false, null, DateTime.UtcNow,
+            new Dictionary<Enemy, DateTime>(), [], []);
+        var restored = mapper.Restore(JsonSerializer.Deserialize<GameSaveData>(JsonSerializer.Serialize(save))!);
+        var sample = Positions(first).First(position => first.GetTerrainStyle(position)?.Id == forest.Palette.Water.Id);
+        fog.Restore([sample], developerRevealActive: false);
+        var replicated = WorldSnapshotProjector.Create(first, fog).RevealedCells.Single(cell =>
+            cell.Position == sample);
+        Assert(restored.Maze.TerrainStyles.Count == first.TerrainStyles.Count &&
+               restored.Maze.GetTerrainStyle(sample) == first.GetTerrainStyle(sample) &&
+               !restored.Maze.IsWalkable(sample) &&
+               replicated.ForegroundColor == forest.Palette.Water.ForegroundColor &&
+               replicated.BackgroundColor == forest.Palette.Water.BackgroundColor,
+            "Az erdei tereppaletta, a járhatóság vagy a coop színezés elveszett az állapotkörben.");
+
+        static IEnumerable<Position> Positions(Maze maze)
+        {
+            for (var y = 0; y < maze.Height; y++)
+            for (var x = 0; x < maze.Width; x++)
+                yield return new Position(x, y);
+        }
+    }
+
+    static void ForestAreaGraphHonorsTopologyRules()
+    {
+        var configuration = new DungeonAreaGraphConfiguration(new IntRange(6, 10),
+            MinimumExitDistance: 3, MaximumDegree: 3, BranchChance: 0.48, ExtraConnectionChance: 0.22);
+        for (var seed = 0; seed < 250; seed++)
+        {
+            var plan = DungeonAreaGraphGenerator.Generate(configuration, new Random(seed));
+            var nodes = plan.Nodes.ToDictionary(node => node.Id);
+            var neighbors = nodes.Keys.ToDictionary(id => id, _ => new List<string>());
+            foreach (var connection in plan.Connections)
+            {
+                neighbors[connection.FirstAreaId].Add(connection.SecondAreaId);
+                neighbors[connection.SecondAreaId].Add(connection.FirstAreaId);
+                var first = nodes[connection.FirstAreaId].Coordinate;
+                var second = nodes[connection.SecondAreaId].Coordinate;
+                Assert(Math.Abs(first.X - second.X) + Math.Abs(first.Y - second.Y) == 1,
+                    "A gráf nem szomszédos képernyőket kötött össze.");
+            }
+            var distances = new Dictionary<string, int> { [plan.EntranceAreaId] = 0 };
+            var pending = new Queue<string>();
+            pending.Enqueue(plan.EntranceAreaId);
+            while (pending.TryDequeue(out var current))
+                foreach (var next in neighbors[current])
+                    if (distances.TryAdd(next, distances[current] + 1)) pending.Enqueue(next);
+            Assert(distances.Count == nodes.Count && distances[plan.ExitAreaId] >= 3 &&
+                   neighbors.Values.All(list => list.Count <= 3) &&
+                   nodes.Values.Select(node => node.Coordinate).Distinct().Count() == nodes.Count,
+                $"A(z) {seed}. seed erdei képernyőgráfja megsértette a topológiai korlátokat.");
+
+            if (seed >= 12) continue;
+            var settings = new MazeGenerationSettings
+            {
+                RoomCount = 2, MinimumRoomSize = 4, MaximumRoomSize = 6, TreasureChestCount = 0
+            };
+            var forest = new ForestGenerationConfiguration { LakeCount = new IntRange(0, 1) };
+            var areas = plan.Nodes.Select((node, index) => (node.Id,
+                    Maze: new ForestMazeGenerator(settings, forest, [], [], new Random(seed * 100 + index))
+                        .Create(43, 31)))
+                .ToDictionary(entry => entry.Id, entry => entry.Maze);
+            foreach (var connection in plan.Connections)
+            {
+                var departure = MazeEdgePassageCarver.Carve(areas[connection.FirstAreaId], new Random(seed + 700),
+                    connection.FirstEdge);
+                var arrival = MazeEdgePassageCarver.Carve(areas[connection.SecondAreaId], new Random(seed + 900),
+                    connection.SecondEdge, departure.RelativeOffset);
+                areas[connection.FirstAreaId].AddPassage(new MazePassage(departure.Position,
+                    connection.SecondAreaId, arrival.Position));
+                areas[connection.SecondAreaId].AddPassage(new MazePassage(arrival.Position,
+                    connection.FirstAreaId, departure.Position));
+            }
+            Assert(plan.Nodes.All(node => areas[node.Id].Passages.Count == neighbors[node.Id].Count &&
+                                          areas[node.Id].CheckFullAccessibility().IsFullyAccessible),
+                $"A(z) {seed}. seed képernyőgráfjának erdei átjárói nem követték a kapcsolatokat.");
+        }
+    }
+
     static void WideLevelsHaveBalancedDiverseHordes()
     {
         var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));

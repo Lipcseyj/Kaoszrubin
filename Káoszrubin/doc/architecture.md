@@ -100,6 +100,9 @@ Az indítás menete:
 
 - `Maze.cs`: a pályarács, a szobák és a térképi objektumok tárolója.
 - `MazeGenerator.cs`: labirintus, szobák, ládák és ellenfelek létrehozása.
+- `ForestMazeGenerator.cs`: erdei tisztások, összefüggő ösvények, tavak, mocsárszegély és növényzet létrehozása.
+- `ForestMazeConfiguration.cs`: az erdősűrűség, terepgyakoriságok, tavak, ösvényszélesség, rúnák és színek szerkesztői API-ja.
+- `MazeTerrainStyle.cs`: a rúnánként konfigurálható járhatóság, látástakarás és megjelenítés közös modellje.
 - `DungeonAreaGraph.cs`: a többképernyős szint absztrakt, kétdimenziós gráfja és a mellékágas/hurkos gráfgenerátor.
 - `DungeonLevel.cs`: a létrejött képernyők, az aktív képernyő, valamint a stabil bejárati és kijárati képernyő kezelése.
 - `MazeLevelConfiguration.cs`: szintenkénti nehézség és generálási tartományok.
@@ -116,14 +119,27 @@ A többképernyős szintet a futásidő már nem a `Areas` lista első és utols
 A `DungeonLevel` külön `EntranceAreaId` és `ExitAreaId` értéket őriz, ezért a képernyők sorrendje nem
 határozza meg a bejáratot, a valódi pályakijáratot vagy a visszatérő expedíció célját. A mentési formátum
 a képernyők kétdimenziós koordinátáját és topológiai szerepét is tárolja; a 31-es mentésekből a 32-es
-migráció a korábbi lineáris sorrendet állítja vissza.
+migráció a korábbi lineáris sorrendet állítja vissza. A 33-as formátum képernyőnként egyszer menti a
+terepstílus-palettát is, így a járható aljnövényzet és a nem járható víz mentés után sem változik padlóvá.
 
 A `DungeonAreaGraphGenerator` összefüggő, ortogonális metarácsot készít. A konfiguráció megadja a
 képernyőszám tartományát, a bejárat és kijárat minimális gráftávolságát, a maximális csomóponti fokszámot,
 a mellékágak és a plusz hurkok esélyét. A generátor minden csomópontot bejárat, főút, elágazás, mellékág,
 zsákutca vagy kijárat szereppel jelöl. A képernyők közti átjárók a koordinátákból következő égtáj szerinti
-páros oldalon készülnek el. A klasszikus és széles pályák jelenleg ugyanezen modell lineáris tervét használják;
-az erdei generátor erre a közös alapra köti majd rá a procedurális gráfot.
+páros oldalon készülnek el. A klasszikus és széles pályák ugyanezen modell lineáris tervét használják;
+az erdei generátor pedig erre a közös alapra köti rá a procedurális gráfot.
+
+Az erdei elrendezéshez a pályakonfiguráció `Layout` mezője `ForestMazeLayoutConfiguration` értéket kap.
+A benne lévő `DungeonAreaGraphConfiguration` 6–10 vagy akár más számú képernyőből mellékágas, hurkolható
+gráfot készít. A `ForestGenerationConfiguration` szabályozza az erdősűrűséget, az egyes növényfajták
+arányát, az aljnövényzetet, a tavak számát és méretét, a mocsaras tópart esélyét és az ösvények szélességét.
+A `ForestTerrainPalette` minden tereptípus rúnáját, előtér- és háttérszínét külön engedi felülírni.
+
+Az egy képernyőn belüli tisztások a közös `Room` modellt használják. Emiatt a `RoomEncounters` és a
+kincsesládák tisztásokra, a `CorridorEncounters` pedig ösvényekre és egyéb járható erdei területekre kerülnek.
+A fa, fenyő és sűrű bozót nem járható és takarja a látást; a bokrok átláthatók, de nem járhatók; az
+aljnövényzet és a mocsár járható; a víz nem járható, de nem takarja a túlpartot. A terepszínek a host és
+a coop vendég világpillanatképében is azonosan jelennek meg.
 
 ### `Application`: játékmenet és futásvezérlés
 

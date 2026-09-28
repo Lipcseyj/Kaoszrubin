@@ -3167,9 +3167,13 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
         if (mapObject is null && fogOfWar.EnemyMemoryAt(position) is { } memory)
             return new MapCellVisual(new Rune('?'), memory.IsSoundCue ? ConsoleColor.DarkYellow : ConsoleColor.DarkGray,
                 ConsoleColor.Black);
+        var passage = maze.GetPassageAt(position);
         return new MapCellVisual(mapObject?.Symbol ??
-            (maze.GetPassageAt(position) is not null ? MazePassage.Symbol : maze.Tiles[position.X, position.Y]),
-            GetForegroundColor(maze, position), ConsoleColor.Black);
+            (passage is not null ? MazePassage.Symbol : maze.Tiles[position.X, position.Y]),
+            GetForegroundColor(maze, position),
+            mapObject is null && passage is null
+                ? maze.GetTerrainStyle(position)?.BackgroundColor ?? ConsoleColor.Black
+                : ConsoleColor.Black);
     }
 
     public static string SpellTargetName(SpellTargetType targetType) => targetType switch
@@ -3251,6 +3255,9 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
             _ => ConsoleColor.Gray
         };
         if (maze.GetPassageAt(position) is not null) return ConsoleColor.Cyan;
+        if (maze.Tiles[position.X, position.Y] == maze.WallRune &&
+            _illuminatedWallPositions.Contains(position)) return ConsoleColor.Yellow;
+        if (maze.GetTerrainStyle(position) is { } terrain) return terrain.ForegroundColor;
 
         return maze.Tiles[position.X, position.Y] switch
         {
@@ -3272,7 +3279,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
     };
 
     private ConsoleColor GetTerrainForegroundColor(Maze maze, Position position) =>
-        maze.Tiles[position.X, position.Y] switch
+        maze.GetTerrainStyle(position)?.ForegroundColor ?? maze.Tiles[position.X, position.Y] switch
         {
             var tile when tile == maze.WallRune && _illuminatedWallPositions.Contains(position) => ConsoleColor.Yellow,
             var tile when tile == maze.WallRune => maze.WallColor,

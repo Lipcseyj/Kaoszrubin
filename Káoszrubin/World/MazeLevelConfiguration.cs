@@ -7,7 +7,8 @@ namespace KaoszRubin.World;
 // -------------------------------------------------------------------------------------------------
 // 1. A normál kampánypályákat a MazeLevelConfigurations.Configurations szótárban keresd.
 // 2. Egy pályához általában az alapadatokat, a termeket/kincseket és a két encounter-listát kell megadni.
-// 3. Többképernyős pályához állíts be WideMazeLayoutConfiguration-t. A képernyőszámok 1-től indulnak.
+// 3. Többképernyős pályához WideMazeLayoutConfiguration, erdőhöz ForestMazeLayoutConfiguration használható.
+//    A képernyőszámok 1-től indulnak.
 // 4. A TrapCount, TrapIds és VisionModifier kampánypályákon központi balanszszabályból érkezik a fájl végén.
 // 5. A küldetésszobák és a futásidejű feloldás haladó/belső régióban találhatók.
 // =================================================================================================
@@ -181,8 +182,9 @@ public sealed class MazeLevelConfiguration
     #region Elrendezés és megjelenés
 
     /// <summary>
-    /// A pálya szerkezete. Null esetén egységes, klasszikus labirintus készül; több képernyőhöz
-    /// <see cref="WideMazeLayoutConfiguration"/> használható.
+    /// A pálya szerkezete. Null esetén egységes, klasszikus labirintus készül; lineáris többképernyős
+    /// pályához <see cref="WideMazeLayoutConfiguration"/>, gráfos erdőhöz
+    /// <see cref="ForestMazeLayoutConfiguration"/> használható.
     /// </summary>
     public MazeLayoutConfiguration? Layout { get; init; }
 

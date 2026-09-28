@@ -28,6 +28,7 @@ public sealed class Maze
     private readonly Dictionary<Position, GroundItemPile> _groundItemPilesByPosition = [];
     private readonly Dictionary<Position, MazeTrap> _trapsByPosition = [];
     private readonly Dictionary<Position, List<Corpse>> _corpsesByPosition = [];
+    private readonly Dictionary<int, MazeTerrainStyle> _terrainStyles = [];
 
     public WorldId Id { get; } = WorldId.New();
     public long NavigationRevision { get; private set; }
@@ -41,6 +42,7 @@ public sealed class Maze
     public IReadOnlyList<MazeTrap> Traps => _traps;
     public IReadOnlyCollection<MazePassage> Passages => _passages.Values;
     public IReadOnlyCollection<MazeDoor> Doors => _doors.Values;
+    public IReadOnlyCollection<MazeTerrainStyle> TerrainStyles => _terrainStyles.Values;
     public Room? StartingRoom { get; private set; }
     public int Width { get; }
     public int Height { get; }
@@ -76,7 +78,9 @@ public sealed class Maze
     {
         if (!IsInside(position)) return false;
         if (_doors.TryGetValue(position, out var door)) return door.IsWalkable;
-        return Tiles[position.X, position.Y] == Floor || Tiles[position.X, position.Y] == ExitMarker;
+        var tile = Tiles[position.X, position.Y];
+        return tile == Floor || tile == ExitMarker ||
+               _terrainStyles.TryGetValue(tile.Value, out var terrain) && terrain.Walkable;
     }
 
     public void Carve(Position position)
@@ -101,6 +105,31 @@ public sealed class Maze
         if (!IsInside(position)) throw new ArgumentOutOfRangeException(nameof(position));
         Tiles[position.X, position.Y] = tile;
         NavigationRevision++;
+    }
+
+    /// <summary>Regisztrál egy, ezen a pályán használható tereprúnát.</summary>
+    public void RegisterTerrainStyle(MazeTerrainStyle style)
+    {
+        ArgumentNullException.ThrowIfNull(style);
+        if (string.IsNullOrWhiteSpace(style.Id))
+            throw new ArgumentException("A terepstílus azonosítója nem lehet üres.", nameof(style));
+        if (_terrainStyles.TryGetValue(style.Rune.Value, out var existing) && existing != style)
+            throw new ArgumentException(
+                $"A(z) '{style.Rune}' rúnához már másik terepstílus tartozik: '{existing.Id}'.", nameof(style));
+        _terrainStyles[style.Rune.Value] = style;
+    }
+
+    /// <summary>A mezőre helyezi a terepet, és szükség esetén a pályapalettához is hozzáadja.</summary>
+    public void SetTerrain(Position position, MazeTerrainStyle style)
+    {
+        RegisterTerrainStyle(style);
+        SetTile(position, style.Rune);
+    }
+
+    public MazeTerrainStyle? GetTerrainStyle(Position position)
+    {
+        if (!IsInside(position)) return null;
+        return _terrainStyles.GetValueOrDefault(Tiles[position.X, position.Y].Value);
     }
 
     public void PlaceDoor(Position position, DoorState state,
@@ -140,9 +169,14 @@ public sealed class Maze
         return true;
     }
 
-    public bool BlocksSight(Position position) => _doors.TryGetValue(position, out var door)
-        ? door.BlocksSight
-        : Tiles[position.X, position.Y] == WallRune;
+    public bool BlocksSight(Position position)
+    {
+        if (_doors.TryGetValue(position, out var door)) return door.BlocksSight;
+        var tile = Tiles[position.X, position.Y];
+        return _terrainStyles.TryGetValue(tile.Value, out var terrain)
+            ? terrain.BlocksSight
+            : tile == WallRune;
+    }
 
     public void AddRoom(Room room) => _rooms.Add(room);
 
@@ -499,7 +533,7 @@ public sealed class Maze
     }
 
     private bool IsFloorOrDoor(Position position) => IsInside(position) &&
-        (_doors.ContainsKey(position) || Tiles[position.X, position.Y] == Floor || Tiles[position.X, position.Y] == ExitMarker);
+        (_doors.ContainsKey(position) || IsWalkable(position));
 }
 
 /// <summary>A teljes bejárhatósági önellenőrzés eredménye.</summary>

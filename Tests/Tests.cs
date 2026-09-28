@@ -276,6 +276,8 @@ internal static partial class Program
     ("Az encounterek konkrét képernyőhöz rendelhetők", EncountersCanTargetASpecificScreen),
     ("A pihenési korlát többképernyős pályán képernyőnként külön él", RestLimitIsTrackedPerScreen),
     ("A széles pályatípus hárommezős folyosókat és külön konfigurációt használ", WideMazeUsesThreeCellCorridors),
+    ("Az erdei generátor bejárható tisztásokat, ösvényeket és változatos terepet készít", ForestMazeBuildsAccessibleVariedTerrain),
+    ("Az erdei képernyőgráf összefüggő és betartja a fokszám- valamint kijárattávolság-korlátot", ForestAreaGraphHonorsTopologyRules),
     ("A kijelölt széles szintek több területre elég változatos hordát konfigurálnak", WideLevelsHaveBalancedDiverseHordes),
     ("A képernyőátjáró a mentésben és a világmodellben is megmarad", MazePassageSurvivesSaveRoundTrip),
     ("A mentés visszaállítja a szörny alatt fekvő csapdát", SavedTrapCanShareEnemyPosition),

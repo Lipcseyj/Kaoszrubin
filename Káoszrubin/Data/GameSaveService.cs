@@ -98,7 +98,7 @@ public sealed class GameSaveService
 public static class GameSaveFormat
 {
     public const int OldestSupportedVersion = 1;
-    public const int CurrentVersion = 32;
+    public const int CurrentVersion = 33;
 
     public static GameSaveData MigrateToCurrent(GameSaveData state)
     {
@@ -142,10 +142,18 @@ public static class GameSaveFormat
                 29 => MigrateVersion29To30(state),
                 30 => MigrateVersion30To31(state),
                 31 => MigrateVersion31To32(state),
+                32 => MigrateVersion32To33(state),
                 _ => throw new InvalidOperationException($"Hiányzó mentésmigráció a(z) {state.Version}. verzióhoz.")
             };
         }
         if (state.SuspendedCampaign is { } suspended) MigrateToCurrent(suspended);
+        return state;
+    }
+
+    private static GameSaveData MigrateVersion32To33(GameSaveData state)
+    {
+        // A hagyományos pályák tereppalettája üres; az új erdei paletta csak új generáláskor jelenik meg.
+        state.Version = 33;
         return state;
     }
 
@@ -457,6 +465,7 @@ public sealed class MazeSaveData
     public ConsoleColor WallColor { get; set; } = ConsoleColor.DarkGray;
     public string LevelName { get; set; } = "Labirintus";
     public List<int> TileCodePoints { get; set; } = [];
+    public List<MazeTerrainStyleSaveData> TerrainStyles { get; set; } = [];
     public Position Exit { get; set; }
     public Room? StartingRoom { get; set; }
     public List<Room> Rooms { get; set; } = [];
@@ -470,6 +479,9 @@ public sealed class MazeSaveData
     public List<TrapSaveData> Traps { get; set; } = [];
     public List<MazePassageSaveData> Passages { get; set; } = [];
 }
+
+public sealed record MazeTerrainStyleSaveData(string Id, int RuneCodePoint,
+    ConsoleColor ForegroundColor, ConsoleColor BackgroundColor, bool Walkable, bool BlocksSight);
 
 public sealed record DungeonAreaSaveData(string Id, MazeSaveData Maze, FogSaveData Fog,
     string? Name = null, int GridX = 0, int GridY = 0,

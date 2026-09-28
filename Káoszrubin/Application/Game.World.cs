@@ -869,13 +869,24 @@ public sealed partial class Game
 
         var layout = configuration.Layout ??
                      new ClassicMazeLayoutConfiguration(configuration.DoubleWidthCorridorChance);
-        if (layout is WideMazeLayoutConfiguration invalidWide &&
-            (invalidWide.AreaCount.Minimum < 1 || invalidWide.AreaCount.Maximum < invalidWide.AreaCount.Minimum ||
-             invalidWide.NarrowingChance is < 0 or > 1))
-            throw new InvalidOperationException("A széles pálya területszáma vagy szűkületi esélye érvénytelen.");
-        var areaCount = layout is WideMazeLayoutConfiguration wide ? wide.AreaCount.Roll(_random) : 1;
-        if (areaCount <= 0) throw new InvalidOperationException("A szint területszáma nem lehet nulla.");
-        var topology = DungeonAreaGraphPlan.Linear(areaCount);
+        DungeonAreaGraphPlan topology;
+        switch (layout)
+        {
+            case WideMazeLayoutConfiguration wide:
+                if (wide.AreaCount.Minimum < 1 || wide.AreaCount.Maximum < wide.AreaCount.Minimum ||
+                    wide.NarrowingChance is < 0 or > 1)
+                    throw new InvalidOperationException(
+                        "A széles pálya területszáma vagy szűkületi esélye érvénytelen.");
+                topology = DungeonAreaGraphPlan.Linear(wide.AreaCount.Roll(_random));
+                break;
+            case ForestMazeLayoutConfiguration forest:
+                topology = DungeonAreaGraphGenerator.Generate(forest.Graph, _random);
+                break;
+            default:
+                topology = DungeonAreaGraphPlan.Linear(1);
+                break;
+        }
+        var areaCount = topology.Nodes.Count;
 
         var roomBuckets = DistributeEncounters(configuration.RoomEncounters.Select(ResolveEncounter), areaCount, _random);
         var corridorBuckets = DistributeEncounters(configuration.CorridorEncounters.Select(ResolveEncounter), areaCount, _random);
@@ -886,15 +897,21 @@ public sealed partial class Game
             var node = topology.Nodes[index];
             var containsLevelExit = string.Equals(node.Id, topology.ExitAreaId, StringComparison.Ordinal);
             var settings = AreaGenerationSettings(rolledSettings, index, areaCount, containsLevelExit);
-            _generator = layout.Style == MazeLayoutStyle.Wide
-                ? new WideMazeGenerator(settings, roomBuckets[index], corridorBuckets[index], _random,
+            _generator = layout switch
+            {
+                WideMazeLayoutConfiguration => new WideMazeGenerator(settings, roomBuckets[index],
+                    corridorBuckets[index], _random, magicWeaponContext),
+                ForestMazeLayoutConfiguration forest => new ForestMazeGenerator(settings, forest.Forest,
+                    roomBuckets[index], corridorBuckets[index], _random, magicWeaponContext),
+                _ => new MazeGenerator(settings, roomBuckets[index], corridorBuckets[index], _random,
                     magicWeaponContext)
-                : new MazeGenerator(settings, roomBuckets[index], corridorBuckets[index], _random,
-                    magicWeaponContext);
+            };
             var maze = _generator.Create(MazeWidth, MazeHeight);
             areas.Add(new DungeonArea(node.Id, maze,
                 new FogOfWar(maze.Width, maze.Height, CharacterClassRules.BaseVisionRange),
-                areaCount == 1 ? configuration.Name : $"{index + 1}. terület",
+                layout is ForestMazeLayoutConfiguration
+                    ? ForestAreaDisplayName(node, index, areaCount)
+                    : areaCount == 1 ? configuration.Name : $"{index + 1}. terület",
                 node.Coordinate, node.Role));
         }
 
@@ -920,6 +937,20 @@ public sealed partial class Game
 
         return new DungeonLevel(areas, topology.EntranceAreaId,
             topology.EntranceAreaId, topology.ExitAreaId);
+    }
+
+    private static string ForestAreaDisplayName(DungeonAreaNodePlan node, int index, int areaCount)
+    {
+        var role = node.Role switch
+        {
+            DungeonAreaRole.Entrance => "Bejárati rengeteg",
+            DungeonAreaRole.Exit => "Kivezető ösvény",
+            DungeonAreaRole.Junction => "Erdei elágazás",
+            DungeonAreaRole.DeadEnd => "Elvadult mellékág",
+            DungeonAreaRole.Branch => "Mellékösvény",
+            _ => $"{index + 1}. terület"
+        };
+        return $"{role} ({index + 1}/{areaCount})";
     }
 
     internal static List<ResolvedEnemyEncounter>[] DistributeEncounters(

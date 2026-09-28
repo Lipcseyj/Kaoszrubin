@@ -965,9 +965,12 @@ public static class CsvGameDataLoader
                 throw new InvalidOperationException(
                     $"A(z) {level}. szinthez nincs véletlenszerűen választható csapda az előírt darabszámhoz.");
 
-            var minimumAreaCount = configuration.Layout is WideMazeLayoutConfiguration wide
-                ? wide.AreaCount.Minimum
-                : 1;
+            var minimumAreaCount = configuration.Layout switch
+            {
+                WideMazeLayoutConfiguration wide => wide.AreaCount.Minimum,
+                ForestMazeLayoutConfiguration forest => forest.Graph.AreaCount.Minimum,
+                _ => 1
+            };
             var invalidScreen = configuration.GuaranteedTraps.FirstOrDefault(trap =>
                 trap.ScreenNumber is { } screen && (screen < 1 || screen > minimumAreaCount));
             if (invalidScreen is not null)
