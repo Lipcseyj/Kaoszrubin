@@ -248,7 +248,7 @@ public sealed class SpellExecutionService
         Func<Position, bool, string> onTeleportLivingParty,
         Func<Position, SpellEffectDefinition, string> onResurrectPartyMember,
         Action<LiveCharacter>? onRefreshCharacterSheet = null,
-        Action<IReadOnlyList<Position>>? onOffensiveImpact = null)
+        Action<IReadOnlyList<Position>>? onImpact = null)
     {
         _calculation.Clear();
         _criticalOccurred = false;
@@ -442,10 +442,17 @@ public sealed class SpellExecutionService
             notes.Add("🔁 Láncvarázs: a sebzés ingyen megismétlődött");
         }
 
-        // Present the impact before lethal damage removes creatures from the map.
-        // The damage dictionary also contains the actual secondary chain targets.
-        if (IsOffensiveSpell(spell))
-            onOffensiveImpact?.Invoke(damage.Keys.Select(enemy => enemy.Position).Distinct().ToArray());
+        // Present the impact before lethal damage removes creatures from the map. This also covers
+        // healing and beneficial spells; the damage dictionary contains actual secondary chain targets.
+        if (spell.EffectiveImpactDurationMilliseconds > 0)
+        {
+            var characterTargetSet = characterTargets.ToHashSet();
+            var impactTargets = damage.Keys.Select(enemy => enemy.Position)
+                .Concat(livingParty.Where(member => characterTargetSet.Contains(member.Character))
+                    .Select(member => member.Position))
+                .Distinct().ToArray();
+            onImpact?.Invoke(impactTargets);
+        }
 
         var currentDamage = 0;
         var actualDamage = 0;

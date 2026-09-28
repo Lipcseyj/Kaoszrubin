@@ -444,6 +444,7 @@ public sealed partial class Game
     private void PlaySpellImpact(SpellDefinition spell, Position casterPosition, Position target,
         IReadOnlyList<Position> enemyTargets)
     {
+        if (spell.EffectiveImpactDurationMilliseconds <= 0) return;
         _renderer.PlaySpellImpact(_maze, _fogOfWar, _player.Position, spell, casterPosition, target, enemyTargets);
         var origin = spell.TargetType == SpellTargetType.Direction ? casterPosition : target;
         var cells = SpellImpactVisual.GetCells(spell, casterPosition, target, enemyTargets, _maze)

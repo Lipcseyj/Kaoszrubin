@@ -304,9 +304,11 @@ public sealed partial class Game
             if (spellPlan.HostileTargets.Count > 0) battle.FaceEnemyToward(enemy, spellPlan.HostileTargets[0]);
             var failureChance = EnemySpellFailureChance(enemy, battle.IsEngaged(enemy));
             var spellEntry = _enemySpellcastingService.Execute(enemy, spellPlan, failureChance);
-            if (!spellEntry.Message.Contains("meghiúsul", StringComparison.OrdinalIgnoreCase))
+            if (spellEntry.Kind != BattleLogKind.Information &&
+                spellPlan.Spell.EffectiveImpactDurationMilliseconds > 0)
                 PlaySpellImpact(spellPlan.Spell, enemy.Position, spellPlan.TargetPosition,
-                    spellPlan.HostileTargets.Select(GetCasterPosition).ToArray());
+                    spellPlan.HostileTargets.Select(GetCasterPosition)
+                        .Concat(spellPlan.AlliedTargets.Select(target => target.Position)).ToArray());
             PresentBattleEntries([spellEntry]);
             if (spellPlan.HostileTargets.Count > 0) battle.RecordAttack(BattleSide.Hostile);
             foreach (var target in spellPlan.HostileTargets.Where(target => !target.IsAlive))
