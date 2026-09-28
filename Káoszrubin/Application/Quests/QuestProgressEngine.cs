@@ -212,9 +212,10 @@ public sealed class QuestProgressEngine
                 occurred),
 
             (
-                QuestObjective.DisarmTraps,
-                TrapDisarmedEvent
-            ) => 1,
+                QuestObjective.DisarmTraps objective,
+                TrapDisarmedEvent occurred
+            ) => objective.RequiredTrap is null || string.Equals(
+                objective.RequiredTrap.Id, occurred.Trap.Id, StringComparison.OrdinalIgnoreCase) ? 1 : 0,
 
             (
                 QuestObjective.OpenChests,

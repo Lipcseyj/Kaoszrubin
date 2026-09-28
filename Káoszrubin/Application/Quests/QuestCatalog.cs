@@ -93,6 +93,9 @@ public sealed class QuestCatalog
         {
             if (quest.Objective is QuestObjective.OpenQuestChest chest && string.IsNullOrWhiteSpace(chest.ChestId.Value))
                 throw new InvalidOperationException("A ládaobjective érvényes ládaazonosítót igényel.");
+            if (quest.Objective is QuestObjective.DisarmTraps { RequiredTrap: { } trap } &&
+                string.IsNullOrWhiteSpace(trap.Id))
+                throw new InvalidOperationException("A csapdaobjective érvényes csapdaazonosítót igényel.");
             if (quest.Id == QuestId.None)
                 throw new InvalidOperationException(
                     "QuestDefinition nem használhat QuestId.None azonosítót.");

@@ -40,6 +40,8 @@ public static class QuestReminderText
             QuestObjective.KillEnemyWithTraits =>
                 $"Győzzetek le még {count} olyan ellenséget, aki megfelel a megbízásnak.",
             QuestObjective.ExploreLocation => "Találjátok meg a kijáratot.",
+            QuestObjective.DisarmTraps { RequiredTrap: { } trap } =>
+                $"Hatástalanítsatok még {count} ilyen csapdát: {trap.Name}.",
             QuestObjective.DisarmTraps => $"Hatástalanítsatok még {count} csapdát.",
             QuestObjective.OpenChests => $"Nyissatok ki még {count} kincsesládát.",
             QuestObjective.OpenQuestChest => "Találjátok meg és nyissátok ki a kijelölt küldetésládát.",

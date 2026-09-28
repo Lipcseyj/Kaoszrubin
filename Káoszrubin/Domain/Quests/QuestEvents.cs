@@ -27,12 +27,9 @@ public sealed record InventoryItemCountChangedEvent(
 /// <summary>
 /// A parti sikeresen hatástalanított egy csapdát.
 /// </summary>
-public sealed record TrapDisarmedEvent
+public sealed record TrapDisarmedEvent(
+    TrapDefinition Trap)
     : QuestEvent;
-// Ha később lesznek konkrét csapda-típusok, akkor a TrapDefinition paramétert lehetne hozzáadni. Hasonlóan a chesteknél is.
-//public sealed record TrapDisarmedEvent(
-//    TrapDefinition Trap)
-//    : QuestEvent;
 
 /// <summary>
 /// A parti sikeresen kinyitott egy kincsesládát.

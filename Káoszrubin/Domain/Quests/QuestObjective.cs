@@ -46,10 +46,11 @@ public abstract record QuestObjective(int RequiredCount)
         : QuestObjective(1);
 
     /// <summary>
-    /// Tetszőleges csapdák hatástalanítása.
+    /// Csapdák hatástalanítása. Ha a RequiredTrap nincs megadva, bármelyik csapdatípus számít.
     /// </summary>
     public sealed record DisarmTraps(
-        int Count)
+        int Count,
+        TrapDefinition? RequiredTrap = null)
         : QuestObjective(Count);
 
     /// <summary>

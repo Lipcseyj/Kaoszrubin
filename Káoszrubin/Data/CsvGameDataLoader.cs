@@ -295,7 +295,7 @@ public static class CsvGameDataLoader
         ValidateQuestRoomEncounters(enemies, items);
         ValidateNpcData(npcs, uniqueNpcCharacters, npcEncounters, npcDialogues, npcStoryChoices, npcQuests,
             races, characterClasses,
-            enemies, monsterAbilities, items, weapons, armors, magicItems, perks);
+            enemies, monsterAbilities, items, weapons, armors, magicItems, perks, traps);
         ValidatePartyRemarks(partySituations, partyRemarks, races, characterClasses);
         ValidateCreatureQuotes(creatureQuotes, characterClasses, enemies);
         var lootRules = CreateLootRules(lootRuleValues);
@@ -1016,7 +1016,7 @@ public static class CsvGameDataLoader
         IReadOnlyCollection<EnemyDefinition> enemies, IReadOnlyCollection<MonsterAbilityDefinition> monsterAbilities,
         IReadOnlyCollection<MiscItemDefinition> items, IReadOnlyCollection<WeaponDefinition> weapons,
         IReadOnlyCollection<ArmorDefinition> armors, IReadOnlyCollection<MagicItemDefinition> magicItems,
-        IReadOnlyCollection<PerkDefinition> perks)
+        IReadOnlyCollection<PerkDefinition> perks, IReadOnlyCollection<TrapDefinition> traps)
     {
         var npcIds = npcs.Select(npc => npc.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var storyIds = npcs.Where(npc => npc.StoryId is not null).Select(npc => npc.StoryId!)
@@ -1095,6 +1095,7 @@ public static class CsvGameDataLoader
         }
         var enemyIds = enemies.Select(enemy => enemy.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var itemIds = items.Select(item => item.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var trapIds = traps.Select(trap => trap.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var rewardItemIds = itemIds.Concat(weapons.Select(item => item.Id)).Concat(armors.Select(item => item.Id))
             .Concat(magicItems.Select(item => item.Id)).ToHashSet(StringComparer.OrdinalIgnoreCase);
         foreach (var quest in quests)
@@ -1109,7 +1110,9 @@ public static class CsvGameDataLoader
                 QuestImportType.Collect => itemIds.Contains(quest.TargetId),
                 QuestImportType.Explore => string.Equals(quest.TargetId, "EXIT", StringComparison.OrdinalIgnoreCase),
                 QuestImportType.Escort => string.Equals(quest.TargetId, "EXIT", StringComparison.OrdinalIgnoreCase),
-                QuestImportType.Disarm or QuestImportType.OpenChest =>
+                QuestImportType.Disarm => string.Equals(quest.TargetId, "ANY", StringComparison.OrdinalIgnoreCase) ||
+                                          trapIds.Contains(quest.TargetId),
+                QuestImportType.OpenChest =>
                     string.Equals(quest.TargetId, "ANY", StringComparison.OrdinalIgnoreCase),
                 _ => false
             };

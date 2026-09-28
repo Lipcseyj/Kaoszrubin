@@ -103,7 +103,7 @@ public sealed partial class Game
         if (_random.Next(100) < chance)
         {
             trap.Disarm();
-            ProcessQuestProgressChanges(_questManager.RegisterTrapDisarmed());
+            ProcessQuestProgressChanges(_questManager.RegisterTrapDisarmed(trap.Definition));
             _renderer.DrawMapCellsChanged(_maze, _fogOfWar, _player.Position, [trap.Position]);
             RewardTrapSuccess(character, trap.Definition.DisarmExperience,
                 $"🧰 {character.Name} hatástalanította: {trap.Definition.Name} ({chance}% esély).",

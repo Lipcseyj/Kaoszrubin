@@ -1137,6 +1137,14 @@ a további kudarcok 50%-os elsülési kockázatot hordoznak. A közvetlen csapda
 az első négy pályán nagyjából 15%, később 25% max-HP korláttal működik. A csapdaállapot
 mentődik; rejtett csapda nem kerül a coop snapshotba, a felfedezett/elsült/hatástalanított cella viszont
 a szokásos world deltán át replikálódik.
+
+A `#NPC küldetések` szekció `Disarm` típusú céljainál a `CélId` kétféle lehet: az `ANY` minden
+sikeresen hatástalanított csapdát számol, egy konkrét csapdaazonosító — például `TR101` — viszont csak
+az adott típust. A hatástalanítási quest-esemény magával viszi a `TrapDefinition` objektumot, ezért több
+egyidejű általános és típusspecifikus küldetés egymástól függetlenül haladhat. A betöltő az ismeretlen
+csapdaazonosítót hibaként jelzi. A questhaladás továbbra is csak darabszámot ment; a cél típusa a
+CSV-definícióból töltődik vissza, ezért a mentési formátum nem változott.
+
 ## Partiparancsok
 
 A leader felfedezés közben három, egymást kizáró tartós NPC-parancsot adhat: `H` Megállj,
@@ -1399,3 +1407,27 @@ command authoritative elutasítása
 "Az inventory azóta megváltozott."
         → GameCommandRejectedEvent
         → csak a command küldőjének
+
+# Elkészült a típusspecifikus csapdahatástalanítási quest-rendszer.
+
+A `#NPC küldetések` szekcióban a `Disarm` cél `CélId` mezője mostantól lehet:
+
+- `ANY`: bármilyen csapda számít, a régi questek változatlanul működnek.
+- Konkrét csapdaazonosító, például `TR101`: kizárólag ez a csapdatípus növeli a haladást.
+
+Példa:
+
+```csv
+NPCQ100;NPC012;Disarm;TR101;2;1000;Lángoló pecsétek;Hatástalaníts két lángolónyíl-csapdát.;;;;;;
+```
+
+További működés:
+
+- A hatástalanítási esemény már tartalmazza a konkrét `TrapDefinition` objektumot.
+- Több aktív általános és típusspecifikus quest egymástól függetlenül haladhat.
+- A quest-emlékeztető megnevezi a szükséges csapdatípust.
+- Ismeretlen `TrapId` adatbetöltési hibát eredményez.
+- A mentési formátum nem változott, mert továbbra is csak a haladási darabszámot kell menteni.
+- Egy ilyen questhez a korábbi `GuaranteedTraps` rendszerrel garantálható a szükséges csapdatípus megjelenése.
+
+A projekt 0 hibával és 0 figyelmeztetéssel fordul, a régi `ANY` questeket tartalmazó teljes játékadatbázis sikeresen betöltődik.

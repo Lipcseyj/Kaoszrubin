@@ -1,3 +1,4 @@
+using KaoszRubin.Domain;
 using KaoszRubin.Domain.Combat;
 using KaoszRubin.Domain.Inventory;
 using KaoszRubin.Domain.Quests;
@@ -475,14 +476,17 @@ public sealed class QuestManager
 
     /// <summary>
     /// API: YES
-    /// Jelenti a quest-rendszernek egy csapda sikeres hatástalanítását.
+    /// Jelenti a quest-rendszernek egy konkrét csapda sikeres hatástalanítását.
     /// A quest-relevanciát a progress engine határozza meg.
     /// </summary>
+    /// <param name="trap">A hatástalanított csapdatípus definíciója.</param>
     /// <returns>Az esemény által módosított questek progress-változásai.</returns>
-    public IReadOnlyList<QuestProgressChange> RegisterTrapDisarmed()
+    public IReadOnlyList<QuestProgressChange> RegisterTrapDisarmed(TrapDefinition trap)
     {
+        ArgumentNullException.ThrowIfNull(trap);
+
         return _progressEngine.Process(
-            new TrapDisarmedEvent());
+            new TrapDisarmedEvent(trap));
     }
 
     /// <summary>

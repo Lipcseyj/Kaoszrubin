@@ -177,13 +177,16 @@ internal sealed class QuestCatalogBuilder
             new QuestFollowerRequirement(giver));
     }
 
-    private static QuestObjective CreateDisarmObjective(
+    private QuestObjective CreateDisarmObjective(
         QuestImportRow source)
     {
-        EnsureAnyTarget(source);
+        var requiredTrap = string.Equals(source.TargetId, "ANY", StringComparison.OrdinalIgnoreCase)
+            ? null
+            : _gameData.GetTrap(source.TargetId);
 
         return new QuestObjective.DisarmTraps(
-            source.RequiredCount);
+            source.RequiredCount,
+            requiredTrap);
     }
 
     private static QuestObjective CreateOpenChestObjective(
