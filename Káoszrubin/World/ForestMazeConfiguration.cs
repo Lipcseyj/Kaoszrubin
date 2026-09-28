@@ -23,9 +23,11 @@ public sealed class ForestTerrainPalette
         new("forest-water", new Rune('≈'), ConsoleColor.Blue, ConsoleColor.DarkBlue, false, false);
     public MazeTerrainStyle Marsh { get; init; } =
         new("forest-marsh", new Rune('≋'), ConsoleColor.DarkYellow, ConsoleColor.Black, true, false);
+    public MazeTerrainStyle BuildingWall { get; init; } =
+        new("forest-building-wall", new Rune('▣'), ConsoleColor.DarkYellow, ConsoleColor.Black, false, true);
 
     public IReadOnlyList<MazeTerrainStyle> All =>
-        [Tree, Bush, Pine, FlowerBush, Thicket, Undergrowth, DenseUndergrowth, Water, Marsh];
+        [Tree, Bush, Pine, FlowerBush, Thicket, Undergrowth, DenseUndergrowth, Water, Marsh, BuildingWall];
 }
 
 /// <summary>Egy erdei képernyő terepeloszlásának szerkesztői beállításai.</summary>
@@ -53,6 +55,23 @@ public sealed class ForestGenerationConfiguration
 
     /// <summary>A fő ösvények szélessége mezőben.</summary>
     public int TrailWidth { get; init; } = 2;
+
+    /// <summary>
+    /// A képernyőn létrehozott, ajtóval lezárt erdei épületek száma. Az épületek a
+    /// <see cref="MazeLevelConfiguration.RoomCount"/> által meghatározott teljes teremszámba beleszámítanak.
+    /// </summary>
+    public IntRange BuildingCount { get; init; } = new(0, 1);
+
+    /// <summary>Az épületek belső terének minimális és maximális oldalhossza.</summary>
+    public IntRange BuildingSize { get; init; } = new(5, 8);
+
+    /// <summary>Ekkora eséllyel osztja egy belső fal és ajtó két helyiségre az épületet.</summary>
+    public double BuildingPartitionChance { get; init; } = 0.70;
+
+    /// <summary>A bejárati és belső ajtók zárt, illetve nyitott állapotának esélye.</summary>
+    /// <remarks>A fennmaradó esély bezárt, de nem kulcsra zárt ajtót eredményez.</remarks>
+    public double LockedBuildingDoorChance { get; init; } = 0.20;
+    public double OpenBuildingDoorChance { get; init; } = 0.15;
 
     public ForestTerrainPalette Palette { get; init; } = new();
 }

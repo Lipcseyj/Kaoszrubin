@@ -941,16 +941,17 @@ public sealed partial class Game
 
     private static string ForestAreaDisplayName(DungeonAreaNodePlan node, int index, int areaCount)
     {
-        var role = node.Role switch
+        string[] names = node.Role switch
         {
-            DungeonAreaRole.Entrance => "Bejárati rengeteg",
-            DungeonAreaRole.Exit => "Kivezető ösvény",
-            DungeonAreaRole.Junction => "Erdei elágazás",
-            DungeonAreaRole.DeadEnd => "Elvadult mellékág",
-            DungeonAreaRole.Branch => "Mellékösvény",
-            _ => $"{index + 1}. terület"
+            DungeonAreaRole.Entrance => ["Mohakapu"],
+            DungeonAreaRole.Exit => ["A Szélcsend tisztása"],
+            DungeonAreaRole.Junction => ["Hollók elágazása", "A Három Tölgy", "Gombakör"],
+            DungeonAreaRole.DeadEnd => ["Boszorkányzug", "Feketevíz-öböl", "Elveszett vadászkunyhó"],
+            DungeonAreaRole.Branch => ["Rókaösvény", "Ködös mellékcsapás", "Tüskés kerülő"],
+            _ => ["Suttogó rengeteg", "Farkasjárta ösvény", "Az öreg fenyves", "Sáros gázló"]
         };
-        return $"{role} ({index + 1}/{areaCount})";
+        var nameIndex = Math.Abs(node.Coordinate.X * 17 + node.Coordinate.Y * 31 + index) % names.Length;
+        return $"{names[nameIndex]} ({index + 1}/{areaCount})";
     }
 
     internal static List<ResolvedEnemyEncounter>[] DistributeEncounters(

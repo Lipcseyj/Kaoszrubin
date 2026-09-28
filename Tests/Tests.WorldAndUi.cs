@@ -225,7 +225,7 @@ internal static partial class Program
 
     static void WideMazeUsesThreeCellCorridors()
     {
-        var level = MazeLevelConfigurations.Get(6);
+        var level = MazeLevelConfigurations.Get(7);
         Assert(level.Layout is WideMazeLayoutConfiguration { AreaCount: { Minimum: 2, Maximum: 2 } },
             "A nagy csarnokok szintje nem a külön széles, kétterületes pályatípust használja.");
         Assert(level.CorridorEncounters.Any(encounter => encounter.Members.Count > 1),
@@ -285,7 +285,10 @@ internal static partial class Program
             ForestDensity = 0.70,
             LakeCount = new IntRange(2, 2),
             LakeRadius = new IntRange(2, 4),
-            TrailWidth = 2
+            TrailWidth = 2,
+            BuildingCount = new IntRange(1, 1),
+            BuildingSize = new IntRange(5, 7),
+            BuildingPartitionChance = 1
         };
         var settings = new MazeGenerationSettings
         {
@@ -304,14 +307,31 @@ internal static partial class Program
                 maze.GetTerrainStyle(position)?.Id == forest.Palette.Water.Id).ToArray();
             var undergrowth = Positions(maze).Where(position =>
                 maze.GetTerrainStyle(position)?.Id is "forest-undergrowth" or "forest-dense-undergrowth").ToArray();
-            Assert(maze.CheckFullAccessibility().IsFullyAccessible && maze.IsWalkable(maze.Entrance) &&
+            var buildingWalls = Positions(maze).Where(position =>
+                maze.GetTerrainStyle(position)?.Id == forest.Palette.BuildingWall.Id).ToArray();
+            var accessibility = maze.CheckFullAccessibility();
+            Assert(accessibility.IsFullyAccessible && maze.IsWalkable(maze.Entrance) &&
                    maze.IsWalkable(maze.Exit) && maze.Rooms.Count == settings.RoomCount + 1,
-                $"A(z) {seed}. seed erdei képernyője nem teljesen bejárható vagy elvesztette a tisztásait.");
+                $"A(z) {seed}. seed erdei képernyője hibás: bejárható={accessibility.IsFullyAccessible}, " +
+                $"bejárat={maze.IsWalkable(maze.Entrance)}, kijárat={maze.IsWalkable(maze.Exit)}, " +
+                $"termek={maze.Rooms.Count}/{settings.RoomCount + 1}.");
             Assert(maze.TerrainStyles.Count == forest.Palette.All.Count && water.Length > 0 &&
                    water.All(position => !maze.IsWalkable(position) && !maze.BlocksSight(position)) &&
                    undergrowth.Length > 0 && undergrowth.All(maze.IsWalkable),
                 $"A(z) {seed}. seed erdei tereptípusai vagy járhatósági szabályai hibásak.");
+            Assert(buildingWalls.Length >= 16 && buildingWalls.All(position =>
+                       !maze.IsWalkable(position) && maze.BlocksSight(position)) && maze.Doors.Count >= 2,
+                $"A(z) {seed}. seed erdei épülete nem kapott zárt falburkot, bejáratot és belső ajtót.");
         }
+
+        var campaignForest = MazeLevelConfigurations.Get(6);
+        Assert(MazeLevelConfigurations.FinalLevel == 22 && campaignForest.Name == "Tiltott Erdő" &&
+               campaignForest.Layout is ForestMazeLayoutConfiguration
+               {
+                   Graph.AreaCount: { Minimum: 6, Maximum: 8 },
+                   Forest.BuildingCount.Minimum: >= 1
+               } && MazeLevelConfigurations.Get(7).Name == "A nagy csarnokok szintje",
+            "A Tiltott Erdő nem a 6. kampánypályára került, vagy a korábbi pályasorrend sérült.");
 
         var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
         var character = CreateCharacter("Erdőjáró");
@@ -402,7 +422,7 @@ internal static partial class Program
     static void WideLevelsHaveBalancedDiverseHordes()
     {
         var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
-        var orcCamp = MazeLevelConfigurations.Get(8);
+        var orcCamp = MazeLevelConfigurations.Get(9);
         Assert(orcCamp.CorridorEncounters.All(encounter =>
                    encounter.Behavior == EnemyEncounterBehavior.Horde) &&
                orcCamp.CorridorEncounters.Count(encounter =>
@@ -412,13 +432,13 @@ internal static partial class Program
             "Az ork haditábor vándorló hordái nem lettek érdemben nagyobbak.");
         var expectedWeakerEnemy = new Dictionary<int, string>
         {
-            [8] = MonsterIds.Goblin,
-            [10] = MonsterIds.Ork,
-            [11] = MonsterIds.Orgyilkos,
-            [12] = MonsterIds.PestishordozóPatkány,
-            [16] = MonsterIds.Csontváz,
-            [18] = MonsterIds.Pokolfajzat,
-            [19] = MonsterIds.Pokolfajzat
+            [9] = MonsterIds.Goblin,
+            [11] = MonsterIds.Ork,
+            [12] = MonsterIds.Orgyilkos,
+            [13] = MonsterIds.PestishordozóPatkány,
+            [17] = MonsterIds.Csontváz,
+            [19] = MonsterIds.Pokolfajzat,
+            [20] = MonsterIds.Pokolfajzat
         };
         foreach (var (levelNumber, weakerEnemyId) in expectedWeakerEnemy)
         {
@@ -467,7 +487,7 @@ internal static partial class Program
                 $"A(z) {levelNumber}. szint egy képernyőnyi profilja nem generálható bejárható, hordás pályává.");
         }
 
-        var demonLevels = new[] { MazeLevelConfigurations.Get(18), MazeLevelConfigurations.Get(19) };
+        var demonLevels = new[] { MazeLevelConfigurations.Get(19), MazeLevelConfigurations.Get(20) };
         var configuredDemonIds = demonLevels
             .SelectMany(level => level.RoomEncounters.Concat(level.CorridorEncounters))
             .SelectMany(encounter => encounter.Members)
@@ -532,7 +552,7 @@ internal static partial class Program
     static void TrapConfigurationScalesByMazeLevel()
     {
         var first = MazeLevelConfigurations.Get(1);
-        var middle = MazeLevelConfigurations.Get(10);
+        var middle = MazeLevelConfigurations.Get(11);
         var final = MazeLevelConfigurations.Get(MazeLevelConfigurations.FinalLevel);
         Assert(first.TrapCount == new IntRange(3, 7) && first.TrapIds.SequenceEqual(["TR001"]),
             "Az első szint csapdakonfigurációja nem kezdőbarát.");
@@ -544,7 +564,8 @@ internal static partial class Program
                final.TrapIds.Contains("TR112") && !final.TrapIds.Contains("TR001"),
             "A végső szintek nem a legnehezebb csapdakészletet használják.");
         Assert(first.VisionModifier == 0 && MazeLevelConfigurations.Get(5).VisionModifier == -1 &&
-               MazeLevelConfigurations.Get(9).VisionModifier == -2,
+               MazeLevelConfigurations.Get(6).VisionModifier == -1 &&
+               MazeLevelConfigurations.Get(10).VisionModifier == -2,
             "Az extra sötét pályák látótávmódosítója hibás.");
     }
 
@@ -592,13 +613,13 @@ internal static partial class Program
     static void CursedLootChanceIsConfiguredPerMazeLevel()
     {
         Assert(MazeLevelConfigurations.Get(1).ItemCurseChancePercent == 8 &&
-               MazeLevelConfigurations.Get(9).ItemCurseChancePercent == 30,
+               MazeLevelConfigurations.Get(10).ItemCurseChancePercent == 30,
             "Az alapértelmezett vagy a korábbi elátkozott sírkamra-esély megváltozott.");
-        Assert(MazeLevelConfigurations.Get(7).ItemCurseChancePercent == 15 &&
-               MazeLevelConfigurations.Get(12).ItemCurseChancePercent == 15 &&
-               MazeLevelConfigurations.Get(16).ItemCurseChancePercent == 20 &&
-               MazeLevelConfigurations.Get(18).ItemCurseChancePercent == 25 &&
-               MazeLevelConfigurations.Get(19).ItemCurseChancePercent == 25,
+        Assert(MazeLevelConfigurations.Get(8).ItemCurseChancePercent == 15 &&
+               MazeLevelConfigurations.Get(13).ItemCurseChancePercent == 15 &&
+               MazeLevelConfigurations.Get(17).ItemCurseChancePercent == 20 &&
+               MazeLevelConfigurations.Get(19).ItemCurseChancePercent == 25 &&
+               MazeLevelConfigurations.Get(20).ItemCurseChancePercent == 25,
             "A kiemelten veszélyes pályák tárgyátok-esélyei nem a konfigurációból érkeznek.");
         Assert(QuestLocationConfigurations.Get(QuestLocationConfigurations.RodericMalrec)
                    .ItemCurseChancePercent == 8,

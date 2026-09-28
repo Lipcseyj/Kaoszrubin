@@ -120,7 +120,7 @@ internal static partial class Program
         var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
         var casterIds = data.EnemySpellcasters.Select(profile => profile.EnemyId)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var configuredLevels = new[] { 3, 4, 6, 8, 9, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21 };
+        var configuredLevels = new[] { 3, 4, 6, 7, 9, 10, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22 };
 
         foreach (var level in configuredLevels)
         {

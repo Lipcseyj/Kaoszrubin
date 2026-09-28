@@ -290,14 +290,40 @@ internal static partial class Program
 
     static void LegacyGameSavesMigrateToCurrentVersion()
     {
-        foreach (var version in new[] { 1, 2, 3, 18 })
+        foreach (var version in new[] { 1, 2, 3, 18, 33 })
         {
-            var state = new GameSaveData { Version = version, MazeLevel = 6 };
+            var state = new GameSaveData
+            {
+                Version = version,
+                MazeLevel = 6,
+                DifficultyLevel = 6,
+                LocationId = "CAMPAIGN_06",
+                AdHocConversationMazeLevel = 6
+            };
             var migrated = GameSaveFormat.MigrateToCurrent(state);
             Assert(ReferenceEquals(state, migrated) && migrated.Version == GameSaveFormat.CurrentVersion &&
-                   migrated.MazeLevel == 6,
-                $"A(z) {version}. mentésverzió migrációja hibás vagy megváltoztatta a pályaszintet.");
+                   migrated.MazeLevel == 7 && migrated.DifficultyLevel == 7 &&
+                   migrated.LocationId == "CAMPAIGN_07" && migrated.AdHocConversationMazeLevel == 7,
+                $"A(z) {version}. mentésverzió migrációja nem követte a beszúrt 6. pályát.");
         }
+
+        var earlier = GameSaveFormat.MigrateToCurrent(new GameSaveData
+        {
+            Version = 33, MazeLevel = 5, DifficultyLevel = 5, LocationId = "CAMPAIGN_05"
+        });
+        Assert(earlier.MazeLevel == 5 && earlier.DifficultyLevel == 5 && earlier.LocationId == "CAMPAIGN_05",
+            "A beszúrt 6. pálya migrációja egy korábbi kampányszintet is eltolta.");
+
+        var history = GameSaveFormat.MigrateToCurrent(new GameSaveData
+        {
+            Version = 33,
+            RosterJson = """{"Characters":[{"NpcJoinedMazeLevel":6},{"NpcJoinedMazeLevel":5}]}"""
+        });
+        using var historyJson = JsonDocument.Parse(history.RosterJson);
+        var joinLevels = historyJson.RootElement.GetProperty("Characters").EnumerateArray()
+            .Select(character => character.GetProperty("NpcJoinedMazeLevel").GetInt32()).ToArray();
+        Assert(joinLevels.SequenceEqual([7, 5]),
+            "A régi mentés NPC-csatlakozási története nem követte a beszúrt 6. pályát.");
 
         var current = new GameSaveData
         {

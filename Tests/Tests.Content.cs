@@ -240,7 +240,7 @@ internal static partial class Program
     static void NpcDefinitionsLoadFromCsv()
     {
         var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
-        Assert(catalog.Npcs.Count == 23 && catalog.NpcEncounters.Count == 31 &&
+        Assert(catalog.Npcs.Count == 23 && catalog.NpcEncounters.Count == 32 &&
                Enumerable.Range(1, MazeLevelConfigurations.FinalLevel).All(level =>
                    catalog.NpcEncounters.Any(encounter => encounter.MazeLevel == level)),
             "Az NPC-definíciók vagy valamelyik pálya találkozása hiányzik.");

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using KaoszRubin.Application;
 using KaoszRubin.Domain.Characters;
@@ -98,7 +99,7 @@ public sealed class GameSaveService
 public static class GameSaveFormat
 {
     public const int OldestSupportedVersion = 1;
-    public const int CurrentVersion = 33;
+    public const int CurrentVersion = 34;
 
     public static GameSaveData MigrateToCurrent(GameSaveData state)
     {
@@ -143,11 +144,54 @@ public static class GameSaveFormat
                 30 => MigrateVersion30To31(state),
                 31 => MigrateVersion31To32(state),
                 32 => MigrateVersion32To33(state),
+                33 => MigrateVersion33To34(state),
                 _ => throw new InvalidOperationException($"Hiányzó mentésmigráció a(z) {state.Version}. verzióhoz.")
             };
         }
         if (state.SuspendedCampaign is { } suspended) MigrateToCurrent(suspended);
         return state;
+    }
+
+    private static GameSaveData MigrateVersion33To34(GameSaveData state)
+    {
+        const int insertedLevel = 6;
+        if (state.MazeLevel >= insertedLevel)
+        {
+            state.MazeLevel++;
+            if (state.LocationKind == AdventureLocationKind.Campaign)
+            {
+                if (state.DifficultyLevel >= insertedLevel) state.DifficultyLevel++;
+                if (string.IsNullOrWhiteSpace(state.LocationId) ||
+                    state.LocationId.StartsWith("CAMPAIGN_", StringComparison.OrdinalIgnoreCase))
+                    state.LocationId = $"CAMPAIGN_{state.MazeLevel:00}";
+            }
+        }
+        if (state.AdHocConversationMazeLevel >= insertedLevel) state.AdHocConversationMazeLevel++;
+        state.RosterJson = ShiftNpcJoinLevels(state.RosterJson, insertedLevel);
+        state.Version = 34;
+        return state;
+    }
+
+    private static string ShiftNpcJoinLevels(string rosterJson, int insertedLevel)
+    {
+        if (string.IsNullOrWhiteSpace(rosterJson)) return rosterJson;
+        var root = JsonNode.Parse(rosterJson);
+        if (root is null) return rosterJson;
+        Shift(root);
+        return root.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
+
+        void Shift(JsonNode node)
+        {
+            if (node is JsonObject value)
+            {
+                if (value["NpcJoinedMazeLevel"]?.GetValue<int?>() is { } level && level >= insertedLevel)
+                    value["NpcJoinedMazeLevel"] = level + 1;
+                foreach (var child in value.Select(pair => pair.Value).Where(child => child is not null).ToArray())
+                    Shift(child!);
+            }
+            else if (node is JsonArray array)
+                foreach (var child in array.Where(child => child is not null).ToArray()) Shift(child!);
+        }
     }
 
     private static GameSaveData MigrateVersion32To33(GameSaveData state)

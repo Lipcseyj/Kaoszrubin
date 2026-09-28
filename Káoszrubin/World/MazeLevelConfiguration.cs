@@ -287,14 +287,14 @@ public sealed class MazeLevelConfiguration
 public static class MazeLevelConfigurations
 {
     /// <summary>Az utolsó, kézzel definiált kampánypálya sorszáma.</summary>
-    public const int FinalLevel = 21;
+    public const int FinalLevel = 22;
 
     #region Kampánypályák – új pályát és pályatartalmat elsősorban itt szerkessz
 
     // Minimális minta:
-    // [22] = new()
+    // [23] = new()
     // {
-    //     Level = 22,
+    //     Level = 23,
     //     Name = "Pályanév",
     //     RoomCount = new(10, 14), RoomSize = new(4, 8),
     //     TreasureChestCount = new(6, 10), TreasureGold = new(1000, 2000),
@@ -501,6 +501,72 @@ public static class MazeLevelConfigurations
             [6] = new()
             {
                 Level = 6,
+                Name = "Tiltott Erdő",
+                Layout = new ForestMazeLayoutConfiguration(
+                    new DungeonAreaGraphConfiguration(new IntRange(6, 8), MinimumExitDistance: 3,
+                        MaximumDegree: 3, BranchChance: 0.52, ExtraConnectionChance: 0.18),
+                    new ForestGenerationConfiguration
+                    {
+                        ForestDensity = 0.78,
+                        PineChance = 0.18,
+                        BushChance = 0.17,
+                        FlowerBushChance = 0.05,
+                        ThicketChance = 0.14,
+                        UndergrowthChance = 0.27,
+                        DenseUndergrowthChance = 0.11,
+                        LakeCount = new IntRange(1, 3),
+                        LakeRadius = new IntRange(2, 5),
+                        MarshChance = 0.62,
+                        TrailWidth = 2,
+                        BuildingCount = new IntRange(1, 2),
+                        BuildingSize = new IntRange(5, 8),
+                        BuildingPartitionChance = 0.75,
+                        LockedBuildingDoorChance = 0.18,
+                        OpenBuildingDoorChance = 0.12,
+                        Palette = new ForestTerrainPalette
+                        {
+                            Tree = new("forbidden-tree", new('♠'), ConsoleColor.DarkGreen,
+                                ConsoleColor.Black, false, true),
+                            FlowerBush = new("forbidden-flower-bush", new('✿'), ConsoleColor.DarkMagenta,
+                                ConsoleColor.Black, false, false),
+                            Water = new("forbidden-water", new('≈'), ConsoleColor.DarkBlue,
+                                ConsoleColor.Black, false, false),
+                            Marsh = new("forbidden-marsh", new('≋'), ConsoleColor.DarkYellow,
+                                ConsoleColor.DarkGreen, true, false),
+                            BuildingWall = new("forbidden-building-wall", new('▣'), ConsoleColor.Gray,
+                                ConsoleColor.Black, false, true)
+                        }
+                    }),
+                WallRune = new('♠'),
+                WallColor = ConsoleColor.DarkGreen,
+                RoomCount = new IntRange(42, 56),
+                RoomSize = new IntRange(4, 8),
+                TreasureChestCount = new IntRange(18, 26),
+                TreasureGold = new IntRange(180, 460),
+                RoomEncounters =
+                [
+                    Encounters.Same(MonsterIds.Farkas, Amount.Handful, Amount.Several),
+                    Encounters.Mixed(MonsterIds.Vadkan, Amount.Few, MonsterIds.HegyiHiúz, Amount.Few,
+                        Amount.Handful),
+                    Encounters.Mixed(MonsterIds.Goblin, Amount.Several, MonsterIds.GoblinÍjász, Amount.Few,
+                        Amount.Handful),
+                    Encounters.LeaderGroup(MonsterIds.GoblinVajákos, MonsterIds.Goblin,
+                        Amount.Few, Amount.Several),
+                    Encounters.LeaderGroup(MonsterIds.OrkSámán, MonsterIds.Ork,
+                        Amount.Few, Amount.Several)
+                ],
+                CorridorEncounters =
+                [
+                    Encounters.Horde(MonsterIds.Farkas, Amount.Handful, Amount.Handful),
+                    Encounters.Solo(MonsterIds.HegyiHiúz, Amount.Handful, EnemyMovementProfile.Patrol),
+                    Encounters.MixedHorde(MonsterIds.Goblin, Amount.Several, MonsterIds.GoblinÍjász,
+                        Amount.Few, Amount.Handful),
+                    Encounters.Solo(MonsterIds.Vadkan, Amount.Handful)
+                ]
+            },
+            [7] = new()
+            {
+                Level = 7,
                 Name = "A nagy csarnokok szintje",
                 Layout = new WideMazeLayoutConfiguration(new IntRange(2, 2), NarrowingChance: 0.12),
                 WallRune = new('▦'),
@@ -524,9 +590,9 @@ public static class MazeLevelConfigurations
                     Encounters.MixedHorde(MonsterIds.Gnoll, Amount.Few, MonsterIds.Ork, Amount.Few, Amount.Few)
                 ]
             },
-            [7] = new()
+            [8] = new()
             {
-                Level = 7,
+                Level = 8,
                 Name = "A mérgező barlang",
                 DoubleWidthCorridorChance = 0.88,
                 WallRune = new('▒'),
@@ -548,9 +614,9 @@ public static class MazeLevelConfigurations
                     Encounters.Solo(MonsterIds.BarlangiGyík, Amount.Few, EnemyMovementProfile.Patrol)
                 ]
             },
-            [8] = new()
+            [9] = new()
             {
-                Level = 8,
+                Level = 9,
                 Name = "Az ork haditábor",
                 Layout = new WideMazeLayoutConfiguration(new IntRange(2, 2), NarrowingChance: 0.14),
                 WallRune = new('▦'),
@@ -577,9 +643,9 @@ public static class MazeLevelConfigurations
                         Amount.Few, Amount.Pack)
                 ]
             },
-            [9] = new()
+            [10] = new()
             {
-                Level = 9,
+                Level = 10,
                 Name = "Az elátkozott sírkamrák",
                 DoubleWidthCorridorChance = 0.92,
                 WallRune = new('▦'),
@@ -602,9 +668,9 @@ public static class MazeLevelConfigurations
                     Encounters.Solo(MonsterIds.Ghoul, Amount.Several)
                 ]
             },
-            [10] = new()
+            [11] = new()
             {
-                Level = 10,
+                Level = 11,
                 Name = "Az óriások erődje",
                 Layout = new WideMazeLayoutConfiguration(new IntRange(2, 2), NarrowingChance: 0.10),
                 WallRune = new('▩'),
@@ -630,9 +696,9 @@ public static class MazeLevelConfigurations
                         Amount.Handful, Amount.Pack)
                 ]
             },
-            [11] = new()
+            [12] = new()
             {
-                Level = 11,
+                Level = 12,
                 Name = "A sárkánykultusz szentélye",
                 Layout = new WideMazeLayoutConfiguration(new IntRange(2, 2), NarrowingChance: 0.16),
                 WallRune = new('▥'),
@@ -661,9 +727,9 @@ public static class MazeLevelConfigurations
                         Amount.Handful, Amount.Several)
                 ]
             },
-            [12] = new()
+            [13] = new()
             {
-                Level = 12,
+                Level = 13,
                 Name = "A rothadó mocsár",
                 Layout = new WideMazeLayoutConfiguration(new IntRange(2, 2), NarrowingChance: 0.18),
                 WallRune = new('▒'),
@@ -694,9 +760,9 @@ public static class MazeLevelConfigurations
                         Amount.One, Amount.Pack)
                 ]
             },
-            [13] = new()
+            [14] = new()
             {
-                Level = 13,
+                Level = 14,
                 Name = "A fojtogató mélyjárat",
                 DoubleWidthCorridorChance = 0,
                 WallRune = new('█'),
@@ -719,9 +785,9 @@ public static class MazeLevelConfigurations
                     Encounters.Solo(MonsterIds.Óriásdenevér, Amount.Several)
                 ]
             },
-            [14] = new()
+            [15] = new()
             {
-                Level = 14,
+                Level = 15,
                 Name = "A megtört kristálycsarnok",
                 DoubleWidthCorridorChance = 0.72,
                 WallRune = new('◆'),
@@ -744,9 +810,9 @@ public static class MazeLevelConfigurations
                     Encounters.Solo(MonsterIds.Beholder, Amount.Few)
                 ]
             },
-            [15] = new()
+            [16] = new()
             {
-                Level = 15,
+                Level = 16,
                 Name = "A dermedt mélység",
                 DoubleWidthCorridorChance = 0.62,
                 WallRune = new('▒'),
@@ -769,9 +835,9 @@ public static class MazeLevelConfigurations
                     Encounters.Solo(MonsterIds.Wight, Amount.Few)
                 ]
             },
-            [16] = new()
+            [17] = new()
             {
-                Level = 16,
+                Level = 17,
                 Name = "Az örökéj vámpírerődje",
                 Layout = new WideMazeLayoutConfiguration(new IntRange(2, 3), NarrowingChance: 0.13),
                 WallRune = new('⣿'),
@@ -801,9 +867,9 @@ public static class MazeLevelConfigurations
                         Amount.Handful, Amount.Pack)
                 ]
             },
-            [17] = new()
+            [18] = new()
             {
-                Level = 17,
+                Level = 18,
                 Name = "A sárkányok temetője",
                 DoubleWidthCorridorChance = 0.84,
                 WallRune = new('█'),
@@ -825,9 +891,9 @@ public static class MazeLevelConfigurations
                     Encounters.Solo(MonsterIds.Halállovag, Amount.Few)
                 ]
             },
-            [18] = new()
+            [19] = new()
             {
-                Level = 18,
+                Level = 19,
                 Name = "A démoni sík: Parázspusztaság",
                 Layout = new WideMazeLayoutConfiguration(new IntRange(3, 3), NarrowingChance: 0.08),
                 WallRune = new('█'),
@@ -863,9 +929,9 @@ public static class MazeLevelConfigurations
                         Amount.One, Amount.Lots)
                 ]
             },
-            [19] = new()
+            [20] = new()
             {
-                Level = 19,
+                Level = 20,
                 Name = "A démoni sík: Vértrónus",
                 Layout = new WideMazeLayoutConfiguration(new IntRange(3, 3), NarrowingChance: 0.11),
                 WallRune = new('▓'),
@@ -900,9 +966,9 @@ public static class MazeLevelConfigurations
                         Amount.One, Amount.Several)
                 ]
             },
-            [20] = new()
+            [21] = new()
             {
-                Level = 20,
+                Level = 21,
                 Name = "A káosz szíve",
                 DoubleWidthCorridorChance = 0.80,
                 WallRune = new('▒'),
@@ -925,9 +991,9 @@ public static class MazeLevelConfigurations
                     Encounters.Solo(MonsterIds.Pokolfejedelem, Amount.Few)
                 ]
             },
-            [21] = new()
+            [22] = new()
             {
-                Level = 21,
+                Level = 22,
                 Name = "A káosz trónja",
                 DoubleWidthCorridorChance = 0.86,
                 WallRune = new('▓'),
@@ -973,7 +1039,7 @@ public static class MazeLevelConfigurations
     public static MazeLevelConfiguration Get(int level)
     {
         if (Configurations.TryGetValue(level, out var configuration)) return ConfigureVisionAndTraps(configuration);
-        var increase = level - 11;
+        var increase = level - 12;
         var tier = Math.Clamp(4 + increase / 3, 4, 5);
         var (leader, follower, peer) = tier switch
         {
@@ -1023,18 +1089,18 @@ public static class MazeLevelConfigurations
     {
         configuration.VisionModifier = configuration.Level switch
         {
-            5 or 12 => -1,
-            9 or 13 or 17 or 20 => -2,
+            5 or 6 or 13 => -1,
+            10 or 14 or 18 or 21 => -2,
             _ => 0
         };
         (configuration.TrapCount, configuration.TrapIds) = configuration.Level switch
         {
             1 => (new IntRange(3, 7), BasicTraps),
             2 => (new IntRange(4, 8), LevelTwoTraps),
-            <= 6 => (new IntRange(5, 9), EarlyTraps),
-            <= 9 => (new IntRange(6, 11), MidTraps),
-            <= 13 => (new IntRange(6, 11), AdvancedTraps),
-            <= 17 => (new IntRange(6, 13), DeadlyTraps),
+            <= 7 => (new IntRange(5, 9), EarlyTraps),
+            <= 10 => (new IntRange(6, 11), MidTraps),
+            <= 14 => (new IntRange(6, 11), AdvancedTraps),
+            <= 18 => (new IntRange(6, 13), DeadlyTraps),
             _ => (new IntRange(7, 14), ChaosTraps)
         };
         return configuration;

@@ -56,7 +56,7 @@ Egy bossfaj legyőzése pontosan egyszer ad aranykulcsot, ezért ismételt péld
 
 Amikor egy boss mezője először ténylegesen láthatóvá válik, modális bossbemutató ablak jelenik meg. Az ablak a varázsválasztóhoz hasonlóan kizárólag a térkép fölé rajzolódik: előtte elmenti az érintett térképcellák vizuális állapotát, bezáráskor pedig célzottan csak ezeket állítja vissza. A karakterlap és a teljes konzol újrarajzolása nem szükséges. A már bemutatott bossazonosítók szintén a teljes játékmentés részei. Mind a 12 boss saját, E/1-ben elmondott történetet kapott a II–XIII. fejezetben. A korai őrzők csak töredékeket és szóbeszédeket ismernek, a későbbiek egyre pontosabban beszélnek a kulcsokról, a Káoszrubinról és az előttünk álló útról. A tizenkét kulcs megszerzése a XIV. fejezettel folytatja a történetet.
 
-Új játék indításakor ugyanezzel a térképoverlay-mechanizmussal jelenik meg a Káoszrubin eredetét, Aurelios Máguskirály megbízását, Vhar-Zul fenyegetését és a kiválasztott Kulcshordozók küldetését elmesélő nyitófejezet. A tizenkettedik kulcs megszerzésekor külön második fejezet nyílik: a zárak feloldódnak, és feltárul a Káoszrubinhoz vezető huszonegy további szint. Ez mérföldkő, nem játékbefejezés.
+Új játék indításakor ugyanezzel a térképoverlay-mechanizmussal jelenik meg a Káoszrubin eredetét, Aurelios Máguskirály megbízását, Vhar-Zul fenyegetését és a kiválasztott Kulcshordozók küldetését elmesélő nyitófejezet. A tizenkettedik kulcs megszerzésekor külön második fejezet nyílik: a zárak feloldódnak, és feltárul a Káoszrubinhoz vezető huszonkét további szint. Ez mérföldkő, nem játékbefejezés.
 
 A megoldás fő felelősségi területei:
 
@@ -100,8 +100,8 @@ Az indítás menete:
 
 - `Maze.cs`: a pályarács, a szobák és a térképi objektumok tárolója.
 - `MazeGenerator.cs`: labirintus, szobák, ládák és ellenfelek létrehozása.
-- `ForestMazeGenerator.cs`: erdei tisztások, összefüggő ösvények, tavak, mocsárszegély és növényzet létrehozása.
-- `ForestMazeConfiguration.cs`: az erdősűrűség, terepgyakoriságok, tavak, ösvényszélesség, rúnák és színek szerkesztői API-ja.
+- `ForestMazeGenerator.cs`: erdei tisztások, összefüggő ösvények, tavak, mocsárszegély, növényzet és zárt épületek létrehozása.
+- `ForestMazeConfiguration.cs`: az erdősűrűség, terepgyakoriságok, tavak, épületek, ösvényszélesség, rúnák és színek szerkesztői API-ja.
 - `MazeTerrainStyle.cs`: a rúnánként konfigurálható járhatóság, látástakarás és megjelenítés közös modellje.
 - `DungeonAreaGraph.cs`: a többképernyős szint absztrakt, kétdimenziós gráfja és a mellékágas/hurkos gráfgenerátor.
 - `DungeonLevel.cs`: a létrejött képernyők, az aktív képernyő, valamint a stabil bejárati és kijárati képernyő kezelése.
@@ -121,6 +121,8 @@ határozza meg a bejáratot, a valódi pályakijáratot vagy a visszatérő expe
 a képernyők kétdimenziós koordinátáját és topológiai szerepét is tárolja; a 31-es mentésekből a 32-es
 migráció a korábbi lineáris sorrendet állítja vissza. A 33-as formátum képernyőnként egyszer menti a
 terepstílus-palettát is, így a járható aljnövényzet és a nem járható víz mentés után sem változik padlóvá.
+A 34-es formátum a Tiltott Erdő 6. pályára történt beszúrását vezeti át: a régi 6–21. kampányszinteket,
+helyazonosítókat, ad-hoc párbeszédszinteket és az NPC-k csatlakozási történetét eggyel feljebb számozza.
 
 A `DungeonAreaGraphGenerator` összefüggő, ortogonális metarácsot készít. A konfiguráció megadja a
 képernyőszám tartományát, a bejárat és kijárat minimális gráftávolságát, a maximális csomóponti fokszámot,
@@ -132,11 +134,14 @@ az erdei generátor pedig erre a közös alapra köti rá a procedurális gráfo
 Az erdei elrendezéshez a pályakonfiguráció `Layout` mezője `ForestMazeLayoutConfiguration` értéket kap.
 A benne lévő `DungeonAreaGraphConfiguration` 6–10 vagy akár más számú képernyőből mellékágas, hurkolható
 gráfot készít. A `ForestGenerationConfiguration` szabályozza az erdősűrűséget, az egyes növényfajták
-arányát, az aljnövényzetet, a tavak számát és méretét, a mocsaras tópart esélyét és az ösvények szélességét.
+arányát, az aljnövényzetet, a tavak számát és méretét, a mocsaras tópart esélyét, az ösvények szélességét,
+valamint az épületek számát, méretét, belső tagolását és ajtóállapotainak esélyét.
 A `ForestTerrainPalette` minden tereptípus rúnáját, előtér- és háttérszínét külön engedi felülírni.
 
 Az egy képernyőn belüli tisztások a közös `Room` modellt használják. Emiatt a `RoomEncounters` és a
 kincsesládák tisztásokra, a `CorridorEncounters` pedig ösvényekre és egyéb járható erdei területekre kerülnek.
+A konfigurált épületek ebbe a közös teremszámba tartozó, fallal körülvett belső terek: egy külső ajtót,
+megfelelő méretnél pedig külön ajtós belső válaszfalat kapnak, ezért valódi mini-labirintusként működnek.
 A fa, fenyő és sűrű bozót nem járható és takarja a látást; a bokrok átláthatók, de nem járhatók; az
 aljnövényzet és a mocsár járható; a víz nem járható, de nem takarja a túlpartot. A terepszínek a host és
 a coop vendég világpillanatképében is azonosan jelennek meg.
@@ -482,7 +487,7 @@ A véletlen világzsákmányként megszerzett `Magic` ritkaságú fegyver, pánc
 
 Az azonosítatlan snapshot nem továbbítja a katalógusazonosítót, valódi nevet, leírást, árat, mágikus erőt vagy töltetet. Helyettük kategóriaalapú ismeretlen név és a mágikus erőből képzett gyenge/közepes/erős/rendkívüli aura látható. Ismeretlen pálca és tekercs nem kerül a varázsválasztóba; a passzív vagy felszerelési tárgy hatása azonosítás nélkül is működik. Friss világzsákmánynál a parti legmagasabb effektív Intelligenciájú élő Mágusa egyszer automatikusan azonosítási próbát tesz: az esély `clamp(25 + Intelligencia × 5 − mágikus erő × 10, 5, 95)%`. A próba a példányállapot létrehozásakor történik, ezért a földre dobás, újrafelvétel vagy karakterek közötti átadás nem ad új próbát. A Vándormágus garantált azonosításának ára `20 + ceil(alapár × 0,08) + mágikus erő × 15`. Azonosítatlan tárgy kereskedői ajánlata az alapár 25%-a, a coop kliens pedig csak ezt az ajánlatot és az álcázott példányt kapja meg.
 
-A `#Tárgyátkok` szekció az átokazonosítót, nevet, hatástípust, értéket, 1–3-as erősséget, kompatibilis tárgykategóriákat és a leíró szövegeket tárolja. A normál világzsákmányként dobott `Magic` tárgy 8%, a 9. szintű Elátkozott sírkamrákban 15% eséllyel kap egy kompatibilis átkot; a dobás egyszer történik és a példányállapottal mentődik. A fogadói, kezdő-, küldetés-, karakterhez kötött és Legendás tárgyak nem kapnak véletlen átkot.
+A `#Tárgyátkok` szekció az átokazonosítót, nevet, hatástípust, értéket, 1–3-as erősséget, kompatibilis tárgykategóriákat és a leíró szövegeket tárolja. A normál világzsákmányként dobott `Magic` tárgy 8%, a 10. szintű Elátkozott sírkamrákban 30% eséllyel kap egy kompatibilis átkot; a dobás egyszer történik és a példányállapottal mentődik. A fogadói, kezdő-, küldetés-, karakterhez kötött és Legendás tárgyak nem kapnak véletlen átkot.
 
 Az átok hátizsákban és tartalékfegyver-helyen nyugalomban marad. Aktív fegyver-, páncél- vagy varázstárgyhelyre kerülve aktiválódik, rögzíti a viselő `CharacterId`-ját, és az inventory validáció megtiltja az eltávolítását, cseréjét vagy más karakternek adását. Az aktiválódás azonosítás nélkül is látható, de az átokazonosító és a pontos hatás csak azonosítva kerül a snapshotba. A nyolc implementált hatás: `HitPenalty`, `DefensePenalty`, `InitiativePenalty`, `MovementPenalty`, `CombatWeight`, `ManaCost`, `HealthPenalty`, `IntelligencePenalty`; az aktív értékek azonos típuson belül összeadódnak.
 
@@ -1138,9 +1143,7 @@ Ráadásul ha a játékos éppen a régi 6. pályán mentett:
 - kijutás után a játék az új 7. konfigurációra lép.
 Ezért beszúrás előtt érdemes mentésmigrációt készíteni: a régi verziójú mentésekben minden MazeLevel >= 6 értékhez hozzáadni egyet. Ehhez célszerű mentésformátum-verziót is bevezetni, különben nem lehet biztosan tudni, hogy egy mentést már átszámoztunk-e.
 7. Történeti szövegek
-A finálé jelenleg konkrétan „huszonegy” szintről beszél. Ha 22 pálya lesz, legalább ezeket át kell írni:
-- „huszonegy halálos szint”
-- „a Káosz huszonegy megtört törvénye”
+A Tiltott Erdő beszúrásával a kampány és a finálé szövegei egyaránt huszonkét szinttel számolnak.
 A fejezetek számozását csak akkor kell módosítani, ha az új pálya saját történeti fejezetet vagy bossbemutatót kap.
 8. Ellenőrzés
 A beszúrás után érdemes automatikusan ellenőrizni:

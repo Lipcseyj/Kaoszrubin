@@ -33,7 +33,7 @@ internal static partial class Program
             "A karakter 5/7/8-as alap-, tolvaj- vagy elf látótávja hibás.");
 
         var darkLevelLine = CharacterSheetPanel.Build(fighter, new Dictionary<int, int> { [2] = 100 },
-            9, 0, 12).Single(line => line.Row == 4);
+            10, 0, 12).Single(line => line.Row == 4);
         Assert(CharacterClassRules.VisionRange(fighter, -2) == 3 && darkLevelLine.Text.EndsWith("3") &&
                darkLevelLine.ColoredTextStart == darkLevelLine.Text.Length - 1 &&
                darkLevelLine.ColoredTextColor == ConsoleColor.Red,
