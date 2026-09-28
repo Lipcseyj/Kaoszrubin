@@ -187,11 +187,14 @@ public static class MazeLevelConfigurations
 {
     public const int FinalLevel = 21;
     private static readonly string[] BasicTraps = ["TR001"];
-    private static readonly string[] EarlyTraps = ["TR001", "TR002", "TR003"];
-    private static readonly string[] MidTraps = ["TR001", "TR002", "TR003", "TR004", "TR008"];
-    private static readonly string[] AdvancedTraps = ["TR002", "TR003", "TR004", "TR005", "TR008"];
-    private static readonly string[] DeadlyTraps = ["TR003", "TR004", "TR005", "TR006", "TR008"];
-    private static readonly string[] ChaosTraps = ["TR004", "TR005", "TR006", "TR007", "TR008"];
+    private static readonly string[] SpellTraps =
+        ["TR101", "TR102", "TR103", "TR104", "TR105", "TR106", "TR107", "TR108", "TR109", "TR110", "TR111", "TR112"];
+    private static readonly string[] LevelTwoTraps = ["TR001", "TR101"];
+    private static readonly string[] EarlyTraps = ["TR001", "TR002", "TR003", .. SpellTraps];
+    private static readonly string[] MidTraps = ["TR001", "TR002", "TR003", "TR004", "TR008", .. SpellTraps];
+    private static readonly string[] AdvancedTraps = ["TR002", "TR003", "TR004", "TR005", "TR008", .. SpellTraps];
+    private static readonly string[] DeadlyTraps = ["TR003", "TR004", "TR005", "TR006", "TR008", .. SpellTraps];
+    private static readonly string[] ChaosTraps = ["TR004", "TR005", "TR006", "TR007", "TR008", .. SpellTraps];
 
     private static readonly IReadOnlyDictionary<int, MazeLevelConfiguration> Configurations =
         new Dictionary<int, MazeLevelConfiguration>
@@ -896,12 +899,13 @@ public static class MazeLevelConfigurations
         };
         (configuration.TrapCount, configuration.TrapIds) = configuration.Level switch
         {
-            <= 2 => (new IntRange(3, 7), BasicTraps),
-            <= 6 => (new IntRange(4, 8), EarlyTraps),
-            <= 9 => (new IntRange(5, 10), MidTraps),
-            <= 13 => (new IntRange(5, 10), AdvancedTraps),
-            <= 17 => (new IntRange(5, 12), DeadlyTraps),
-            _ => (new IntRange(6, 13), ChaosTraps)
+            1 => (new IntRange(3, 7), BasicTraps),
+            2 => (new IntRange(4, 8), LevelTwoTraps),
+            <= 6 => (new IntRange(5, 9), EarlyTraps),
+            <= 9 => (new IntRange(6, 11), MidTraps),
+            <= 13 => (new IntRange(6, 11), AdvancedTraps),
+            <= 17 => (new IntRange(6, 13), DeadlyTraps),
+            _ => (new IntRange(7, 14), ChaosTraps)
         };
         return configuration;
     }

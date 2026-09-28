@@ -872,7 +872,7 @@ E102;15;igen;igen;nem;Sima;Sima;0;250
 E103;45;igen;igen;nem;Sima;Sima;0;250
 
 #Csapdák
-Id;Név;Jel;Hatás;MinimumSzint;ÉszlelésiNehézség;HatástalanításiNehézség;MinimumSebzés;MaximumSebzés;Állapotesély;ÉszlelésiXP;HatástalanításiXP;Leírás
+Id;Név;Jel;Hatás;MinimumSzint;ÉszlelésiNehézség;HatástalanításiNehézség;MinimumSebzés;MaximumSebzés;Állapotesély;ÉszlelésiXP;HatástalanításiXP;Leírás;VarázslatId
 TR001;Tüskés verem;⌄;Damage;1;7;7;3;7;0;50;100;Éles tüskék nyílnak fel a padlóból.
 TR002;Mérgezett tű;†;Poison;3;8;9;1;4;35;100;200;A falból mérgezett tű repül elő.
 TR003;Riasztórúna;◎;Alert;4;9;8;0;0;100;140;220;A felizzó rúna magára vonja a közeli lények figyelmét.
@@ -881,6 +881,18 @@ TR005;Dögvészfelhő;≋;Poison;10;11;12;4;8;60;390;670;Fojtó zöld gáz tör 
 TR006;Káoszpecsét;✹;Alert;14;13;13;4;9;100;435;1500;A felhasadó pecsét energiakitörése megsebzi az áldozatot és odahívja a közeli szörnyeket.
 TR007;Lélektű;♦;Poison;18;15;15;8;14;75;500;2500;Árnyékból formált tű sebzi meg a testet és mérgezi meg a lelket.
 TR008;Koromfelhő;☁;Darkness;5;9;9;0;0;100;100;250;Sűrű fekete korom borítja el az áldozat látását.
+TR101;Lángnyíl-rúna;✧;Spell;2;8;8;0;0;0;90;180;A rúna lángoló nyilat lő a legközelebbi kalandozóra.;S005
+TR102;Dermesztő átokrúna;❄;Spell;3;8;9;0;0;0;110;220;Síri hideget és lassító átkot szabadít fel.;D002
+TR103;Villámrúna;ϟ;Spell;4;9;9;0;0;0;140;280;Felhasadó villám csap a közeli kalandozóba.;S004
+TR104;Jégbilincs-rúna;⌁;Spell;5;9;10;0;0;0;170;340;Fagyos bilincsekkel köti gúzsba áldozatát.;S022
+TR105;Vakítórúna;☼;Spell;6;10;10;0;0;0;200;400;Vakító mágikus villanást robbant ki.;S027
+TR106;Tűzgolyó-rúna;☄;Spell;7;10;11;0;0;0;250;500;Tűzgolyót robbant a legközelebbi csapattag helyén.;S007
+TR107;Jégvihar-rúna;❉;Spell;9;11;11;0;0;0;300;600;Jeges vihart idéz a csapatra.;S008
+TR108;Hasadóvillám-rúna;Ϟ;Spell;11;11;12;0;0;0;360;720;Kalandozóról kalandozóra ugró villámot szabadít fel.;S023
+TR109;Rémkép-rúna;☠;Spell;13;12;12;0;0;0;420;840;Bénító rémképeket vetít a közel állók elméjébe.;S028
+TR110;Villámvihar-rúna;☈;Spell;15;13;13;0;0;0;500;1000;Tartós villámvihart idéz a csapat fölé.;S009
+TR111;Meteorrúna;✺;Spell;18;14;14;0;0;0;650;1300;Meteorzáport zúdít a célterületre.;S011
+TR112;Lélekvihar-rúna;◈;Spell;21;15;16;0;0;0;800;1600;Sötét lélekvihart szakít a kalandozókra.;S025
 
 #Varázslatok
 Id;Név;Szint;Manna;Leírás;Célzás;Hatótáv;Terület;Látóvonal;HasználatiMód;BecsapódásSzín;BecsapódásIdőMs;CsakEllenség

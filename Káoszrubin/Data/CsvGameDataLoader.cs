@@ -291,7 +291,7 @@ public static class CsvGameDataLoader
             throw new InvalidOperationException("A tárgybővítések tartósságbónusza nem lehet negatív.");
         ValidateCharacterGenerationEquipment(weapons, armors, itemUpgrades,
             characterGenerationEquipment, characterGenerationUpgrades);
-        ValidateTrapConfigurations(traps);
+        ValidateTrapConfigurations(traps, spells);
         ValidateQuestRoomEncounters(enemies, items);
         ValidateNpcData(npcs, uniqueNpcCharacters, npcEncounters, npcDialogues, npcStoryChoices, npcQuests,
             races, characterClasses,
@@ -770,7 +770,7 @@ public static class CsvGameDataLoader
                     Math.Max(1, Integer(cells, 4) ?? 1), Math.Max(1, Integer(cells, 5) ?? 1),
                     Math.Max(1, Integer(cells, 6) ?? 1), minimumDamage, maximumDamage,
                     Math.Clamp(Integer(cells, 9) ?? 0, 0, 100), detectionExperience, disarmExperience,
-                    Cell(cells, 12)));
+                    Cell(cells, 12), EmptyAsNull(Cell(cells, 13))));
                 break;
             case DataSection.RaceAbilityBonuses:
                 raceBonuses[id] = PrimaryAbilitiesFrom(cells);
@@ -920,9 +920,27 @@ public static class CsvGameDataLoader
             : throw new InvalidOperationException($"Ismeretlen fogyaszthatótárgy-hatás: '{value}'.");
     }
 
-    private static void ValidateTrapConfigurations(IReadOnlyCollection<TrapDefinition> traps)
+    private static void ValidateTrapConfigurations(IReadOnlyCollection<TrapDefinition> traps,
+        IReadOnlyCollection<SpellDefinition> spells)
     {
         var knownIds = traps.Select(trap => trap.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var knownSpellIds = spells.Select(spell => spell.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var trap in traps)
+        {
+            if (trap.Effect == TrapEffect.Spell &&
+                (trap.SpellId is null || !knownSpellIds.Contains(trap.SpellId)))
+                throw new InvalidOperationException(
+                    $"A(z) '{trap.Id}' varázscsapda ismeretlen vagy hiányzó varázslatra hivatkozik: '{trap.SpellId}'.");
+            if (trap.Effect != TrapEffect.Spell && trap.SpellId is not null)
+                throw new InvalidOperationException(
+                    $"A(z) '{trap.Id}' nem varázscsapda, ezért nem tárolhat varázslatot.");
+            if (trap.Effect != TrapEffect.Spell || trap.SpellId is null) continue;
+            var spell = spells.First(candidate =>
+                string.Equals(candidate.Id, trap.SpellId, StringComparison.OrdinalIgnoreCase));
+            if (spell.TargetType is not (SpellTargetType.Enemy or SpellTargetType.Area))
+                throw new InvalidOperationException(
+                    $"A(z) '{trap.Id}' varázscsapda csak Enemy vagy Area célzású varázslatot tárolhat.");
+        }
         for (var level = 1; level <= MazeLevelConfigurations.FinalLevel; level++)
         {
             var configuration = MazeLevelConfigurations.Get(level);

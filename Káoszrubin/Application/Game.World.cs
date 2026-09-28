@@ -1279,10 +1279,16 @@ public sealed partial class Game
             candidates.Add(position);
         }
         var placed = new List<Position>();
+        var guaranteedSpellTrap = configuration.Level == 2
+            ? definitions.FirstOrDefault(definition => definition.Effect == TrapEffect.Spell)
+            : null;
         foreach (var position in candidates.OrderBy(_ => _random.Next()))
         {
             if (placed.Any(existing => Manhattan(existing, position) < 3)) continue;
-            _maze.AddTrap(new MazeTrap(position, definitions[_random.Next(definitions.Length)]));
+            var definition = placed.Count == 0 && guaranteedSpellTrap is not null
+                ? guaranteedSpellTrap
+                : definitions[_random.Next(definitions.Length)];
+            _maze.AddTrap(new MazeTrap(position, definition));
             placed.Add(position);
             if (placed.Count >= desiredCount) break;
         }

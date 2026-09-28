@@ -111,6 +111,11 @@ public sealed partial class Game
             return true;
         }
         trap.RecordFailedDisarm();
+        if (trap.Definition.Effect == TrapEffect.Spell)
+        {
+            ApplyTrap(character, trap);
+            return true;
+        }
         ShowTrapMessage($"⚠️ {character.Name} nem tudta hatástalanítani: {trap.Definition.Name} ({chance}% esély)." +
                         (trap.FailedDisarmAttempts == 1 ? " A csapda még nem sült el." : string.Empty),
             ConsoleColor.DarkYellow, character);
@@ -137,7 +142,23 @@ public sealed partial class Game
                     enemy.ConfigureMovement(enemy.MovementProfile, enemy.PatrolDirection, EnemyPursuitState.Pursuing);
             },
             ShowTrapMessage, c => _renderer.RefreshCharacterSheet(c),
-            () => _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position));
+            () => _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position),
+            spellTrap => TriggerMagicTrap(character, spellTrap));
+
+    private void TriggerMagicTrap(LiveCharacter triggeringCharacter, MazeTrap trap)
+    {
+        var intelligence = _random.Next(6, 13);
+        var casterLevel = Math.Max(1, _mazeLevel);
+        var result = _dungeonTrapService.TriggerSpell(trap, casterLevel, intelligence,
+            LivingPartyWithPositions().ToArray());
+        PlaySpellImpact(result.Spell, trap.Position, result.Aim, result.AffectedPositions);
+        foreach (var affected in result.AffectedCharacters) _renderer.RefreshCharacterSheet(affected);
+        _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
+        ShowTrapMessage(
+            $"💥 Elsült: {trap.Definition.Name} — {result.Spell.Name} " +
+            $"(varázslói szint {casterLevel}, Intelligencia {intelligence}). {result.Summary}.",
+            ConsoleColor.Red, triggeringCharacter);
+    }
 
     private void ShowTrapMessage(string message, ConsoleColor color, LiveCharacter character)
     {
