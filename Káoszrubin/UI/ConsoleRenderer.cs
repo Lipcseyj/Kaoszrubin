@@ -2981,12 +2981,15 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
     }
 
     public void PlaySpellImpact(Maze maze, FogOfWar fogOfWar, Position playerPosition,
-        SpellDefinition spell, Position casterPosition, Position target, IReadOnlyList<Position> enemyTargets)
+        SpellDefinition spell, Position casterPosition, Position target, IReadOnlyList<Position> enemyTargets,
+        IReadOnlyList<SpellImpactTrackedTargetSnapshot>? trackedTargets = null)
     {
         if (spell.EffectiveImpactDurationMilliseconds <= 0 || Console.IsOutputRedirected) return;
+        trackedTargets ??= [];
+        var trackedPositions = ResolveSpellImpactPositions(maze, playerPosition, trackedTargets).ToHashSet();
         var cells = SpellImpactVisual.GetCells(spell, casterPosition, target, enemyTargets, maze)
-            .Where(fogOfWar.IsVisible).Distinct().ToArray();
-        if (cells.Length == 0) return;
+            .Where(position => !trackedPositions.Contains(position) && fogOfWar.IsVisible(position)).Distinct().ToArray();
+        if (cells.Length == 0 && trackedTargets.Count == 0) return;
 
         if (!ReferenceEquals(_spellImpactMaze, maze))
         {
@@ -2995,7 +2998,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
             _spellImpactMaze = maze;
         }
         var origin = spell.TargetType == SpellTargetType.Direction ? casterPosition : target;
-        _activeSpellImpacts.Add(new SpellImpactAnimation(spell, origin, cells, DateTime.UtcNow));
+        _activeSpellImpacts.Add(new SpellImpactAnimation(spell, origin, cells, trackedTargets, DateTime.UtcNow));
         UpdateSpellImpacts(maze, fogOfWar, playerPosition);
     }
 
@@ -3016,8 +3019,17 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
 
         try
         {
-            var visibleCells = _activeSpellImpacts
-                .SelectMany(impact => impact.Cells)
+            var tracked = _activeSpellImpacts.Any(impact => impact.TrackedTargets.Count > 0);
+            var characterPositions = tracked
+                ? MazeCharacterPositions(maze, playerPosition)
+                : new Dictionary<CharacterId, Position>();
+            var enemyPositions = tracked
+                ? maze.Enemies.ToDictionary(enemy => enemy.Id, enemy => enemy.Position)
+                : new Dictionary<WorldEntityId, Position>();
+            var renderedImpacts = _activeSpellImpacts.Select(impact => (
+                Impact: impact, Cells: impact.CellsAt(characterPositions, enemyPositions))).ToArray();
+            var visibleCells = renderedImpacts
+                .SelectMany(rendered => rendered.Cells)
                 .Where(fogOfWar.IsVisible).ToHashSet();
             foreach (var position in _spellImpactDrawnCells.Where(position => !visibleCells.Contains(position)).ToArray())
                 DrawCurrentMapCell(maze, fogOfWar, position, playerPosition);
@@ -3025,10 +3037,11 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
             if (_activeSpellImpacts.Count > 0 &&
                 TerminalViewport.TryGetSize(out var size) && size.CanFit(maze.Width, maze.Height))
             {
-                foreach (var impact in _activeSpellImpacts)
+                foreach (var rendered in renderedImpacts)
                 {
+                    var impact = rendered.Impact;
                     var elapsed = impact.ElapsedMillisecondsAt(now);
-                    foreach (var position in impact.Cells.Where(fogOfWar.IsVisible))
+                    foreach (var position in rendered.Cells.Where(fogOfWar.IsVisible))
                     {
                         var visual = GetMapCellVisual(maze, fogOfWar, position, playerPosition);
                         var colors = SpellImpactVisual.GetColors(impact.Spell, position, impact.Origin, elapsed);
@@ -3044,6 +3057,25 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
         {
             // A következő játékhurok-képkocka folytatja vagy helyreállítja az effektet.
         }
+    }
+
+    private Dictionary<CharacterId, Position> MazeCharacterPositions(Maze maze, Position playerPosition)
+    {
+        var positions = maze.PartyMembers.ToDictionary(member => member.Character.Id, member => member.Position);
+        if (_party.Leader is { } leader) positions[leader.Id] = playerPosition;
+        return positions;
+    }
+
+    private IEnumerable<Position> ResolveSpellImpactPositions(Maze maze, Position playerPosition,
+        IEnumerable<SpellImpactTrackedTargetSnapshot> targets)
+    {
+        var characters = MazeCharacterPositions(maze, playerPosition);
+        var enemies = maze.Enemies.ToDictionary(enemy => enemy.Id, enemy => enemy.Position);
+        foreach (var target in targets)
+            if (target.CharacterId is { } characterId && characters.TryGetValue(characterId, out var characterPosition))
+                yield return characterPosition;
+            else if (target.EnemyId is { } enemyId && enemies.TryGetValue(enemyId, out var enemyPosition))
+                yield return enemyPosition;
     }
 
     private void DrawCurrentMapCell(Maze maze, FogOfWar fogOfWar, Position position, Position playerPosition)

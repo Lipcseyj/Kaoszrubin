@@ -1,4 +1,5 @@
 using KaoszRubin.Domain.Magic;
+using KaoszRubin.Domain.Characters;
 using KaoszRubin.Application;
 using KaoszRubin.Data;
 
@@ -53,13 +54,28 @@ internal static class SpellImpactVisual
 }
 
 internal sealed record SpellImpactAnimation(SpellDefinition Spell, Position Origin,
-    IReadOnlyList<Position> Cells, DateTime StartedUtc)
+    IReadOnlyList<Position> FixedCells, IReadOnlyList<SpellImpactTrackedTargetSnapshot> TrackedTargets,
+    DateTime StartedUtc)
 {
     public double ElapsedMillisecondsAt(DateTime utcNow) =>
         Math.Max(0, (utcNow - StartedUtc).TotalMilliseconds);
 
     public bool IsActiveAt(DateTime utcNow) =>
         ElapsedMillisecondsAt(utcNow) < Spell.EffectiveImpactDurationMilliseconds;
+
+    public IReadOnlyList<Position> CellsAt(IReadOnlyDictionary<CharacterId, Position> characterPositions,
+        IReadOnlyDictionary<WorldEntityId, Position> enemyPositions)
+    {
+        if (TrackedTargets.Count == 0) return FixedCells;
+        return FixedCells.Concat(TrackedTargets.Select(target => target.CharacterId is { } characterId &&
+                                               characterPositions.TryGetValue(characterId, out var characterPosition)
+                ? (Position?)characterPosition
+                : target.EnemyId is { } enemyId && enemyPositions.TryGetValue(enemyId, out var enemyPosition)
+                    ? enemyPosition
+                    : null)
+            .Where(position => position.HasValue).Select(position => position!.Value))
+            .Distinct().ToArray();
+    }
 }
 
 internal sealed class ReplicatedSpellImpactTracker
@@ -92,9 +108,10 @@ internal sealed class ReplicatedSpellImpactTracker
                          .OrderBy(impact => impact.Sequence))
             {
                 _lastSequence = impact.Sequence;
-                if (impact.WorldId != worldId || impact.Cells.Count == 0) continue;
+                if (impact.WorldId != worldId || impact.Cells.Count == 0 &&
+                    impact.TrackedTargets is not { Count: > 0 }) continue;
                 _active.Add(new SpellImpactAnimation(gameData.GetSpell(impact.SpellId), impact.Origin,
-                    impact.Cells.Distinct().ToArray(), utcNow));
+                    impact.Cells.Distinct().ToArray(), impact.TrackedTargets?.Distinct().ToArray() ?? [], utcNow));
             }
             RemoveExpired(utcNow);
             return _active.ToArray();

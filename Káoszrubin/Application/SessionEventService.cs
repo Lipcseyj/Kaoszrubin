@@ -103,11 +103,11 @@ public sealed class SessionEventService
     }
 
     public void RecordSpellImpact(WorldId worldId, string spellId, Position origin,
-        IReadOnlyList<Position> cells)
+        IReadOnlyList<Position> cells, IReadOnlyList<SpellImpactTrackedTargetSnapshot>? trackedTargets = null)
     {
-        if (string.IsNullOrWhiteSpace(spellId) || cells.Count == 0) return;
+        if (string.IsNullOrWhiteSpace(spellId) || cells.Count == 0 && trackedTargets is not { Count: > 0 }) return;
         _spellImpacts.Enqueue(new SessionSpellImpactSnapshot(++_spellImpactSequence, worldId, spellId, origin,
-            cells.Distinct().ToArray()));
+            cells.Distinct().ToArray(), trackedTargets?.Distinct().ToArray()));
         while (_spellImpacts.Count > 24) _spellImpacts.Dequeue();
     }
 

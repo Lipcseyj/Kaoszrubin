@@ -445,11 +445,51 @@ public sealed partial class Game
         IReadOnlyList<Position> enemyTargets)
     {
         if (spell.EffectiveImpactDurationMilliseconds <= 0) return;
-        _renderer.PlaySpellImpact(_maze, _fogOfWar, _player.Position, spell, casterPosition, target, enemyTargets);
+        var trackedTargets = spell.HasAreaImpact
+            ? []
+            : ResolveSpellImpactTrackedTargets(spell, target, enemyTargets);
+        _renderer.PlaySpellImpact(_maze, _fogOfWar, _player.Position, spell, casterPosition, target, enemyTargets,
+            trackedTargets);
         var origin = spell.TargetType == SpellTargetType.Direction ? casterPosition : target;
+        var trackedPositions = ResolveSpellImpactTrackedPositions(trackedTargets).ToHashSet();
         var cells = SpellImpactVisual.GetCells(spell, casterPosition, target, enemyTargets, _maze)
-            .Where(_fogOfWar.IsVisible).Distinct().ToArray();
-        _sessionEventService.RecordSpellImpact(_maze.Id, spell.Id, origin, cells);
+            .Where(position => !trackedPositions.Contains(position) && _fogOfWar.IsVisible(position))
+            .Distinct().ToArray();
+        _sessionEventService.RecordSpellImpact(_maze.Id, spell.Id, origin, cells, trackedTargets);
+    }
+
+    private IReadOnlyList<SpellImpactTrackedTargetSnapshot> ResolveSpellImpactTrackedTargets(
+        SpellDefinition spell, Position target, IReadOnlyList<Position> effectTargets)
+    {
+        if (spell.TargetType is not (SpellTargetType.Self or SpellTargetType.Party or
+            SpellTargetType.PartyMember or SpellTargetType.Enemy)) return [];
+        var result = new List<SpellImpactTrackedTargetSnapshot>();
+        foreach (var position in effectTargets.Append(target).Distinct())
+        {
+            if (_player.Position == position)
+                result.Add(new SpellImpactTrackedTargetSnapshot(CharacterId: PartyLeader.Id));
+            foreach (var member in _maze.PartyMembers.Where(member => member.Position == position))
+                result.Add(new SpellImpactTrackedTargetSnapshot(CharacterId: member.Character.Id));
+            foreach (var enemy in _maze.Enemies.Where(enemy => enemy.Position == position))
+                result.Add(new SpellImpactTrackedTargetSnapshot(EnemyId: enemy.Id));
+        }
+        return result.Distinct().ToArray();
+    }
+
+    private IEnumerable<Position> ResolveSpellImpactTrackedPositions(
+        IEnumerable<SpellImpactTrackedTargetSnapshot> targets)
+    {
+        foreach (var target in targets)
+        {
+            if (target.CharacterId == PartyLeader.Id)
+                yield return _player.Position;
+            else if (target.CharacterId is { } characterId &&
+                     _maze.PartyMembers.FirstOrDefault(member => member.Character.Id == characterId) is { } member)
+                yield return member.Position;
+            else if (target.EnemyId is { } enemyId &&
+                     _maze.Enemies.FirstOrDefault(enemy => enemy.Id == enemyId) is { } enemy)
+                yield return enemy.Position;
+        }
     }
 
     private void ShiftExplorationSchedules(TimeSpan pause)

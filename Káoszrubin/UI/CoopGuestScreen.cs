@@ -1744,8 +1744,16 @@ public sealed class CoopGuestScreen
                     grid[x, y] = new GuestMapCell(ConsoleBackdropCatalog.Glyph(backdrop.Style, x, y).ToString(),
                         backdrop.Color, ConsoleColor.Black);
         }
+        var hasTrackedSpellImpact = activeSpellImpacts.Any(impact => impact.TrackedTargets.Count > 0);
+        var spellImpactCharacterPositions = hasTrackedSpellImpact
+            ? snapshot.Party.Where(character => character.Position.HasValue)
+                .ToDictionary(character => character.CharacterId, character => character.Position!.Value)
+            : new Dictionary<CharacterId, Position>();
+        var spellImpactEnemyPositions = hasTrackedSpellImpact
+            ? world.Enemies.ToDictionary(enemy => enemy.EntityId, enemy => enemy.Position)
+            : new Dictionary<WorldEntityId, Position>();
         foreach (var impact in activeSpellImpacts)
-            foreach (var position in impact.Cells)
+            foreach (var position in impact.CellsAt(spellImpactCharacterPositions, spellImpactEnemyPositions))
             {
                 if (position.X < 0 || position.X >= grid.GetLength(0) ||
                     position.Y < 0 || position.Y >= grid.GetLength(1)) continue;

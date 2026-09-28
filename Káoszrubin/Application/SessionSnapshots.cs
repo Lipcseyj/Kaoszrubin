@@ -10,7 +10,7 @@ namespace KaoszRubin.Application;
 /// <summary>A hálózati szerződés jelenlegi verziója. Inkompatibilis DTO-változáskor növelendő.</summary>
 public static class SessionProtocol
 {
-    public const int Version = 98;
+    public const int Version = 99;
 }
 
 /// <summary>A host doménállapotától leválasztott, JSON-nal továbbítható teljes session-kép.</summary>
@@ -67,7 +67,12 @@ public sealed record SessionSoundSnapshot(long Sequence, SoundEffect Effect,
 
 /// <summary>A hoston kiszámított varázslat-becsapódás, amelyből a guest ugyanazt az animációt építi fel.</summary>
 public sealed record SessionSpellImpactSnapshot(long Sequence, WorldId WorldId, string SpellId,
-    Position Origin, IReadOnlyList<Position> Cells);
+    Position Origin, IReadOnlyList<Position> Cells,
+    IReadOnlyList<SpellImpactTrackedTargetSnapshot>? TrackedTargets = null);
+
+/// <summary>Egy rövid varázseffekt mozgó célpontja; pontosan az egyik azonosító értéke van kitöltve.</summary>
+public sealed record SpellImpactTrackedTargetSnapshot(CharacterId? CharacterId = null,
+    WorldEntityId? EnemyId = null);
 
 public enum SessionActivityKind { Battle, Spell, Support, System }
 
