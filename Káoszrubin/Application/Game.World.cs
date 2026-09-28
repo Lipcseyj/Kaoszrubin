@@ -687,6 +687,11 @@ public sealed partial class Game
             StartNewMaze();
             devToolStarted = true;
         }
+        if (IsTeleportPartyToLevelShortcut(keyInfo))
+        {
+            TeleportPartyToSelectedLevel();
+            devToolStarted = true;
+        }
         if (IsTeleportToExitShortcut(keyInfo))
         {
             TeleportLeaderNearExit();

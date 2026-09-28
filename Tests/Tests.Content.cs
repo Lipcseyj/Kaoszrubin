@@ -1108,6 +1108,13 @@ internal static partial class Program
                !GameInput.IsTeleportPartyToNextBossShortcut(
                    new ConsoleKeyInfo('b', ConsoleKey.B, false, false, true)),
             "A Ctrl+Alt+B boss-teleport gyorsbillentyűje hibás.");
+        Assert(GameInput.IsTeleportPartyToLevelShortcut(
+                   new ConsoleKeyInfo('l', ConsoleKey.L, true, false, true)) &&
+               !GameInput.IsTeleportPartyToLevelShortcut(
+                   new ConsoleKeyInfo('l', ConsoleKey.L, false, false, true)) &&
+               !GameInput.IsTeleportPartyToLevelShortcut(
+                   new ConsoleKeyInfo('l', ConsoleKey.L, true, false, false)),
+            "A Ctrl+Shift+L pályateleport gyorsbillentyűje hibás.");
 #endif
         var targets = DeveloperBossTeleport.Targets();
         Assert(targets.Count == MonsterIds.Bosses.Count &&

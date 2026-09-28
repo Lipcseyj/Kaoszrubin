@@ -7,15 +7,16 @@ Az alábbi rejtett gyorsbillentyűk közvetlenül be vannak kötve a játék fő
 - `Ctrl+Shift+U`: a teljes térkép megjelenítésének be- és kikapcsolása a felfedezettségi adatok módosítása nélkül;
 - `Ctrl+Shift+R`: az aktuális futam következő, újonnan generált labirintusának indítása;
 - `Ctrl+Shift+E`: a partyvezér teleportálása a kijárathoz legközelebbi szabad mezőre;
-- `Ctrl+Alt+S`: a partyvezér azonnali felléptetése a következő szintre a hiányzó XP megadásával;
-- `Ctrl+Alt+W`: minden partitagnak +5000XP + fegyverek;
 - `Ctrl+Shift+Y`: a szabad partihelyek feltöltése Harcos–Mágus–Lovag sorrendben;
-- `Ctrl+Alt+X`: a szabad partihelyek feltöltése Barbár–Tolvaj–Pap sorrendben;
 - `Ctrl+Shift+Í`: egy véletlen osztályú, első szintű NPC hozzáadása, ha van szabad partihely;
 - `Ctrl+Shift+I`: a falakon való áthaladás be- és kikapcsolása.
+- `Ctrl+Alt+S`: a partyvezér azonnali felléptetése a következő szintre a hiányzó XP megadásával;
+- `Ctrl+Alt+W`: minden partitagnak +5000XP + fegyverek;
+- `Ctrl+Alt+X`: a szabad partihelyek feltöltése Barbár–Tolvaj–Pap sorrendben;
 - `Ctrl+Alt+N`: teleport a következő egyedi npc-hez.
 - `Ctrl+Alt+B`: teleport a következő boss-hoz.
 - `Ctrl+Alt+K`: teleport egy pozícióra.
+- `Ctrl+Alt+L`: pályaszám bekérése, majd a teljes parti áthelyezése a kiválasztott kampánypálya bejáratához;
 - `Ctrl+Alt+T`: paraméterezhető harci tesztpálya létrehozása. A vezér mellé azonos szintű Mágus, Pap és Lovag kerül alapfelszereléssel és véletlenül memorizált, szintjükön elérhető varázslatokkal. A felső térfélen legfeljebb 8, egyenként legfeljebb 12 fős, helyben várakozó ellenségcsoport áll; mindegyik mellett egy jelölőláda látható. A pálya kezdetben teljesen felfedett, a köd `Ctrl+Shift+U`-val kapcsolható vissza.
 
 A két rögzített osztályszett magasabb szintű, véletlenül generált karakterei három felszerelt varázstárgyat és pontosan egy kulcsot kapnak. A kulcs számára telt hátizsáknál az utolsó véletlen tárgy helye szabadul fel. A Mágus, Pap és Lovag egy pálcát, egy számukra használható tekercset és egy passzív gyűrűt vagy amulettet visel. A Harcos, Barbár és Tolvaj tekercs helyett egy második pálcát kap, így a tekercsek normál kasztkorlátozása változatlan marad.

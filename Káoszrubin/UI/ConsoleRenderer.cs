@@ -1732,6 +1732,56 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
     public void DrawDeveloperMessage(string message) => DrawBattleMessage(message);
     public void DrawDoorMessage(string message, ConsoleColor color = ConsoleColor.DarkYellow) => DrawBattleMessage(message, color);
 
+    public int? DrawDeveloperLevelTeleportPrompt(int currentLevel, int maximumLevel,
+        Maze maze, FogOfWar fogOfWar, Position playerPosition)
+    {
+        _spellCastingOverlaySnapshot = null;
+        var input = string.Empty;
+        var notice = string.Empty;
+        while (true)
+        {
+            var shownInput = input.Length == 0 ? "_" : input;
+            var lines = new List<(string Text, ConsoleColor Color)>
+            {
+                ("🧭  FEJLESZTŐI PÁLYATELEPORT", ConsoleColor.Magenta),
+                ($"Jelenlegi pálya: {currentLevel}", ConsoleColor.Cyan),
+                ($"Célpálya (1–{maximumLevel}): {shownInput}", ConsoleColor.Yellow),
+                (notice, ConsoleColor.Red),
+                ("Számjegyek: bevitel   Backspace: törlés   Enter: teleport   Esc: mégsem",
+                    ConsoleColor.Green)
+            };
+            DrawSpellCastingOverlay(82, lines, maze, fogOfWar, playerPosition);
+
+            var key = Console.ReadKey(intercept: true);
+            if (key.Key == ConsoleKey.Escape)
+            {
+                RestoreSpellCastingOverlay();
+                return null;
+            }
+            if (key.Key == ConsoleKey.Backspace)
+            {
+                if (input.Length > 0) input = input[..^1];
+                notice = string.Empty;
+                continue;
+            }
+            if (key.Key == ConsoleKey.Enter)
+            {
+                if (int.TryParse(input, out var level) && level >= 1 && level <= maximumLevel)
+                {
+                    RestoreSpellCastingOverlay();
+                    return level;
+                }
+                notice = $"Adj meg egy létező pályaszámot 1 és {maximumLevel} között!";
+                continue;
+            }
+            if (char.IsAsciiDigit(key.KeyChar) && input.Length < maximumLevel.ToString().Length)
+            {
+                input += key.KeyChar;
+                notice = string.Empty;
+            }
+        }
+    }
+
     public DeveloperBattleTestOptions? DrawDeveloperBattleTestSetup(int currentPartyLevel,
         int maximumPartyLevel, Maze maze, FogOfWar fogOfWar, Position playerPosition)
     {

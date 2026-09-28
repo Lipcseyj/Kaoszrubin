@@ -20,6 +20,22 @@ namespace KaoszRubin.Application;
 
 public sealed partial class Game
 {
+    private void TeleportPartyToSelectedLevel()
+    {
+        var targetLevel = RunHostWindow<int?>("Fejlesztői pályateleport",
+            "A vezető kiválasztja, melyik kampánypályára kerüljön a parti.",
+            () => _renderer.DrawDeveloperLevelTeleportPrompt(_mazeLevel,
+                MazeLevelConfigurations.FinalLevel, _maze, _fogOfWar, _player.Position));
+        if (targetLevel is null) return;
+
+        _mazeLevel = targetLevel.Value;
+        StartNewMaze(showLevelImage: false);
+        var configuration = MazeLevelConfigurations.Get(_mazeLevel);
+        _renderer.DrawDeveloperMessage(
+            $"Fejlesztői pályateleport: {_mazeLevel}. pálya — {configuration.Name}.");
+        ForceCoopSnapshotPublish();
+    }
+
     private void TeleportPartyToSelectedPosition()
     {
         var companions = _maze.PartyMembers.Where(member => member.Character.IsAlive).ToArray();
