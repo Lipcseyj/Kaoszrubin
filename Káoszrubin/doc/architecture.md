@@ -1126,8 +1126,10 @@ Röviden: maga a pályakonfiguráció beszúrása egyszerű. A két kényes rés
 A `#Csapdák` CSV-fejezet definiálja a csapdatípusok hatását, nehézségét, valamint a sikeres
 észlelésért és hatástalanításért közvetlenül a próbát végző karakternek járó XP-t. A
 `MazeLevelConfigurations` `TrapCount` és `TrapIds` mezői adják meg szintenként a darabszámot és a
-használható készletet. Az 1–2. szint 1–2 egyszerű csapdával indul, majd hat nehézségi sávon keresztüll
-a 18–21. szint 4–6 fejlett csapdájáig nő a veszély. A csapdák a kezdőtértől, kijárattól,
+használható készletet. A `GuaranteedTraps` listában csapdaazonosítóval előírható egy-egy garantált
+példány; az opcionális, 1-től számozott `ScreenNumber` többképernyős pályán a helyét is rögzíti.
+A képernyő nélkül megadott garantált csapdákat a rendszer egyenletesen osztja el, és mindegyik
+beleszámít a pálya teljes csapdaszámába. A csapdák a kezdőtértől, kijárattól,
 ajtóktól és egymástól távol jelennek meg. A mezőre lépés előtt
 automatikus Észlelés-próba történik Intelligenciából és Ügyességből; a Tolvaj +30 bónuszt kap.
 A felfedezett csapda `K`-val, Ügyesség-próbával hatástalanítható. Az első kudarc biztonságos,

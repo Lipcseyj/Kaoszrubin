@@ -1231,18 +1231,59 @@ public sealed partial class Game
     private void PlaceTrapsAcrossAreas(MazeLevelConfiguration configuration)
     {
         var total = configuration.TrapCount.Roll(_random);
+        var areaCount = _dungeonLevel.Areas.Count;
+        var guaranteedByArea = DistributeGuaranteedTraps(configuration.GuaranteedTraps, areaCount, _random);
+        if (total < configuration.GuaranteedTraps.Count)
+            throw new InvalidOperationException(
+                $"A(z) {configuration.Level}. pálya garantált csapdáinak száma meghaladja az összes csapda számát.");
+
+        var randomCount = total - configuration.GuaranteedTraps.Count;
+        var trapCounts = guaranteedByArea.Select(bucket => bucket.Count).ToArray();
+        for (var index = 0; index < randomCount; index++)
+        {
+            var smallestCount = trapCounts.Min();
+            var candidateAreas = Enumerable.Range(0, areaCount)
+                .Where(areaIndex => trapCounts[areaIndex] == smallestCount).ToArray();
+            trapCounts[candidateAreas[_random.Next(candidateAreas.Length)]]++;
+        }
         var active = _dungeonLevel.ActiveArea;
-        for (var index = 0; index < _dungeonLevel.Areas.Count; index++)
+        for (var index = 0; index < areaCount; index++)
         {
             var area = _dungeonLevel.Areas[index];
             _maze = area.Maze;
             _fogOfWar = area.FogOfWar;
-            var count = total / _dungeonLevel.Areas.Count +
-                        (index < total % _dungeonLevel.Areas.Count ? 1 : 0);
-            PlaceTraps(configuration, count);
+            PlaceTraps(configuration, trapCounts[index], guaranteedByArea[index]);
         }
         _maze = active.Maze;
         _fogOfWar = active.FogOfWar;
+    }
+
+    internal static List<string>[] DistributeGuaranteedTraps(
+        IReadOnlyList<GuaranteedTrapConfiguration> guaranteedTraps, int areaCount, Random random)
+    {
+        ArgumentNullException.ThrowIfNull(guaranteedTraps);
+        ArgumentNullException.ThrowIfNull(random);
+        if (areaCount < 1) throw new ArgumentOutOfRangeException(nameof(areaCount));
+
+        var result = Enumerable.Range(0, areaCount).Select(_ => new List<string>()).ToArray();
+        foreach (var trap in guaranteedTraps)
+        {
+            if (trap.ScreenNumber is { } screenNumber)
+            {
+                if (screenNumber < 1 || screenNumber > areaCount)
+                    throw new InvalidOperationException(
+                        $"A(z) '{trap.TrapId}' garantált csapda képernyőszáma {screenNumber}, " +
+                        $"de a pályának {areaCount} képernyője van.");
+                result[screenNumber - 1].Add(trap.TrapId);
+                continue;
+            }
+
+            var smallestCount = result.Min(bucket => bucket.Count);
+            var candidateAreas = Enumerable.Range(0, areaCount)
+                .Where(index => result[index].Count == smallestCount).ToArray();
+            result[candidateAreas[random.Next(candidateAreas.Length)]].Add(trap.TrapId);
+        }
+        return result;
     }
 
     private void PlaceSpecialRoomContent(MazeLevelConfiguration configuration)
@@ -1259,12 +1300,23 @@ public sealed partial class Game
         _fogOfWar = active.FogOfWar;
     }
 
-    private void PlaceTraps(MazeLevelConfiguration configuration, int? requestedCount = null)
+    private void PlaceTraps(MazeLevelConfiguration configuration, int? requestedCount = null,
+        IReadOnlyList<string>? guaranteedTrapIds = null)
     {
         var definitions = configuration.TrapIds.Select(_gameData.GetTrap)
             .Where(trap => trap.MinimumLevel <= _difficultyLevel).ToArray();
-        if (definitions.Length == 0) return;
+        guaranteedTrapIds ??= configuration.GuaranteedTraps
+            .Where(trap => trap.ScreenNumber is null or 1)
+            .Select(trap => trap.TrapId).ToArray();
+        var guaranteedDefinitions = guaranteedTrapIds.Select(_gameData.GetTrap).ToArray();
+        if (definitions.Length == 0 && guaranteedDefinitions.Length == 0) return;
         var desiredCount = requestedCount ?? configuration.TrapCount.Roll(_random);
+        if (desiredCount < guaranteedDefinitions.Length)
+            throw new InvalidOperationException(
+                $"A garantált csapdák száma ({guaranteedDefinitions.Length}) meghaladja az elhelyezendő " +
+                $"csapdák számát ({desiredCount}).");
+        if (desiredCount > guaranteedDefinitions.Length && definitions.Length == 0)
+            throw new InvalidOperationException("Nincs véletlenszerűen elhelyezhető csapda az előírt darabszámhoz.");
         var candidates = new List<Position>();
         for (var y = 0; y < _maze.Height; y++)
         for (var x = 0; x < _maze.Width; x++)
@@ -1279,19 +1331,19 @@ public sealed partial class Game
             candidates.Add(position);
         }
         var placed = new List<Position>();
-        var guaranteedSpellTrap = configuration.Level == 2
-            ? definitions.FirstOrDefault(definition => definition.Effect == TrapEffect.Spell)
-            : null;
         foreach (var position in candidates.OrderBy(_ => _random.Next()))
         {
             if (placed.Any(existing => Manhattan(existing, position) < 3)) continue;
-            var definition = placed.Count == 0 && guaranteedSpellTrap is not null
-                ? guaranteedSpellTrap
+            var definition = placed.Count < guaranteedDefinitions.Length
+                ? guaranteedDefinitions[placed.Count]
                 : definitions[_random.Next(definitions.Length)];
             _maze.AddTrap(new MazeTrap(position, definition));
             placed.Add(position);
             if (placed.Count >= desiredCount) break;
         }
+        if (placed.Count < guaranteedDefinitions.Length)
+            throw new InvalidOperationException(
+                $"Nem volt elég alkalmas mező mind a(z) {guaranteedDefinitions.Length} garantált csapdához.");
     }
 
     private void PlaceFirstSinglePlayerCompanion()

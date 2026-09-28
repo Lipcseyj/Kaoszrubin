@@ -2,15 +2,36 @@ using KaoszRubin.Domain.Combat;
 
 namespace KaoszRubin.World;
 
+// =================================================================================================
+// PÁLYASZERKESZTÉSI GYORSSÚGÓ
+// -------------------------------------------------------------------------------------------------
+// 1. A normál kampánypályákat a MazeLevelConfigurations.Configurations szótárban keresd.
+// 2. Egy pályához általában az alapadatokat, a termeket/kincseket és a két encounter-listát kell megadni.
+// 3. Többképernyős pályához állíts be WideMazeLayoutConfiguration-t. A képernyőszámok 1-től indulnak.
+// 4. A TrapCount, TrapIds és VisionModifier kampánypályákon központi balanszszabályból érkezik a fájl végén.
+// 5. A küldetésszobák és a futásidejű feloldás haladó/belső régióban találhatók.
+// =================================================================================================
+
+#region Pályaszerkesztői alap API
+
+/// <summary>Zárt, mindkét végpontját tartalmazó egész számtartomány.</summary>
+/// <remarks>Például <c>new IntRange(3, 5)</c> futásonként 3, 4 vagy 5 értéket ad.</remarks>
 public sealed record IntRange(int Minimum, int Maximum)
 {
+    /// <summary>Véletlen értéket választ a minimum és maximum között, mindkét végpontot beleértve.</summary>
     public int Roll(Random random) => random.Next(Minimum, Maximum + 1);
 }
 
+/// <summary>
+/// Jól olvasható mennyiségi kategóriák pályakonfigurációkhoz. A pontos tartományokat az
+/// <see cref="AmountRanges.Range"/> adja meg.
+/// </summary>
 public enum Amount { One, Few, TwoThree, Handful, Several, Pack, Lots, Horde }
 
+/// <summary>Az <see cref="Amount"/> kategóriákat konkrét, véletleníthető tartományokká alakítja.</summary>
 public static class AmountRanges
 {
+    /// <summary>Visszaadja a mennyiségi kategóriához tartozó darabszámtartományt.</summary>
     public static IntRange Range(this Amount amount) => amount switch
     {
         Amount.One => new(1, 1),
@@ -25,38 +46,77 @@ public static class AmountRanges
     };
 }
 
+/// <summary>Egy encounter-csoport egyik szörnytípusa és csoportonkénti darabszáma.</summary>
+/// <param name="EnemyId">A szörny <see cref="MonsterIds"/> szerinti azonosítója.</param>
+/// <param name="Count">Ennyi példány kerül egy létrejövő csoportba.</param>
+/// <param name="Role">A tag szerepe; a vezér szerep befolyásolhatja a csoport elhelyezését.</param>
 public sealed record EnemyGroupMemberConfiguration(string EnemyId, IntRange Count,
     EnemyGroupRole Role = EnemyGroupRole.Member);
-public enum EnemyEncounterBehavior { Default, Horde }
+
+/// <summary>Az encounter elhelyezési és mozgási jellegének speciális felülbírálása.</summary>
+public enum EnemyEncounterBehavior
+{
+    /// <summary>Normál encounter-viselkedés.</summary>
+    Default,
+    /// <summary>Nagyobb, vándorló csapatként kezelt encounter.</summary>
+    Horde
+}
+
+/// <summary>Egy véletlenszerűen létrejövő ellenséges encounter teljes leírása.</summary>
+/// <param name="GroupCount">A pályára kerülő ilyen csoportok száma.</param>
+/// <param name="Members">A csoporton belüli szörnytípusok és mennyiségek.</param>
+/// <param name="MovementProfile">Opcionális közös mozgásprofil; null esetén a szörny saját profilja érvényesül.</param>
+/// <param name="Behavior">Normál vagy hordaszerű elhelyezés.</param>
+/// <param name="ScreenNumber">Opcionális, 1-től számozott képernyő; null esetén automatikus elosztás.</param>
 public sealed record EnemyEncounterConfiguration(IntRange GroupCount,
     IReadOnlyList<EnemyGroupMemberConfiguration> Members,
     EnemyMovementProfile? MovementProfile = null,
     EnemyEncounterBehavior Behavior = EnemyEncounterBehavior.Default,
     int? ScreenNumber = null);
-public sealed record ResolvedEnemyGroupMember(EnemyDefinition Definition, IntRange Count, EnemyGroupRole Role);
-public sealed record ResolvedEnemyEncounter(IntRange GroupCount,
-    IReadOnlyList<ResolvedEnemyGroupMember> Members, EnemyMovementProfile? MovementProfile,
-    EnemyEncounterBehavior Behavior = EnemyEncounterBehavior.Default,
-    int? ScreenNumber = null);
+
+/// <summary>Egy különleges szobába garantáltan elhelyezett ellenségtípus.</summary>
+/// <param name="RoomId">A célként használt quest- vagy boss-szoba tartalomazonosítója.</param>
+/// <param name="EnemyId">A szörny azonosítója.</param>
+/// <param name="Count">A garantált példányszám.</param>
+/// <param name="GuaranteedItemId">Opcionális tárgy, amelyet az encounter garantáltan biztosít.</param>
 public sealed record QuestRoomEnemyEncounterConfiguration(string RoomId, string EnemyId, int Count,
     string? GuaranteedItemId = null);
 
+/// <summary>Egy csapdatípus garantált elhelyezése a pályán.</summary>
+/// <param name="TrapId">A <c>#Csapdák</c> CSV-szekcióban szereplő csapdaazonosító.</param>
+/// <param name="ScreenNumber">
+/// Opcionális, 1-től számozott képernyő. Null esetén a rendszer egyenletesen osztja el a garantált csapdákat.
+/// </param>
+/// <remarks>A garantált példány beleszámít a pálya <see cref="MazeLevelConfiguration.TrapCount"/> értékébe.</remarks>
+public sealed record GuaranteedTrapConfiguration(string TrapId, int? ScreenNumber = null);
+
+/// <summary>
+/// Rövid, olvasható gyármetódusok a leggyakoribb encounter-típusokhoz.
+/// </summary>
+/// <remarks>
+/// A <c>groups</c> az encounter-csoportok számát, a <c>size</c>/<c>count</c>/<c>followers</c> pedig egy csoport
+/// létszámát jelenti. A <c>screen</c> mindenhol opcionális és 1-től számozott.
+/// </remarks>
 public static class Encounters
 {
+    /// <summary>Azonos szörnyekből álló, egy vagy több csoport.</summary>
     public static EnemyEncounterConfiguration Same(string enemyId, Amount groups, Amount size,
         EnemyMovementProfile? movement = EnemyMovementProfile.Stationary, int? screen = null) =>
         new(groups.Range(), [new(enemyId, size.Range())], movement, ScreenNumber: screen);
 
+    /// <summary>Egyedül elhelyezett példányok ugyanabból a szörnytípusból.</summary>
     public static EnemyEncounterConfiguration Solo(string enemyId, Amount count,
         EnemyMovementProfile? movement = null, int? screen = null) =>
         new(count.Range(), [new(enemyId, Amount.One.Range())], movement, ScreenNumber: screen);
 
+    /// <summary>Két szörnytípust vegyítő csoportok.</summary>
     public static EnemyEncounterConfiguration Mixed(string firstEnemyId, Amount firstCount,
         string secondEnemyId, Amount secondCount, Amount groups,
         EnemyMovementProfile? movement = EnemyMovementProfile.Stationary, int? screen = null) =>
         new(groups.Range(), [new(firstEnemyId, firstCount.Range()), new(secondEnemyId, secondCount.Range())], movement,
             ScreenNumber: screen);
 
+    /// <summary>Egy vezérből és azonos típusú követőkből álló csoportok.</summary>
     public static EnemyEncounterConfiguration LeaderGroup(string leaderId, string followerId,
         Amount groups, Amount followers, EnemyMovementProfile? movement = EnemyMovementProfile.Stationary,
         int? screen = null) =>
@@ -64,15 +124,18 @@ public static class Encounters
             [new(leaderId, Amount.One.Range(), EnemyGroupRole.Leader), new(followerId, followers.Range())], movement,
             ScreenNumber: screen);
 
+    /// <summary>Azonos szörnyekből álló, vándorló hordák.</summary>
     public static EnemyEncounterConfiguration Horde(string enemyId, Amount groups, Amount size, int? screen = null) =>
         new(groups.Range(), [new(enemyId, size.Range())], EnemyMovementProfile.Wander,
             EnemyEncounterBehavior.Horde, screen);
 
+    /// <summary>Két szörnytípust vegyítő, vándorló hordák.</summary>
     public static EnemyEncounterConfiguration MixedHorde(string firstEnemyId, Amount firstCount,
         string secondEnemyId, Amount secondCount, Amount groups, int? screen = null) =>
         new(groups.Range(), [new(firstEnemyId, firstCount.Range()), new(secondEnemyId, secondCount.Range())],
             EnemyMovementProfile.Wander, EnemyEncounterBehavior.Horde, screen);
 
+    /// <summary>Vezérből és követőkből álló, vándorló hordák.</summary>
     public static EnemyEncounterConfiguration LeaderHorde(string leaderId, string followerId,
         Amount groups, Amount followers, int? screen = null) =>
         new(groups.Range(),
@@ -80,35 +143,117 @@ public static class Encounters
             EnemyMovementProfile.Wander, EnemyEncounterBehavior.Horde, screen);
 }
 
+/// <summary>Egy kampánypálya vagy külön küldetéshelyszín teljes szerkesztői konfigurációja.</summary>
+/// <remarks>
+/// Egy szokásos pályához a szint, név, terem- és kincstartományok, valamint a két encounter-lista elegendő.
+/// A többi mezőnek használható alapértéke van, vagy csak speciális pályákhoz szükséges.
+/// </remarks>
 public sealed class MazeLevelConfiguration
 {
+    #region Kötelező alapadatok
+
+    /// <summary>A pálya sorszáma és alapértelmezett nehézségi szintje.</summary>
     public required int Level { get; init; }
+
+    /// <summary>A játékban megjelenő pályanév.</summary>
     public required string Name { get; init; }
-    /// <summary>Csak a klasszikus pályán hat; Wide layoutnál a NarrowingChance használatos.</summary>
-    public double DoubleWidthCorridorChance { get; init; } = 0.80;
-    public MazeLayoutConfiguration? Layout { get; init; }
-    public System.Text.Rune WallRune { get; init; } = new('█');
-    public ConsoleColor WallColor { get; init; } = ConsoleColor.DarkGray;
+
+    /// <summary>A generált termek teljes száma. Többképernyős pályán ez oszlik el a képernyők között.</summary>
     public required IntRange RoomCount { get; init; }
+
+    /// <summary>A generált termek minimális és maximális szélessége/magassága.</summary>
     public required IntRange RoomSize { get; init; }
+
+    /// <summary>A generált kincsesládák teljes száma.</summary>
     public required IntRange TreasureChestCount { get; init; }
+
+    /// <summary>Egy véletlen kincs aranymennyiségének tartománya.</summary>
     public required IntRange TreasureGold { get; init; }
-    public int ItemCurseChancePercent { get; init; } = 8;
-    public IntRange TrapCount { get; set; } = new(0, 0);
-    public IReadOnlyList<string> TrapIds { get; set; } = [];
-    public int VisionModifier { get; set; }
-    public IReadOnlyList<string> QuestRoomIds { get; init; } = [];
-    public IReadOnlyDictionary<string, Domain.Quests.QuestChestId> QuestChestPlacements { get; init; }
-        = new Dictionary<string, Domain.Quests.QuestChestId>();
-    public IReadOnlyList<string> BossRoomIds { get; init; } = [];
-    public IReadOnlyDictionary<string, SpecialRoomPlacement> SpecialRoomPlacements { get; init; }
-        = new Dictionary<string, SpecialRoomPlacement>();
-    public IReadOnlyDictionary<string, Domain.Quests.QuestId> QuestDoorRequirements { get; init; }
-        = new Dictionary<string, Domain.Quests.QuestId>();
-    public IReadOnlyList<QuestRoomEnemyEncounterConfiguration> QuestRoomEnemyEncounters { get; init; } = [];
+
+    /// <summary>A szobákban létrejövő ellenséges encounterek választható készlete.</summary>
     public required IReadOnlyList<EnemyEncounterConfiguration> RoomEncounters { get; init; }
+
+    /// <summary>A folyosókon létrejövő ellenséges encounterek választható készlete.</summary>
     public required IReadOnlyList<EnemyEncounterConfiguration> CorridorEncounters { get; init; }
 
+    #endregion
+
+    #region Elrendezés és megjelenés
+
+    /// <summary>
+    /// A pálya szerkezete. Null esetén egységes, klasszikus labirintus készül; több képernyőhöz
+    /// <see cref="WideMazeLayoutConfiguration"/> használható.
+    /// </summary>
+    public MazeLayoutConfiguration? Layout { get; init; }
+
+    /// <summary>Dupla széles folyosó esélye 0 és 1 között. Csak klasszikus elrendezésnél hat.</summary>
+    public double DoubleWidthCorridorChance { get; init; } = 0.80;
+
+    /// <summary>A pályafalak megjelenítéséhez használt karakter.</summary>
+    public System.Text.Rune WallRune { get; init; } = new('█');
+
+    /// <summary>A pályafalak konzolszíne.</summary>
+    public ConsoleColor WallColor { get; init; } = ConsoleColor.DarkGray;
+
+    #endregion
+
+    #region Zsákmány és csapdák
+
+    /// <summary>A generált tárgyak átokesélye százalékban.</summary>
+    public int ItemCurseChancePercent { get; init; } = 8;
+
+    /// <summary>
+    /// A pálya teljes csapdaszáma. Kampánypályáknál ezt jelenleg a fájl végi központi balansz állítja be.
+    /// </summary>
+    public IntRange TrapCount { get; set; } = new(0, 0);
+
+    /// <summary>
+    /// A véletlenszerűen választható csapdaazonosítók. Kampánypályáknál ezt jelenleg a fájl végi
+    /// központi balansz állítja be.
+    /// </summary>
+    public IReadOnlyList<string> TrapIds { get; set; } = [];
+
+    /// <summary>
+    /// A felsorolt csapdák egy-egy példánya garantáltan megjelenik, és beleszámít a TrapCount értékébe.
+    /// A ScreenNumber az encounterökhöz hasonlóan 1-től számozott; null esetén a rendszer osztja el.
+    /// </summary>
+    public IReadOnlyList<GuaranteedTrapConfiguration> GuaranteedTraps { get; set; } = [];
+
+    #endregion
+
+    #region Haladó: látás és különleges küldetésszobák
+
+    /// <summary>
+    /// A karakterek alap látótávjára alkalmazott módosító. Kampánypályáknál központi balansz állítja be.
+    /// </summary>
+    public int VisionModifier { get; set; }
+
+    /// <summary>A generátor által garantáltan létrehozandó küldetésszobák tartalomazonosítói.</summary>
+    public IReadOnlyList<string> QuestRoomIds { get; init; } = [];
+
+    /// <summary>Küldetésszoba-azonosítóhoz rendelt konkrét questláda.</summary>
+    public IReadOnlyDictionary<string, Domain.Quests.QuestChestId> QuestChestPlacements { get; init; }
+        = new Dictionary<string, Domain.Quests.QuestChestId>();
+
+    /// <summary>A generátor által garantáltan létrehozandó boss-szobák tartalomazonosítói.</summary>
+    public IReadOnlyList<string> BossRoomIds { get; init; } = [];
+
+    /// <summary>Különleges szobánként meghatározza, hol helyezkedjen el a szoba a pálya útvonalán.</summary>
+    public IReadOnlyDictionary<string, SpecialRoomPlacement> SpecialRoomPlacements { get; init; }
+        = new Dictionary<string, SpecialRoomPlacement>();
+
+    /// <summary>Különleges szobánként megadható a belépéshez szükséges küldetés.</summary>
+    public IReadOnlyDictionary<string, Domain.Quests.QuestId> QuestDoorRequirements { get; init; }
+        = new Dictionary<string, Domain.Quests.QuestId>();
+
+    /// <summary>A különleges szobákba garantáltan elhelyezett ellenségek.</summary>
+    public IReadOnlyList<QuestRoomEnemyEncounterConfiguration> QuestRoomEnemyEncounters { get; init; } = [];
+
+    #endregion
+
+    #region Belső generálási adapter – pályakonfigurációhoz általában nem kell módosítani
+
+    /// <summary>A szerkesztői konfigurációból egy konkrét futás generálási beállításait készíti el.</summary>
     public MazeGenerationSettings CreateGenerationSettings(Random random) => new()
     {
         DoubleWidthCorridorChance = Layout is ClassicMazeLayoutConfiguration classic
@@ -130,72 +275,30 @@ public sealed class MazeLevelConfiguration
         SpecialRoomPlacements = SpecialRoomPlacements,
         QuestDoorRequirements = QuestDoorRequirements
     };
+
+    #endregion
 }
 
-public static class QuestLocationConfigurations
-{
-    public const string RodericMalrec = "RODERIC_MALREC_CHAPEL";
+#endregion
 
-    public static IReadOnlyList<MazeLevelConfiguration> All => [Get(RodericMalrec)];
-
-    public static MazeLevelConfiguration Get(string id) => id switch
-    {
-        RodericMalrec => new MazeLevelConfiguration
-        {
-            Level = 5,
-            Name = "Sir Malrec sírkápolnája",
-            DoubleWidthCorridorChance = 0.55,
-            WallRune = new('▓'),
-            WallColor = ConsoleColor.DarkMagenta,
-            RoomCount = new(6, 8),
-            RoomSize = new(4, 7),
-            TreasureChestCount = Amount.Several.Range(),
-            TreasureGold = new(180, 360),
-            BossRoomIds = ["MALREC_CHAMBER"],
-            SpecialRoomPlacements = new Dictionary<string, SpecialRoomPlacement>
-            {
-                ["MALREC_CHAMBER"] = SpecialRoomPlacement.SideBranch
-            },
-            QuestDoorRequirements = new Dictionary<string, Domain.Quests.QuestId>
-            {
-                ["MALREC_CHAMBER"] = Domain.Quests.QuestId.RodericOathbreakerKnight,
-            },
-            QuestRoomEnemyEncounters =
-            [
-                new("MALREC_CHAMBER", MonsterIds.SirMalrec, 1),
-                new("MALREC_CHAMBER", MonsterIds.CsontvázLovag, 4)
-            ],
-            RoomEncounters =
-            [
-                Encounters.Same(MonsterIds.Csontváz, Amount.Few, Amount.Few),
-                Encounters.Mixed(MonsterIds.Zombi, Amount.Handful, MonsterIds.PáncélozottZombi, Amount.Handful, Amount.Few),
-                Encounters.LeaderGroup(MonsterIds.Ghoul, MonsterIds.CsontvázŐr, Amount.One, Amount.Several),
-                Encounters.LeaderGroup(MonsterIds.Ghoul, MonsterIds.PáncélozottZombi, Amount.One, Amount.Several)
-            ],
-            CorridorEncounters =
-            [
-                Encounters.Solo(MonsterIds.CsontvázŐr, Amount.Several, EnemyMovementProfile.Patrol),
-                Encounters.Solo(MonsterIds.Zombi, Amount.Several),
-                Encounters.Solo(MonsterIds.CsontvázLovag, Amount.Several, EnemyMovementProfile.Patrol)
-            ]
-        },
-        _ => throw new KeyNotFoundException($"Ismeretlen küldetéshelyszín: {id}")
-    };
-}
-
+/// <summary>A kampány számozott labirintusszintjeinek konfigurációs katalógusa.</summary>
 public static class MazeLevelConfigurations
 {
+    /// <summary>Az utolsó, kézzel definiált kampánypálya sorszáma.</summary>
     public const int FinalLevel = 21;
-    private static readonly string[] BasicTraps = ["TR001"];
-    private static readonly string[] SpellTraps =
-        ["TR101", "TR102", "TR103", "TR104", "TR105", "TR106", "TR107", "TR108", "TR109", "TR110", "TR111", "TR112"];
-    private static readonly string[] LevelTwoTraps = ["TR001", "TR101"];
-    private static readonly string[] EarlyTraps = ["TR001", "TR002", "TR003", .. SpellTraps];
-    private static readonly string[] MidTraps = ["TR001", "TR002", "TR003", "TR004", "TR008", .. SpellTraps];
-    private static readonly string[] AdvancedTraps = ["TR002", "TR003", "TR004", "TR005", "TR008", .. SpellTraps];
-    private static readonly string[] DeadlyTraps = ["TR003", "TR004", "TR005", "TR006", "TR008", .. SpellTraps];
-    private static readonly string[] ChaosTraps = ["TR004", "TR005", "TR006", "TR007", "TR008", .. SpellTraps];
 
+    #region Kampánypályák – új pályát és pályatartalmat elsősorban itt szerkessz
+
+    // Minimális minta:
+    // [22] = new()
+    // {
+    //     Level = 22,
+    //     Name = "Pályanév",
+    //     RoomCount = new(10, 14), RoomSize = new(4, 8),
+    //     TreasureChestCount = new(6, 10), TreasureGold = new(1000, 2000),
+    //     RoomEncounters = [Encounters.Same(MonsterIds.Goblin, Amount.Few, Amount.Several)],
+    //     CorridorEncounters = [Encounters.Solo(MonsterIds.Ork, Amount.Few)]
+    // };
     private static readonly IReadOnlyDictionary<int, MazeLevelConfiguration> Configurations =
         new Dictionary<int, MazeLevelConfiguration>
         {
@@ -252,6 +355,7 @@ public static class MazeLevelConfigurations
                 RoomSize = new(3, 5),
                 TreasureChestCount = Amount.Handful.Range(),
                 TreasureGold = new(60, 160),
+                GuaranteedTraps = [new("TR101")],
                 RoomEncounters =
                 [
                     Encounters.Mixed(MonsterIds.Óriáspatkány, Amount.Handful, MonsterIds.Óriásdenevér, Amount.Handful, Amount.Few),
@@ -854,6 +958,16 @@ public static class MazeLevelConfigurations
             }
         };
 
+    #endregion
+
+    #region Nyilvános lekérdezés
+
+    /// <summary>Visszaadja a kért kampánypálya teljes, automatikus balanszértékekkel kiegészített konfigurációját.</summary>
+    /// <param name="level">Az 1-től számozott kampányszint.</param>
+    /// <remarks>
+    /// A kézzel fel nem sorolt, magasabb szintekhez a metódus tartalék konfigurációt generál. A normál kampány
+    /// jelenlegi felső határát a <see cref="FinalLevel"/> adja meg.
+    /// </remarks>
     public static MazeLevelConfiguration Get(int level)
     {
         if (Configurations.TryGetValue(level, out var configuration)) return ConfigureVisionAndTraps(configuration);
@@ -889,6 +1003,20 @@ public static class MazeLevelConfigurations
         });
     }
 
+    #endregion
+
+    #region Belső automatikus balansz – pályatartalom szerkesztésekor általában nem kell módosítani
+
+    private static readonly string[] BasicTraps = ["TR001"];
+    private static readonly string[] SpellTraps =
+        ["TR101", "TR102", "TR103", "TR104", "TR105", "TR106", "TR107", "TR108", "TR109", "TR110", "TR111", "TR112"];
+    private static readonly string[] LevelTwoTraps = ["TR001", "TR101"];
+    private static readonly string[] EarlyTraps = ["TR001", "TR002", "TR003", .. SpellTraps];
+    private static readonly string[] MidTraps = ["TR001", "TR002", "TR003", "TR004", "TR008", .. SpellTraps];
+    private static readonly string[] AdvancedTraps = ["TR002", "TR003", "TR004", "TR005", "TR008", .. SpellTraps];
+    private static readonly string[] DeadlyTraps = ["TR003", "TR004", "TR005", "TR006", "TR008", .. SpellTraps];
+    private static readonly string[] ChaosTraps = ["TR004", "TR005", "TR006", "TR007", "TR008", .. SpellTraps];
+
     private static MazeLevelConfiguration ConfigureVisionAndTraps(MazeLevelConfiguration configuration)
     {
         configuration.VisionModifier = configuration.Level switch
@@ -909,4 +1037,79 @@ public static class MazeLevelConfigurations
         };
         return configuration;
     }
+
+    #endregion
 }
+
+#region Speciális küldetéshelyszínek – normál kampánypályához nem kell módosítani
+
+/// <summary>A normál kampányszintektől külön betöltött, önálló küldetéshelyszínek konfigurációi.</summary>
+public static class QuestLocationConfigurations
+{
+    /// <summary>Sir Malrec sírkápolnájának helyszínazonosítója.</summary>
+    public const string RodericMalrec = "RODERIC_MALREC_CHAPEL";
+
+    /// <summary>Az összes regisztrált, önálló küldetéshelyszín.</summary>
+    public static IReadOnlyList<MazeLevelConfiguration> All => [Get(RodericMalrec)];
+
+    /// <summary>Azonosító alapján visszaadja az önálló küldetéshelyszín konfigurációját.</summary>
+    /// <exception cref="KeyNotFoundException">Az azonosítóhoz nem tartozik regisztrált helyszín.</exception>
+    public static MazeLevelConfiguration Get(string id) => id switch
+    {
+        RodericMalrec => new MazeLevelConfiguration
+        {
+            Level = 5,
+            Name = "Sir Malrec sírkápolnája",
+            DoubleWidthCorridorChance = 0.55,
+            WallRune = new('▓'),
+            WallColor = ConsoleColor.DarkMagenta,
+            RoomCount = new(6, 8),
+            RoomSize = new(4, 7),
+            TreasureChestCount = Amount.Several.Range(),
+            TreasureGold = new(180, 360),
+            BossRoomIds = ["MALREC_CHAMBER"],
+            SpecialRoomPlacements = new Dictionary<string, SpecialRoomPlacement>
+            {
+                ["MALREC_CHAMBER"] = SpecialRoomPlacement.SideBranch
+            },
+            QuestDoorRequirements = new Dictionary<string, Domain.Quests.QuestId>
+            {
+                ["MALREC_CHAMBER"] = Domain.Quests.QuestId.RodericOathbreakerKnight,
+            },
+            QuestRoomEnemyEncounters =
+            [
+                new("MALREC_CHAMBER", MonsterIds.SirMalrec, 1),
+                new("MALREC_CHAMBER", MonsterIds.CsontvázLovag, 4)
+            ],
+            RoomEncounters =
+            [
+                Encounters.Same(MonsterIds.Csontváz, Amount.Few, Amount.Few),
+                Encounters.Mixed(MonsterIds.Zombi, Amount.Handful, MonsterIds.PáncélozottZombi, Amount.Handful, Amount.Few),
+                Encounters.LeaderGroup(MonsterIds.Ghoul, MonsterIds.CsontvázŐr, Amount.One, Amount.Several),
+                Encounters.LeaderGroup(MonsterIds.Ghoul, MonsterIds.PáncélozottZombi, Amount.One, Amount.Several)
+            ],
+            CorridorEncounters =
+            [
+                Encounters.Solo(MonsterIds.CsontvázŐr, Amount.Several, EnemyMovementProfile.Patrol),
+                Encounters.Solo(MonsterIds.Zombi, Amount.Several),
+                Encounters.Solo(MonsterIds.CsontvázLovag, Amount.Several, EnemyMovementProfile.Patrol)
+            ]
+        },
+        _ => throw new KeyNotFoundException($"Ismeretlen küldetéshelyszín: {id}")
+    };
+}
+
+#endregion
+
+#region Belső, adatbetöltés után feloldott encounter-típusok
+
+/// <summary>A szöveges szörnyazonosítóból feloldott futásidejű csoporttag.</summary>
+public sealed record ResolvedEnemyGroupMember(EnemyDefinition Definition, IntRange Count, EnemyGroupRole Role);
+
+/// <summary>A szöveges szörnyazonosítókból feloldott, generálásra kész futásidejű encounter.</summary>
+public sealed record ResolvedEnemyEncounter(IntRange GroupCount,
+    IReadOnlyList<ResolvedEnemyGroupMember> Members, EnemyMovementProfile? MovementProfile,
+    EnemyEncounterBehavior Behavior = EnemyEncounterBehavior.Default,
+    int? ScreenNumber = null);
+
+#endregion

@@ -951,6 +951,38 @@ public static class CsvGameDataLoader
             if (unknown is not null)
                 throw new InvalidOperationException(
                     $"A(z) {level}. szint ismeretlen csapdára hivatkozik: '{unknown}'.");
+            var unknownGuaranteed = configuration.GuaranteedTraps
+                .FirstOrDefault(trap => !knownIds.Contains(trap.TrapId));
+            if (unknownGuaranteed is not null)
+                throw new InvalidOperationException(
+                    $"A(z) {level}. szint ismeretlen garantált csapdára hivatkozik: " +
+                    $"'{unknownGuaranteed.TrapId}'.");
+            if (configuration.GuaranteedTraps.Count > configuration.TrapCount.Minimum)
+                throw new InvalidOperationException(
+                    $"A(z) {level}. szint garantált csapdáinak száma meghaladja a minimális csapdaszámot.");
+            if (configuration.TrapIds.Count == 0 &&
+                configuration.TrapCount.Maximum > configuration.GuaranteedTraps.Count)
+                throw new InvalidOperationException(
+                    $"A(z) {level}. szinthez nincs véletlenszerűen választható csapda az előírt darabszámhoz.");
+
+            var minimumAreaCount = configuration.Layout is WideMazeLayoutConfiguration wide
+                ? wide.AreaCount.Minimum
+                : 1;
+            var invalidScreen = configuration.GuaranteedTraps.FirstOrDefault(trap =>
+                trap.ScreenNumber is { } screen && (screen < 1 || screen > minimumAreaCount));
+            if (invalidScreen is not null)
+                throw new InvalidOperationException(
+                    $"A(z) {level}. szint '{invalidScreen.TrapId}' garantált csapdájának " +
+                    $"képernyőszáma érvénytelen: {invalidScreen.ScreenNumber}.");
+
+            var unavailable = configuration.GuaranteedTraps
+                .Select(trap => traps.First(candidate =>
+                    string.Equals(candidate.Id, trap.TrapId, StringComparison.OrdinalIgnoreCase)))
+                .FirstOrDefault(trap => trap.MinimumLevel > level);
+            if (unavailable is not null)
+                throw new InvalidOperationException(
+                    $"A(z) {level}. szint garantált '{unavailable.Id}' csapdája csak " +
+                    $"a(z) {unavailable.MinimumLevel}. szinttől használható.");
         }
     }
 
