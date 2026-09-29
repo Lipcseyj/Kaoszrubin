@@ -33,5 +33,6 @@ public enum QuestNpcId
     EliraSilverbranch,
     SirRoderic,
     AureliosEmissary,
-    Vildar
+    Vildar,
+    VillagerHerbalist
 }

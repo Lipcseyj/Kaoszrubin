@@ -97,5 +97,8 @@ public enum QuestId
     AureliosEmissaryChest,
 
     // NPC002 - Szörnyvadász
-    GoblinChiefHunt
+    GoblinChiefHunt,
+
+    // NPC024 - Falusi füvesasszony
+    VillagerMeat
 }

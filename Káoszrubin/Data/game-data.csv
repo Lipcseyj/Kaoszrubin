@@ -1452,6 +1452,7 @@ NPC020;Elira Ezüstág;C004;Neutral;Guarded;igen;igen;R003;ELIRA_RESCUE
 NPC021;Sir Roderic;C003;Neutral;Guarded;igen;igen;R001;RODERIC_OATH
 NPC022;Merion;C006;Friendly;Friendly;nem;igen;R001
 NPC023;Vildar;C001;Friendly;Friendly;nem;igen;R001
+NPC024;Falusi füvesasszony;C005;Neutral;Friendly;nem;nem
 
 #Egyedi NPC karakterlap
 NpcId;Szint;Erő;Ügyesség;Egészség;Intelligencia;Alkalmazkodó;ÉleterőBónusz;MannaBónusz;Szín;HarciViselkedés;SpecializációId;TehetségId-k;Fegyver1Id;Fegyver2Id;PáncélId;VarázstárgyId-k;HátizsákId-k;FegyverjártasságId-k
@@ -1494,7 +1495,7 @@ NPCE029;NPC021;5;1;50;RODERIC_MEETING
 NPCE030;NPC022;1;5;13
 NPCE031;NPC023;3;10;30
 NPCE032;NPC007;6;8;20
-NPCE033;NPC001;4;20;25
+NPCE033;NPC024;4;15;25
 
 #Quest ládák
 Id;Név;Arany;Térképjel;Előtérszín;Háttérszín
@@ -1563,7 +1564,7 @@ NPCQ032;NPC018;OpenChest;ANY;3;9450;A Rubin visszhangjai;Nyiss ki három ládát
 NPCQ033;NPC019;Kill;E012;3;3690;Nagyvad;Győzz le három ogrét az óriásvadász megbízásából.;;;;;NPCD104
 NPCQ042;NPC022;OpenQuestChest;AURELIOS_HELP;1;900;Uralkodód ezt a segítséget küldi;Találd meg Aurelios máguskirály küldöttének ládáját.;MW001;1;0;;NPCD071
 NPCQ043;NPC023;Kill;E062;1;1800;Szemet szemért;Öld meg a goblin főnököt Vildar megbízásából.;T019;3;3;;NPCD114
-NPCQ044;NPC001;Collect;T031;2;1110;Friss hús;Gyűjts össze két adag nyers húst a füvesasszonynak.;T018;2;0;;NPCD0115
+NPCQ044;NPC024;Collect;T031;2;1110;Húsleves;Gyűjts össze két adag nyers húst a füvesasszonynak.;T020;2;0;;NPCD116
 
 NPCQ034;NPC020;Escort;EXIT;1;1890;Ezüstág kimenekítése;Kísérd el Elirát élve a pálya kijáratáig.;T017;2;1;;NPCD105
 NPCQ035;NPC020;Collect;T019;1;720;Elszakadt kötés;Adj Elirának egy tiszta kötést hogy a sérült bokája bírja az utat.;T011;2;0;;NPCD106
@@ -1712,10 +1713,10 @@ NPCD109;NPC021;0;10;"Roderic lehajtja fejét a két pátriárka fölött, majd l
 NPCD110;NPC021;0;10;"Roderic sokáig áll Malrec mozdulatlan teste mellett, aztán letörli kardjáról egykori bajtársa hamuját. ""Évekig azt hittem, előle menekülök. Valójában attól a naptól futottam, amikor bezártam a kaput. Ennek most vége."""
 NPCD111;NPC021;0;10;"Roderic megszámolja az elesett élőholtakat, majd először engedi le teljesen a pajzsát előttetek. ""Nyolcan tértek vissza a nyugalomba. Nem sírrablókat látok többé, hanem olyanokat, akik mellett érdemes kardot rántani."""
 NPCD112;NPC021;0;10;"Roderic letérdel az Ezüst Eskü ereklyéi előtt, és kezét a rend megkopott jelvényére teszi. ""A rend nem a falakban és nem is a kincsekben él. Addig létezik, amíg valaki felemeli azt, amit mások elejtettek. Ma ti is ezt tettétek."""
-
 NPCD113;NPC023;0;10;"Egy fiatal harcos áll az út szélén, kezében egy vérfoltos, csorba nyílhegyet forgat. Amikor közelebb értek, ökölbe szorul a keze. ""Vildar vagyok. Ezt a nyílhegyet a testvérem mellkasából húztam ki. A goblinok törzsfőnöke ölte meg, amikor a falunkat védte. Egyedül indultam volna utána, de tudom, hogy csak én is ott maradnék mellette. Ha megtaláljátok azt a szörnyeteget... öljétek meg érte. Nem aranyat kérek vissza, csak azt, hogy a testvérem végre békében nyugodhasson."""
-
 NPCD114;NPC023;0;10;"Vildar egy kidőlt fatörzs mellett ül, és némán a kezében tartott csorba nyílhegyet nézi. Amikor meglátja nálatok a goblin főnök fejét, hosszú másodpercekig egyetlen szót sem tud kimondani. Végül lehajtja a fejét, és remegő kézzel markolja meg a régi nyílhegyet. ""Hát... vége. Annyi éjszakán át azt hittem, csak akkor tudok majd újra lélegezni, ha az a gyilkos halott lesz. Bátyám... most már nyugodhatsz."" Vildar megtörli a szemét, majd felétek fordul. ""Köszönöm. Nemcsak bosszút álltatok érte... visszaadtatok nekem valamit abból, amit azon a napon elvesztettem. Fogadjátok el ezeket a kötéseket. Nem sok, de a testvérem mindig azt mondta: egy jó harcos nem szégyelli, ha életben akar maradni. Legyen most nektek hasznotokra. Úgy hallottam a vadállatok odúiban farkashordák kószálnak."""
+NPCD115;NPC024;0;10;"A füvesasszony egy kondért mellett kuporog, mellette rongyos falusiak. Fakanalat forgat az ujjai között, majd végigmér benneteket. ""Húslevest főznék ezeknek a szerencsétleneknek de nincs elég friss húsunk. Szerezzetek nekem és meghálálom. Vadkanhús különösen jó lenne."""
+NPCD116;NPC024;0;10;"A füvesasszony és a falusiak szeme felcsillan a hús láttán, felkel a kondér mellől és azonnal készíteni kezdi a levest. ""Jótét lelkek vagytok!"" Már csak főzés közben fűzi hozzá: ""Vigyetek gyógyteát cserébe, sokat főztem, jut nektek is."""
 
 #NPC történeti választások
 Id;TörténetId;ÁllapotId;Mondat;Sorrend;Válasz;ViszonyVáltozás;KövetkezőÁllapotId;Reakció;Hatás;HatásParaméter;Folytatás;MinimumViszony;MaximumViszony
