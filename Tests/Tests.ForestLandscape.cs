@@ -1,5 +1,44 @@
 internal static partial class Program
 {
+    static void ForestBuildingsSupportMultipleLayoutTypes()
+    {
+        for (var seed = 0; seed < 8; seed++)
+        {
+            var cabin = BuildingLandscape(seed, manorChance: 0, labyrinthChance: 0,
+                buildingSize: new IntRange(7, 7));
+            var cabinRooms = cabin.Rooms.Where(room => room.Purpose != RoomPurpose.Starting).ToArray();
+            Assert(cabinRooms.Length == 2 && cabin.CheckFullAccessibility().IsFullyAccessible,
+                $"A kétszobás kunyhó hibás vagy nem bejárható: seed={seed}.");
+
+            var manor = BuildingLandscape(seed, manorChance: 1, labyrinthChance: 0);
+            var manorRooms = manor.Rooms.Where(room => room.Purpose != RoomPurpose.Starting).ToArray();
+            Assert(manorRooms.Length == 6 && manorRooms.All(room => room.Width >= 3 && room.Height >= 3) &&
+                   manor.CheckFullAccessibility().IsFullyAccessible,
+                $"A hatszobás nagy épület hibás vagy nem bejárható: seed={seed}, rooms={manorRooms.Length}.");
+
+            var labyrinth = BuildingLandscape(seed, manorChance: 0, labyrinthChance: 1);
+            var labyrinthRooms = labyrinth.Rooms.Where(room => room.Purpose != RoomPurpose.Starting).ToArray();
+            Assert(labyrinthRooms.Length == 9 && labyrinthRooms.All(room => room.Width == 3 && room.Height == 3) &&
+                   labyrinth.CheckFullAccessibility().IsFullyAccessible,
+                $"A kilencszobás labirintusépület hibás vagy nem bejárható: seed={seed}, rooms={labyrinthRooms.Length}.");
+        }
+    }
+
+    static Maze BuildingLandscape(int seed, double manorChance, double labyrinthChance,
+        IntRange? buildingSize = null) =>
+        new ForestMazeGenerator(LandscapeSettings(1), new ForestGenerationConfiguration
+        {
+            ForestDensity = 0.65,
+            LakeCount = new(0, 0), MarshCount = new(0, 0),
+            BuildingCount = new(1, 1), BuildingSize = buildingSize ?? new IntRange(7, 7),
+            BuildingPartitionChance = 1,
+            ManorBuildingChance = manorChance, LabyrinthBuildingChance = labyrinthChance,
+            ManorBuildingWidth = new IntRange(16, 16), ManorBuildingHeight = new IntRange(12, 12),
+            ManorRoomCount = new IntRange(6, 6),
+            LabyrinthBuildingWidth = new IntRange(13, 13), LabyrinthBuildingHeight = new IntRange(13, 13),
+            BuildingSecondEntranceChance = 1
+        }, [], [], new Random(seed)).Create(170, 44);
+
     static void ForestDensityControlsCoverageAndGroveScale()
     {
         foreach (var seed in Enumerable.Range(0, 12))

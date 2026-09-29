@@ -2,6 +2,8 @@ using System.Text;
 
 namespace KaoszRubin.World;
 
+public enum ForestBuildingLayout { Cabin, Manor, Labyrinth }
+
 /// <summary>Az erdei pálya rúnái és színei. Minden mezőtípus külön felülírható.</summary>
 public sealed class ForestTerrainPalette
 {
@@ -92,8 +94,28 @@ public sealed class ForestGenerationConfiguration
     /// <summary>Az épületek belső terének minimális és maximális oldalhossza.</summary>
     public IntRange BuildingSize { get; init; } = new(5, 8);
 
-    /// <summary>Ekkora eséllyel osztja egy belső fal és ajtó két helyiségre az épületet.</summary>
+    /// <summary>A kunyhók esélye egyetlen belső válaszfalra.</summary>
     public double BuildingPartitionChance { get; init; } = 0.70;
+
+    /// <summary>
+    /// Az épületek alaprajztípusainak esélyei. A fennmaradó rész kis, egy- vagy kétszobás kunyhó.
+    /// </summary>
+    public double ManorBuildingChance { get; init; } = 0.45;
+    public double LabyrinthBuildingChance { get; init; } = 0.15;
+
+    /// <summary>A rekurzívan szobákra osztott nagy épületek mérete és szobaszáma.</summary>
+    public IntRange ManorBuildingWidth { get; init; } = new(10, 18);
+    public IntRange ManorBuildingHeight { get; init; } = new(8, 14);
+    public IntRange ManorRoomCount { get; init; } = new(3, 8);
+    public int BuildingMinimumRoomSize { get; init; } = 3;
+
+    /// <summary>A helyi folyosóhálózattal készülő labirintusépületek mérete.</summary>
+    public IntRange LabyrinthBuildingWidth { get; init; } = new(13, 22);
+    public IntRange LabyrinthBuildingHeight { get; init; } = new(8, 17);
+
+    /// <summary>Plusz belső ajtók és lehetséges második külső bejárat esélye.</summary>
+    public double BuildingExtraConnectionChance { get; init; } = 0.18;
+    public double BuildingSecondEntranceChance { get; init; } = 0.20;
 
     /// <summary>A bejárati és belső ajtók zárt, illetve nyitott állapotának esélye.</summary>
     /// <remarks>A fennmaradó esély bezárt, de nem kulcsra zárt ajtót eredményez.</remarks>

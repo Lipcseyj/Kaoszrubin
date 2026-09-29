@@ -530,6 +530,15 @@ public static class MazeLevelConfigurations
                         BuildingCount = new IntRange(1, 2),
                         BuildingSize = new IntRange(5, 8),
                         BuildingPartitionChance = 0.75,
+                        ManorBuildingChance = 0.45,
+                        LabyrinthBuildingChance = 0.15,
+                        ManorBuildingWidth = new IntRange(10, 18),
+                        ManorBuildingHeight = new IntRange(8, 14),
+                        ManorRoomCount = new IntRange(3, 8),
+                        LabyrinthBuildingWidth = new IntRange(13, 22),
+                        LabyrinthBuildingHeight = new IntRange(8, 17),
+                        BuildingExtraConnectionChance = 0.18,
+                        BuildingSecondEntranceChance = 0.20,
                         LockedBuildingDoorChance = 0.18,
                         OpenBuildingDoorChance = 0.12,
                         Palette = new ForestTerrainPalette
@@ -542,7 +551,7 @@ public static class MazeLevelConfigurations
                                 ConsoleColor.Black, false, false),
                             Marsh = new("forbidden-marsh", new('≋'), ConsoleColor.DarkYellow,
                                 ConsoleColor.DarkGreen, true, false),
-                            BuildingWall = new("forbidden-building-wall", new('▣'), ConsoleColor.Gray,
+                            BuildingWall = new("forbidden-building-wall", new('█'), ConsoleColor.Gray,
                                 ConsoleColor.Black, false, true)
                         }
                     }),

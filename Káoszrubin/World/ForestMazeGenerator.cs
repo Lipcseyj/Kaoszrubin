@@ -13,6 +13,7 @@ public sealed class ForestMazeGenerator : MazeGenerator
     private readonly ForestGenerationConfiguration _forest;
     private bool[,] _reserved = null!;
     private ForestTerrainField _routeField = null!;
+    private sealed record BuildingSite(Room Footprint, ForestBuildingLayout Layout);
 
     public ForestMazeGenerator(MazeGenerationSettings settings, ForestGenerationConfiguration forest,
         IReadOnlyList<ResolvedEnemyEncounter> clearingEncounters,
@@ -159,18 +160,19 @@ public sealed class ForestMazeGenerator : MazeGenerator
         }
     }
 
-    private (List<Room> Rooms, List<Room> Buildings) PlaceClearingsAndBuildings(Maze maze)
+    private (List<Room> Rooms, List<BuildingSite> Buildings) PlaceClearingsAndBuildings(Maze maze)
     {
         var result = new List<Room>();
-        var buildings = new List<Room>();
+        var buildings = new List<BuildingSite>();
         var buildingCount = Math.Min(Settings.RoomCount, _forest.BuildingCount.Roll(Random));
         var attempts = Math.Max(100, Settings.RoomCount * 300);
         for (var attempt = 0; attempt < attempts && result.Count < Settings.RoomCount; attempt++)
         {
             var isBuilding = result.Count < buildingCount;
-            var size = isBuilding ? _forest.BuildingSize : new IntRange(Settings.MinimumRoomSize, Settings.MaximumRoomSize);
-            var width = size.Roll(Random);
-            var height = size.Roll(Random);
+            var layout = isBuilding ? RollBuildingLayout() : ForestBuildingLayout.Cabin;
+            var (width, height) = isBuilding ? RollBuildingSize(layout) :
+                (Random.Next(Settings.MinimumRoomSize, Settings.MaximumRoomSize + 1),
+                    Random.Next(Settings.MinimumRoomSize, Settings.MaximumRoomSize + 1));
             if (width >= maze.Width - 5 || height >= maze.Height - 5) continue;
             var room = new Room(new Position(Random.Next(2, maze.Width - width - 2),
                 Random.Next(2, maze.Height - height - 2)), width, height);
@@ -183,15 +185,33 @@ public sealed class ForestMazeGenerator : MazeGenerator
                 foreach (var (position, _) in OrganicPatch(maze, Center(room), width * 0.5 + 1, height * 0.5 + 1))
                     maze.Carve(position);
             ReserveRoom(maze, room);
-            maze.AddRoom(room);
             result.Add(room);
-            if (isBuilding) buildings.Add(room);
+            if (isBuilding) buildings.Add(new BuildingSite(room, layout));
+            else maze.AddRoom(room);
         }
         if (result.Count < Settings.RoomCount)
             throw new InvalidOperationException(
                 $"Az erdei képernyőn csak {result.Count}/{Settings.RoomCount} tisztás fért el.");
         return (result, buildings);
     }
+
+    private ForestBuildingLayout RollBuildingLayout()
+    {
+        var roll = Random.NextDouble();
+        if (roll < _forest.LabyrinthBuildingChance) return ForestBuildingLayout.Labyrinth;
+        return roll < _forest.LabyrinthBuildingChance + _forest.ManorBuildingChance
+            ? ForestBuildingLayout.Manor
+            : ForestBuildingLayout.Cabin;
+    }
+
+    private (int Width, int Height) RollBuildingSize(ForestBuildingLayout layout) => layout switch
+    {
+        ForestBuildingLayout.Manor =>
+            (_forest.ManorBuildingWidth.Roll(Random), _forest.ManorBuildingHeight.Roll(Random)),
+        ForestBuildingLayout.Labyrinth =>
+            (_forest.LabyrinthBuildingWidth.Roll(Random), _forest.LabyrinthBuildingHeight.Roll(Random)),
+        _ => (_forest.BuildingSize.Roll(Random), _forest.BuildingSize.Roll(Random))
+    };
 
     private void ReserveRoom(Maze maze, Room room)
     {
@@ -200,30 +220,49 @@ public sealed class ForestMazeGenerator : MazeGenerator
             _reserved[x, y] = true;
     }
 
-    private void BuildStructures(Maze maze, IEnumerable<Room> buildings)
+    private void BuildStructures(Maze maze, IEnumerable<BuildingSite> buildings)
     {
-        foreach (var room in buildings)
+        foreach (var building in buildings)
         {
-            var connections = BuildingBoundaryConnections(room)
-                .Where(connection => maze.IsWalkable(connection.Wall) && maze.IsWalkable(connection.Outside))
-                .ToArray();
-            if (connections.Length == 0)
-                throw new InvalidOperationException("Az erdei épülethez nem található elérhető bejárat.");
-            var entrance = connections[Random.Next(connections.Length)].Wall;
+            var room = building.Footprint;
+            var interiorRooms = building.Layout switch
+            {
+                ForestBuildingLayout.Manor => BuildManorInterior(maze, room),
+                ForestBuildingLayout.Labyrinth => BuildLabyrinthInterior(maze, room),
+                _ => BuildCabinInterior(maze, room)
+            };
 
             foreach (var position in BuildingBoundary(room))
             {
                 maze.RemoveDoor(position);
                 maze.SetTerrain(position, _forest.Palette.BuildingWall);
             }
-            maze.PlaceDoor(entrance, RollBuildingDoorState());
-            TryBuildInteriorPartition(maze, room);
+
+            var connections = BuildingBoundaryConnections(room)
+                .Where(connection => maze.IsWalkable(connection.Outside)).ToArray();
+            if (connections.Length == 0)
+                throw new InvalidOperationException("Az erdei épülethez nem található elérhető bejárat.");
+            var entrance = connections[Random.Next(connections.Length)];
+            ConnectBuildingEntrance(maze, room, entrance.Inside);
+            maze.PlaceDoor(entrance.Wall, RollBuildingDoorState());
+
+            if (building.Layout != ForestBuildingLayout.Cabin && connections.Length > 1 &&
+                Random.NextDouble() < _forest.BuildingSecondEntranceChance)
+            {
+                var second = connections.Where(candidate => candidate.Wall != entrance.Wall)
+                    .OrderByDescending(candidate => Manhattan(candidate.Wall, entrance.Wall)).First();
+                ConnectBuildingEntrance(maze, room, second.Inside);
+                maze.PlaceDoor(second.Wall, RollBuildingDoorState());
+            }
+
+            foreach (var interiorRoom in interiorRooms) maze.AddRoom(interiorRoom);
         }
     }
 
-    private void TryBuildInteriorPartition(Maze maze, Room room)
+    private IReadOnlyList<Room> BuildCabinInterior(Maze maze, Room room)
     {
-        if (room.Width < 5 || room.Height < 5 || Random.NextDouble() >= _forest.BuildingPartitionChance) return;
+        if (room.Width < 5 || room.Height < 5 || Random.NextDouble() >= _forest.BuildingPartitionChance)
+            return [room];
         if (room.Width >= room.Height)
         {
             var x = Random.Next(room.TopLeft.X + 2, room.TopLeft.X + room.Width - 2);
@@ -231,14 +270,223 @@ public sealed class ForestMazeGenerator : MazeGenerator
             for (var y = room.TopLeft.Y; y < room.TopLeft.Y + room.Height; y++)
                 maze.SetTerrain(new Position(x, y), _forest.Palette.BuildingWall);
             maze.PlaceDoor(new Position(x, doorY), RollBuildingDoorState());
+            return
+            [
+                new Room(room.TopLeft, x - room.TopLeft.X, room.Height),
+                new Room(new Position(x + 1, room.TopLeft.Y), room.TopLeft.X + room.Width - x - 1, room.Height)
+            ];
         }
-        else
+        var splitY = Random.Next(room.TopLeft.Y + 2, room.TopLeft.Y + room.Height - 2);
+        var splitDoorX = Random.Next(room.TopLeft.X + 1, room.TopLeft.X + room.Width - 1);
+        for (var x = room.TopLeft.X; x < room.TopLeft.X + room.Width; x++)
+            maze.SetTerrain(new Position(x, splitY), _forest.Palette.BuildingWall);
+        maze.PlaceDoor(new Position(splitDoorX, splitY), RollBuildingDoorState());
+        return
+        [
+            new Room(room.TopLeft, room.Width, splitY - room.TopLeft.Y),
+            new Room(new Position(room.TopLeft.X, splitY + 1), room.Width,
+                room.TopLeft.Y + room.Height - splitY - 1)
+        ];
+    }
+
+    private IReadOnlyList<Room> BuildManorInterior(Maze maze, Room footprint)
+    {
+        var rooms = new List<Room> { footprint };
+        var targetCount = _forest.ManorRoomCount.Roll(Random);
+        var minimum = _forest.BuildingMinimumRoomSize;
+        while (rooms.Count < targetCount)
         {
-            var y = Random.Next(room.TopLeft.Y + 2, room.TopLeft.Y + room.Height - 2);
-            var doorX = Random.Next(room.TopLeft.X + 1, room.TopLeft.X + room.Width - 1);
-            for (var x = room.TopLeft.X; x < room.TopLeft.X + room.Width; x++)
-                maze.SetTerrain(new Position(x, y), _forest.Palette.BuildingWall);
-            maze.PlaceDoor(new Position(doorX, y), RollBuildingDoorState());
+            var candidates = rooms.Where(room => room.Width >= minimum * 2 + 1 ||
+                    room.Height >= minimum * 2 + 1)
+                .OrderByDescending(room => room.Width * room.Height).ThenBy(_ => Random.Next()).ToArray();
+            if (candidates.Length == 0) break;
+            var room = candidates[0];
+            var canSplitVertically = room.Width >= minimum * 2 + 1;
+            var canSplitHorizontally = room.Height >= minimum * 2 + 1;
+            var splitVertically = canSplitVertically && (!canSplitHorizontally ||
+                room.Width > room.Height || room.Width == room.Height && Random.Next(2) == 0);
+            rooms.Remove(room);
+
+            if (splitVertically)
+            {
+                var x = Random.Next(room.TopLeft.X + minimum,
+                    room.TopLeft.X + room.Width - minimum);
+                for (var y = room.TopLeft.Y; y < room.TopLeft.Y + room.Height; y++)
+                    maze.SetTerrain(new Position(x, y), _forest.Palette.BuildingWall);
+                maze.PlaceDoor(new Position(x, Random.Next(room.TopLeft.Y, room.TopLeft.Y + room.Height)),
+                    RollBuildingDoorState());
+                rooms.Add(new Room(room.TopLeft, x - room.TopLeft.X, room.Height));
+                rooms.Add(new Room(new Position(x + 1, room.TopLeft.Y),
+                    room.TopLeft.X + room.Width - x - 1, room.Height));
+            }
+            else
+            {
+                var y = Random.Next(room.TopLeft.Y + minimum,
+                    room.TopLeft.Y + room.Height - minimum);
+                for (var x = room.TopLeft.X; x < room.TopLeft.X + room.Width; x++)
+                    maze.SetTerrain(new Position(x, y), _forest.Palette.BuildingWall);
+                maze.PlaceDoor(new Position(Random.Next(room.TopLeft.X, room.TopLeft.X + room.Width), y),
+                    RollBuildingDoorState());
+                rooms.Add(new Room(room.TopLeft, room.Width, y - room.TopLeft.Y));
+                rooms.Add(new Room(new Position(room.TopLeft.X, y + 1), room.Width,
+                    room.TopLeft.Y + room.Height - y - 1));
+            }
+        }
+
+        AddExtraManorConnections(maze, rooms);
+        return rooms;
+    }
+
+    private void AddExtraManorConnections(Maze maze, IReadOnlyList<Room> rooms)
+    {
+        for (var firstIndex = 0; firstIndex < rooms.Count; firstIndex++)
+        for (var secondIndex = firstIndex + 1; secondIndex < rooms.Count; secondIndex++)
+        {
+            if (Random.NextDouble() >= _forest.BuildingExtraConnectionChance) continue;
+            var first = rooms[firstIndex];
+            var second = rooms[secondIndex];
+            if (first.TopLeft.X + first.Width == second.TopLeft.X - 1 ||
+                second.TopLeft.X + second.Width == first.TopLeft.X - 1)
+            {
+                var wallX = first.TopLeft.X < second.TopLeft.X
+                    ? first.TopLeft.X + first.Width
+                    : second.TopLeft.X + second.Width;
+                var from = Math.Max(first.TopLeft.Y, second.TopLeft.Y);
+                var to = Math.Min(first.TopLeft.Y + first.Height, second.TopLeft.Y + second.Height);
+                if (from < to) TryPlaceExtraDoor(maze, Enumerable.Range(from, to - from)
+                    .Select(y => new Position(wallX, y)).ToArray());
+            }
+            else if (first.TopLeft.Y + first.Height == second.TopLeft.Y - 1 ||
+                     second.TopLeft.Y + second.Height == first.TopLeft.Y - 1)
+            {
+                var wallY = first.TopLeft.Y < second.TopLeft.Y
+                    ? first.TopLeft.Y + first.Height
+                    : second.TopLeft.Y + second.Height;
+                var from = Math.Max(first.TopLeft.X, second.TopLeft.X);
+                var to = Math.Min(first.TopLeft.X + first.Width, second.TopLeft.X + second.Width);
+                if (from < to) TryPlaceExtraDoor(maze, Enumerable.Range(from, to - from)
+                    .Select(x => new Position(x, wallY)).ToArray());
+            }
+        }
+    }
+
+    private void TryPlaceExtraDoor(Maze maze, IReadOnlyList<Position> sharedWall)
+    {
+        if (sharedWall.Any(position => maze.GetDoorAt(position) is not null)) return;
+        var candidates = sharedWall.Where(position => maze.GetTerrainStyle(position)?.Id ==
+            _forest.Palette.BuildingWall.Id).ToArray();
+        if (candidates.Length > 0) maze.PlaceDoor(candidates[Random.Next(candidates.Length)], RollBuildingDoorState());
+    }
+
+    private IReadOnlyList<Room> BuildLabyrinthInterior(Maze maze, Room footprint)
+    {
+        const int nodeSize = 3;
+        const int gridStep = 5;
+        foreach (var position in footprint.InteriorPositions())
+        {
+            maze.RemoveDoor(position);
+            maze.SetTerrain(position, _forest.Palette.BuildingWall);
+        }
+
+        var gridWidth = (footprint.Width - nodeSize) / gridStep + 1;
+        var gridHeight = (footprint.Height - nodeSize) / gridStep + 1;
+        var visited = new bool[gridWidth, gridHeight];
+        var rooms = new List<Room>(gridWidth * gridHeight);
+        var passages = new HashSet<(int FirstX, int FirstY, int SecondX, int SecondY)>();
+
+        Room NodeRoom(int x, int y) => new(new Position(
+            footprint.TopLeft.X + x * gridStep, footprint.TopLeft.Y + y * gridStep), nodeSize, nodeSize);
+
+        void CarveNode(int x, int y)
+        {
+            var node = NodeRoom(x, y);
+            foreach (var position in node.InteriorPositions()) maze.Carve(position);
+        }
+
+        void CarvePassage(int firstX, int firstY, int secondX, int secondY)
+        {
+            var first = NodeRoom(firstX, firstY);
+            var second = NodeRoom(secondX, secondY);
+            if (firstX != secondX)
+            {
+                var from = Math.Min(first.TopLeft.X, second.TopLeft.X) + nodeSize;
+                var to = Math.Max(first.TopLeft.X, second.TopLeft.X);
+                var y = first.TopLeft.Y + nodeSize / 2;
+                for (var x = from; x < to; x++) maze.Carve(new Position(x, y));
+            }
+            else
+            {
+                var from = Math.Min(first.TopLeft.Y, second.TopLeft.Y) + nodeSize;
+                var to = Math.Max(first.TopLeft.Y, second.TopLeft.Y);
+                var x = first.TopLeft.X + nodeSize / 2;
+                for (var y = from; y < to; y++) maze.Carve(new Position(x, y));
+            }
+            passages.Add(NormalizePassage(firstX, firstY, secondX, secondY));
+        }
+
+        void CarveFrom(int x, int y)
+        {
+            visited[x, y] = true;
+            CarveNode(x, y);
+            var neighbors = new[] { (X: x + 1, Y: y), (X: x - 1, Y: y), (X: x, Y: y + 1), (X: x, Y: y - 1) }
+                .Where(next => next.X >= 0 && next.X < gridWidth && next.Y >= 0 && next.Y < gridHeight)
+                .OrderBy(_ => Random.Next()).ToArray();
+            foreach (var next in neighbors)
+            {
+                if (visited[next.X, next.Y]) continue;
+                CarvePassage(x, y, next.X, next.Y);
+                CarveFrom(next.X, next.Y);
+            }
+        }
+
+        CarveFrom(0, 0);
+        for (var y = 0; y < gridHeight; y++)
+        for (var x = 0; x < gridWidth; x++)
+        {
+            rooms.Add(NodeRoom(x, y));
+            foreach (var next in new[] { (X: x + 1, Y: y), (X: x, Y: y + 1) })
+            {
+                if (next.X >= gridWidth || next.Y >= gridHeight ||
+                    passages.Contains(NormalizePassage(x, y, next.X, next.Y)) ||
+                    Random.NextDouble() >= _forest.BuildingExtraConnectionChance) continue;
+                CarvePassage(x, y, next.X, next.Y);
+            }
+        }
+        return rooms;
+
+        static (int FirstX, int FirstY, int SecondX, int SecondY) NormalizePassage(
+            int firstX, int firstY, int secondX, int secondY) =>
+            firstX < secondX || firstX == secondX && firstY <= secondY
+                ? (firstX, firstY, secondX, secondY)
+                : (secondX, secondY, firstX, firstY);
+    }
+
+    private void ConnectBuildingEntrance(Maze maze, Room footprint, Position inside)
+    {
+        if (maze.IsWalkable(inside)) return;
+        var pending = new Queue<Position>();
+        var previous = new Dictionary<Position, Position>();
+        var visited = new HashSet<Position> { inside };
+        pending.Enqueue(inside);
+        Position? destination = null;
+        while (pending.TryDequeue(out var current) && destination is null)
+        {
+            foreach (var direction in Directions)
+            {
+                var next = current + direction;
+                if (!footprint.Contains(next) || !visited.Add(next)) continue;
+                previous[next] = current;
+                if (maze.IsWalkable(next)) { destination = next; break; }
+                pending.Enqueue(next);
+            }
+        }
+        if (destination is null)
+            throw new InvalidOperationException("Az erdei épület bejárata nem köthető a belső térhez.");
+        var position = destination.Value;
+        while (position != inside)
+        {
+            position = previous[position];
+            maze.Carve(position);
         }
     }
 
@@ -265,17 +513,23 @@ public sealed class ForestMazeGenerator : MazeGenerator
         }
     }
 
-    private static IEnumerable<(Position Wall, Position Outside)> BuildingBoundaryConnections(Room room)
+    private static IEnumerable<(Position Wall, Position Outside, Position Inside)> BuildingBoundaryConnections(Room room)
     {
         for (var x = room.TopLeft.X; x < room.TopLeft.X + room.Width; x++)
         {
-            yield return (new Position(x, room.TopLeft.Y - 1), new Position(x, room.TopLeft.Y - 2));
-            yield return (new Position(x, room.TopLeft.Y + room.Height), new Position(x, room.TopLeft.Y + room.Height + 1));
+            yield return (new Position(x, room.TopLeft.Y - 1), new Position(x, room.TopLeft.Y - 2),
+                new Position(x, room.TopLeft.Y));
+            yield return (new Position(x, room.TopLeft.Y + room.Height),
+                new Position(x, room.TopLeft.Y + room.Height + 1),
+                new Position(x, room.TopLeft.Y + room.Height - 1));
         }
         for (var y = room.TopLeft.Y; y < room.TopLeft.Y + room.Height; y++)
         {
-            yield return (new Position(room.TopLeft.X - 1, y), new Position(room.TopLeft.X - 2, y));
-            yield return (new Position(room.TopLeft.X + room.Width, y), new Position(room.TopLeft.X + room.Width + 1, y));
+            yield return (new Position(room.TopLeft.X - 1, y), new Position(room.TopLeft.X - 2, y),
+                new Position(room.TopLeft.X, y));
+            yield return (new Position(room.TopLeft.X + room.Width, y),
+                new Position(room.TopLeft.X + room.Width + 1, y),
+                new Position(room.TopLeft.X + room.Width - 1, y));
         }
     }
 
@@ -478,11 +732,14 @@ public sealed class ForestMazeGenerator : MazeGenerator
             configuration.FlowerBushChance, configuration.ThicketChance, configuration.UndergrowthChance,
             configuration.DenseUndergrowthChance, configuration.MarshChance, configuration.TrailWinding,
             configuration.ExtraTrailChance, configuration.BuildingPartitionChance,
+            configuration.ManorBuildingChance, configuration.LabyrinthBuildingChance,
+            configuration.BuildingExtraConnectionChance, configuration.BuildingSecondEntranceChance,
             configuration.LockedBuildingDoorChance, configuration.OpenBuildingDoorChance
         };
         if (probabilities.Any(value => !double.IsFinite(value) || value is < 0 or > 1) ||
             configuration.BushChance + configuration.FlowerBushChance > 1 ||
             configuration.UndergrowthChance + configuration.DenseUndergrowthChance > 1 ||
+            configuration.ManorBuildingChance + configuration.LabyrinthBuildingChance > 1 ||
             configuration.LockedBuildingDoorChance + configuration.OpenBuildingDoorChance > 1)
             throw new ArgumentOutOfRangeException(nameof(configuration),
                 "Az erdei gyakoriságoknak 0 és 1 közé kell esniük, a részarányok összege legfeljebb 1 lehet.");
@@ -490,6 +747,14 @@ public sealed class ForestMazeGenerator : MazeGenerator
             !ValidRange(configuration.MarshCount, 0) || !ValidRange(configuration.MarshRadius, 1) ||
             !ValidRange(configuration.GroveSize, 2) || !ValidRange(configuration.BushGroupSize, 1) ||
             !ValidRange(configuration.BuildingCount, 0) || !ValidRange(configuration.BuildingSize, 3) ||
+            !ValidRange(configuration.ManorBuildingWidth, 7) ||
+            !ValidRange(configuration.ManorBuildingHeight, 7) ||
+            !ValidRange(configuration.ManorRoomCount, 3) ||
+            !ValidRange(configuration.LabyrinthBuildingWidth, 8) ||
+            !ValidRange(configuration.LabyrinthBuildingHeight, 8) ||
+            ((configuration.LabyrinthBuildingWidth.Minimum - 3) / 5 + 1) *
+            ((configuration.LabyrinthBuildingHeight.Minimum - 3) / 5 + 1) < 6 ||
+            configuration.BuildingMinimumRoomSize < 3 ||
             configuration.BiomeSize < 2 || configuration.ForestEdgeWidth is < 1 or > 10 ||
             configuration.TrailWidth is < 1 or > 5)
             throw new ArgumentOutOfRangeException(nameof(configuration), "Az erdei méretbeállítások érvénytelenek.");

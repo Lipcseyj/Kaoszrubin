@@ -311,17 +311,17 @@ internal static partial class Program
                 maze.GetTerrainStyle(position)?.Id == forest.Palette.BuildingWall.Id).ToArray();
             var accessibility = maze.CheckFullAccessibility();
             Assert(accessibility.IsFullyAccessible && maze.IsWalkable(maze.Entrance) &&
-                   maze.IsWalkable(maze.Exit) && maze.Rooms.Count == settings.RoomCount + 1,
+                   maze.IsWalkable(maze.Exit) && maze.Rooms.Count >= settings.RoomCount + 1,
                 $"A(z) {seed}. seed erdei képernyője hibás: bejárható={accessibility.IsFullyAccessible}, " +
                 $"bejárat={maze.IsWalkable(maze.Entrance)}, kijárat={maze.IsWalkable(maze.Exit)}, " +
-                $"termek={maze.Rooms.Count}/{settings.RoomCount + 1}.");
+                $"termek={maze.Rooms.Count}/legalább {settings.RoomCount + 1}.");
             Assert(maze.TerrainStyles.Count == forest.Palette.All.Count && water.Length > 0 &&
                    water.All(position => !maze.IsWalkable(position) && !maze.BlocksSight(position)) &&
                    undergrowth.Length > 0 && undergrowth.All(maze.IsWalkable),
                 $"A(z) {seed}. seed erdei tereptípusai vagy járhatósági szabályai hibásak.");
             Assert(buildingWalls.Length >= 16 && buildingWalls.All(position =>
-                       !maze.IsWalkable(position) && maze.BlocksSight(position)) && maze.Doors.Count >= 2,
-                $"A(z) {seed}. seed erdei épülete nem kapott zárt falburkot, bejáratot és belső ajtót.");
+                       !maze.IsWalkable(position) && maze.BlocksSight(position)) && maze.Doors.Count >= 1,
+                $"A(z) {seed}. seed erdei épülete nem kapott zárt falburkot és bejáratot.");
         }
 
         var campaignForest = MazeLevelConfigurations.Get(6);

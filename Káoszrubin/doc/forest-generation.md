@@ -40,6 +40,25 @@ az összeérő tavak/mocsarak összeolvadhatnak. Az ösvények először száraz
 körbezárt száraz szigethez készül keskeny, járható mocsári átkelő. A termek és a természetes nyílt
 területek is elérhetők maradnak. Az épületajtók az eddigi nyitott/csukott/zárt szabályokat követik.
 
+## Erdei épületek
+
+Egy épület továbbra is egyetlen erdei helyszínnek számít, de a belseje több külön szobát is
+tartalmazhat. Az alaprajz háromféle lehet:
+
+| Típus | Alaprajz |
+| --- | --- |
+| Kunyhó | A `BuildingSize` szerinti kis épület, egy vagy a `BuildingPartitionChance` alapján két szobával. |
+| Nagy épület | A `ManorBuildingWidth` és `ManorBuildingHeight` szerinti téglalap, amelyet a generátor 3–8 összefüggő szobára oszt. |
+| Labirintusépület | Helyi, 3×3-as helyiségekből és keskeny folyosókból álló, hurkokat is tartalmazó belső járathálózat. |
+
+`ManorBuildingChance` és `LabyrinthBuildingChance` adja a két nagyobb típus esélyét; a fennmaradó
+rész kunyhó. A két érték összege legfeljebb 1 lehet. A nagy épület célzott szobaszámát a
+`ManorRoomCount`, legkisebb szobaméretét a `BuildingMinimumRoomSize` szabályozza.
+`BuildingExtraConnectionChance` további belső átjárókat és hurkokat, a
+`BuildingSecondEntranceChance` pedig lehetséges második külső ajtót ad. Minden belső helyiség külön
+szobaként kerül a térképbe, ezért önálló találkozást, kincset vagy küldetéstartalmat kaphat. A teljes
+épület bejárhatóságát a pálya közös hozzáférhetőségi ellenőrzése garantálja.
+
 ## Kiinduló beállítások
 
 | Táj | `ForestDensity` | `GroveSize` | `BiomeSize` | `TrailWinding` | `ExtraTrailChance` |
