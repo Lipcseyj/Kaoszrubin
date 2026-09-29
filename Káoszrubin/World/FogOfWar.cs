@@ -12,6 +12,7 @@ public sealed class FogOfWar
     private HashSet<Position> _currentlyVisiblePositions = [];
     private readonly Dictionary<WorldEntityId, EnemySightMemory> _enemyMemories = [];
     private Dictionary<WorldEntityId, Position> _visibleEnemyPositions = [];
+    private readonly HashSet<Position> _expandedConnectedTerrainSeeds = [];
     private bool _hasPartyPerceptionState;
     public int VisionRange { get; }
     public bool IsDeveloperRevealActive { get; private set; }
@@ -56,6 +57,7 @@ public sealed class FogOfWar
             _currentlyVisiblePositions.Add(target);
             newlyRevealed.Add(target);
         }
+        RevealConnectedTerrain(maze, newlyRevealed, newlyRevealed);
         BridgeShortFogGaps(maze, newlyRevealed);
         return newlyRevealed;
     }
@@ -75,6 +77,7 @@ public sealed class FogOfWar
         foreach (var position in previousVisiblePositions)
             _currentlyVisible[position.X, position.Y] = false;
         var currentVisiblePositions = new HashSet<Position>();
+        var newlyRevealed = new List<Position>();
         foreach (var source in perceptionSources)
         {
             var origin = source.Origin;
@@ -88,9 +91,15 @@ public sealed class FogOfWar
                     !HasLineOfSight(maze, origin, target)) continue;
                 _currentlyVisible[x, y] = true;
                 currentVisiblePositions.Add(target);
-                _revealed[x, y] = true;
+                if (!_revealed[x, y])
+                {
+                    _revealed[x, y] = true;
+                    newlyRevealed.Add(target);
+                }
             }
         }
+        var connectedTerrainReveals = new List<Position>();
+        RevealConnectedTerrain(maze, newlyRevealed, connectedTerrainReveals);
         _currentlyVisiblePositions = currentVisiblePositions;
 
         if (advanceEnemyMemory)
@@ -122,6 +131,7 @@ public sealed class FogOfWar
         var currentMemoryPositions = _enemyMemories.Values.Select(memory => memory.Position).ToHashSet();
         changed.AddRange(previousMemoryPositions.Where(position => !currentMemoryPositions.Contains(position)));
         changed.AddRange(currentMemoryPositions.Where(position => !previousMemoryPositions.Contains(position)));
+        changed.AddRange(connectedTerrainReveals);
         return changed.Distinct().ToArray();
     }
 
@@ -224,6 +234,61 @@ public sealed class FogOfWar
             if (doubleError < deltaX) { error += deltaX; y += stepY; }
         }
     }
+
+    /// <summary>
+    /// Az erdő közvetlenül meglátott szegélyéből kis, szabálytalan mélységben kirajzolja
+    /// az összefüggő lombkoronát. Az aktuális látótérhez nem nyúl, ezért lényt vagy
+    /// tárgyat nem tesz észlelhetővé.
+    /// </summary>
+    private void RevealConnectedTerrain(Maze maze, IReadOnlyCollection<Position> directReveals,
+        ICollection<Position> changedPositions)
+    {
+        if (!maze.HasConnectedTerrainReveal || directReveals.Count == 0) return;
+
+        var remainingByPosition = new Dictionary<Position, int>();
+        var frontier = new Queue<(Position Position, int Remaining)>();
+        foreach (var seed in directReveals.ToArray())
+        {
+            if (!maze.IsConnectedRevealTerrain(seed) || !_expandedConnectedTerrainSeeds.Add(seed)) continue;
+
+            // A konzolcellák képarányához igazított 3–5 mezős mélység. A koordinátából
+            // számolt eltérés stabil, de nem szabályos kör alakú erdőszélt eredményez.
+            var budget = 6 + PositiveHash(seed.X, seed.Y) % 5;
+            if (remainingByPosition.TryGetValue(seed, out var existingBudget) && existingBudget >= budget) continue;
+            remainingByPosition[seed] = budget;
+            frontier.Enqueue((seed, budget));
+        }
+
+        while (frontier.TryDequeue(out var node))
+        {
+            if (remainingByPosition[node.Position] != node.Remaining) continue;
+            foreach (var (offsetX, offsetY) in ConnectedTerrainNeighborOffsets)
+            {
+                var next = new Position(node.Position.X + offsetX, node.Position.Y + offsetY);
+                if (!maze.IsConnectedRevealTerrain(next)) continue;
+                var remaining = node.Remaining - (offsetY == 0 ? 1 : 2);
+                var edgeVariation = PositiveHash(next.X, next.Y) % 3 - 1;
+                if (remaining + edgeVariation < 0 ||
+                    remainingByPosition.TryGetValue(next, out var knownRemaining) && knownRemaining >= remaining)
+                    continue;
+                remainingByPosition[next] = remaining;
+                frontier.Enqueue((next, remaining));
+            }
+        }
+
+        foreach (var position in remainingByPosition.Keys)
+        {
+            if (_revealed[position.X, position.Y]) continue;
+            _revealed[position.X, position.Y] = true;
+            changedPositions.Add(position);
+        }
+    }
+
+    private static int PositiveHash(int x, int y) =>
+        (int)((uint)(x * 73856093 ^ y * 19349663) & 0x7fffffff);
+
+    private static readonly (int X, int Y)[] ConnectedTerrainNeighborOffsets =
+        [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)];
 
     /// <summary>
     /// Ha egy rövid (legfeljebb három cellás) ködcsík két végét a játékos már

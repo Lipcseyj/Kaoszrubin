@@ -29,6 +29,7 @@ public sealed class Maze
     private readonly Dictionary<Position, MazeTrap> _trapsByPosition = [];
     private readonly Dictionary<Position, List<Corpse>> _corpsesByPosition = [];
     private readonly Dictionary<int, MazeTerrainStyle> _terrainStyles = [];
+    private readonly HashSet<int> _connectedRevealTerrainRunes = [];
 
     public WorldId Id { get; } = WorldId.New();
     public long NavigationRevision { get; private set; }
@@ -43,6 +44,7 @@ public sealed class Maze
     public IReadOnlyCollection<MazePassage> Passages => _passages.Values;
     public IReadOnlyCollection<MazeDoor> Doors => _doors.Values;
     public IReadOnlyCollection<MazeTerrainStyle> TerrainStyles => _terrainStyles.Values;
+    public bool HasConnectedTerrainReveal => _connectedRevealTerrainRunes.Count > 0;
     public Room? StartingRoom { get; private set; }
     public int Width { get; }
     public int Height { get; }
@@ -118,6 +120,23 @@ public sealed class Maze
                 $"A(z) '{style.Rune}' rúnához már másik terepstílus tartozik: '{existing.Id}'.", nameof(style));
         _terrainStyles[style.Rune.Value] = style;
     }
+
+    /// <summary>
+    /// Az itt megadott, egymással összefüggő terepek alakja a közvetlenül meglátott
+    /// perem mögött is kirajzolódhat. Ez csak a tartós térképfelfedést érinti.
+    /// </summary>
+    public void ConfigureConnectedTerrainReveal(IEnumerable<MazeTerrainStyle> styles)
+    {
+        ArgumentNullException.ThrowIfNull(styles);
+        foreach (var style in styles)
+        {
+            RegisterTerrainStyle(style);
+            _connectedRevealTerrainRunes.Add(style.Rune.Value);
+        }
+    }
+
+    public bool IsConnectedRevealTerrain(Position position) =>
+        IsInside(position) && _connectedRevealTerrainRunes.Contains(Tiles[position.X, position.Y].Value);
 
     /// <summary>A mezőre helyezi a terepet, és szükség esetén a pályapalettához is hozzáadja.</summary>
     public void SetTerrain(Position position, MazeTerrainStyle style)

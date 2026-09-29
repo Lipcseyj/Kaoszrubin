@@ -1,5 +1,41 @@
 internal static partial class Program
 {
+    static void ForestCanopyRevealOnlyExpandsExploredMap()
+    {
+        var maze = new Maze(17, 11);
+        var tree = new MazeTerrainStyle("test-tree", new Rune('T'), ConsoleColor.DarkGreen,
+            ConsoleColor.Black, false, true);
+        var bush = new MazeTerrainStyle("test-bush", new Rune('B'), ConsoleColor.Green,
+            ConsoleColor.Black, false, false);
+        maze.ConfigureConnectedTerrainReveal([tree, bush]);
+        for (var y = 1; y < maze.Height - 1; y++)
+        for (var x = 5; x < maze.Width - 1; x++)
+            maze.SetTerrain(new Position(x, y), x == 5 ? bush : tree);
+        for (var y = 1; y < maze.Height - 1; y++)
+        for (var x = 1; x < 5; x++)
+            maze.Carve(new Position(x, y));
+
+        var fog = new FogOfWar(maze.Width, maze.Height, 4);
+        var changes = fog.UpdatePartyVisibility(maze, [(new Position(3, 5), 4)], false);
+        var canopyInterior = new Position(9, 5);
+
+        Assert(fog.IsRevealed(canopyInterior),
+            "A meglátott erdőszegély mögött nem rajzolódott ki a lombkorona.");
+        Assert(!fog.IsCurrentlyVisible(canopyInterior, includeDeveloperReveal: false),
+            "A közvetett lombkorona-felfedés bekerült az aktuális látótérbe.");
+        Assert(changes.Contains(canopyInterior),
+            "A közvetetten felfedett erdőcellát nem jelölte újrarajzolandónak a rendszer.");
+
+        var ordinaryMaze = new Maze(17, 11, new Rune('T'));
+        for (var y = 1; y < ordinaryMaze.Height - 1; y++)
+        for (var x = 1; x < 5; x++)
+            ordinaryMaze.Carve(new Position(x, y));
+        var ordinaryFog = new FogOfWar(ordinaryMaze.Width, ordinaryMaze.Height, 4);
+        ordinaryFog.UpdatePartyVisibility(ordinaryMaze, [(new Position(3, 5), 4)], false);
+        Assert(!ordinaryFog.IsRevealed(canopyInterior),
+            "A külön erdőbeállítás nélküli pálya fala mögé is továbbterjedt a felfedés.");
+    }
+
     static void AdaptableRaceGainsChosenAbility()
     {
         var race = new RaceDefinition("R001", "Ember", PrimaryAbilities.Zero, RaceTraits.Adaptable);

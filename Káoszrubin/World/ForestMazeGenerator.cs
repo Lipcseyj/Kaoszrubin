@@ -29,6 +29,8 @@ public sealed class ForestMazeGenerator : MazeGenerator
         var palette = _forest.Palette;
         var maze = new Maze(width, height, palette.Tree.Rune, palette.Tree.ForegroundColor, Settings.LevelName);
         foreach (var style in palette.All) maze.RegisterTerrainStyle(style);
+        maze.ConfigureConnectedTerrainReveal(
+            [palette.Tree, palette.Pine, palette.Bush, palette.FlowerBush, palette.Thicket]);
         _reserved = new bool[width, height];
         _routeField = new ForestTerrainField(width, height, new IntRange(4, 9), Random);
         FillForest(maze);
