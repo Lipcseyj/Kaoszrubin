@@ -184,7 +184,9 @@ public class MazeGenerator
         foreach (var encounter in encounters)
         {
             var members = RollMembers(encounter);
-            var roomIndex = rooms.FindIndex(room => AvailableRoomPositions(maze, room).Count >= members.Count);
+            var roomIndex = rooms.FindIndex(room =>
+                (encounter.TargetRoomKind is null || room.Kind == encounter.TargetRoomKind) &&
+                AvailableRoomPositions(maze, room).Count >= members.Count);
             if (roomIndex < 0) continue;
             var room = rooms[roomIndex];
             rooms.RemoveAt(roomIndex);

@@ -10,7 +10,7 @@ namespace KaoszRubin.Application;
 /// <summary>A hálózati szerződés jelenlegi verziója. Inkompatibilis DTO-változáskor növelendő.</summary>
 public static class SessionProtocol
 {
-    public const int Version = 99;
+    public const int Version = 100;
 }
 
 /// <summary>A host doménállapotától leválasztott, JSON-nal továbbítható teljes session-kép.</summary>
@@ -34,7 +34,8 @@ public sealed record SessionSnapshot(int ProtocolVersion, long SnapshotSequence,
     ReplicatedWindowSnapshot? SharedWindow = null,
     BackgroundMusicContext? MusicContext = null,
     string ExplorationClockIndicator = "⌛⏸",
-    IReadOnlyList<SessionSpellImpactSnapshot>? SpellImpacts = null);
+    IReadOnlyList<SessionSpellImpactSnapshot>? SpellImpacts = null,
+    DungeonMapSnapshot? DungeonMap = null);
 
 /// <summary>
 /// Egy játékos személyes, nem replikált tartalmú böngészőablaka. A többi kliens csak azt látja,

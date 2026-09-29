@@ -32,6 +32,14 @@ public sealed record DungeonAreaNodePlan(string Id, AreaCoordinate Coordinate, D
 public sealed record DungeonAreaConnectionPlan(
     string FirstAreaId, MazeEdge FirstEdge, string SecondAreaId, MazeEdge SecondEdge);
 
+public sealed record DungeonMapNode(string Id, string Name, AreaCoordinate Coordinate,
+    DungeonAreaRole Role, bool IsVisited, bool IsCurrent);
+
+public sealed record DungeonMapEdge(string FirstAreaId, string SecondAreaId);
+
+public sealed record DungeonMapSnapshot(IReadOnlyList<DungeonMapNode> Nodes,
+    IReadOnlyList<DungeonMapEdge> Edges, string CurrentAreaId);
+
 /// <summary>A teljes, összefüggő képernyőgráf generálási eredménye.</summary>
 public sealed record DungeonAreaGraphPlan(
     IReadOnlyList<DungeonAreaNodePlan> Nodes,

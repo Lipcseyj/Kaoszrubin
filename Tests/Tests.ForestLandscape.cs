@@ -1,5 +1,73 @@
 internal static partial class Program
 {
+    static void ForestAreaConfigurationAndMapRoundTrip()
+    {
+        var graph = new ExplicitForestAreaGraphConfiguration(
+        [
+            new("GATE", "Mohakapu", new(0, 0), ForestAreaTemplateCatalog.MixedForest),
+            new("SWAMP", "Feketevíz", new(1, 0), ForestAreaTemplateCatalog.Swamp,
+                new() { BuildingCount = new(2, 2) }),
+            new("EXIT", "Szélcsend", new(2, 0), ForestAreaTemplateCatalog.OpenGroves)
+        ],
+        [new("GATE", "SWAMP"), new("SWAMP", "EXIT")], "GATE", "EXIT");
+        var plan = graph.BuildPlan();
+        var swamp = ForestAreaConfigurationResolver.Resolve(new ForestGenerationConfiguration(), graph,
+            graph.Areas[1]);
+        Assert(plan.Nodes.Count == 3 && plan.Connections.Count == 2 && plan.ExitAreaId == "EXIT" &&
+               swamp.MarshCount.Minimum == 3 && swamp.BuildingCount == new IntRange(2, 2),
+            "Az explicit gráf vagy a template + képernyőfelülírás feloldása hibás.");
+        var restored = ForestConfigurationJson.Deserialize(ForestConfigurationJson.Serialize(graph));
+        Assert(restored.Areas.Select(area => area.Id).SequenceEqual(graph.Areas.Select(area => area.Id)) &&
+               restored.Connections.Count == 2 && restored.Areas[1].Overrides?.BuildingCount == new IntRange(2, 2),
+            "Az erdőgráf JSON round-tripja adatot veszített.");
+
+        var firstMaze = MapAreaMaze("SWAMP", new Position(6, 3));
+        var secondMaze = MapAreaMaze("GATE", new Position(0, 3), "EXIT", new Position(6, 3));
+        var thirdMaze = MapAreaMaze("SWAMP", new Position(0, 3));
+        var firstFog = new FogOfWar(7, 7, 1);
+        firstFog.Restore([new Position(6, 3)], false);
+        var level = new DungeonLevel(
+        [
+            new("GATE", firstMaze, firstFog, "Mohakapu", new(0, 0), DungeonAreaRole.Entrance),
+            new("SWAMP", secondMaze, new FogOfWar(7, 7, 1), "Feketevíz", new(1, 0), DungeonAreaRole.MainRoute),
+            new("EXIT", thirdMaze, new FogOfWar(7, 7, 1), "Szélcsend", new(2, 0), DungeonAreaRole.Exit)
+        ], "GATE", "GATE", "EXIT");
+        var map = level.CreateDiscoveredMap();
+        Assert(map.Nodes.Count == 2 && map.Nodes.Single(node => node.Id == "GATE").Name == "Mohakapu" &&
+               map.Nodes.Single(node => node.Id == "SWAMP") is { Name: "?", IsVisited: false } &&
+               map.Edges.Count == 1 && !map.Nodes.Any(node => node.Id == "EXIT"),
+            "A felfedezett régiótérkép rejtett területet szivárogtatott vagy kihagyta az ismert átjárót.");
+
+        var campaignLayout = (ForestMazeLayoutConfiguration)MazeLevelConfigurations.Get(6).Layout!;
+        Assert(campaignLayout.ExplicitGraph is { Areas.Count: 8 } && campaignLayout.Forest.BuildingStyles.Count >= 3,
+            "A kampányerdő nem kapta meg az explicit területeket vagy a többféle épületfalat.");
+        var campaignGraph = campaignLayout.ExplicitGraph!;
+        foreach (var area in campaignGraph.Areas)
+        {
+            var areaConfiguration = ForestAreaConfigurationResolver.Resolve(
+                campaignLayout.Forest, campaignGraph, area);
+            var generated = new ForestMazeGenerator(LandscapeSettings(6), areaConfiguration, [], [],
+                new Random(area.Id.GetHashCode(StringComparison.Ordinal))).Create(170, 44);
+            Assert(generated.CheckFullAccessibility().IsFullyAccessible &&
+                   generated.Rooms.Any(room => room.Kind != RoomKind.Generic),
+                $"A(z) {area.Id} explicit erdőképernyő nem generálható vagy elvesztette a szobatípusait.");
+        }
+
+        static Maze MapAreaMaze(string destination, Position passagePosition,
+            string? secondDestination = null, Position? secondPosition = null)
+        {
+            var maze = new Maze(7, 7);
+            maze.Carve(passagePosition);
+            maze.AddPassage(new MazePassage(passagePosition, destination, new Position(3, 3)));
+            if (secondDestination is not null && secondPosition is { } other)
+            {
+                maze.Carve(other);
+                maze.AddPassage(new MazePassage(other, secondDestination, new Position(3, 3)));
+            }
+            return maze;
+        }
+    }
+
     static void ForestBuildingsSupportMultipleLayoutTypes()
     {
         for (var seed = 0; seed < 8; seed++)

@@ -16,6 +16,8 @@ public sealed class FogOfWar
     private bool _hasPartyPerceptionState;
     public int VisionRange { get; }
     public bool IsDeveloperRevealActive { get; private set; }
+    /// <summary>O(1) jelzés a régiótérképhez; nem kell miatta minden pillanatképnél végigpásztázni a rácsot.</summary>
+    public bool HasRevealedPositions { get; private set; }
 
     public FogOfWar(int width, int height, int visionRange)
     {
@@ -53,6 +55,7 @@ public sealed class FogOfWar
             if (!maze.IsInside(target) || !IsWithinVisionRange(origin, target, effectiveRange)) continue;
             if (!HasLineOfSight(maze, origin, target) || _revealed[x, y]) continue;
             _revealed[x, y] = true;
+            HasRevealedPositions = true;
             _currentlyVisible[x, y] = true;
             _currentlyVisiblePositions.Add(target);
             newlyRevealed.Add(target);
@@ -94,6 +97,7 @@ public sealed class FogOfWar
                 if (!_revealed[x, y])
                 {
                     _revealed[x, y] = true;
+                    HasRevealedPositions = true;
                     newlyRevealed.Add(target);
                 }
             }
@@ -211,7 +215,10 @@ public sealed class FogOfWar
     {
         foreach (var position in revealedPositions)
             if (position.X >= 0 && position.X < _revealed.GetLength(0) && position.Y >= 0 && position.Y < _revealed.GetLength(1))
+            {
                 _revealed[position.X, position.Y] = true;
+                HasRevealedPositions = true;
+            }
         IsDeveloperRevealActive = developerRevealActive;
     }
 
@@ -280,6 +287,7 @@ public sealed class FogOfWar
         {
             if (_revealed[position.X, position.Y]) continue;
             _revealed[position.X, position.Y] = true;
+            HasRevealedPositions = true;
             changedPositions.Add(position);
         }
     }
@@ -306,6 +314,7 @@ public sealed class FogOfWar
         foreach (var position in bridgedPositions)
         {
             _revealed[position.X, position.Y] = true;
+            HasRevealedPositions = true;
             newlyRevealed.Add(position);
         }
     }

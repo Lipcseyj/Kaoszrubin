@@ -1,10 +1,12 @@
 namespace KaoszRubin.World;
 
 public enum RoomPurpose { Normal, Starting, Quest, Boss }
+public enum RoomKind { Generic, Clearing, Cabin, Manor, Labyrinth }
 
 /// <summary>Egy ajtóval kapcsolódó téglalap alakú szoba belső területe.</summary>
 public sealed record Room(Position TopLeft, int Width, int Height,
-    RoomPurpose Purpose = RoomPurpose.Normal, string? ContentId = null)
+    RoomPurpose Purpose = RoomPurpose.Normal, string? ContentId = null,
+    RoomKind Kind = RoomKind.Generic, string? BuildingId = null)
 {
     public bool AllowsRandomContent => Purpose == RoomPurpose.Normal;
 

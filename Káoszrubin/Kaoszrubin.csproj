@@ -19,6 +19,7 @@
 		<None Include="Pictures\**\*.png" CopyToOutputDirectory="PreserveNewest" />
 		<None Include="Music\**\*.mp3" CopyToOutputDirectory="PreserveNewest" />
 		<Compile Remove="Tests\**\*.cs" />
+		<Compile Remove="Tools\**\*.cs" />
 	</ItemGroup>
 
 	<ItemGroup>

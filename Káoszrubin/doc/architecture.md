@@ -102,7 +102,9 @@ Az indítás menete:
 - `Maze.cs`: a pályarács, a szobák és a térképi objektumok tárolója.
 - `MazeGenerator.cs`: labirintus, szobák, ládák és ellenfelek létrehozása.
 - `ForestMazeGenerator.cs`: erdei tisztások, összefüggő ösvények, tavak, mocsárszegély, növényzet és zárt épületek létrehozása.
-- `ForestMazeConfiguration.cs`: az erdősűrűség, terepgyakoriságok, tavak, épületek, ösvényszélesség, rúnák és színek szerkesztői API-ja.
+- `ForestMazeConfiguration.cs`: az erdősűrűség, terepgyakoriságok, tavak, épületek, falstílusok, ösvényszélesség, rúnák és színek szerkesztői API-ja.
+- `ForestAreaConfiguration.cs`: névvel ellátott erdőképernyők, örökölhető template-ek, helyi felülírások és explicit gráfkapcsolatok.
+- `ForestConfigurationJson.cs`: a szerkesztő és a játék közös, verziózott JSON-formátuma.
 - `MazeTerrainStyle.cs`: a rúnánként konfigurálható járhatóság, látástakarás és megjelenítés közös modellje.
 - `DungeonAreaGraph.cs`: a többképernyős szint absztrakt, kétdimenziós gráfja és a mellékágas/hurkos gráfgenerátor.
 - `DungeonLevel.cs`: a létrejött képernyők, az aktív képernyő, valamint a stabil bejárati és kijárati képernyő kezelése.
@@ -130,11 +132,13 @@ képernyőszám tartományát, a bejárat és kijárat minimális gráftávolsá
 a mellékágak és a plusz hurkok esélyét. A generátor minden csomópontot bejárat, főút, elágazás, mellékág,
 zsákutca vagy kijárat szereppel jelöl. A képernyők közti átjárók a koordinátákból következő égtáj szerinti
 páros oldalon készülnek el. A klasszikus és széles pályák ugyanezen modell lineáris tervét használják;
-az erdei generátor pedig erre a közös alapra köti rá a procedurális gráfot.
+az erdei generátor pedig erre a közös alapra köti rá a procedurális vagy explicit gráfot.
 
 Az erdei elrendezéshez a pályakonfiguráció `Layout` mezője `ForestMazeLayoutConfiguration` értéket kap.
 A benne lévő `DungeonAreaGraphConfiguration` 6–10 vagy akár más számú képernyőből mellékágas, hurkolható
-gráfot készít. A `ForestGenerationConfiguration` szabályozza a területi erdőborítást, a fa- és
+gráfot készít. Alternatívaként az `ExplicitForestAreaGraphConfiguration` névvel, koordinátával,
+template-tel és stabil azonosítóval adja meg az egyes képernyőket. A template-ek egymásból örökölhetnek,
+a képernyők pedig csak az eltérő paramétereket írják felül. A `ForestGenerationConfiguration` szabályozza a területi erdőborítást, a fa- és
 bokorcsoportok léptékét, a lombos és fenyves tájegységek arányát, az aljnövényzetet, a tavak és önálló
 mocsarak számát/méretét, a mocsaras tópart arányát, az ösvények szélességét, kanyargását és kerülőágait,
 valamint az épületek számát, méretét, belső tagolását és ajtóállapotainak esélyét.
@@ -146,6 +150,9 @@ a bokrok csak a nyílt erdőszegélyen jelennek meg. A tavak és mocsarak szabá
 a tavakat kerülő ösvények hullámzó köztes pontokat kötnek össze súlyozott útkereséssel. Az elzárt
 természetes tisztások is bekötést kapnak; vízzel teljesen körbezárt száraz szigethez szükség esetén
 keskeny mocsári átkelő vezet. A véletlenmag az egész generálást reprodukálhatóvá teszi.
+A `CTRL+M` régiótérképe csak a ködből már ismert képernyőket és kapcsolatokat mutatja;
+az el nem ért területek neve és a rejtett gráfrész nem szivárog ki. A vendégjátékos ugyanezt a hosttól
+kapott pillanatképből látja.
 Hangolási példák és a paraméterek pontos jelentése: [Erdei pályagenerálás](forest-generation.md).
 
 Az egy képernyőn belüli tisztások a közös `Room` modellt használják. Emiatt a `RoomEncounters` és a

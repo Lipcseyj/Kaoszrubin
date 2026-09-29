@@ -4,6 +4,15 @@ namespace KaoszRubin.World;
 
 public enum ForestBuildingLayout { Cabin, Manor, Labyrinth }
 
+public sealed record ForestBuildingStyleDefinition(
+    string Id,
+    MazeTerrainStyle Wall,
+    double Weight = 1,
+    IReadOnlySet<ForestBuildingLayout>? AllowedLayouts = null)
+{
+    public bool Allows(ForestBuildingLayout layout) => AllowedLayouts is null || AllowedLayouts.Contains(layout);
+}
+
 /// <summary>Az erdei pálya rúnái és színei. Minden mezőtípus külön felülírható.</summary>
 public sealed class ForestTerrainPalette
 {
@@ -116,6 +125,11 @@ public sealed class ForestGenerationConfiguration
     /// <summary>Plusz belső ajtók és lehetséges második külső bejárat esélye.</summary>
     public double BuildingExtraConnectionChance { get; init; } = 0.18;
     public double BuildingSecondEntranceChance { get; init; } = 0.20;
+
+    /// <summary>
+    /// Súlyozott épületfal-stílusok. Üres listánál a Palette.BuildingWall marad az egyetlen stílus.
+    /// </summary>
+    public IReadOnlyList<ForestBuildingStyleDefinition> BuildingStyles { get; init; } = [];
 
     /// <summary>A bejárati és belső ajtók zárt, illetve nyitott állapotának esélye.</summary>
     /// <remarks>A fennmaradó esély bezárt, de nem kulcsra zárt ajtót eredményez.</remarks>

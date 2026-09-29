@@ -253,6 +253,13 @@ public sealed class CoopGuestScreen
                         Interlocked.Exchange(ref _redrawRequested, 1);
                         continue;
                     }
+                    if (GameInput.IsDungeonMapShortcut(key) && client.CurrentSnapshot?.DungeonMap is { } dungeonMap)
+                    {
+                        DungeonMapWindow.ShowStandalone(dungeonMap);
+                        _lastFrame = null;
+                        Interlocked.Exchange(ref _redrawRequested, 1);
+                        continue;
+                    }
                     if (key.Key == ConsoleKey.Q &&
                         client.CurrentSnapshot is { Phase: GameSessionPhase.Exploration or GameSessionPhase.Inn } questSnapshot &&
                         questSnapshot.Narrative is null && questSnapshot.RestNotice is null &&

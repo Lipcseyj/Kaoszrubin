@@ -75,3 +75,48 @@ A végső járható arány nem pontosan `1 - ForestDensity`: a tisztások és ö
 bokrok és épületfalak csökkentik. A `RoomCount` képernyők között elosztott értéke a garantált
 tisztások/épületek száma; magas értéke még 1-es erdősűrűségnél is sok nyílt helyet vág ki.
 A térkép külső, egymezős kerete zárt marad, amíg a képernyőkapcsoló átjárókat nem készít rá.
+
+## Képernyőnkénti profilok és gráf
+
+Az erdei layout opcionális `ExplicitGraph` konfigurációja stabil azonosítóval, névvel és
+`AreaCoordinate` koordinátával írja le a képernyőket. A kapcsolatok külön listában szerepelnek, ezért
+két szomszédos koordináta csak explicit él esetén kap átjárót. Az explicit gráfnak összefüggőnek kell
+lennie, egy koordinátát csak egy terület használhat, és minden él ortogonálisan szomszédos képernyőket
+köthet össze.
+
+Minden `ForestAreaDefinition` választ egy template-et és opcionális
+`ForestGenerationConfigurationPatch` felülírást. A feloldási sorrend: közös erdőkonfiguráció →
+template-öröklés → képernyőfelülírás. A beépített template-ek:
+
+- `mixed-forest` – normál vegyes erdő;
+- `swamp` – mocsárvidék;
+- `lakes-and-manors` – tavak és kúriák;
+- `dense-cabin-forest` – sűrű erdő kunyhókkal;
+- `forest-labyrinth` – sűrű, kanyargó erdő labirintusépületekkel;
+- `open-groves` – nyílt ligetek.
+
+Egyedi template pontosan egy másik template-ből örökölhet. A körkörös öröklést, az ismeretlen
+hivatkozást és a duplikált azonosítót a betöltő elutasítja. Az egyes képernyők külön, stabil seedet
+kapnak, ezért egy terület szerkesztése nem rendezi át a többi képernyő véletlen terepét.
+
+A `Ctrl+M` a játékban a felfedezett régiótérképet nyitja meg. A már meglátogatott területek neve
+látszik; egy felfedett átjáró túloldala név nélküli kérdőjelként jelenik meg. A térkép a területek
+mentett ködállapotából épül, így nem igényel külön mentésmigrációt és nem fedi fel előre a gráfot.
+
+## Épületstílusok és célzott encounterek
+
+A `BuildingStyles` súlyozott listája különböző falrúnát, színt és opcionálisan engedélyezett
+alaprajztípusokat rendelhet az épületekhez. Üres lista esetén a régi `Palette.BuildingWall` működik.
+A jelenlegi tereptárolás miatt az eltérő falstílusoknak egyedi rúnát kell használniuk.
+
+Az erdei termek `RoomKind` értéke megkülönbözteti a tisztást, kunyhót, kúriát és
+labirintusépületet. Az encounter `AreaId` és `TargetRoomKind` mezőkkel stabil területre és konkrét
+helyiségtípusra célozható; a régi `ScreenNumber` továbbra is támogatott.
+
+## Erdei pályagráf-szerkesztő
+
+A `Tools/ForestMapEditor` Windows alkalmazás a gráf vizuális szerkesztésére szolgál. A csomópontok
+rácson mozgathatók, elnevezhetők, template-hez rendelhetők, összeköthetők, és a legfontosabb
+víz-, mocsár-, erdősűrűség- és épületparaméterek képernyőnként felülírhatók. A szerkesztő ugyanazzal
+a generátorral készít ASCII előnézetet, mint a játék. A verziózott JSON formátumot a
+`ForestConfigurationJson` közösen validálja és olvassa.

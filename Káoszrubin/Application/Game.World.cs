@@ -488,6 +488,13 @@ public sealed partial class Game
                         continue;
                     }
 
+                    if (GameInput.IsDungeonMapShortcut(keyInfo))
+                    {
+                        _renderer.ShowDungeonMap(_dungeonLevel.CreateDiscoveredMap());
+                        _renderer.DrawInitialState(_maze, _player, _fogOfWar, _difficultyLevel);
+                        continue;
+                    }
+
                     if (CheckDevToolsKeys(keyInfo))
                         continue;
 
@@ -870,7 +877,9 @@ public sealed partial class Game
                 _gameData.GetEnemy(member.EnemyId), member.Count, member.Role)).ToList(),
             encounter.MovementProfile,
             encounter.Behavior,
-            encounter.ScreenNumber);
+            encounter.ScreenNumber,
+            encounter.AreaId,
+            encounter.TargetRoomKind);
 
         var layout = configuration.Layout ??
                      new ClassicMazeLayoutConfiguration(configuration.DoubleWidthCorridorChance);
@@ -885,7 +894,7 @@ public sealed partial class Game
                 topology = DungeonAreaGraphPlan.Linear(wide.AreaCount.Roll(_random));
                 break;
             case ForestMazeLayoutConfiguration forest:
-                topology = DungeonAreaGraphGenerator.Generate(forest.Graph, _random);
+                topology = forest.ExplicitGraph?.BuildPlan() ?? DungeonAreaGraphGenerator.Generate(forest.Graph, _random);
                 break;
             default:
                 topology = DungeonAreaGraphPlan.Linear(1);
@@ -893,29 +902,38 @@ public sealed partial class Game
         }
         var areaCount = topology.Nodes.Count;
 
-        var roomBuckets = DistributeEncounters(configuration.RoomEncounters.Select(ResolveEncounter), areaCount, _random);
-        var corridorBuckets = DistributeEncounters(configuration.CorridorEncounters.Select(ResolveEncounter), areaCount, _random);
+        var areaIds = topology.Nodes.Select(node => node.Id).ToArray();
+        var roomBuckets = DistributeEncounters(configuration.RoomEncounters.Select(ResolveEncounter), areaIds, _random);
+        var corridorBuckets = DistributeEncounters(configuration.CorridorEncounters.Select(ResolveEncounter), areaIds, _random);
         var rolledSettings = configuration.CreateGenerationSettings(_random);
+        var forestAreaSeed = layout is ForestMazeLayoutConfiguration ? _random.Next() : 0;
         var areas = new List<DungeonArea>(areaCount);
         for (var index = 0; index < topology.Nodes.Count; index++)
         {
             var node = topology.Nodes[index];
             var containsLevelExit = string.Equals(node.Id, topology.ExitAreaId, StringComparison.Ordinal);
             var settings = AreaGenerationSettings(rolledSettings, index, areaCount, containsLevelExit);
+            var areaRandom = layout is ForestMazeLayoutConfiguration
+                ? new Random(StableAreaSeed(forestAreaSeed, node.Id))
+                : _random;
             _generator = layout switch
             {
                 WideMazeLayoutConfiguration => new WideMazeGenerator(settings, roomBuckets[index],
                     corridorBuckets[index], _random, magicWeaponContext),
-                ForestMazeLayoutConfiguration forest => new ForestMazeGenerator(settings, forest.Forest,
-                    roomBuckets[index], corridorBuckets[index], _random, magicWeaponContext),
+                ForestMazeLayoutConfiguration forest => new ForestMazeGenerator(settings,
+                    forest.ExplicitGraph?.Areas.FirstOrDefault(area => area.Id == node.Id) is { } area
+                        ? ForestAreaConfigurationResolver.Resolve(forest.Forest, forest.ExplicitGraph, area)
+                        : forest.Forest,
+                    roomBuckets[index], corridorBuckets[index], areaRandom, magicWeaponContext),
                 _ => new MazeGenerator(settings, roomBuckets[index], corridorBuckets[index], _random,
                     magicWeaponContext)
             };
             var maze = _generator.Create(MazeWidth, MazeHeight);
             areas.Add(new DungeonArea(node.Id, maze,
                 new FogOfWar(maze.Width, maze.Height, CharacterClassRules.BaseVisionRange),
-                layout is ForestMazeLayoutConfiguration
-                    ? ForestAreaDisplayName(node, index, areaCount)
+                layout is ForestMazeLayoutConfiguration forestLayout
+                    ? forestLayout.ExplicitGraph?.Areas.FirstOrDefault(area => area.Id == node.Id)?.Name ??
+                      ForestAreaDisplayName(node, index, areaCount)
                     : areaCount == 1 ? configuration.Name : $"{index + 1}. terület",
                 node.Coordinate, node.Role));
         }
@@ -959,10 +977,26 @@ public sealed partial class Game
         return $"{names[nameIndex]} ({index + 1}/{areaCount})";
     }
 
+    private static int StableAreaSeed(int levelSeed, string areaId)
+    {
+        unchecked
+        {
+            uint hash = (uint)levelSeed ^ 2166136261;
+            foreach (var character in areaId) hash = (hash ^ character) * 16777619;
+            return (int)(hash & 0x7fffffff);
+        }
+    }
+
     internal static List<ResolvedEnemyEncounter>[] DistributeEncounters(
         IEnumerable<ResolvedEnemyEncounter> encounters, int areaCount, Random random)
+        => DistributeEncounters(encounters,
+            Enumerable.Range(1, areaCount).Select(index => $"AREA_{index}").ToArray(), random);
+
+    internal static List<ResolvedEnemyEncounter>[] DistributeEncounters(
+        IEnumerable<ResolvedEnemyEncounter> encounters, IReadOnlyList<string> areaIds, Random random)
     {
         ArgumentNullException.ThrowIfNull(random);
+        var areaCount = areaIds.Count;
         if (areaCount < 1) throw new ArgumentOutOfRangeException(nameof(areaCount));
         var materialized = encounters.ToList();
         var invalid = materialized.FirstOrDefault(encounter =>
@@ -970,10 +1004,21 @@ public sealed partial class Game
         if (invalid?.ScreenNumber is { } invalidScreen)
             throw new InvalidOperationException(
                 $"Az encounter képernyőszáma {invalidScreen}, de a pályának {areaCount} képernyője van.");
+        var invalidArea = materialized.FirstOrDefault(encounter => encounter.AreaId is { } id &&
+            !areaIds.Contains(id, StringComparer.Ordinal));
+        if (invalidArea?.AreaId is { } invalidAreaId)
+            throw new InvalidOperationException($"Az encounter ismeretlen területet céloz: {invalidAreaId}.");
         if (areaCount == 1) return [materialized];
         var result = Enumerable.Range(0, areaCount).Select(_ => new List<ResolvedEnemyEncounter>()).ToArray();
         foreach (var encounter in materialized)
         {
+            if (encounter.AreaId is { } areaId)
+            {
+                var areaIndex = Enumerable.Range(0, areaIds.Count)
+                    .First(index => string.Equals(areaIds[index], areaId, StringComparison.Ordinal));
+                result[areaIndex].Add(encounter);
+                continue;
+            }
             var total = encounter.GroupCount.Roll(random);
             if (encounter.ScreenNumber is { } screenNumber)
             {

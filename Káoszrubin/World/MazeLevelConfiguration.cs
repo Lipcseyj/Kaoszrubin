@@ -69,11 +69,15 @@ public enum EnemyEncounterBehavior
 /// <param name="MovementProfile">Opcionális közös mozgásprofil; null esetén a szörny saját profilja érvényesül.</param>
 /// <param name="Behavior">Normál vagy hordaszerű elhelyezés.</param>
 /// <param name="ScreenNumber">Opcionális, 1-től számozott képernyő; null esetén automatikus elosztás.</param>
+/// <param name="AreaId">Opcionális stabil területazonosító; explicit gráfnál ezt érdemes használni a sorszám helyett.</param>
+/// <param name="TargetRoomKind">Opcionális szobatípus, például csak kúria vagy erdei labirintus.</param>
 public sealed record EnemyEncounterConfiguration(IntRange GroupCount,
     IReadOnlyList<EnemyGroupMemberConfiguration> Members,
     EnemyMovementProfile? MovementProfile = null,
     EnemyEncounterBehavior Behavior = EnemyEncounterBehavior.Default,
-    int? ScreenNumber = null);
+    int? ScreenNumber = null,
+    string? AreaId = null,
+    RoomKind? TargetRoomKind = null);
 
 /// <summary>Egy különleges szobába garantáltan elhelyezett ellenségtípus.</summary>
 /// <param name="RoomId">A célként használt quest- vagy boss-szoba tartalomazonosítója.</param>
@@ -539,6 +543,17 @@ public static class MazeLevelConfigurations
                         LabyrinthBuildingHeight = new IntRange(8, 17),
                         BuildingExtraConnectionChance = 0.18,
                         BuildingSecondEntranceChance = 0.20,
+                        BuildingStyles =
+                        [
+                            new("mossy-timber", new("forbidden-timber-wall", new('▓'),
+                                ConsoleColor.DarkYellow, ConsoleColor.Black, false, true), 4),
+                            new("old-stone", new("forbidden-stone-wall", new('▣'),
+                                ConsoleColor.Gray, ConsoleColor.Black, false, true), 3),
+                            new("dark-manor", new("forbidden-manor-wall", new('▤'),
+                                ConsoleColor.DarkGray, ConsoleColor.Black, false, true), 2,
+                                new HashSet<ForestBuildingLayout>
+                                    { ForestBuildingLayout.Manor, ForestBuildingLayout.Labyrinth })
+                        ],
                         LockedBuildingDoorChance = 0.18,
                         OpenBuildingDoorChance = 0.12,
                         Palette = new ForestTerrainPalette
@@ -554,7 +569,37 @@ public static class MazeLevelConfigurations
                             BuildingWall = new("forbidden-building-wall", new('█'), ConsoleColor.Gray,
                                 ConsoleColor.Black, false, true)
                         }
-                    }),
+                    },
+                    new ExplicitForestAreaGraphConfiguration(
+                    [
+                        new("MOSS_GATE", "Mohakapu", new(0, 0), ForestAreaTemplateCatalog.MixedForest),
+                        new("WHISPERING_WOOD", "Suttogó rengeteg", new(1, 0),
+                            ForestAreaTemplateCatalog.DenseCabinForest),
+                        new("RAVEN_CROSSING", "Hollók elágazása", new(2, 0),
+                            ForestAreaTemplateCatalog.MixedForest),
+                        new("OLD_PINES", "Az öreg fenyves", new(1, -1),
+                            ForestAreaTemplateCatalog.DenseCabinForest,
+                            new() { PineChance = 0.72, BuildingCount = new(0, 1) }),
+                        new("LOST_MANOR", "Az elveszett kúriák", new(1, 1),
+                            ForestAreaTemplateCatalog.LakesAndManors,
+                            new() { ManorBuildingChance = 1, LabyrinthBuildingChance = 0 }),
+                        new("BLACKWATER", "Feketevíz lápja", new(2, 1),
+                            ForestAreaTemplateCatalog.Swamp),
+                        new("THORN_MAZE", "A tövisek útvesztője", new(3, 1),
+                            ForestAreaTemplateCatalog.ForestLabyrinth),
+                        new("WINDLESS_GLADE", "A Szélcsend tisztása", new(3, 2),
+                            ForestAreaTemplateCatalog.OpenGroves)
+                    ],
+                    [
+                        new("MOSS_GATE", "WHISPERING_WOOD"),
+                        new("WHISPERING_WOOD", "RAVEN_CROSSING"),
+                        new("WHISPERING_WOOD", "OLD_PINES"),
+                        new("WHISPERING_WOOD", "LOST_MANOR"),
+                        new("RAVEN_CROSSING", "BLACKWATER"),
+                        new("LOST_MANOR", "BLACKWATER"),
+                        new("BLACKWATER", "THORN_MAZE"),
+                        new("THORN_MAZE", "WINDLESS_GLADE")
+                    ], "MOSS_GATE", "WINDLESS_GLADE")),
                 WallRune = new('♠'),
                 WallColor = ConsoleColor.DarkGreen,
                 RoomCount = new IntRange(42, 56),
@@ -571,7 +616,8 @@ public static class MazeLevelConfigurations
                     Encounters.LeaderGroup(MonsterIds.GoblinVajákos, MonsterIds.Goblin,
                         Amount.Few, Amount.Several),
                     Encounters.LeaderGroup(MonsterIds.OrkSámán, MonsterIds.Ork,
-                        Amount.Few, Amount.Several)
+                        Amount.Few, Amount.Several) with
+                        { AreaId = "LOST_MANOR", TargetRoomKind = RoomKind.Manor }
                 ],
                 CorridorEncounters =
                 [
@@ -1196,6 +1242,8 @@ public sealed record ResolvedEnemyGroupMember(EnemyDefinition Definition, IntRan
 public sealed record ResolvedEnemyEncounter(IntRange GroupCount,
     IReadOnlyList<ResolvedEnemyGroupMember> Members, EnemyMovementProfile? MovementProfile,
     EnemyEncounterBehavior Behavior = EnemyEncounterBehavior.Default,
-    int? ScreenNumber = null);
+    int? ScreenNumber = null,
+    string? AreaId = null,
+    RoomKind? TargetRoomKind = null);
 
 #endregion

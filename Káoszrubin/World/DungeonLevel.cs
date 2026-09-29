@@ -16,7 +16,8 @@ public sealed record WideMazeLayoutConfiguration(IntRange AreaCount, double Narr
 /// </summary>
 public sealed record ForestMazeLayoutConfiguration(
     DungeonAreaGraphConfiguration Graph,
-    ForestGenerationConfiguration Forest)
+    ForestGenerationConfiguration Forest,
+    ExplicitForestAreaGraphConfiguration? ExplicitGraph = null)
     : MazeLayoutConfiguration(MazeLayoutStyle.Forest);
 
 public sealed class DungeonArea(string id, Maze maze, FogOfWar fogOfWar,
@@ -73,6 +74,33 @@ public sealed class DungeonLevel
     {
         _ = GetArea(id);
         ActiveAreaId = id;
+    }
+
+    /// <summary>
+    /// Csak a már meglátogatott területeket, illetve a felfedett átjárók túloldalát adja vissza.
+    /// Így a metatérkép nem szivárogtatja ki előre a teljes gráfot.
+    /// </summary>
+    public DungeonMapSnapshot CreateDiscoveredMap()
+    {
+        var visited = Areas.Where(area => area.Id == ActiveAreaId || area.FogOfWar.HasRevealedPositions)
+            .Select(area => area.Id).ToHashSet(StringComparer.Ordinal);
+        var known = new HashSet<string>(visited, StringComparer.Ordinal);
+        var edges = new HashSet<(string First, string Second)>();
+        foreach (var area in Areas.Where(area => visited.Contains(area.Id)))
+        foreach (var passage in area.Maze.Passages)
+        {
+            if (!area.FogOfWar.IsRevealed(passage.Position) && !visited.Contains(passage.DestinationAreaId)) continue;
+            known.Add(passage.DestinationAreaId);
+            var edge = string.CompareOrdinal(area.Id, passage.DestinationAreaId) < 0
+                ? (area.Id, passage.DestinationAreaId)
+                : (passage.DestinationAreaId, area.Id);
+            edges.Add(edge);
+        }
+        var nodes = Areas.Where(area => known.Contains(area.Id)).Select(area => new DungeonMapNode(
+            area.Id, visited.Contains(area.Id) ? area.Name : "?", area.Coordinate, area.Role,
+            visited.Contains(area.Id), area.Id == ActiveAreaId)).ToArray();
+        return new DungeonMapSnapshot(nodes, edges.Select(edge => new DungeonMapEdge(edge.First, edge.Second)).ToArray(),
+            ActiveAreaId);
     }
 }
 

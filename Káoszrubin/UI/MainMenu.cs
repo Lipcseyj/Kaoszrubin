@@ -976,6 +976,7 @@ public sealed class MainMenu
             Hotkey("A", "🛡️ A beállított 2x2-es alakzat összeállítása vagy feloszlatása."),
             Hotkey("CTRL+← / →", "↪️ A zárt alakzat 90 fokos fordítása."),
             Hotkey("TAB", "📃 Váltás a térkép és a karakterlap között."),
+            Hotkey("CTRL+M", "🗺️ A felfedezett erdőképernyők régiótérképe."),
             Hotkey("V", "✨ Memorizált varázslatok megnyitása Mágussal, Pappal vagy Lovaggal."),
             Hotkey("F1–F8", "✨ Gyorsvarázslatok elsütése."),
             Hotkey("PGUP / PGDN", "📜 A 200 soros eseménynapló lapozása az egyszerre látható sorok számával."),
