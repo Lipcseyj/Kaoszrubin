@@ -58,7 +58,7 @@ internal static class GameInput
 
     public static bool IsTeleportPartyToLevelShortcut(ConsoleKeyInfo keyInfo) =>
         keyInfo.Key == ConsoleKey.L &&
-        HasControlAlt(keyInfo);
+        HasControlShift(keyInfo);
 
     public static bool IsTeleportToExitShortcut(ConsoleKeyInfo keyInfo) =>
         keyInfo.Key == ConsoleKey.E &&

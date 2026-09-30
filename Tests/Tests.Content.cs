@@ -240,19 +240,19 @@ internal static partial class Program
     static void NpcDefinitionsLoadFromCsv()
     {
         var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
-        Assert(catalog.Npcs.Count == 23 && catalog.NpcEncounters.Count == 32 &&
+        Assert(catalog.Npcs.Count == 24 && catalog.NpcEncounters.Count == 33 &&
                Enumerable.Range(1, MazeLevelConfigurations.FinalLevel).All(level =>
                    catalog.NpcEncounters.Any(encounter => encounter.MazeLevel == level)),
             "Az NPC-definíciók vagy valamelyik pálya találkozása hiányzik.");
-        Assert(catalog.NpcDialogues.Count == 114,
-            $"Az NPC-párbeszédek száma hibás: várt 114, tényleges {catalog.NpcDialogues.Count}.");
+        Assert(catalog.NpcDialogues.Count == 116,
+            $"Az NPC-párbeszédek száma hibás: várt 116, tényleges {catalog.NpcDialogues.Count}.");
         Assert(catalog.NpcStoryChoices.Count == 67,
             $"Az NPC történeti választások száma hibás: várt 67, tényleges {catalog.NpcStoryChoices.Count}.");
-        Assert(catalog.Quests.Count == 43,
-            $"Az NPC-küldetések száma hibás: várt 43, tényleges {catalog.Quests.Count}.");
+        Assert(catalog.Quests.Count == 44,
+            $"Az NPC-küldetések száma hibás: várt 44, tényleges {catalog.Quests.Count}.");
         foreach (var (type, expected) in new[]
         {
-        (typeof(QuestObjective.CollectItem), 8), (typeof(QuestObjective.KillEnemy), 19), (typeof(QuestObjective.KillEnemyWithTraits), 1),
+        (typeof(QuestObjective.CollectItem), 9), (typeof(QuestObjective.KillEnemy), 19), (typeof(QuestObjective.KillEnemyWithTraits), 1),
         (typeof(QuestObjective.ExploreLocation), 5), (typeof(QuestObjective.DisarmTraps), 3), (typeof(QuestObjective.OpenChests), 4), (typeof(QuestObjective.EscortNpc), 1), (typeof(QuestObjective.OpenQuestChest), 2)
     })
         {
