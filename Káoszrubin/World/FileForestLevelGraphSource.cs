@@ -6,10 +6,12 @@ public sealed class FileForestLevelGraphSource(string directoryPath) : IForestLe
         ? throw new ArgumentException("A könyvtár neve nem lehet üres.", nameof(directoryPath))
         : directoryPath;
 
-    public bool TryLoad(int level, out ForestLevelGraphDocument? document, out string? warning)
+    public bool TryLoad(int level, out ForestLevelGraphDocument? document,
+        out string? sourceDescription, out string? warning)
     {
         if (level < 1) throw new ArgumentOutOfRangeException(nameof(level));
         var fileName = Path.Combine(_directoryPath, $"level-{level}.json");
+        sourceDescription = fileName;
         document = null;
         warning = null;
         if (!File.Exists(fileName)) return false;

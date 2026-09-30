@@ -76,6 +76,7 @@ internal sealed class ForestMapEditorForm : Form
         bar.Controls.Add(Button("Mentés", (_, _) => SaveDocument()));
         bar.Controls.Add(Button("Mentés másként", (_, _) => SaveDocumentAs()));
         bar.Controls.Add(Button("Validálás", (_, _) => ValidateDocument(showSuccess: true)));
+        bar.Controls.Add(Button("Template-részletek", (_, _) => ShowTemplateDetails()));
         bar.Controls.Add(Button("Képernyő előnézete", (_, _) => PreviewSelected()));
         bar.Controls.Add(Button("Oldalpanel", (_, _) => ToggleInspector()));
         bar.Controls.Add(Button("Súgó", (_, _) => ShowEditorHelp()));
@@ -257,6 +258,82 @@ internal sealed class ForestMapEditorForm : Form
             "Ha a jobb panel rejtve van, nyomd meg az Oldalpanel gombot.",
             "Erdei pályagenerátor – gyors súgó");
     }
+
+    private void ShowTemplateDetails()
+    {
+        try
+        {
+            ApplySelected();
+            var level = (int)_level.Value;
+            var levelConfiguration = MazeLevelConfigurations.Get(level);
+            var forestLayout = levelConfiguration.Layout as ForestMazeLayoutConfiguration;
+            var common = forestLayout?.Forest ?? new ForestGenerationConfiguration();
+            var builtInIds = ForestAreaTemplateCatalog.BuiltIns.Select(template => template.Id)
+                .ToHashSet(StringComparer.Ordinal);
+            var graph = new ExplicitForestAreaGraphConfiguration(
+                [new("PREVIEW", "Template összehasonlítás", new(0, 0))],
+                [], "PREVIEW", "PREVIEW", _customTemplates.ToArray());
+            var templates = ForestAreaTemplateCatalog.BuiltIns.Concat(_customTemplates)
+                .OrderBy(template => template.Id, StringComparer.Ordinal).ToArray();
+
+            var text = new System.Text.StringBuilder();
+            text.AppendLine($"Pálya: {level} — {levelConfiguration.Name}");
+            text.AppendLine(forestLayout is null
+                ? "A kiválasztott pálya nem erdei layout; összehasonlítás alapértelmezett erdőprofilból készül."
+                : "Összehasonlítás a kiválasztott pálya közös erdőprofilja alapján készült.");
+            text.AppendLine();
+
+            foreach (var template in templates)
+            {
+                var area = new ForestAreaDefinition("PREVIEW", "Template összehasonlítás", new(0, 0), template.Id);
+                var resolved = ForestAreaConfigurationResolver.Resolve(common, graph, area);
+                text.AppendLine($"=== {template.Id} — {template.Name} [{(builtInIds.Contains(template.Id) ? "beépített" : "egyedi")}] ===");
+                text.AppendLine($"Alapsablon: {template.BaseTemplateId ?? "(közös alap)"}");
+                text.AppendLine("Felülírások:");
+                AppendObjectDetails(text, template.Overrides, onlyNonNull: true);
+                text.AppendLine("Feloldott beállítások:");
+                AppendObjectDetails(text, resolved, onlyNonNull: false);
+                text.AppendLine();
+            }
+
+            new TemplateDetailsForm(text.ToString()).ShowDialog(this);
+        }
+        catch (Exception exception)
+        {
+            MessageBox.Show(this, exception.Message, "Template-részletezési hiba");
+        }
+    }
+
+    private static void AppendObjectDetails(System.Text.StringBuilder text, object source, bool onlyNonNull)
+    {
+        var hasAny = false;
+        foreach (var property in source.GetType().GetProperties()
+                     .Where(property => property.CanRead)
+                     .OrderBy(property => property.Name, StringComparer.Ordinal))
+        {
+            var value = property.GetValue(source);
+            if (onlyNonNull && value is null) continue;
+            hasAny = true;
+            text.Append("  - ").Append(property.Name).Append(": ")
+                .AppendLine(FormatDetailValue(value));
+        }
+        if (!hasAny) text.AppendLine("  - (nincs)");
+    }
+
+    private static string FormatDetailValue(object? value) => value switch
+    {
+        null => "(nincs)",
+        string text => text,
+        IntRange range => $"{range.Minimum}..{range.Maximum}",
+        ForestBuildingStyleDefinition style => $"{style.Id}:{style.Weight}",
+        ForestTerrainPalette palette =>
+            $"tree={palette.Tree.Id}, pine={palette.Pine.Id}, bush={palette.Bush.Id}, flower={palette.FlowerBush.Id}, " +
+            $"thicket={palette.Thicket.Id}, water={palette.Water.Id}, marsh={palette.Marsh.Id}, wall={palette.BuildingWall.Id}",
+        IEnumerable<ForestBuildingStyleDefinition> styles => string.Join(", ", styles.Select(FormatDetailValue)),
+        System.Collections.IEnumerable sequence when value is not string =>
+            string.Join(", ", sequence.Cast<object?>().Select(FormatDetailValue)),
+        _ => value.ToString() ?? "(ismeretlen)"
+    };
 
     private void UpdateStatus(string message) => _status.Text = message;
 
@@ -477,6 +554,26 @@ internal sealed class ForestMapEditorForm : Form
     {
         var panel = new FlowLayoutPanel { Width = 380, Height = 40 };
         panel.Controls.Add(Button(firstText, first)); panel.Controls.Add(Button(secondText, second)); return panel;
+    }
+}
+
+internal sealed class TemplateDetailsForm : Form
+{
+    public TemplateDetailsForm(string details)
+    {
+        Text = "Template-részletek";
+        Width = 980;
+        Height = 760;
+        Controls.Add(new RichTextBox
+        {
+            Dock = DockStyle.Fill,
+            ReadOnly = true,
+            WordWrap = false,
+            Font = new Font("Cascadia Mono", 9),
+            BackColor = Color.Black,
+            ForeColor = Color.LightGray,
+            Text = details
+        });
     }
 }
 

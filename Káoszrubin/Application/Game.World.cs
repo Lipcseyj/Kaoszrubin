@@ -828,7 +828,8 @@ public sealed partial class Game
         var configuration = MazeLevelConfigurations.Get(_mazeLevel);
         var effectiveLayout = ForestLevelGraphOverrideBridge.Apply(configuration,
             new FileForestLevelGraphSource(Path.Combine(AppContext.BaseDirectory, "ForestLevelGraphs")),
-            warning => _renderer.DrawInventoryMessage(warning, ConsoleColor.DarkYellow));
+            warning => _renderer.DrawInventoryMessage(warning, ConsoleColor.DarkYellow),
+            details => Log.Info("forest-graph-json.override-applied", details));
         _dungeonLevel = GenerateDungeonLevel(configuration, effectiveLayout);
         _maze = _dungeonLevel.ActiveArea.Maze;
         _fogOfWar = _dungeonLevel.ActiveArea.FogOfWar;

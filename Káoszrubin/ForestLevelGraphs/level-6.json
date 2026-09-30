@@ -26,7 +26,10 @@
           "LakeCount": null,
           "LakeRadius": null,
           "MarshChance": null,
-          "MarshCount": null,
+          "MarshCount": {
+            "Minimum": 7,
+            "Maximum": 8
+          },
           "MarshRadius": null,
           "TrailWidth": null,
           "TrailWinding": null,
