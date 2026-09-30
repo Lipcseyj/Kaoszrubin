@@ -19,6 +19,8 @@ képernyő között hozható létre vagy törölhető él.
 2. Kattints egy területdobozra. A jobb oldali **Kijelölt képernyő beállításai** panel frissül.
 3. A bepipált erdősűrűség-, tó-, mocsár- és épületértékek felülírják a template-et.
 4. A **Módosítások alkalmazása** után az előnézet már az új beállítást használja.
+   Az **Új előnézet** minden alkalommal új seedet sorsol; az **Előző seed ismétlése** ugyanazt
+   a generálást reprodukálja. A seed az ablak címében és az állapotsorban is megjelenik.
 5. A **Mentés** első alkalommal fájlnevet kér, később ugyanazt a fájlt frissíti. A **Mentés másként** mindig új JSON-fájlt hoz létre.
 6. A **Megnyitás** a szerkesztővel korábban mentett JSON-fájlt tölti vissza.
 
@@ -30,7 +32,7 @@ felülírásokat hozza be. A pálya közös alapkonfigurációja, encounterei é
 a játék pályakonfigurációjában maradnak; a szerkesztő JSON-ja az erdei gráfot írja le.
 
 A **Validálás** ellenőrzi az összefüggőséget, az azonosítókat, koordinátákat, kapcsolatokat és
-template-hivatkozásokat. A **Képernyő előnézete** fix seeddel a játék tényleges
-`ForestMazeGenerator` osztályát futtatja. A mentett `.json` fájl verziózott
+template-hivatkozásokat. Az előnézet a kiválasztott pálya közös erdőkonfigurációjával és a játék tényleges
+`ForestMazeGenerator` osztályával készül. A mentett `.json` fájl verziózott
 `ForestLevelGraphDocument`, amely tartalmazza a célszintet is, és amelyet a játék
 `ForestConfigurationJson.DeserializeDocument` / `Deserialize` metódusai töltenek be.

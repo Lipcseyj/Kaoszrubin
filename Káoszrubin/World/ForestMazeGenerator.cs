@@ -258,11 +258,17 @@ public sealed class ForestMazeGenerator : MazeGenerator
             }
 
             var connections = BuildingBoundaryConnections(room)
-                .Where(connection => maze.IsWalkable(connection.Outside)).ToArray();
+                // A külső ajtó ne essen egy belső válaszfal síkjába. Korábban ilyenkor
+                // a bekötés kifaragta a válaszfal első celláját, ajtó nélküli lyukat hagyva rajta.
+                // Csak eleve járható helyiségbe nyíló falszakasz lehet bejárat.
+                .Where(connection => maze.IsWalkable(connection.Inside))
+                .ToArray();
             if (connections.Length == 0)
                 throw new InvalidOperationException("Az erdei épülethez nem található elérhető bejárat.");
-            var entrance = connections[Random.Next(connections.Length)];
-            ConnectBuildingEntrance(maze, room, entrance.Inside);
+            var connectedEntrances = connections.Where(connection => maze.IsWalkable(connection.Outside)).ToArray();
+            var entranceCandidates = connectedEntrances.Length > 0 ? connectedEntrances : connections;
+            var entrance = entranceCandidates[Random.Next(entranceCandidates.Length)];
+            ConnectBuildingExterior(maze, room, entrance.Outside);
             maze.PlaceDoor(entrance.Wall, RollBuildingDoorState());
 
             if (building.Layout != ForestBuildingLayout.Cabin && connections.Length > 1 &&
@@ -270,7 +276,7 @@ public sealed class ForestMazeGenerator : MazeGenerator
             {
                 var second = connections.Where(candidate => candidate.Wall != entrance.Wall)
                     .OrderByDescending(candidate => Manhattan(candidate.Wall, entrance.Wall)).First();
-                ConnectBuildingEntrance(maze, room, second.Inside);
+                ConnectBuildingExterior(maze, room, second.Outside);
                 maze.PlaceDoor(second.Wall, RollBuildingDoorState());
             }
 
@@ -488,32 +494,37 @@ public sealed class ForestMazeGenerator : MazeGenerator
                 : (secondX, secondY, firstX, firstY);
     }
 
-    private void ConnectBuildingEntrance(Maze maze, Room footprint, Position inside)
+    private void ConnectBuildingExterior(Maze maze, Room footprint, Position outside)
     {
-        if (maze.IsWalkable(inside)) return;
+        if (maze.IsWalkable(outside)) return;
+        var boundary = BuildingBoundary(footprint).ToHashSet();
         var pending = new Queue<Position>();
         var previous = new Dictionary<Position, Position>();
-        var visited = new HashSet<Position> { inside };
-        pending.Enqueue(inside);
+        var visited = new HashSet<Position> { outside };
+        pending.Enqueue(outside);
         Position? destination = null;
         while (pending.TryDequeue(out var current) && destination is null)
         {
             foreach (var direction in Directions)
             {
                 var next = current + direction;
-                if (!footprint.Contains(next) || !visited.Add(next)) continue;
+                if (!IsInterior(maze, next) || footprint.Contains(next) || boundary.Contains(next) ||
+                    !visited.Add(next)) continue;
                 previous[next] = current;
                 if (maze.IsWalkable(next)) { destination = next; break; }
                 pending.Enqueue(next);
             }
         }
         if (destination is null)
-            throw new InvalidOperationException("Az erdei épület bejárata nem köthető a belső térhez.");
+            throw new InvalidOperationException("Az erdei épület bejárata nem köthető a külső ösvényhez.");
         var position = destination.Value;
-        while (position != inside)
+        while (position != outside)
         {
             position = previous[position];
-            maze.Carve(position);
+            if (maze.GetTerrainStyle(position)?.Id == _forest.Palette.Water.Id)
+                maze.SetTerrain(position, _forest.Palette.Marsh);
+            else
+                maze.Carve(position);
         }
     }
 

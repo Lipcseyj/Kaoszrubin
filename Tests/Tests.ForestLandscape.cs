@@ -107,18 +107,44 @@ internal static partial class Program
             var cabinRooms = cabin.Rooms.Where(room => room.Purpose != RoomPurpose.Starting).ToArray();
             Assert(cabinRooms.Length == 2 && cabin.CheckFullAccessibility().IsFullyAccessible,
                 $"A kétszobás kunyhó hibás vagy nem bejárható: seed={seed}.");
+            AssertBuildingDoorsOpenIntoRooms(cabin, cabinRooms, "kunyhó", seed);
 
             var manor = BuildingLandscape(seed, manorChance: 1, labyrinthChance: 0);
             var manorRooms = manor.Rooms.Where(room => room.Purpose != RoomPurpose.Starting).ToArray();
             Assert(manorRooms.Length == 6 && manorRooms.All(room => room.Width >= 3 && room.Height >= 3) &&
                    manor.CheckFullAccessibility().IsFullyAccessible,
                 $"A hatszobás nagy épület hibás vagy nem bejárható: seed={seed}, rooms={manorRooms.Length}.");
+            AssertBuildingDoorsOpenIntoRooms(manor, manorRooms, "kúria", seed);
 
             var labyrinth = BuildingLandscape(seed, manorChance: 0, labyrinthChance: 1);
             var labyrinthRooms = labyrinth.Rooms.Where(room => room.Purpose != RoomPurpose.Starting).ToArray();
             Assert(labyrinthRooms.Length == 9 && labyrinthRooms.All(room => room.Width == 3 && room.Height == 3) &&
                    labyrinth.CheckFullAccessibility().IsFullyAccessible,
                 $"A kilencszobás labirintusépület hibás vagy nem bejárható: seed={seed}, rooms={labyrinthRooms.Length}.");
+        }
+
+        static void AssertBuildingDoorsOpenIntoRooms(Maze maze, IReadOnlyList<Room> rooms,
+            string layout, int seed)
+        {
+            var roomCells = rooms.SelectMany(room => room.InteriorPositions()).ToHashSet();
+            var minimumX = rooms.Min(room => room.TopLeft.X);
+            var minimumY = rooms.Min(room => room.TopLeft.Y);
+            var maximumX = rooms.Max(room => room.TopLeft.X + room.Width);
+            var maximumY = rooms.Max(room => room.TopLeft.Y + room.Height);
+            var exteriorDoors = maze.Doors.Where(door =>
+                door.Position.X == minimumX - 1 || door.Position.X == maximumX ||
+                door.Position.Y == minimumY - 1 || door.Position.Y == maximumY).ToArray();
+            var invalidDoors = exteriorDoors.Where(door =>
+            {
+                var inside = door.Position.X == minimumX - 1 ? door.Position + Direction.Right :
+                    door.Position.X == maximumX ? door.Position + Direction.Left :
+                    door.Position.Y == minimumY - 1 ? door.Position + Direction.Down :
+                    door.Position + Direction.Up;
+                return !roomCells.Contains(inside) || !maze.IsWalkable(inside);
+            }).ToArray();
+            Assert(exteriorDoors.Length > 0 && invalidDoors.Length == 0,
+                $"A(z) {layout} egyik ajtaja válaszfal síkjába került: seed={seed}, " +
+                $"doors={string.Join(',', invalidDoors.Select(door => door.Position))}.");
         }
     }
 
