@@ -5,16 +5,19 @@ namespace KaoszRubin.World;
 
 public enum ForestBuildingLayout { Cabin, Manor, Labyrinth }
 
+[TypeConverter(typeof(ExpandableObjectConverter))]
 public sealed record ForestBuildingStyleDefinition(
     string Id,
     MazeTerrainStyle Wall,
     double Weight = 1,
+    [property: TypeConverter(typeof(ForestBuildingLayoutsTypeConverter))]
     IReadOnlySet<ForestBuildingLayout>? AllowedLayouts = null)
 {
     public bool Allows(ForestBuildingLayout layout) => AllowedLayouts is null || AllowedLayouts.Contains(layout);
 }
 
 /// <summary>Az erdei pálya rúnái és színei. Minden mezőtípus külön felülírható.</summary>
+[TypeConverter(typeof(ExpandableObjectConverter))]
 public sealed class ForestTerrainPalette
 {
     public MazeTerrainStyle Tree { get; init; } =
@@ -162,7 +165,8 @@ public sealed class ForestGenerationConfiguration
     /// <summary>
     /// Súlyozott épületfal-stílusok. Üres listánál a Palette.BuildingWall marad az egyetlen stílus.
     /// </summary>
-    [Description("Az épületekhez súlyozottan választható falstílusok.")]
+    [Description("Az épületekhez súlyozottan választható falstílusok. A nyíllal lenyitható.")]
+    [TypeConverter(typeof(ForestBuildingStylesTypeConverter))]
     public IReadOnlyList<ForestBuildingStyleDefinition> BuildingStyles { get; init; } = [];
 
     /// <summary>A bejárati és belső ajtók zárt, illetve nyitott állapotának esélye.</summary>
@@ -174,4 +178,50 @@ public sealed class ForestGenerationConfiguration
 
     [Description("Az erdei tereptípusok rúnái, színei, járhatósága és látástakarása.")]
     public ForestTerrainPalette Palette { get; init; } = new();
+}
+
+public sealed class ForestBuildingLayoutsTypeConverter : TypeConverter
+{
+    public override bool CanConvertFrom(ITypeDescriptorContext? context, Type sourceType) => sourceType == typeof(string);
+    public override bool CanConvertTo(ITypeDescriptorContext? context, Type? destinationType) => destinationType == typeof(string);
+    public override object? ConvertFrom(ITypeDescriptorContext? context, System.Globalization.CultureInfo? culture, object value)
+    {
+        var text = value.ToString()?.Trim();
+        if (string.IsNullOrEmpty(text) || text == "*") return null;
+        return text.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+            .Select(Enum.Parse<ForestBuildingLayout>).ToHashSet();
+    }
+    public override object? ConvertTo(ITypeDescriptorContext? context, System.Globalization.CultureInfo? culture,
+        object? value, Type destinationType) => destinationType == typeof(string)
+        ? value is IReadOnlySet<ForestBuildingLayout> layouts ? string.Join(", ", layouts) : "*"
+        : base.ConvertTo(context, culture, value, destinationType);
+}
+
+public sealed class ForestBuildingStylesTypeConverter : ExpandableObjectConverter
+{
+    public override bool GetPropertiesSupported(ITypeDescriptorContext? context) => true;
+    public override PropertyDescriptorCollection GetProperties(ITypeDescriptorContext? context, object value,
+        Attribute[]? attributes) => value is IReadOnlyList<ForestBuildingStyleDefinition> styles
+        ? new PropertyDescriptorCollection(styles.Select((_, index) =>
+            (PropertyDescriptor)new StyleItemDescriptor(index)).ToArray())
+        : new PropertyDescriptorCollection([]);
+    public override bool CanConvertTo(ITypeDescriptorContext? context, Type? destinationType) =>
+        destinationType == typeof(string) || base.CanConvertTo(context, destinationType);
+    public override object? ConvertTo(ITypeDescriptorContext? context, System.Globalization.CultureInfo? culture,
+        object? value, Type destinationType) => destinationType == typeof(string) &&
+        value is IReadOnlyList<ForestBuildingStyleDefinition> styles
+        ? $"{styles.Count} falstílus" : base.ConvertTo(context, culture, value, destinationType);
+
+    private sealed class StyleItemDescriptor(int index) : PropertyDescriptor($"[{index}]", null)
+    {
+        public override Type ComponentType => typeof(IReadOnlyList<ForestBuildingStyleDefinition>);
+        public override bool IsReadOnly => true;
+        public override Type PropertyType => typeof(ForestBuildingStyleDefinition);
+        public override object? GetValue(object? component) =>
+            component is IReadOnlyList<ForestBuildingStyleDefinition> styles ? styles[index] : null;
+        public override void SetValue(object? component, object? value) { }
+        public override bool CanResetValue(object component) => false;
+        public override void ResetValue(object component) { }
+        public override bool ShouldSerializeValue(object component) => false;
+    }
 }

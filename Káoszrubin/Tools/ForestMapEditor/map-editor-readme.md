@@ -36,3 +36,23 @@ template-hivatkozásokat. Az előnézet a kiválasztott pálya közös erdőkonf
 `ForestMazeGenerator` osztályával készül. A mentett `.json` fájl verziózott
 `ForestLevelGraphDocument`, amely tartalmazza a célszintet is, és amelyet a játék
 `ForestConfigurationJson.DeserializeDocument` / `Deserialize` metódusai töltenek be.
+
+## Egyedi sablonok
+
+A template mentése így működik:
+1. Válassz ki egy képernyőt.
+2. Válassz egy meglévő template-et alapnak.
+3. Módosítsd a kívánt értékeket a tulajdonságrácsban.
+4. A „Template ID” mezőbe írj stabil technikai azonosítót, például foggy-manor.
+5. A „Név” mezőbe írj megjelenő nevet, például Ködös kúriavidék.
+6. Nyomd meg a „Beállítások mentése új template-ként” gombot.
+Ezután:
+- Az új template a korábban kiválasztott template-ből örököl.
+- Csak az attól eltérő értékeket tárolja.
+- A jelenlegi képernyő automatikusan átvált az új template-re.
+- A képernyő saját felülírásai kiürülnek, mert azok már a template részévé váltak.
+- Az új template megjelenik a template-listában, így más képernyőkhöz is kiválasztható.
+- A paletta és a BuildingStyles módosításai szintén bekerülnek.
+- A template a térkép JSON-fájljába kerül a következő mentéskor.
+Fontos: ez projekt-JSON-on belüli template, nem kerül automatikusan a játék beépített globális template-katalógusába. Másik JSON-fájlban csak akkor lesz elérhető, ha abban is szerepel.
+Meglévő saját template-et jelenleg nem lehet azonos ID-val felülírni. Módosított változathoz új ID-t kell megadni.
