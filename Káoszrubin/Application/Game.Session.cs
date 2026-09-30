@@ -218,6 +218,16 @@ public sealed partial class Game
                     _renderer.CharacterSheet.CloseItemInspectionPage();
                 continue;
             }
+            if (_renderer.CharacterSheet.IsSpellInfoPageOpen)
+            {
+                if (keyInfo.Key == ConsoleKey.Escape)
+                    _renderer.CharacterSheet.CloseSpellInfoPage();
+                else if (keyInfo.Key == ConsoleKey.UpArrow) _renderer.CharacterSheet.MoveSpellInfoSelection(-1);
+                else if (keyInfo.Key == ConsoleKey.DownArrow) _renderer.CharacterSheet.MoveSpellInfoSelection(1);
+                else if (TryGetQuickSpellIndex(keyInfo, out var spellSlot)) AssignSelectedSpellQuickSlot(spellSlot);
+                else if (keyInfo.Key == ConsoleKey.Enter) CastSelectedSpellInfo();
+                continue;
+            }
             if (GameInputBindings.IsCharacterSheetToggle(keyInfo.Key) || keyInfo.Key == ConsoleKey.Escape)
             {
                 CancelHeldInventoryItem();
