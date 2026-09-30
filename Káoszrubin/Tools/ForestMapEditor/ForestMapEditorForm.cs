@@ -37,6 +37,7 @@ internal sealed class ForestMapEditorForm : Form
     private readonly ComboBox _connectionTo = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 145 };
     private readonly ComboBox _entrance = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 145 };
     private readonly ComboBox _exit = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 145 };
+    private readonly NumericUpDown _level = Number(1, 999, 6);
     private ForestAreaDefinition? _selected;
     private string? _currentFilePath;
 
@@ -69,7 +70,9 @@ internal sealed class ForestMapEditorForm : Form
             WrapContents = true, AutoScroll = true };
         bar.Controls.Add(Button("Új", (_, _) => NewDocument()));
         bar.Controls.Add(Button("Megnyitás", (_, _) => OpenDocument()));
-        bar.Controls.Add(Button("6. pálya betöltése", (_, _) => LoadLevelSix()));
+        bar.Controls.Add(new Label { Text = "Pálya:", AutoSize = true, Padding = new Padding(0, 7, 0, 0) });
+        bar.Controls.Add(_level);
+        bar.Controls.Add(Button("Pálya betöltése", (_, _) => LoadSelectedLevel()));
         bar.Controls.Add(Button("Mentés", (_, _) => SaveDocument()));
         bar.Controls.Add(Button("Mentés másként", (_, _) => SaveDocumentAs()));
         bar.Controls.Add(Button("Validálás", (_, _) => ValidateDocument(showSuccess: true)));
@@ -142,7 +145,12 @@ internal sealed class ForestMapEditorForm : Form
         if (dialog.ShowDialog(this) != DialogResult.OK) return;
         try
         {
-            var graph = ForestConfigurationJson.Deserialize(File.ReadAllText(dialog.FileName));
+            var document = ForestConfigurationJson.DeserializeDocument(File.ReadAllText(dialog.FileName));
+            if (document.Level is { } level) _level.Value = Math.Clamp(level, (int)_level.Minimum, (int)_level.Maximum);
+            else MessageBox.Show(this,
+                "A megnyitott fájl nem tartalmaz pályaszámot (régi formátum). A jelenlegi kiválasztott pálya marad érvényben.",
+                "Régi dokumentum");
+            var graph = document.Graph;
             LoadGraph(graph, dialog.FileName);
             _currentFilePath = dialog.FileName;
             UpdateStatus($"Megnyitva: {dialog.FileName}");
@@ -170,7 +178,7 @@ internal sealed class ForestMapEditorForm : Form
     {
         try
         {
-            File.WriteAllText(fileName, ForestConfigurationJson.Serialize(Document()));
+            File.WriteAllText(fileName, ForestConfigurationJson.Serialize((int)_level.Value, Document()));
             UpdateStatus($"Mentve: {fileName}");
         }
         catch (Exception exception)
@@ -179,17 +187,27 @@ internal sealed class ForestMapEditorForm : Form
         }
     }
 
-    private void LoadLevelSix()
+    private void LoadSelectedLevel()
     {
-        var layout = MazeLevelConfigurations.Get(6).Layout as ForestMazeLayoutConfiguration;
-        if (layout?.ExplicitGraph is null)
+        var level = (int)_level.Value;
+        var configuration = MazeLevelConfigurations.Get(level);
+        var layout = configuration.Layout as ForestMazeLayoutConfiguration;
+        if (layout is null)
         {
-            MessageBox.Show(this, "A 6. pályához nem található explicit erdei gráf.", "Betöltési hiba");
+            MessageBox.Show(this,
+                $"A(z) {level}. pálya nem erdei layout, ezért a szerkesztő kihagyja.",
+                "Betöltés kihagyva");
+            UpdateStatus($"Kihagyva: {level}. pálya nem erdei layout ({configuration.Name})");
             return;
         }
-        LoadGraph(layout.ExplicitGraph, "a játék beépített 6. pályája");
+        if (layout.ExplicitGraph is null)
+        {
+            MessageBox.Show(this, $"A(z) {level}. pályához nem található explicit erdei gráf.", "Betöltési hiba");
+            return;
+        }
+        LoadGraph(layout.ExplicitGraph, $"a játék beépített {level}. pályája");
         _currentFilePath = null;
-        UpdateStatus("A 6. pálya betöltve – Mentés gombbal válassz JSON-fájlt");
+        UpdateStatus($"A(z) {level}. pálya betöltve – Mentés gombbal válassz JSON-fájlt");
     }
 
     private void LoadGraph(ExplicitForestAreaGraphConfiguration graph, string source)
@@ -234,7 +252,8 @@ internal sealed class ForestMapEditorForm : Form
             "3. A template adja az alapkaraktert. Csak a bepipált helyi értékek írják felül.\n" +
             "4. A kapcsolat részben válassz két területet, majd add hozzá vagy töröld az élt.\n" +
             "5. A Mentés JSON-fájlt készít. Megnyitás ugyanilyen JSON-t tölt vissza.\n" +
-            "6. A 6. pálya betöltése a játék jelenlegi beépített gráfjából indul ki.\n\n" +
+            "6. A pályaszám kiválasztása után a Pálya betöltése a játék beépített gráfját nyitja meg.\n" +
+            "   Nem erdei pályánál a szerkesztő figyelmeztet és kihagyja a betöltést.\n\n" +
             "Ha a jobb panel rejtve van, nyomd meg az Oldalpanel gombot.",
             "Erdei pályagenerátor – gyors súgó");
     }

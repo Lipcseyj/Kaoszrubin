@@ -201,6 +201,12 @@ public sealed class MazeLevelConfiguration
     /// <summary>A pályafalak konzolszíne.</summary>
     public ConsoleColor WallColor { get; init; } = ConsoleColor.DarkGray;
 
+    /// <summary>
+    /// Ha true, a pálya erdőgráfja futás közben JSON-ból felülírható.
+    /// A felülírás csak erdei layout esetén értelmezett.
+    /// </summary>
+    public bool ForestGraphJsonOverrideEnabled { get; init; }
+
     #endregion
 
     #region Zsákmány és csapdák
@@ -506,6 +512,7 @@ public static class MazeLevelConfigurations
             {
                 Level = 6,
                 Name = "Tiltott Erdő",
+                ForestGraphJsonOverrideEnabled = true,
                 Layout = new ForestMazeLayoutConfiguration(
                     new DungeonAreaGraphConfiguration(new IntRange(6, 8), MinimumExitDistance: 3,
                         MaximumDegree: 3, BranchChance: 0.52, ExtraConnectionChance: 0.18),

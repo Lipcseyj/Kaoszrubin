@@ -826,7 +826,10 @@ public sealed partial class Game
             character.ResetLevelRelentless();
         }
         var configuration = MazeLevelConfigurations.Get(_mazeLevel);
-        _dungeonLevel = GenerateDungeonLevel(configuration);
+        var effectiveLayout = ForestLevelGraphOverrideBridge.Apply(configuration,
+            new FileForestLevelGraphSource(Path.Combine(AppContext.BaseDirectory, "ForestLevelGraphs")),
+            warning => _renderer.DrawInventoryMessage(warning, ConsoleColor.DarkYellow));
+        _dungeonLevel = GenerateDungeonLevel(configuration, effectiveLayout);
         _maze = _dungeonLevel.ActiveArea.Maze;
         _fogOfWar = _dungeonLevel.ActiveArea.FogOfWar;
 
@@ -867,7 +870,8 @@ public sealed partial class Game
         LogMazeAccessibilityCheck();
     }
 
-    private DungeonLevel GenerateDungeonLevel(MazeLevelConfiguration configuration)
+    private DungeonLevel GenerateDungeonLevel(MazeLevelConfiguration configuration,
+        MazeLayoutConfiguration? layoutOverride = null)
     {
         var magicWeaponContext = CreateEnemyMagicWeaponContext(
             _difficultyLevel > 0 ? _difficultyLevel : configuration.Level);
@@ -881,7 +885,7 @@ public sealed partial class Game
             encounter.AreaId,
             encounter.TargetRoomKind);
 
-        var layout = configuration.Layout ??
+        var layout = layoutOverride ?? configuration.Layout ??
                      new ClassicMazeLayoutConfiguration(configuration.DoubleWidthCorridorChance);
         DungeonAreaGraphPlan topology;
         switch (layout)

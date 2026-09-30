@@ -20,6 +20,12 @@ internal static partial class Program
         Assert(restored.Areas.Select(area => area.Id).SequenceEqual(graph.Areas.Select(area => area.Id)) &&
                restored.Connections.Count == 2 && restored.Areas[1].Overrides?.BuildingCount == new IntRange(2, 2),
             "Az erdőgráf JSON round-tripja adatot veszített.");
+        var levelDocument = ForestConfigurationJson.DeserializeDocument(ForestConfigurationJson.Serialize(6, graph));
+        Assert(levelDocument.Level == 6 && levelDocument.Graph.Areas.Count == graph.Areas.Count,
+            "A szintszámos erdőgráf-dokumentum round-tripja hibás.");
+        var legacyDocument = ForestConfigurationJson.DeserializeDocument(ForestConfigurationJson.Serialize(graph));
+        Assert(legacyDocument.Level is null,
+            "A régi (szint nélküli) dokumentum kompatibilitása sérült.");
 
         var firstMaze = MapAreaMaze("SWAMP", new Position(6, 3));
         var secondMaze = MapAreaMaze("GATE", new Position(0, 3), "EXIT", new Position(6, 3));
@@ -41,6 +47,30 @@ internal static partial class Program
         var campaignLayout = (ForestMazeLayoutConfiguration)MazeLevelConfigurations.Get(6).Layout!;
         Assert(campaignLayout.ExplicitGraph is { Areas.Count: 8 } && campaignLayout.Forest.BuildingStyles.Count >= 3,
             "A kampányerdő nem kapta meg az explicit területeket vagy a többféle épületfalat.");
+        Assert(MazeLevelConfigurations.Get(6).ForestGraphJsonOverrideEnabled &&
+               !MazeLevelConfigurations.Get(7).ForestGraphJsonOverrideEnabled,
+            "A JSON-felülírás jelölője nem látszik jól a pályakonfigurációban.");
+
+        var tempPath = Path.Combine(Path.GetTempPath(), $"kr-forest-override-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(tempPath);
+        try
+        {
+            File.WriteAllText(Path.Combine(tempPath, "level-6.json"), ForestConfigurationJson.Serialize(6, graph));
+            var overridden = ForestLevelGraphOverrideBridge.Apply(MazeLevelConfigurations.Get(6),
+                new FileForestLevelGraphSource(tempPath));
+            Assert(overridden is ForestMazeLayoutConfiguration { ExplicitGraph: { Areas.Count: 3 } },
+                "A markeres erdei pálya JSON-felülírása nem érvényesült.");
+
+            var unchanged = ForestLevelGraphOverrideBridge.Apply(MazeLevelConfigurations.Get(7),
+                new FileForestLevelGraphSource(tempPath));
+            Assert(unchanged is WideMazeLayoutConfiguration,
+                "A nem markeres pályát nem szabad JSON-ból felülírni.");
+        }
+        finally
+        {
+            if (Directory.Exists(tempPath)) Directory.Delete(tempPath, true);
+        }
+
         var campaignGraph = campaignLayout.ExplicitGraph!;
         foreach (var area in campaignGraph.Areas)
         {

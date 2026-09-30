@@ -1,0 +1,239 @@
+{
+  "SchemaVersion": 1,
+  "Level": 6,
+  "Graph": {
+    "Areas": [
+      {
+        "Id": "MOSS_GATE",
+        "Name": "Mohakapu",
+        "Coordinate": {
+          "X": 0,
+          "Y": 0
+        },
+        "TemplateId": "swamp",
+        "Overrides": {
+          "ForestDensity": null,
+          "GroveSize": null,
+          "BiomeSize": null,
+          "PineChance": null,
+          "BushChance": null,
+          "FlowerBushChance": null,
+          "BushGroupSize": null,
+          "ForestEdgeWidth": null,
+          "ThicketChance": null,
+          "UndergrowthChance": null,
+          "DenseUndergrowthChance": null,
+          "LakeCount": null,
+          "LakeRadius": null,
+          "MarshChance": null,
+          "MarshCount": null,
+          "MarshRadius": null,
+          "TrailWidth": null,
+          "TrailWinding": null,
+          "ExtraTrailChance": null,
+          "BuildingCount": null,
+          "BuildingSize": null,
+          "BuildingPartitionChance": null,
+          "ManorBuildingChance": null,
+          "LabyrinthBuildingChance": null,
+          "ManorBuildingWidth": null,
+          "ManorBuildingHeight": null,
+          "ManorRoomCount": null,
+          "BuildingMinimumRoomSize": null,
+          "LabyrinthBuildingWidth": null,
+          "LabyrinthBuildingHeight": null,
+          "BuildingExtraConnectionChance": null,
+          "BuildingSecondEntranceChance": null,
+          "LockedBuildingDoorChance": null,
+          "OpenBuildingDoorChance": null,
+          "Palette": null,
+          "BuildingStyles": null
+        }
+      },
+      {
+        "Id": "WHISPERING_WOOD",
+        "Name": "Suttog\u00F3 rengeteg",
+        "Coordinate": {
+          "X": 1,
+          "Y": 0
+        },
+        "TemplateId": "dense-cabin-forest",
+        "Overrides": null
+      },
+      {
+        "Id": "RAVEN_CROSSING",
+        "Name": "Holl\u00F3k el\u00E1gaz\u00E1sa",
+        "Coordinate": {
+          "X": 2,
+          "Y": 0
+        },
+        "TemplateId": "mixed-forest",
+        "Overrides": null
+      },
+      {
+        "Id": "OLD_PINES",
+        "Name": "Az \u00F6reg fenyves",
+        "Coordinate": {
+          "X": 1,
+          "Y": -1
+        },
+        "TemplateId": "dense-cabin-forest",
+        "Overrides": {
+          "ForestDensity": null,
+          "GroveSize": null,
+          "BiomeSize": null,
+          "PineChance": 0.72,
+          "BushChance": null,
+          "FlowerBushChance": null,
+          "BushGroupSize": null,
+          "ForestEdgeWidth": null,
+          "ThicketChance": null,
+          "UndergrowthChance": null,
+          "DenseUndergrowthChance": null,
+          "LakeCount": null,
+          "LakeRadius": null,
+          "MarshChance": null,
+          "MarshCount": null,
+          "MarshRadius": null,
+          "TrailWidth": null,
+          "TrailWinding": null,
+          "ExtraTrailChance": null,
+          "BuildingCount": {
+            "Minimum": 0,
+            "Maximum": 1
+          },
+          "BuildingSize": null,
+          "BuildingPartitionChance": null,
+          "ManorBuildingChance": null,
+          "LabyrinthBuildingChance": null,
+          "ManorBuildingWidth": null,
+          "ManorBuildingHeight": null,
+          "ManorRoomCount": null,
+          "BuildingMinimumRoomSize": null,
+          "LabyrinthBuildingWidth": null,
+          "LabyrinthBuildingHeight": null,
+          "BuildingExtraConnectionChance": null,
+          "BuildingSecondEntranceChance": null,
+          "LockedBuildingDoorChance": null,
+          "OpenBuildingDoorChance": null,
+          "Palette": null,
+          "BuildingStyles": null
+        }
+      },
+      {
+        "Id": "LOST_MANOR",
+        "Name": "Az elveszett k\u00FAri\u00E1k",
+        "Coordinate": {
+          "X": 1,
+          "Y": 1
+        },
+        "TemplateId": "lakes-and-manors",
+        "Overrides": {
+          "ForestDensity": null,
+          "GroveSize": null,
+          "BiomeSize": null,
+          "PineChance": null,
+          "BushChance": null,
+          "FlowerBushChance": null,
+          "BushGroupSize": null,
+          "ForestEdgeWidth": null,
+          "ThicketChance": null,
+          "UndergrowthChance": null,
+          "DenseUndergrowthChance": null,
+          "LakeCount": null,
+          "LakeRadius": null,
+          "MarshChance": null,
+          "MarshCount": null,
+          "MarshRadius": null,
+          "TrailWidth": null,
+          "TrailWinding": null,
+          "ExtraTrailChance": null,
+          "BuildingCount": null,
+          "BuildingSize": null,
+          "BuildingPartitionChance": null,
+          "ManorBuildingChance": 1,
+          "LabyrinthBuildingChance": 0,
+          "ManorBuildingWidth": null,
+          "ManorBuildingHeight": null,
+          "ManorRoomCount": null,
+          "BuildingMinimumRoomSize": null,
+          "LabyrinthBuildingWidth": null,
+          "LabyrinthBuildingHeight": null,
+          "BuildingExtraConnectionChance": null,
+          "BuildingSecondEntranceChance": null,
+          "LockedBuildingDoorChance": null,
+          "OpenBuildingDoorChance": null,
+          "Palette": null,
+          "BuildingStyles": null
+        }
+      },
+      {
+        "Id": "BLACKWATER",
+        "Name": "Feketev\u00EDz l\u00E1pja",
+        "Coordinate": {
+          "X": 2,
+          "Y": 1
+        },
+        "TemplateId": "swamp",
+        "Overrides": null
+      },
+      {
+        "Id": "THORN_MAZE",
+        "Name": "A t\u00F6visek \u00FAtveszt\u0151je",
+        "Coordinate": {
+          "X": 3,
+          "Y": 1
+        },
+        "TemplateId": "forest-labyrinth",
+        "Overrides": null
+      },
+      {
+        "Id": "WINDLESS_GLADE",
+        "Name": "A Sz\u00E9lcsend tiszt\u00E1sa",
+        "Coordinate": {
+          "X": 3,
+          "Y": 2
+        },
+        "TemplateId": "open-groves",
+        "Overrides": null
+      }
+    ],
+    "Connections": [
+      {
+        "FirstAreaId": "MOSS_GATE",
+        "SecondAreaId": "WHISPERING_WOOD"
+      },
+      {
+        "FirstAreaId": "WHISPERING_WOOD",
+        "SecondAreaId": "RAVEN_CROSSING"
+      },
+      {
+        "FirstAreaId": "WHISPERING_WOOD",
+        "SecondAreaId": "OLD_PINES"
+      },
+      {
+        "FirstAreaId": "WHISPERING_WOOD",
+        "SecondAreaId": "LOST_MANOR"
+      },
+      {
+        "FirstAreaId": "RAVEN_CROSSING",
+        "SecondAreaId": "BLACKWATER"
+      },
+      {
+        "FirstAreaId": "LOST_MANOR",
+        "SecondAreaId": "BLACKWATER"
+      },
+      {
+        "FirstAreaId": "BLACKWATER",
+        "SecondAreaId": "THORN_MAZE"
+      },
+      {
+        "FirstAreaId": "THORN_MAZE",
+        "SecondAreaId": "WINDLESS_GLADE"
+      }
+    ],
+    "EntranceAreaId": "MOSS_GATE",
+    "ExitAreaId": "WINDLESS_GLADE",
+    "Templates": []
+  }
+}
