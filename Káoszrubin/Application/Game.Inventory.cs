@@ -148,8 +148,8 @@ public sealed partial class Game
             _waitingDismissedCompanions.RemoveAll(waiting => ReferenceEquals(waiting.Character, character));
             _waitingDismissedCompanions.Add(new WaitingDismissedCompanion(character, 2));
             _maze.AddWorldNpc(new WorldNpc(avatar!.Position, "NPC-FIRST-COMPANION", character,
-                NpcDisposition.Friendly, recruitable: false, isQuestNpc: false,
-                "Itt maradok a kijáratig. Utána két fogadón át megtaláltok, ha ismét fel akartok fogadni.",
+                NpcDisposition.Friendly, recruitable: true, isQuestNpc: false,
+                "Meggondoltátok magatokat, cimborák? Menjünk csapjunk le pár szörnyet! Ha nem akkor itt maradok a kijáratig. Utána is két fogadón át megtaláltok, ha ismét fel akartok fogadni.",
                 friendliness: 10, behavior: NpcWorldBehavior.Friendly));
         }
         else

@@ -113,7 +113,7 @@ public sealed partial class Game
         }
         else
         {
-            // Nem quest NPC, például az első pálya ingyenes egyjátékos társa.
+            // Nem quest NPC, például az első pálya ingyenes egyjátékos társa, vagy partiból kitett karakter
             result = _renderer.DrawWorldNpcRecruitment(
                 npc,
                 CanNpcJoin(npc),
