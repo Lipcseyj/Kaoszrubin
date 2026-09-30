@@ -109,6 +109,115 @@ A `BuildingStyles` súlyozott listája különböző falrúnát, színt és opci
 alaprajztípusokat rendelhet az épületekhez. Üres lista esetén a régi `Palette.BuildingWall` működik.
 A jelenlegi tereptárolás miatt az eltérő falstílusoknak egyedi rúnát kell használniuk.
 
+### Részletes magyarázat a legfontosabb épületparaméterekhez
+
+Az alábbi mezők együtt határozzák meg, mennyi épület lesz, mekkorák lesznek, és mennyire
+szabdalt/összetett belső tereket kapnak:
+
+| Beállítás | Mit szabályoz pontosan | Gyakorlati hatás | Tipikus tartomány |
+| --- | --- | --- | --- |
+| `BuildingCount` | Képernyőnként mennyi épületet próbáljon elhelyezni a generátor. | Több beltéri helyiség, több potenciális találkozás és kincs. | `new(0, 0)`–`new(3, 4)` |
+| `BuildingSize` | A kunyhó (`Cabin`) típus alapterülete (szélesség és magasság). | Kis érték: szűk kunyhók; nagy érték: tágasabb kunyhók. | `new(4, 7)`–`new(7, 10)` |
+| `BuildingPartitionChance` | A kunyhó kettéosztásának esélye. | Magas értéknél gyakrabban lesz 2 szobás kunyhó. | `0.0`–`1.0` |
+| `ManorBuildingChance` | A „nagy épület” (kúria) esélye a nem-kunyhó döntésben. | Több kúria, több belső szoba. | `0.2`–`0.8` |
+| `LabyrinthBuildingChance` | A labirintusépület esélye. | Több kanyargós, 3×3-as helyiségrácsos belső tér. | `0.05`–`0.6` |
+| `ManorBuildingWidth`, `ManorBuildingHeight` | Kúria külső téglalapmérete. | Nagyobb kúria → több osztható tér, hosszabb belső útvonalak. | ~`new(10, 18)` / `new(8, 14)` |
+| `ManorRoomCount` | Kúriában célzott szobaszám. | Magasabb érték: tagoltabb, több belső ajtó. | `new(3, 8)` |
+| `LabyrinthBuildingWidth`, `LabyrinthBuildingHeight` | Labirintusépület külső mérete. | Minél nagyobb, annál több 3×3-as modul fér el. | `new(13, 22)` / `new(8, 17)` |
+| `BuildingExtraConnectionChance` | Extra belső ajtók/átjárók esélye. | Több hurok, kevesebb zsákutca az épületen belül. | `0.1`–`0.35` |
+| `BuildingSecondEntranceChance` | Második külső bejárat esélye. | Több „átmenő” épület, jobb alternatív útvonalak. | `0.1`–`0.4` |
+| `LockedBuildingDoorChance` | Létrejövő épületajtó zárt (`Locked`) állapotának esélye. | Több kulcs-/ajtóinterakció, lassabb bejárás. | `0.05`–`0.25` |
+| `OpenBuildingDoorChance` | Nyitott (`Open`) állapot esélye; a maradék többnyire `Closed`. | Gyorsabb belépés, kevesebb ajtónyitás. | `0.05`–`0.25` |
+
+Megjegyzés: `ManorBuildingChance + LabyrinthBuildingChance` legfeljebb `1.0` legyen. A fennmaradó rész
+automatikusan kunyhó (`Cabin`).
+
+#### `BuildingStyles` részletesen
+
+A stíluslista minden eleme:
+
+- egy stílusazonosító (`"mossy-timber"`),
+- egy falstílus (`MazeTerrainStyle`) saját rúnával/színnel,
+- egy súly (`Weight`),
+- opcionálisan engedélyezett alaprajztípusok (`AllowedLayouts`).
+
+Példa értelmezés a kijelölt konfigurációból:
+
+- `mossy-timber` súly `4` → gyakoribb;
+- `old-stone` súly `3` → közepesen gyakori;
+- `dark-manor` súly `2` + `AllowedLayouts = { Manor, Labyrinth }` → ritkább, és kunyhóra nem kerül.
+
+A sorsolás a súlyok arányában történik a layoutnak megfelelő szűrés után.
+
+## Ajánlott „starter” erdei szintkonfiguráció (teljes minta)
+
+Az alábbi minta jó kiindulópont egy új erdei pályához: változatos, de még jól kontrollálható
+paraméterekkel indul. A pályaszinthez tartozó encounter/lista mezőket külön kell kitölteni.
+
+```csharp
+Layout = new ForestMazeLayoutConfiguration(
+	new DungeonAreaGraphConfiguration(new IntRange(5, 7), MinimumExitDistance: 3,
+		MaximumDegree: 3, BranchChance: 0.45, ExtraConnectionChance: 0.15),
+	new ForestGenerationConfiguration
+	{
+		ForestDensity = 0.55,
+		GroveSize = new IntRange(5, 13),
+		BiomeSize = 20,
+		PineChance = 0.25,
+		BushChance = 0.16,
+		FlowerBushChance = 0.05,
+		BushGroupSize = new IntRange(2, 5),
+		ForestEdgeWidth = 3,
+		ThicketChance = 0.08,
+		UndergrowthChance = 0.24,
+		DenseUndergrowthChance = 0.10,
+
+		LakeCount = new IntRange(1, 2),
+		LakeRadius = new IntRange(2, 5),
+		MarshChance = 0.55,
+		MarshCount = new IntRange(1, 3),
+		MarshRadius = new IntRange(3, 6),
+
+		TrailWidth = 2,
+		TrailWinding = 0.70,
+		ExtraTrailChance = 0.30,
+
+		BuildingCount = new IntRange(1, 2),
+		BuildingSize = new IntRange(5, 8),
+		BuildingPartitionChance = 0.70,
+		ManorBuildingChance = 0.40,
+		LabyrinthBuildingChance = 0.12,
+		ManorBuildingWidth = new IntRange(10, 18),
+		ManorBuildingHeight = new IntRange(8, 14),
+		ManorRoomCount = new IntRange(3, 7),
+		LabyrinthBuildingWidth = new IntRange(13, 20),
+		LabyrinthBuildingHeight = new IntRange(9, 16),
+		BuildingExtraConnectionChance = 0.18,
+		BuildingSecondEntranceChance = 0.20,
+
+		BuildingStyles =
+		[
+			new("starter-timber", new("starter-timber-wall", new('▓'),
+				ConsoleColor.DarkYellow, ConsoleColor.Black, false, true), 4),
+			new("starter-stone", new("starter-stone-wall", new('▣'),
+				ConsoleColor.Gray, ConsoleColor.Black, false, true), 3),
+			new("starter-manor", new("starter-manor-wall", new('▤'),
+				ConsoleColor.DarkGray, ConsoleColor.Black, false, true), 2,
+				new HashSet<ForestBuildingLayout>
+					{ ForestBuildingLayout.Manor, ForestBuildingLayout.Labyrinth })
+		],
+
+		LockedBuildingDoorChance = 0.15,
+		OpenBuildingDoorChance = 0.15
+	})
+```
+
+Gyors finomhangolási javaslatok induláshoz:
+
+- Túl zsúfolt: csökkentsd `ForestDensity`-t (`0.50` környékére) vagy emeld `TrailWidth`-et.
+- Túl sok beltér: csökkentsd `BuildingCount`-ot és/vagy `ManorBuildingChance`-t.
+- Kevés alternatív útvonal: emeld `ExtraTrailChance`-t és `BuildingSecondEntranceChance`-t.
+
 Az erdei termek `RoomKind` értéke megkülönbözteti a tisztást, kunyhót, kúriát és
 labirintusépületet. Az encounter `AreaId` és `TargetRoomKind` mezőkkel stabil területre és konkrét
 helyiségtípusra célozható; a régi `ScreenNumber` továbbra is támogatott.
