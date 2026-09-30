@@ -45,11 +45,32 @@ internal static partial class Program
             "A felfedezett régiótérkép rejtett területet szivárogtatott vagy kihagyta az ismert átjárót.");
 
         var campaignLayout = (ForestMazeLayoutConfiguration)MazeLevelConfigurations.Get(6).Layout!;
-        Assert(campaignLayout.ExplicitGraph is { Areas.Count: 8 } && campaignLayout.Forest.BuildingStyles.Count >= 3,
-            "A kampányerdő nem kapta meg az explicit területeket vagy a többféle épületfalat.");
+        Assert(campaignLayout.ExplicitGraph is null && campaignLayout.Graph.AreaCount.Minimum == 6 &&
+               campaignLayout.Graph.AreaCount.Maximum == 8 && campaignLayout.Forest.BuildingStyles.Count >= 3,
+            "A kampányerdő beégetett gráfot tartalmaz, vagy elvesztette a generált tartalékát.");
         Assert(MazeLevelConfigurations.Get(6).ForestGraphJsonOverrideEnabled &&
                !MazeLevelConfigurations.Get(7).ForestGraphJsonOverrideEnabled,
             "A JSON-felülírás jelölője nem látszik jól a pályakonfigurációban.");
+
+        var packagedDirectory = Path.Combine(AppContext.BaseDirectory, "ForestLevelGraphs");
+        var packagedFile = Path.Combine(packagedDirectory, "level-6.json");
+        Assert(File.Exists(packagedFile),
+            "A 6. pálya erdőgráf-JSON-ja nem került a program kimeneti mappájába.");
+        var packagedSource = new FileForestLevelGraphSource(packagedDirectory);
+        Assert(packagedSource.TryLoad(6, out var packagedDocument, out _, out var packagedWarning) &&
+               packagedWarning is null && packagedDocument is { Level: 6 },
+            $"A csomagolt 6. pályás erdőgráf nem tölthető be: {packagedWarning}");
+        var packagedGraph = packagedDocument!.Graph;
+        var packagedPlan = packagedGraph.BuildPlan();
+        Assert(packagedPlan.Nodes.Count == packagedGraph.Areas.Count &&
+               packagedPlan.EntranceAreaId == packagedGraph.EntranceAreaId &&
+               packagedPlan.ExitAreaId == packagedGraph.ExitAreaId,
+            "A csomagolt 6. pályás erdőgráf érvénytelen vagy nem összefüggő.");
+        var packagedLayout = ForestLevelGraphOverrideBridge.Apply(MazeLevelConfigurations.Get(6), packagedSource);
+        Assert(packagedLayout is ForestMazeLayoutConfiguration { ExplicitGraph: { } appliedGraph } &&
+               appliedGraph.Areas.Select(area => area.Id).SequenceEqual(
+                   packagedGraph.Areas.Select(area => area.Id)),
+            "A csomagolt JSON nem írta felül a 6. pálya generált gráfját.");
 
         var tempPath = Path.Combine(Path.GetTempPath(), $"kr-forest-override-{Guid.NewGuid():N}");
         Directory.CreateDirectory(tempPath);
@@ -71,7 +92,7 @@ internal static partial class Program
             if (Directory.Exists(tempPath)) Directory.Delete(tempPath, true);
         }
 
-        var campaignGraph = campaignLayout.ExplicitGraph!;
+        var campaignGraph = ((ForestMazeLayoutConfiguration)packagedLayout!).ExplicitGraph!;
         foreach (var area in campaignGraph.Areas)
         {
             var areaConfiguration = ForestAreaConfigurationResolver.Resolve(

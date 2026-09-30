@@ -602,37 +602,7 @@ public static class MazeLevelConfigurations
                             BuildingWall = new("forbidden-building-wall", new('█'), ConsoleColor.Gray,
                                 ConsoleColor.Black, false, true)
                         }
-                    },
-                    new ExplicitForestAreaGraphConfiguration(
-                    [
-                        new("MOSS_GATE", "Mohakapu", new(0, 0), ForestAreaTemplateCatalog.MixedForest),
-                        new("WHISPERING_WOOD", "Suttogó rengeteg", new(1, 0),
-                            ForestAreaTemplateCatalog.DenseCabinForest),
-                        new("RAVEN_CROSSING", "Hollók elágazása", new(2, 0),
-                            ForestAreaTemplateCatalog.MixedForest),
-                        new("OLD_PINES", "Az öreg fenyves", new(1, -1),
-                            ForestAreaTemplateCatalog.DenseCabinForest,
-                            new() { PineChance = 0.72, BuildingCount = new(0, 1) }),
-                        new("LOST_MANOR", "Az elveszett kúriák", new(1, 1),
-                            ForestAreaTemplateCatalog.LakesAndManors,
-                            new() { ManorBuildingChance = 1, LabyrinthBuildingChance = 0 }),
-                        new("BLACKWATER", "Feketevíz lápja", new(2, 1),
-                            ForestAreaTemplateCatalog.Swamp),
-                        new("THORN_MAZE", "A tövisek útvesztője", new(3, 1),
-                            ForestAreaTemplateCatalog.ForestLabyrinth),
-                        new("WINDLESS_GLADE", "A Szélcsend tisztása", new(3, 2),
-                            ForestAreaTemplateCatalog.OpenGroves)
-                    ],
-                    [
-                        new("MOSS_GATE", "WHISPERING_WOOD"),
-                        new("WHISPERING_WOOD", "RAVEN_CROSSING"),
-                        new("WHISPERING_WOOD", "OLD_PINES"),
-                        new("WHISPERING_WOOD", "LOST_MANOR"),
-                        new("RAVEN_CROSSING", "BLACKWATER"),
-                        new("LOST_MANOR", "BLACKWATER"),
-                        new("BLACKWATER", "THORN_MAZE"),
-                        new("THORN_MAZE", "WINDLESS_GLADE")
-                    ], "MOSS_GATE", "WINDLESS_GLADE")),
+                    }),
                 WallRune = new('♠'),
                 WallColor = ConsoleColor.DarkGreen,
                 RoomCount = new IntRange(42, 56),
