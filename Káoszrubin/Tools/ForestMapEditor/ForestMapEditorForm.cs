@@ -362,7 +362,12 @@ internal sealed class ForestMapEditorForm : Form
             var settings = new MazeGenerationSettings { RoomCount = 8, MinimumRoomSize = 4,
                 MaximumRoomSize = 8, TreasureChestCount = 0, LevelName = _selected.Name };
             var maze = new ForestMazeGenerator(settings, configuration, [], [], new Random(12345)).Create(170, 44);
-            new ForestPreviewForm(maze, _selected.Name).ShowDialog(this);
+            if (!TerminalMazePreview.TryShow(maze, _selected.Name, out var error))
+            {
+                if (!string.IsNullOrWhiteSpace(error))
+                    MessageBox.Show(this, error, "Windows Terminal előnézeti hiba");
+                new ForestPreviewForm(maze, _selected.Name).ShowDialog(this);
+            }
         }
         catch (Exception exception) { MessageBox.Show(this, exception.Message, "Előnézeti hiba"); }
     }
@@ -382,6 +387,158 @@ internal sealed class ForestMapEditorForm : Form
         SetRange(patch?.BuildingCount, _buildingsEnabled, _buildingMin, _buildingMax);
         _canvas.Invalidate();
     }
+
+internal static class TerminalMazePreview
+{
+    public static bool TryShow(Maze maze, string title, out string? error)
+    {
+        error = null;
+        try
+        {
+            var directory = Path.Combine(Path.GetTempPath(), "Kaoszrubin", "forest-previews");
+            Directory.CreateDirectory(directory);
+            var columns = Math.Clamp(maze.Width + 4, 100, 260);
+            var rows = Math.Clamp(maze.Height + 6, 30, 140);
+            var filePath = Path.Combine(directory, $"preview-{DateTime.Now:yyyyMMdd-HHmmss-fff}.ansi");
+            File.WriteAllText(filePath, BuildAnsiMap(maze, title, columns, rows), new System.Text.UTF8Encoding(false));
+
+            var scriptPath = Path.Combine(directory, "render-preview.ps1");
+            File.WriteAllText(scriptPath,
+                "param([Parameter(Mandatory=$true)][string]$PreviewPath,[int]$Columns=120,[int]$Rows=40)\r\n" +
+                "$OutputEncoding=[Console]::OutputEncoding=[System.Text.UTF8Encoding]::UTF8\r\n" +
+                "try {\r\n" +
+                "  $raw=$Host.UI.RawUI\r\n" +
+                "  $max=$raw.MaxPhysicalWindowSize\r\n" +
+                "  $w=[Math]::Min([Math]::Max(40,$Columns),$max.Width)\r\n" +
+                "  $h=[Math]::Min([Math]::Max(20,$Rows),$max.Height)\r\n" +
+                "  $raw.BufferSize=New-Object Management.Automation.Host.Size([Math]::Max($raw.BufferSize.Width,$w),[Math]::Max($raw.BufferSize.Height,$h))\r\n" +
+                "  $raw.WindowSize=New-Object Management.Automation.Host.Size($w,$h)\r\n" +
+                "} catch {}\r\n" +
+                "[Console]::Write(\"`e[8;${Rows};${Columns}t\")\r\n" +
+                "[Console]::Write([IO.File]::ReadAllText($PreviewPath,[System.Text.Encoding]::UTF8))\r\n",
+                new System.Text.UTF8Encoding(false));
+
+            var startInfo = new System.Diagnostics.ProcessStartInfo("wt.exe")
+            {
+                UseShellExecute = true
+            };
+            startInfo.ArgumentList.Add("-w");
+            startInfo.ArgumentList.Add("new");
+            startInfo.ArgumentList.Add("new-tab");
+            startInfo.ArgumentList.Add("--title");
+            startInfo.ArgumentList.Add($"Előnézet – {title}");
+            startInfo.ArgumentList.Add("powershell");
+            startInfo.ArgumentList.Add("-NoLogo");
+            startInfo.ArgumentList.Add("-NoExit");
+            startInfo.ArgumentList.Add("-ExecutionPolicy");
+            startInfo.ArgumentList.Add("Bypass");
+            startInfo.ArgumentList.Add("-File");
+            startInfo.ArgumentList.Add(scriptPath);
+            startInfo.ArgumentList.Add(filePath);
+            startInfo.ArgumentList.Add(columns.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            startInfo.ArgumentList.Add(rows.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            _ = System.Diagnostics.Process.Start(startInfo);
+            return true;
+        }
+        catch (Exception exception)
+        {
+            error = exception.Message;
+            return false;
+        }
+    }
+
+    private static string BuildAnsiMap(Maze maze, string title, int columns, int rows)
+    {
+        var text = new System.Text.StringBuilder();
+        text.Append("\u001b[8;").Append(rows).Append(';').Append(columns).Append("t");
+        text.Append("\u001b[0m");
+        text.Append(title).Append("\r\n");
+        for (var y = 0; y < maze.Height; y++)
+        {
+            for (var x = 0; x < maze.Width; x++)
+            {
+                var position = new Position(x, y);
+                var (rune, foreground, background) = CellVisual(maze, position);
+                text.Append(Ansi(foreground, background));
+                text.Append(rune.ToString());
+            }
+            text.Append("\u001b[0m\r\n");
+        }
+        text.Append("\u001b[0m");
+        return text.ToString();
+    }
+
+    private static (System.Text.Rune Rune, ConsoleColor Foreground, ConsoleColor Background)
+        CellVisual(Maze maze, Position position)
+    {
+        if (maze.GetDoorAt(position) is { } door)
+        {
+            var color = door.State switch
+            {
+                DoorState.Locked => ConsoleColor.Red,
+                DoorState.Open => ConsoleColor.DarkGreen,
+                DoorState.Closed => ConsoleColor.DarkYellow,
+                DoorState.Smashed => ConsoleColor.DarkGray,
+                _ => ConsoleColor.Gray
+            };
+            return (door.Symbol, color, ConsoleColor.Black);
+        }
+        if (maze.GetPassageAt(position) is not null)
+            return (MazePassage.Symbol, ConsoleColor.Cyan, ConsoleColor.Black);
+
+        var rune = maze.Tiles[position.X, position.Y];
+        var terrain = maze.GetTerrainStyle(position);
+        if (terrain is not null) return (rune, terrain.ForegroundColor, terrain.BackgroundColor);
+        if (rune == maze.WallRune) return (rune, maze.WallColor, ConsoleColor.Black);
+        if (rune == Maze.ExitMarker) return (rune, ConsoleColor.Green, ConsoleColor.Black);
+        return (rune, ConsoleColor.Black, ConsoleColor.Black);
+    }
+
+    private static string Ansi(ConsoleColor foreground, ConsoleColor background) =>
+        $"\u001b[{ToForegroundCode(foreground)};{ToBackgroundCode(background)}m";
+
+    private static int ToForegroundCode(ConsoleColor color) => color switch
+    {
+        ConsoleColor.Black => 30,
+        ConsoleColor.DarkRed => 31,
+        ConsoleColor.DarkGreen => 32,
+        ConsoleColor.DarkYellow => 33,
+        ConsoleColor.DarkBlue => 34,
+        ConsoleColor.DarkMagenta => 35,
+        ConsoleColor.DarkCyan => 36,
+        ConsoleColor.Gray => 37,
+        ConsoleColor.DarkGray => 90,
+        ConsoleColor.Red => 91,
+        ConsoleColor.Green => 92,
+        ConsoleColor.Yellow => 93,
+        ConsoleColor.Blue => 94,
+        ConsoleColor.Magenta => 95,
+        ConsoleColor.Cyan => 96,
+        ConsoleColor.White => 97,
+        _ => 39
+    };
+
+    private static int ToBackgroundCode(ConsoleColor color) => color switch
+    {
+        ConsoleColor.Black => 40,
+        ConsoleColor.DarkRed => 41,
+        ConsoleColor.DarkGreen => 42,
+        ConsoleColor.DarkYellow => 43,
+        ConsoleColor.DarkBlue => 44,
+        ConsoleColor.DarkMagenta => 45,
+        ConsoleColor.DarkCyan => 46,
+        ConsoleColor.Gray => 47,
+        ConsoleColor.DarkGray => 100,
+        ConsoleColor.Red => 101,
+        ConsoleColor.Green => 102,
+        ConsoleColor.Yellow => 103,
+        ConsoleColor.Blue => 104,
+        ConsoleColor.Magenta => 105,
+        ConsoleColor.Cyan => 106,
+        ConsoleColor.White => 107,
+        _ => 49
+    };
+}
 
     private void ApplySelected()
     {
