@@ -32,6 +32,11 @@ public sealed class CharacterSaveService
         var savedRoster = JsonSerializer.Deserialize<RosterSaveData>(json, JsonOptions) ?? new RosterSaveData();
         foreach (var savedCharacter in savedRoster.Characters)
             roster.Add(CreateLiveCharacter(savedCharacter));
+        foreach (var binding in savedRoster.Campaigns)
+        {
+            var character = roster.Characters.FirstOrDefault(candidate => candidate.Id.Value == binding.CharacterId);
+            if (character is not null) roster.BindCampaign(character, binding.CampaignId, binding.LastKnownLevel, binding.Status);
+        }
 
         if (savedRoster.SelectedCharacterIndex is int selectedIndex && selectedIndex >= 0 && selectedIndex < roster.Characters.Count)
         {
@@ -55,6 +60,9 @@ public sealed class CharacterSaveService
             SelectedCharacterIndex = roster.SelectedCharacter is null ? null : Enumerable.Range(0, roster.Characters.Count).FirstOrDefault(index => roster.Characters[index] == roster.SelectedCharacter),
             PartyMemberIndices = roster.Party.Members.Select(member => Enumerable.Range(0, roster.Characters.Count)
                 .First(index => roster.Characters[index] == member)).ToList(),
+            Campaigns = roster.Characters.Select(character => (Character: character, Binding: roster.CampaignOf(character)))
+                .Where(entry => entry.Binding is not null).Select(entry => new CharacterCampaignSaveData(entry.Character.Id.Value,
+                    entry.Binding!.CampaignId, entry.Binding.Status, entry.Binding.LastKnownLevel, entry.Binding.LastPlayedAt)).ToList(),
             Characters = roster.Characters.Select(CreateSaveData).ToList()
         };
         return JsonSerializer.Serialize(savedRoster, JsonOptions);
@@ -309,7 +317,11 @@ public sealed class CharacterSaveService
         public int? SelectedCharacterIndex { get; init; }
         public List<int> PartyMemberIndices { get; init; } = [];
         public List<CharacterSaveData> Characters { get; init; } = [];
+        public List<CharacterCampaignSaveData> Campaigns { get; init; } = [];
     }
+
+    private sealed record CharacterCampaignSaveData(Guid CharacterId, Guid CampaignId,
+        CharacterCampaignStatus Status, int LastKnownLevel, DateTimeOffset LastPlayedAt);
 
     private sealed class CharacterSaveData
     {

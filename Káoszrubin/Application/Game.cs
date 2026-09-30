@@ -169,6 +169,7 @@ public sealed partial class Game : ISessionCommandHandler
     private readonly HashSet<PlayerId> _sharedWindowAcknowledgements = [];
     private bool _captureSharedWindow;
     private int _mazeLevel = 1;
+    private readonly Guid _campaignId;
     private AdventureLocationKind _locationKind = AdventureLocationKind.Campaign;
     private string _locationId = string.Empty;
     private int _difficultyLevel = 1;
@@ -535,6 +536,8 @@ public sealed partial class Game : ISessionCommandHandler
         _questNpcInstanceRegistry = new QuestNpcInstanceRegistry();
         _gameStateMapper = new GameStateMapper(gameData, characterRoster, selectedCharacter, _questNpcInstanceRegistry);
         _loadedState = loadedState;
+        _campaignId = loadedState?.CampaignId is { } loadedCampaignId && loadedCampaignId != Guid.Empty
+            ? loadedCampaignId : Guid.NewGuid();
         _session = session ?? new GameSession(characterRoster.Party, selectedCharacter);
         StaticGameSettings = _gameSettings = gameSettings ?? new GameSettingsService();
         _renderer = new ConsoleRenderer(gameData, characterRoster.Party, () => _maze?.PartyMembers

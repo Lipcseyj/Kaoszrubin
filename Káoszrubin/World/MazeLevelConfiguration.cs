@@ -565,7 +565,7 @@ public static class MazeLevelConfigurations
                         TrailWinding = 0.75,
                         ExtraTrailChance = 0.35,
                         BuildingCount = new IntRange(1, 2),
-                        BuildingSize = new IntRange(5, 8),
+                        BuildingSize = new IntRange(3, 6),
                         BuildingPartitionChance = 0.75,
                         ManorBuildingChance = 0.45,
                         LabyrinthBuildingChance = 0.15,
@@ -587,7 +587,7 @@ public static class MazeLevelConfigurations
                                 new HashSet<ForestBuildingLayout>
                                     { ForestBuildingLayout.Manor, ForestBuildingLayout.Labyrinth })
                         ],
-                        LockedBuildingDoorChance = 0.18,
+                        LockedBuildingDoorChance = 0.6,
                         OpenBuildingDoorChance = 0.12,
                         Palette = new ForestTerrainPalette
                         {

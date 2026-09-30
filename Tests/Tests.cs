@@ -180,6 +180,7 @@ internal static partial class Program
     ("A duplikált parancs elutasításra kerül", DuplicateCommandIsRejected),
     ("Harc közben nem futhat felfedezési parancs", ExplorationCommandIsRejectedDuringBattle),
     ("A CharacterId mentés után is stabil", CharacterIdSurvivesSerialization),
+    ("A karakter aktív kampánykötése mentés után is megmarad", CharacterCampaignBindingSurvivesSerialization),
     ("Az ölési statisztika és az NPC csatlakozási helye menthető", CharacterHistorySurvivesSerialization),
     ("A régi játékmentések az aktuális formátumra migrálódnak", LegacyGameSavesMigrateToCurrentVersion),
     ("A mentésszerkesztő biztonsági másolattal írja felül az állást", SaveEditorOverwritesWithBackup),

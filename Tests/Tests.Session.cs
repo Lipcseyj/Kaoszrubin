@@ -272,6 +272,22 @@ internal static partial class Program
         Assert(restored.SelectedCharacter?.Id == character.Id, "A karakter stabil azonosítója megváltozott mentéskor.");
     }
 
+    static void CharacterCampaignBindingSurvivesSerialization()
+    {
+        var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
+        var roster = new CharacterRoster();
+        var character = CreateCharacter("Kampányhős");
+        var campaignId = Guid.NewGuid();
+        roster.Add(character);
+        roster.Select(character);
+        roster.BindCampaign(character, campaignId, 10);
+        var service = new CharacterSaveService(Path.Combine(Path.GetTempPath(), "unused-campaign-save.json"), data);
+        var restored = service.Deserialize(service.Serialize(roster));
+        var binding = restored.CampaignOf(restored.SelectedCharacter!);
+        Assert(binding is { Status: CharacterCampaignStatus.Active, LastKnownLevel: 10 } &&
+               binding.CampaignId == campaignId, "A karakter kampánykötése elveszett mentéskor.");
+    }
+
     static void CharacterHistorySurvivesSerialization()
     {
         var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
