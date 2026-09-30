@@ -1,4 +1,6 @@
 using KaoszRubin.Domain.Combat;
+using System.ComponentModel;
+using System.Globalization;
 
 namespace KaoszRubin.World;
 
@@ -17,10 +19,34 @@ namespace KaoszRubin.World;
 
 /// <summary>Zárt, mindkét végpontját tartalmazó egész számtartomány.</summary>
 /// <remarks>Például <c>new IntRange(3, 5)</c> futásonként 3, 4 vagy 5 értéket ad.</remarks>
+[TypeConverter(typeof(IntRangeTypeConverter))]
 public sealed record IntRange(int Minimum, int Maximum)
 {
     /// <summary>Véletlen értéket választ a minimum és maximum között, mindkét végpontot beleértve.</summary>
     public int Roll(Random random) => random.Next(Minimum, Maximum + 1);
+}
+
+public sealed class IntRangeTypeConverter : ExpandableObjectConverter
+{
+    public override bool CanConvertFrom(ITypeDescriptorContext? context, Type sourceType) =>
+        sourceType == typeof(string) || base.CanConvertFrom(context, sourceType);
+    public override bool CanConvertTo(ITypeDescriptorContext? context, Type? destinationType) =>
+        destinationType == typeof(string) || base.CanConvertTo(context, destinationType);
+    public override object? ConvertFrom(ITypeDescriptorContext? context, CultureInfo? culture, object value)
+    {
+        if (value is not string text) return base.ConvertFrom(context, culture, value);
+        var parts = text.Split("..", StringSplitOptions.TrimEntries);
+        if (parts.Length != 2 || !int.TryParse(parts[0], NumberStyles.Integer, culture, out var minimum) ||
+            !int.TryParse(parts[1], NumberStyles.Integer, culture, out var maximum) || minimum > maximum)
+            throw new FormatException("A tartomány formátuma: minimum..maximum (például 2..5).");
+        return new IntRange(minimum, maximum);
+    }
+    public override object? ConvertTo(ITypeDescriptorContext? context, CultureInfo? culture, object? value,
+        Type destinationType) => destinationType == typeof(string) && value is IntRange range
+        ? $"{range.Minimum}..{range.Maximum}" : base.ConvertTo(context, culture, value, destinationType);
+    public override bool GetCreateInstanceSupported(ITypeDescriptorContext? context) => true;
+    public override object CreateInstance(ITypeDescriptorContext? context, System.Collections.IDictionary values) =>
+        new IntRange((int)values[nameof(IntRange.Minimum)]!, (int)values[nameof(IntRange.Maximum)]!);
 }
 
 /// <summary>

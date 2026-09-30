@@ -38,6 +38,9 @@ internal sealed class ForestMapEditorForm : Form
     private readonly ComboBox _entrance = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 145 };
     private readonly ComboBox _exit = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 145 };
     private readonly NumericUpDown _level = Number(1, 999, 6);
+    private readonly PropertyGrid _forestProperties = new() { Width = 390, Height = 620, HelpVisible = true, ToolbarVisible = true };
+    private bool _loadingSelection;
+    private ForestGenerationConfiguration _propertyGridInherited = new();
     private ForestAreaDefinition? _selected;
     private string? _currentFilePath;
     private ForestGenerationConfiguration _previewBaseConfiguration = new();
@@ -61,6 +64,7 @@ internal sealed class ForestMapEditorForm : Form
 
         _canvas.SelectionChanged += SelectArea;
         _canvas.AreaMoved += MoveArea;
+        _template.SelectedIndexChanged += (_, _) => RefreshEffectiveProperties();
         Shown += (_, _) => EnsureInspectorVisible();
         SizeChanged += (_, _) => EnsureInspectorVisible();
         NewDocument();
@@ -103,14 +107,9 @@ internal sealed class ForestMapEditorForm : Form
         flow.Controls.Add(Pair("Template ID", _newTemplateId, "Név", _newTemplateName));
         flow.Controls.Add(Button("Beállítások mentése új template-ként", CreateTemplate));
         flow.Controls.Add(Pair("X", _x, "Y", _y));
-        flow.Controls.Add(_densityEnabled);
-        flow.Controls.Add(Labelled("Erdősűrűség (%)", _density));
-        flow.Controls.Add(_lakesEnabled);
-        flow.Controls.Add(Pair("Minimum", _lakeMin, "Maximum", _lakeMax));
-        flow.Controls.Add(_marshEnabled);
-        flow.Controls.Add(Pair("Minimum", _marshMin, "Maximum", _marshMax));
-        flow.Controls.Add(_buildingsEnabled);
-        flow.Controls.Add(Pair("Minimum", _buildingMin, "Maximum", _buildingMax));
+        flow.Controls.Add(Heading("Minden generálási tulajdonság"));
+        flow.Controls.Add(Description("A rács a template és a helyi felülírások eredő értékeit mutatja. A módosított teljes állapot helyi felülírásként mentődik."));
+        flow.Controls.Add(_forestProperties);
         flow.Controls.Add(Button("Módosítások alkalmazása", (_, _) => ApplySelected()));
         flow.Controls.Add(PairButtons("Új képernyő", AddArea, "Képernyő törlése", RemoveSelected));
         flow.Controls.Add(Heading("Kapcsolat"));
@@ -402,9 +401,10 @@ internal sealed class ForestMapEditorForm : Form
 
     private void SelectArea(ForestAreaDefinition? area)
     {
+        _loadingSelection = true;
         _selected = area;
         _canvas.SelectedArea = area;
-        if (area is null) return;
+        if (area is null) { _loadingSelection = false; return; }
         _id.Text = area.Id; _name.Text = area.Name; _template.SelectedItem = area.TemplateId;
         _x.Value = area.Coordinate.X; _y.Value = area.Coordinate.Y;
         var patch = area.Overrides;
@@ -413,7 +413,37 @@ internal sealed class ForestMapEditorForm : Form
         SetRange(patch?.LakeCount, _lakesEnabled, _lakeMin, _lakeMax);
         SetRange(patch?.MarshCount, _marshEnabled, _marshMin, _marshMax);
         SetRange(patch?.BuildingCount, _buildingsEnabled, _buildingMin, _buildingMax);
+        _loadingSelection = false;
+        RefreshEffectiveProperties();
         _canvas.Invalidate();
+    }
+
+    private void RefreshEffectiveProperties()
+    {
+        if (_loadingSelection || _selected is null) return;
+        var templateId = _template.SelectedItem?.ToString() ?? ForestAreaTemplateCatalog.MixedForest;
+        var previewArea = _selected with { TemplateId = templateId };
+        var graph = new ExplicitForestAreaGraphConfiguration([previewArea], [], previewArea.Id, previewArea.Id,
+            _customTemplates.ToArray());
+        _propertyGridInherited = ForestAreaConfigurationResolver.Resolve(
+            _previewBaseConfiguration, graph, previewArea with { Overrides = null });
+        _forestProperties.SelectedObject = ForestAreaConfigurationResolver.Resolve(
+            _previewBaseConfiguration, graph, previewArea);
+        _forestProperties.Refresh();
+    }
+
+    private static ForestGenerationConfigurationPatch DifferencePatch(ForestGenerationConfiguration configuration,
+        ForestGenerationConfiguration inherited)
+    {
+        var patch = new ForestGenerationConfigurationPatch();
+        foreach (var patchProperty in typeof(ForestGenerationConfigurationPatch).GetProperties())
+        {
+            var sourceProperty = typeof(ForestGenerationConfiguration).GetProperty(patchProperty.Name);
+            if (sourceProperty is null) continue;
+            var value = sourceProperty.GetValue(configuration);
+            if (!Equals(value, sourceProperty.GetValue(inherited))) patchProperty.SetValue(patch, value);
+        }
+        return patch;
     }
 
 internal static class TerminalMazePreview
@@ -573,14 +603,9 @@ internal static class TerminalMazePreview
         if (_selected is null) return;
         var index = _areas.IndexOf(_selected);
         if (index < 0) return;
-        var patch = _selected.Overrides ?? new ForestGenerationConfigurationPatch();
-        patch = patch with
-        {
-            ForestDensity = _densityEnabled.Checked ? (double)_density.Value / 100 : null,
-            LakeCount = Range(_lakesEnabled, _lakeMin, _lakeMax),
-            MarshCount = Range(_marshEnabled, _marshMin, _marshMax),
-            BuildingCount = Range(_buildingsEnabled, _buildingMin, _buildingMax)
-        };
+        var patch = _forestProperties.SelectedObject is ForestGenerationConfiguration edited
+            ? DifferencePatch(edited, _propertyGridInherited)
+            : _selected.Overrides ?? new ForestGenerationConfigurationPatch();
         var replacement = _selected with
         {
             Id = _id.Text.Trim(), Name = _name.Text.Trim(),
