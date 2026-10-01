@@ -73,6 +73,18 @@ template-hivatkozásokat. Az előnézet a kiválasztott pálya közös erdőkonf
 
 ## Egyedi sablonok
 
+A 24 beépített erdősablon közül a választó a magyar nevet és a stabil technikai
+azonosítót is mutatja. A korábbi hat sablon megmaradt; az új változatok ezekből
+öröklődnek, ezért ugyanazon pálya közös erdőbeállításait veszik alapul.
+
+- Mocsár és víz: `huge-swamp`, `blackwater-bog`, `reed-marsh`,
+  `flooded-wood`, `mirror-lakes`, `island-groves`.
+- Sűrű erdő és fenyves: `old-pines`, `ancient-forest`, `wildwood`,
+  `thorn-maze`, `ashen-wood`, `sparse-pines`.
+- Épületes helyszínek: `lost-manor`, `ruined-estate`, `hunter-camp`,
+  `woodland-hamlet`.
+- Nyílt vidék: `flower-meadow`, `sunlit-glades`.
+
 A template mentése így működik:
 1. Válassz ki egy képernyőt.
 2. Válassz egy meglévő template-et alapnak.

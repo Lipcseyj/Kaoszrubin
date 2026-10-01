@@ -18,7 +18,11 @@ internal sealed partial class MapEditorForm : Form
     private readonly List<ForestAreaTemplateDefinition> _customTemplates = [];
     private readonly TextBox _id = new() { Dock = DockStyle.Top };
     private readonly TextBox _name = new() { Dock = DockStyle.Top };
-    private readonly ComboBox _template = new() { Dock = DockStyle.Top, DropDownStyle = ComboBoxStyle.DropDownList };
+    private readonly ComboBox _template = new()
+    {
+        Dock = DockStyle.Top, DropDownStyle = ComboBoxStyle.DropDownList,
+        DrawMode = DrawMode.OwnerDrawFixed, DropDownWidth = 340
+    };
     private readonly TextBox _newTemplateId = new() { Width = 130, PlaceholderText = "pl. ködös-láp" };
     private readonly TextBox _newTemplateName = new() { Width = 130, PlaceholderText = "Megjelenő név" };
     private readonly NumericUpDown _x = Number(-20, 20);
@@ -79,6 +83,7 @@ internal sealed partial class MapEditorForm : Form
 
         _canvas.SelectionChanged += SelectArea;
         _canvas.AreaMoved += MoveArea;
+        _template.DrawItem += DrawTemplateItem;
         _template.SelectedIndexChanged += (_, _) => RefreshEffectiveProperties();
         _newGraphButton.Click += (_, _) =>
         {
@@ -917,6 +922,19 @@ internal static class TerminalMazePreview
         control.Width = 360;
         panel.Controls.Add(control);
         return panel;
+    }
+
+    private void DrawTemplateItem(object? sender, DrawItemEventArgs e)
+    {
+        if (e.Index < 0) return;
+        e.DrawBackground();
+        var id = _template.Items[e.Index]?.ToString() ?? "";
+        var definition = ForestAreaTemplateCatalog.BuiltIns.Concat(_customTemplates)
+            .FirstOrDefault(template => string.Equals(template.Id, id, StringComparison.Ordinal));
+        var caption = definition is null ? id : $"{definition.Name} ({id})";
+        TextRenderer.DrawText(e.Graphics, caption, e.Font ?? _template.Font, e.Bounds,
+            e.ForeColor, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+        e.DrawFocusRectangle();
     }
     private static Control Pair(string firstText, Control first, string secondText, Control second)
     {

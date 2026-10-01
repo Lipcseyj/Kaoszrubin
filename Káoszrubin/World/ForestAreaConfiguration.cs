@@ -189,6 +189,24 @@ public static class ForestAreaTemplateCatalog
     public const string DenseCabinForest = "dense-cabin-forest";
     public const string ForestLabyrinth = "forest-labyrinth";
     public const string OpenGroves = "open-groves";
+    public const string HugeSwamp = "huge-swamp";
+    public const string BlackwaterBog = "blackwater-bog";
+    public const string ReedMarsh = "reed-marsh";
+    public const string FloodedWood = "flooded-wood";
+    public const string MirrorLakes = "mirror-lakes";
+    public const string IslandGroves = "island-groves";
+    public const string LostManor = "lost-manor";
+    public const string RuinedEstate = "ruined-estate";
+    public const string OldPines = "old-pines";
+    public const string ThornMaze = "thorn-maze";
+    public const string AncientForest = "ancient-forest";
+    public const string HunterCamp = "hunter-camp";
+    public const string Wildwood = "wildwood";
+    public const string AshenWood = "ashen-wood";
+    public const string FlowerMeadow = "flower-meadow";
+    public const string SunlitGlades = "sunlit-glades";
+    public const string SparsePines = "sparse-pines";
+    public const string WoodlandHamlet = "woodland-hamlet";
 
     public static IReadOnlyList<ForestAreaTemplateDefinition> BuiltIns { get; } =
     [
@@ -219,6 +237,162 @@ public static class ForestAreaTemplateCatalog
         {
             ForestDensity = 0.22, GroveSize = new(3, 8), BushChance = 0.24,
             FlowerBushChance = 0.08, TrailWinding = 0.40, ExtraTrailChance = 0.45
+        }),
+        new(HugeSwamp, "Óriásmocsár", Swamp, new()
+        {
+            ForestDensity = 0.34, LakeCount = new(1, 2), LakeRadius = new(4, 7),
+            MarshCount = new(6, 9), MarshRadius = new(7, 12), MarshChance = 0.94,
+            BuildingCount = new(0, 0), TrailWinding = 0.96
+        }),
+        new(BlackwaterBog, "Feketevizű láp", Swamp, new()
+        {
+            ForestDensity = 0.38, PineChance = 0.04, LakeCount = new(2, 3),
+            LakeRadius = new(4, 7), MarshCount = new(3, 5), MarshChance = 0.92,
+            BuildingCount = new(0, 1),
+            Palette = new ForestTerrainPalette
+            {
+                Water = new("bog-water", new('≈'), ConsoleColor.DarkBlue,
+                    ConsoleColor.Black, false, false),
+                Marsh = new("bog-marsh", new('≋'), ConsoleColor.DarkYellow,
+                    ConsoleColor.DarkBlue, true, false),
+                Tree = new("bog-tree", new('♠'), ConsoleColor.DarkGreen,
+                    ConsoleColor.Black, false, true)
+            }
+        }),
+        new(ReedMarsh, "Nádas mocsár", Swamp, new()
+        {
+            ForestDensity = 0.25, BushChance = 0.38, FlowerBushChance = 0.02,
+            ThicketChance = 0.04, UndergrowthChance = 0.36,
+            MarshCount = new(4, 7), MarshRadius = new(4, 8),
+            BuildingCount = new(0, 0), TrailWidth = 1
+        }),
+        new(FloodedWood, "Elárasztott erdő", LakesAndManors, new()
+        {
+            ForestDensity = 0.62, LakeCount = new(3, 5), LakeRadius = new(4, 7),
+            MarshCount = new(3, 5), MarshChance = 0.82,
+            BuildingCount = new(0, 1), TrailWinding = 0.88
+        }),
+        new(MirrorLakes, "Tükörtavak", LakesAndManors, new()
+        {
+            ForestDensity = 0.27, LakeCount = new(3, 4), LakeRadius = new(5, 8),
+            MarshCount = new(0, 1), MarshChance = 0.12,
+            BuildingCount = new(0, 0), TrailWinding = 0.52
+        }),
+        new(IslandGroves, "Tószigeti ligetek", LakesAndManors, new()
+        {
+            ForestDensity = 0.35, GroveSize = new(3, 7),
+            LakeCount = new(4, 6), LakeRadius = new(3, 5),
+            MarshCount = new(1, 3), BuildingCount = new(0, 1),
+            ExtraTrailChance = 0.55
+        }),
+        new(LostManor, "Elveszett kúria", LakesAndManors, new()
+        {
+            ForestDensity = 0.72, ThicketChance = 0.25,
+            LakeCount = new(0, 1), BuildingCount = new(2, 3),
+            ManorBuildingChance = 0.88, LabyrinthBuildingChance = 0.06,
+            LockedBuildingDoorChance = 0.68, OpenBuildingDoorChance = 0.08
+        }),
+        new(RuinedEstate, "Romos birtok", LostManor, new()
+        {
+            DenseUndergrowthChance = 0.28, UndergrowthChance = 0.38,
+            BuildingCount = new(2, 4), ManorBuildingChance = 0.62,
+            LabyrinthBuildingChance = 0.28,
+            LockedBuildingDoorChance = 0.38, OpenBuildingDoorChance = 0.34
+        }),
+        new(OldPines, "Ősi fenyves", DenseCabinForest, new()
+        {
+            ForestDensity = 0.76, PineChance = 0.86, BiomeSize = 12,
+            ThicketChance = 0.07, LakeCount = new(0, 1),
+            BuildingCount = new(0, 1), TrailWinding = 0.55
+        }),
+        new(ThornMaze, "Tövislabirintus", ForestLabyrinth, new()
+        {
+            ForestDensity = 0.89, PineChance = 0.02, ThicketChance = 0.42,
+            DenseUndergrowthChance = 0.29, TrailWidth = 1,
+            ExtraTrailChance = 0.10, BuildingCount = new(0, 1)
+        }),
+        new(AncientForest, "Őserdő", DenseCabinForest, new()
+        {
+            ForestDensity = 0.96, GroveSize = new(12, 24), BiomeSize = 32,
+            PineChance = 0.34, ThicketChance = 0.29,
+            BuildingCount = new(0, 0), TrailWidth = 1,
+            Palette = new ForestTerrainPalette
+            {
+                Tree = new("ancient-tree", new('♠'), ConsoleColor.Green,
+                    ConsoleColor.Black, false, true),
+                Thicket = new("ancient-thicket", new('#'), ConsoleColor.DarkGreen,
+                    ConsoleColor.Black, false, true),
+                DenseUndergrowth = new("ancient-growth", new('▒'), ConsoleColor.DarkGreen,
+                    ConsoleColor.Black, true, false)
+            }
+        }),
+        new(HunterCamp, "Vadásztábor", DenseCabinForest, new()
+        {
+            ForestDensity = 0.64, BuildingCount = new(2, 4),
+            ManorBuildingChance = 0.02, LabyrinthBuildingChance = 0,
+            TrailWidth = 2, ExtraTrailChance = 0.68,
+            OpenBuildingDoorChance = 0.42, LockedBuildingDoorChance = 0.08
+        }),
+        new(Wildwood, "Vad rengeteg", ForestLabyrinth, new()
+        {
+            ForestDensity = 0.97, BushChance = 0.24, ThicketChance = 0.26,
+            UndergrowthChance = 0.35, DenseUndergrowthChance = 0.24,
+            BuildingCount = new(0, 0), TrailWinding = 0.98
+        }),
+        new(AshenWood, "Hamuszürke erdő", MixedForest, new()
+        {
+            ForestDensity = 0.57, PineChance = 0.36,
+            BushChance = 0.07, FlowerBushChance = 0.01,
+            LakeCount = new(0, 1), MarshCount = new(0, 1),
+            BuildingCount = new(0, 1),
+            Palette = new ForestTerrainPalette
+            {
+                Tree = new("ashen-tree", new('♠'), ConsoleColor.Gray,
+                    ConsoleColor.Black, false, true),
+                Pine = new("ashen-pine", new('▲'), ConsoleColor.DarkGray,
+                    ConsoleColor.Black, false, true),
+                Bush = new("ashen-bush", new('♣'), ConsoleColor.DarkGreen,
+                    ConsoleColor.Black, true, false),
+                FlowerBush = new("ashen-flower", new('✿'), ConsoleColor.DarkRed,
+                    ConsoleColor.Black, true, false),
+                Thicket = new("ashen-thicket", new('#'), ConsoleColor.DarkGray,
+                    ConsoleColor.Black, false, true)
+            }
+        }),
+        new(FlowerMeadow, "Virágos rét", OpenGroves, new()
+        {
+            ForestDensity = 0.14, BushChance = 0.32, FlowerBushChance = 0.38,
+            ThicketChance = 0.02, UndergrowthChance = 0.14,
+            DenseUndergrowthChance = 0.02, LakeCount = new(0, 1),
+            MarshCount = new(0, 0), BuildingCount = new(0, 0),
+            Palette = new ForestTerrainPalette
+            {
+                FlowerBush = new("meadow-flowers", new('✿'), ConsoleColor.Yellow,
+                    ConsoleColor.Black, true, false),
+                Bush = new("meadow-bush", new('♣'), ConsoleColor.Green,
+                    ConsoleColor.Black, true, false)
+            }
+        }),
+        new(SunlitGlades, "Napos tisztások", OpenGroves, new()
+        {
+            ForestDensity = 0.30, GroveSize = new(4, 7),
+            BushChance = 0.23, FlowerBushChance = 0.16,
+            LakeCount = new(1, 2), MarshCount = new(0, 0),
+            ExtraTrailChance = 0.64, BuildingCount = new(0, 1)
+        }),
+        new(SparsePines, "Ritkás fenyves", OpenGroves, new()
+        {
+            ForestDensity = 0.33, PineChance = 0.92, GroveSize = new(3, 6),
+            BushChance = 0.08, FlowerBushChance = 0.01,
+            LakeCount = new(0, 1), BuildingCount = new(0, 0)
+        }),
+        new(WoodlandHamlet, "Erdei telep", OpenGroves, new()
+        {
+            ForestDensity = 0.39, LakeCount = new(0, 1),
+            BuildingCount = new(3, 5), ManorBuildingChance = 0.15,
+            LabyrinthBuildingChance = 0.02, TrailWidth = 3,
+            ExtraTrailChance = 0.73,
+            LockedBuildingDoorChance = 0.05, OpenBuildingDoorChance = 0.55
         })
     ];
 }
