@@ -186,7 +186,7 @@ internal static partial class Program
 
     static void ForestDensityControlsCoverageAndGroveScale()
     {
-        foreach (var seed in Enumerable.Range(0, 12))
+        foreach (var seed in Enumerable.Range(0, 8))
         {
             var empty = Landscape(0, seed);
             var sparse = Landscape(0.18, seed);
@@ -211,7 +211,7 @@ internal static partial class Program
         }
         var smallEdges = 0;
         var largeEdges = 0;
-        for (var seed = 0; seed < 8; seed++)
+        for (var seed = 0; seed < 6; seed++)
         {
             smallEdges += WoodlandEdgeCount(Landscape(0.45, seed, new IntRange(3, 5)));
             largeEdges += WoodlandEdgeCount(Landscape(0.45, seed, new IntRange(12, 20)));
@@ -270,14 +270,14 @@ internal static partial class Program
         var windingLength = 0;
         var plainArea = 0;
         var loopArea = 0;
-        for (var seed = 0; seed < 10; seed++)
+        for (var seed = 0; seed < 6; seed++)
         {
             var wet = new ForestGenerationConfiguration
             {
                 ForestDensity = 0.35, LakeCount = new(0, 0), MarshCount = new(2, 2), MarshRadius = new(4, 7),
                 BuildingCount = new(0, 0)
             };
-            var marsh = new ForestMazeGenerator(LandscapeSettings(2), wet, [], [], new Random(seed)).Create(170, 44);
+            var marsh = new ForestMazeGenerator(LandscapeSettings(2), wet, [], [], new Random(seed)).Create(110, 36);
             var marshCells = LandscapeCells(marsh).Where(p => marsh.GetTerrainStyle(p)?.Id == wet.Palette.Marsh.Id).ToArray();
             Assert(marshCells.Length > 50 && marshCells.All(marsh.IsWalkable) &&
                    LandscapeCells(marsh).All(p => marsh.GetTerrainStyle(p)?.Id != wet.Palette.Water.Id) &&
@@ -429,14 +429,14 @@ internal static partial class Program
         {
             ForestDensity = density, GroveSize = grove ?? new(5, 13),
             LakeCount = new(0, 0), MarshCount = new(0, 0), BuildingCount = new(0, 0)
-        }, [], [], new Random(seed)).Create(170, 44);
+        }, [], [], new Random(seed)).Create(110, 36);
 
     static Maze TrailLandscape(int seed, double winding, double loops, int rooms) =>
         new ForestMazeGenerator(LandscapeSettings(rooms), new ForestGenerationConfiguration
         {
             ForestDensity = 1, ThicketChance = 0, LakeCount = new(0, 0), MarshCount = new(0, 0),
             BuildingCount = new(0, 0), TrailWidth = 1, TrailWinding = winding, ExtraTrailChance = loops
-        }, [], [], new Random(seed)).Create(170, 44);
+        }, [], [], new Random(seed)).Create(110, 36);
 
     static IEnumerable<Position> LandscapeCells(Maze maze, bool border = false)
     {

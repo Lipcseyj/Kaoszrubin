@@ -1798,28 +1798,28 @@ static void BattleHitHighlightsDamageAndHealth()
             Direction.Right);
         await client.SendCommandAsync(move);
         GameCommand? accepted = null;
-        for (var attempt = 0; attempt < 100 && accepted is null; attempt++)
+        for (var attempt = 0; attempt < 1000 && accepted is null; attempt++)
         {
             if (session.TryReadCommand(out var queued)) accepted = queued;
-            else await Task.Delay(10);
+            else await Task.Delay(1);
         }
         Assert(accepted == move,
             "A SignalR kliens commandja nem jutott el a host session queue-jáig.");
         await client.SendCommandAsync(move);
         var duplicateAccepted = false;
-        for (var attempt = 0; attempt < 100 && !commandRejected.Task.IsCompleted; attempt++)
+        for (var attempt = 0; attempt < 1000 && !commandRejected.Task.IsCompleted; attempt++)
         {
             duplicateAccepted |= session.TryReadCommand(out _);
-            if (!commandRejected.Task.IsCompleted) await Task.Delay(10);
+            var rejectionSnapshot = session.CreateSnapshot(new SessionSnapshotContext(1, "SignalR pálya",
+                new Dictionary<CharacterId, Position>
+                {
+                    [leader.Id] = maze.Entrance,
+                    [companion.Id] = new Position(3, 2)
+                }, World: WorldSnapshotProjector.Create(maze, fog)));
+            await server.PublishSnapshotAsync(rejectionSnapshot);
+            if (!commandRejected.Task.IsCompleted) await Task.Delay(1);
         }
         Assert(!duplicateAccepted, "A host session elfogadta a duplikált hálózati commandot.");
-        var rejectionSnapshot = session.CreateSnapshot(new SessionSnapshotContext(1, "SignalR pálya",
-            new Dictionary<CharacterId, Position>
-            {
-                [leader.Id] = maze.Entrance,
-                [companion.Id] = new Position(3, 2)
-            }, World: WorldSnapshotProjector.Create(maze, fog)));
-        await server.PublishSnapshotAsync(rejectionSnapshot);
         Assert((await commandRejected.Task.WaitAsync(TimeSpan.FromSeconds(5))).CommandId == move.CommandId,
             "A szimulációs szál command-elutasítása nem jutott vissza a SignalR klienshez.");
         Assert(protocolErrors.Count == 0, "A hibamentes SignalR folyamat közben protokollhiba érkezett.");

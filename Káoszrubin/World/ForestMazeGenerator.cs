@@ -272,8 +272,10 @@ public sealed class ForestMazeGenerator : MazeGenerator
             var connections = BuildingBoundaryConnections(room)
                 // A külső ajtó ne essen egy belső válaszfal síkjába. Korábban ilyenkor
                 // a bekötés kifaragta a válaszfal első celláját, ajtó nélküli lyukat hagyva rajta.
-                // Csak eleve járható helyiségbe nyíló falszakasz lehet bejárat.
-                .Where(connection => maze.IsWalkable(connection.Inside))
+                // Csak eleve járható helyiségbe nyíló, a pálya belsejéből megközelíthető
+                // falszakasz lehet bejárat. A keretre mutató külső cellából nem indítható ösvény.
+                .Where(connection => IsInterior(maze, connection.Outside) &&
+                                     maze.IsWalkable(connection.Inside))
                 .ToArray();
             if (connections.Length == 0)
                 throw new InvalidOperationException("Az erdei épülethez nem található elérhető bejárat.");

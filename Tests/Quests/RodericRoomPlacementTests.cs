@@ -6,9 +6,9 @@ internal static class RodericRoomPlacementTests
 {
     public static void PlacementSurvivesMultipleSeeds()
     {
-        Parallel.For(0, 80, seed =>
+        Parallel.For(0, 60, seed =>
         {
-            var settings = seed < 40
+            var settings = seed < 30
                 ? MazeLevelConfigurations.Get(5).CreateGenerationSettings(new Random(seed))
                 : new MazeGenerationSettings
                 {

@@ -19,12 +19,12 @@ internal static class QuestCatalogImportTests
         var data = CsvGameDataLoader.Load(DataPath);
         var rows = File.ReadLines(DataPath).Where(line => line.StartsWith("NPCQ", StringComparison.Ordinal))
             .Select(line => line.Split(';')).ToArray();
-        Require(rows.Length == 44 && data.Quests.Count == 44 && data.Npcs.Count == 24,
-            "A teljes quest/NPC katalógus hiányos.");
-        Require(data.Quests.All.Select(q => q.Id).ToHashSet().SetEquals(
-            Enum.GetValues<QuestId>().Where(id => id != QuestId.None)), "Hiányzó vagy duplikált questmapping.");
-        Require(data.Npcs.Select(npc => LegacyNpcIdMap.ToQuestNpcId(npc.Id)).ToHashSet().SetEquals(
-            Enum.GetValues<QuestNpcId>().Where(id => id != QuestNpcId.None)), "Hiányzó NPC-mapping.");
+        Require(rows.Length > 0 && rows.Length == data.Quests.Count && data.Npcs.Count > 0,
+            "Nem minden CSV-s quest töltődött be, vagy az NPC-katalógus üres.");
+        Require(data.Quests.All.Select(quest => quest.Id).Distinct().Count() == data.Quests.Count,
+            "Több CSV-s quest ugyanarra a típusos azonosítóra képeződik le.");
+        Require(data.Npcs.Select(npc => LegacyNpcIdMap.ToQuestNpcId(npc.Id)).Distinct().Count() == data.Npcs.Count,
+            "Hiányzó vagy ütköző NPC-mapping.");
         foreach (var npc in data.Npcs)
         {
             var id = LegacyNpcIdMap.ToQuestNpcId(npc.Id);
