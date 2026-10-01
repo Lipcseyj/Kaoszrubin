@@ -1,12 +1,17 @@
 using Kaoszrubin.Infrastructure;
 using KaoszRubin.Data;
 using KaoszRubin.Domain.Characters;
+using KaoszRubin.Domain.Magic;
 
 namespace KaoszRubin.UI;
 
 public sealed class CharacterCreationScreen
 {
     private const int AbilityPointTotal = 25;
+    private static readonly PrimaryAbilities[] AdaptableAbilityOptions =
+    [
+        new(1, 0, 0, 0), new(0, 1, 0, 0), new(0, 0, 1, 0), new(0, 0, 0, 1)
+    ];
     private static int _frameLeft;
     private static int _frameTop;
     private static int _frameWidth;
@@ -41,46 +46,53 @@ public sealed class CharacterCreationScreen
         if (name is null) return;
         var race = ChooseRace();
         if (race is null) return;
-        var adaptableAbilityBonus = ChooseAdaptableAbilityBonus(race);
-        if (adaptableAbilityBonus is null) return;
 
         while (true)
         {
             PrimaryAbilities rolledAbilities;
-            PrimaryAbilities finalAbilities;
+            PrimaryAbilities racialAbilities;
             List<CharacterClassDefinition> eligibleClasses;
             do
             {
                 rolledAbilities = RollAbilities();
-                finalAbilities = (rolledAbilities + race.AbilityBonuses + adaptableAbilityBonus.Value).Clamp(1, 13);
-                eligibleClasses = EligibleClasses(finalAbilities);
+                racialAbilities = (rolledAbilities + race.AbilityBonuses).Clamp(1, 13);
+                eligibleClasses = EligibleClasses(rolledAbilities, race);
             } while (eligibleClasses.Count == 0);
 
             var vitalityBonus = _random.Next(1, 16);
             var manaBonus = _random.Next(1, 16);
 
-            DrawAbilityRoll(name, race, adaptableAbilityBonus.Value, rolledAbilities, finalAbilities,
+            DrawAbilityRoll(name, race, rolledAbilities, racialAbilities,
                 vitalityBonus, manaBonus, eligibleClasses);
             var key = Console.ReadKey(intercept: true).Key;
             if (key == ConsoleKey.Escape) return;
             if (key == ConsoleKey.R) continue;
             if (key != ConsoleKey.Enter) continue;
 
-            var characterClass = ChooseClass(finalAbilities, eligibleClasses);
+            var characterClass = ChooseClass(racialAbilities, race, eligibleClasses);
             if (characterClass is null) continue;
 
             var color = ChooseColor(characterClass);
             if (color is null) continue;
 
+            WeaponFamilyDefinition? weaponFamily = null;
+            if (CharacterClassRules.IsMartial(characterClass.Id))
+            {
+                weaponFamily = ChooseStartingWeaponProficiency(characterClass);
+                if (weaponFamily is null) continue;
+            }
+            var startingSpells = SpellcastingRules.TryGetSchool(characterClass.Id, out _)
+                ? ChooseStartingSpells(characterClass)
+                : [];
+
+            var adaptableAbilityBonus = ChooseAdaptableAbilityBonus(race, rolledAbilities, characterClass);
+            if (adaptableAbilityBonus is null) continue;
+
             var character = LiveCharacterFactory.Create(name, race, characterClass, rolledAbilities,
                 vitalityBonus, manaBonus, _gameData, color.Value, adaptableAbilityBonus.Value);
-            if (CharacterClassRules.IsMartial(character.CharacterClass.Id))
-            {
-                var family = ChooseStartingWeaponProficiency(character);
-                if (family is null) continue;
-                character.TryAdvanceWeaponProficiency(family.Id);
-            }
-            if (character.IsSpellcaster) ChooseStartingSpells(character);
+            if (weaponFamily is not null) character.TryAdvanceWeaponProficiency(weaponFamily.Id);
+            foreach (var spell in startingSpells) character.LearnSpell(spell);
+            if (startingSpells.Count > 0) character.SetMemorizedSpells(startingSpells);
             _characterRoster.Add(character);
             ShowCreatedCharacter(character);
             return;
@@ -148,37 +160,34 @@ public sealed class CharacterCreationScreen
 
     private ConsoleColor RandomCharacterColor() => CharacterColors.Selectable[_random.Next(CharacterColors.Selectable.Count)];
 
-    private void ChooseStartingSpells(LiveCharacter character)
+    private IReadOnlyList<SpellDefinition> ChooseStartingSpells(CharacterClassDefinition characterClass)
     {
-        SpellcastingRules.TryGetSchool(character.CharacterClass.Id, out var school);
+        SpellcastingRules.TryGetSchool(characterClass.Id, out var school);
         var spells = _gameData.GetSpells(school, 1).OrderBy(spell => spell.Name).ToList();
         var selected = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var cursor = 0;
         while (true)
         {
             DrawFrame("🔮 KEZDŐ VARÁZSLATOK", Math.Max(18, spells.Count + 9));
-            WriteInside(3, $"Válassz pontosan {SpellcastingRules.StartingSpellCount(character.CharacterClass.Id)} varázslatot.", ConsoleColor.Cyan);
+            WriteInside(3, $"Válassz pontosan {SpellcastingRules.StartingSpellCount(characterClass.Id)} varázslatot.", ConsoleColor.Cyan);
             WriteInside(4, "↑/↓ mozgás   Space kijelölés   Enter elfogadás", ConsoleColor.DarkCyan);
             for (var index = 0; index < spells.Count; index++)
                 WriteInside(6 + index,
                     $"{(index == cursor ? "▶" : " ")} [{(selected.Contains(spells[index].Id) ? "✨" : " ")}] {spells[index].Name}",
                     selected.Contains(spells[index].Id) ? ConsoleColor.Magenta : ConsoleColor.Gray);
             WriteInside(7 + spells.Count,
-                $"📖 Kijelölve: {selected.Count}/{SpellcastingRules.StartingSpellCount(character.CharacterClass.Id)}", ConsoleColor.Yellow);
-            DrawClassPortrait(character.CharacterClass, character.Color);
+                $"📖 Kijelölve: {selected.Count}/{SpellcastingRules.StartingSpellCount(characterClass.Id)}", ConsoleColor.Yellow);
+            DrawClassPortrait(characterClass, ConsoleColor.Cyan);
             switch (Console.ReadKey(intercept: true).Key)
             {
                 case ConsoleKey.UpArrow: cursor = (cursor - 1 + spells.Count) % spells.Count; break;
                 case ConsoleKey.DownArrow: cursor = (cursor + 1) % spells.Count; break;
                 case ConsoleKey.Spacebar:
-                    if (!selected.Remove(spells[cursor].Id) && selected.Count < SpellcastingRules.StartingSpellCount(character.CharacterClass.Id))
+                    if (!selected.Remove(spells[cursor].Id) && selected.Count < SpellcastingRules.StartingSpellCount(characterClass.Id))
                         selected.Add(spells[cursor].Id);
                     break;
-                case ConsoleKey.Enter when selected.Count == SpellcastingRules.StartingSpellCount(character.CharacterClass.Id):
-                    var chosen = spells.Where(spell => selected.Contains(spell.Id)).ToList();
-                    foreach (var spell in chosen) character.LearnSpell(spell);
-                    character.SetMemorizedSpells(chosen);
-                    return;
+                case ConsoleKey.Enter when selected.Count == SpellcastingRules.StartingSpellCount(characterClass.Id):
+                    return spells.Where(spell => selected.Contains(spell.Id)).ToList();
             }
         }
     }
@@ -219,18 +228,20 @@ public sealed class CharacterCreationScreen
         }
     }
 
-    private List<CharacterClassDefinition> EligibleClasses(PrimaryAbilities abilities) =>
+    private List<CharacterClassDefinition> EligibleClasses(PrimaryAbilities rolledAbilities, RaceDefinition race) =>
         _gameData.CharacterClasses.Where(characterClass =>
-            abilities.MeetsMinimum(characterClass.MinimumAbilities)).ToList();
+            PossibleAdaptableBonuses(race).Any(bonus =>
+                (rolledAbilities + race.AbilityBonuses + bonus).Clamp(1, 13)
+                .MeetsMinimum(characterClass.MinimumAbilities))).ToList();
 
-    private CharacterClassDefinition? ChooseClass(PrimaryAbilities abilities,
+    private CharacterClassDefinition? ChooseClass(PrimaryAbilities abilities, RaceDefinition race,
         IReadOnlyList<CharacterClassDefinition> eligibleClasses)
     {
         var selectedIndex = 0;
         while (true)
         {
             DrawFrame("🛡 OSZTÁLY VÁLASZTÁSA", Math.Max(17, eligibleClasses.Count + 12));
-            WriteInside(3, $"Végső képességek: {FormatAbilities(abilities)}", ConsoleColor.Yellow);
+            WriteInside(3, $"{(race.HasTrait(RaceTraits.Adaptable) ? "Faji értékek (+1 később)" : "Végső képességek")}: {FormatAbilities(abilities)}", ConsoleColor.Yellow);
             for (var index = 0; index < eligibleClasses.Count; index++)
             {
                 var characterClass = eligibleClasses[index];
@@ -250,9 +261,9 @@ public sealed class CharacterCreationScreen
         }
     }
 
-    private WeaponFamilyDefinition? ChooseStartingWeaponProficiency(LiveCharacter character)
+    private WeaponFamilyDefinition? ChooseStartingWeaponProficiency(CharacterClassDefinition characterClass)
     {
-        var choices = WeaponFamilies.AvailableFor(character.CharacterClass.Id, _gameData.Weapons);
+        var choices = WeaponFamilies.AvailableFor(characterClass.Id, _gameData.Weapons);
         if (choices.Count == 0) return null;
         var selectedIndex = 0;
         while (true)
@@ -289,45 +300,44 @@ public sealed class CharacterCreationScreen
         if (choices.Count > 0) character.TryAdvanceWeaponProficiency(choices[_random.Next(choices.Count)].Id);
     }
 
-    private static PrimaryAbilities? ChooseAdaptableAbilityBonus(RaceDefinition race)
+    private static IReadOnlyList<PrimaryAbilities> PossibleAdaptableBonuses(RaceDefinition race) =>
+        race.HasTrait(RaceTraits.Adaptable) ? AdaptableAbilityOptions : [PrimaryAbilities.Zero];
+
+    private static PrimaryAbilities? ChooseAdaptableAbilityBonus(RaceDefinition race,
+        PrimaryAbilities rolledAbilities, CharacterClassDefinition characterClass)
     {
         if (!race.HasTrait(RaceTraits.Adaptable)) return PrimaryAbilities.Zero;
+        var names = new[] { "💪 Erő", "🏹 Ügyesség", "❤️ Egészség", "🧠 Intelligencia" };
         while (true)
         {
-            DrawFrame("🌟 ALKALMAZKODÓ", 14);
-            WriteInside(3, "Válassz egy képességet, amely +1 bónuszt kap:", ConsoleColor.Yellow);
-            WriteInside(5, "1  💪 Erő", ConsoleColor.Red);
-            WriteInside(6, "2  🏹 Ügyesség", ConsoleColor.Green);
-            WriteInside(7, "3  ❤️ Egészség", ConsoleColor.DarkYellow);
-            WriteInside(8, "4  🧠 Intelligencia", ConsoleColor.Magenta);
-            WriteInside(11, "Esc · vissza", ConsoleColor.DarkCyan);
+            DrawFrame("🌟 ALKALMAZKODÓ — UTOLSÓ LÉPÉS", 17);
+            WriteInside(3, $"{characterClass.Name}: válassz egy képességet a +1 bónuszhoz.", ConsoleColor.Yellow);
+            for (var index = 0; index < AdaptableAbilityOptions.Length; index++)
+            {
+                var final = (rolledAbilities + race.AbilityBonuses + AdaptableAbilityOptions[index]).Clamp(1, 13);
+                var valid = final.MeetsMinimum(characterClass.MinimumAbilities);
+                WriteInside(5 + index, $"{index + 1}  {names[index]} +1  {FormatAbilities(final)}" +
+                    (valid ? string.Empty : "  (nem választható)"), valid ? ConsoleColor.Cyan : ConsoleColor.DarkGray);
+            }
+            WriteInside(11, "A szürke bónusz nem éri el az osztály minimumát.", ConsoleColor.DarkGray);
+            WriteInside(13, "Esc · újrakezdés", ConsoleColor.DarkCyan);
             var key = Console.ReadKey(intercept: true).Key;
             if (key == ConsoleKey.Escape) return null;
             if (!TryGetNumberKey(key, out var choice) || choice > 4) continue;
-            return choice switch
-            {
-                1 => new PrimaryAbilities(1, 0, 0, 0),
-                2 => new PrimaryAbilities(0, 1, 0, 0),
-                3 => new PrimaryAbilities(0, 0, 1, 0),
-                _ => new PrimaryAbilities(0, 0, 0, 1)
-            };
+            var bonus = AdaptableAbilityOptions[choice - 1];
+            if ((rolledAbilities + race.AbilityBonuses + bonus).Clamp(1, 13)
+                .MeetsMinimum(characterClass.MinimumAbilities)) return bonus;
         }
     }
 
     private PrimaryAbilities RandomAdaptableAbilityBonus(RaceDefinition race)
     {
         if (!race.HasTrait(RaceTraits.Adaptable)) return PrimaryAbilities.Zero;
-        return _random.Next(4) switch
-        {
-            0 => new PrimaryAbilities(1, 0, 0, 0),
-            1 => new PrimaryAbilities(0, 1, 0, 0),
-            2 => new PrimaryAbilities(0, 0, 1, 0),
-            _ => new PrimaryAbilities(0, 0, 0, 1)
-        };
+        return AdaptableAbilityOptions[_random.Next(AdaptableAbilityOptions.Length)];
     }
 
-    private void DrawAbilityRoll(string name, RaceDefinition race, PrimaryAbilities adaptableAbilityBonus,
-        PrimaryAbilities rolled, PrimaryAbilities final,
+    private void DrawAbilityRoll(string name, RaceDefinition race,
+        PrimaryAbilities rolled, PrimaryAbilities racialAbilities,
         int vitalityBonus, int manaBonus, IReadOnlyList<CharacterClassDefinition> eligibleClasses)
     {
         DrawFrame("🎲 KÉPESSÉGDOBÁS", 18);
@@ -336,11 +346,12 @@ public sealed class CharacterCreationScreen
         WriteInside(5, $"🎲 Dobás ({rolledPointTotal} pont): {FormatAbilities(rolled)}", ConsoleColor.Gray);
         WriteInside(6, $"🧬 Faji módosító:      {FormatAbilities(race.AbilityBonuses)}", RaceColor(race));
         if (race.HasTrait(RaceTraits.Adaptable))
-            WriteInside(7, $"🌟 Választott bónusz:  {FormatAbilities(adaptableAbilityBonus)}", ConsoleColor.Cyan);
-        WriteInside(8, $"✨ Végső értékek:      {FormatAbilities(final)}", ConsoleColor.White);
+            WriteInside(7, "🌟 Alkalmazkodó bónusz: a generálás végén választható", ConsoleColor.Cyan);
+        WriteInside(8, $"✨ {(race.HasTrait(RaceTraits.Adaptable) ? "Faji értékek (+1 később)" : "Végső értékek")}: {FormatAbilities(racialAbilities)}", ConsoleColor.White);
         WriteInside(10, $"🏷 Osztályok: {string.Join(", ", eligibleClasses.Select(characterClass => characterClass.Name))}", ConsoleColor.Green);
-        WriteInside(12, $"❤️ Életerő: {_gameData.GetMinimumVitality(final.Health)} + {vitalityBonus} = {_gameData.GetMinimumVitality(final.Health) + vitalityBonus}", ConsoleColor.Red);
-        WriteInside(13, $"🔷 Manna:   {_gameData.GetMinimumMana(final.Intelligence)} + {manaBonus} = {_gameData.GetMinimumMana(final.Intelligence) + manaBonus}", ConsoleColor.Blue);
+        var preview = race.HasTrait(RaceTraits.Adaptable) ? " (+1 előtt)" : string.Empty;
+        WriteInside(12, $"❤️ Életerő{preview}: {_gameData.GetMinimumVitality(racialAbilities.Health)} + {vitalityBonus} = {_gameData.GetMinimumVitality(racialAbilities.Health) + vitalityBonus}", ConsoleColor.Red);
+        WriteInside(13, $"🔷 Manna{preview}: {_gameData.GetMinimumMana(racialAbilities.Intelligence)} + {manaBonus} = {_gameData.GetMinimumMana(racialAbilities.Intelligence) + manaBonus}", ConsoleColor.Blue);
         WriteInside(15, "Enter elfogadás   R újradobás   Esc megszakítás", ConsoleColor.DarkCyan);
     }
 
