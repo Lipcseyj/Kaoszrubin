@@ -12,6 +12,7 @@ public sealed class FogOfWar
     private HashSet<Position> _currentlyVisiblePositions = [];
     private readonly Dictionary<WorldEntityId, EnemySightMemory> _enemyMemories = [];
     private Dictionary<WorldEntityId, Position> _visibleEnemyPositions = [];
+    private readonly HashSet<WorldEntityId> _battleVisibleEnemyIds = [];
     private readonly HashSet<Position> _expandedConnectedTerrainSeeds = [];
     private bool _hasPartyPerceptionState;
     public int VisionRange { get; }
@@ -38,9 +39,21 @@ public sealed class FogOfWar
         position.Y >= 0 && position.Y < _currentlyVisible.GetLength(1) &&
         _currentlyVisible[position.X, position.Y];
     public IReadOnlyDictionary<WorldEntityId, EnemySightMemory> EnemyMemories => _enemyMemories;
-    public bool IsEnemyVisible(WorldEntityId id, Position position) => _hasPartyPerceptionState
+    public bool IsEnemyVisible(WorldEntityId id, Position position) => _battleVisibleEnemyIds.Contains(id) ||
+        (_hasPartyPerceptionState
         ? _visibleEnemyPositions.ContainsKey(id)
-        : IsCurrentlyVisible(position, includeDeveloperReveal: false);
+        : IsCurrentlyVisible(position, includeDeveloperReveal: false));
+
+    public void SetBattleVisibleEnemies(IEnumerable<Enemy> enemies)
+    {
+        _battleVisibleEnemyIds.Clear();
+        _battleVisibleEnemyIds.UnionWith(enemies.Select(enemy => enemy.Id));
+    }
+
+    public void AddBattleVisibleEnemies(IEnumerable<Enemy> enemies) =>
+        _battleVisibleEnemyIds.UnionWith(enemies.Select(enemy => enemy.Id));
+
+    public void ClearBattleVisibleEnemies() => _battleVisibleEnemyIds.Clear();
 
     public IReadOnlyList<Position> RevealFrom(Maze maze, Position origin, int? visionRange = null)
     {

@@ -1206,6 +1206,14 @@ static void BattleHitHighlightsDamageAndHealth()
         fog.UpdatePartyVisibility(maze, [new PartyPerceptionSource(origin, 4, 0, 0)], false);
         Assert(WorldSnapshotProjector.Create(maze, fog).Enemies.Count == 0,
             "A lopakodó ellenfél nem tudott újra elrejtőzni a mozgása után.");
+        fog.SetBattleVisibleEnemies([stealthy]);
+        fog.UpdatePartyVisibility(maze, [new PartyPerceptionSource(origin, 4, 0, 0)], false);
+        Assert(fog.IsEnemyVisible(stealthy.Id, stealthy.Position) &&
+               WorldSnapshotProjector.Create(maze, fog).Enemies.Single().EntityId == stealthy.Id,
+            "Az aktív csata lopakodó résztvevője eltűnt a térképről vagy a world snapshotból.");
+        fog.ClearBattleVisibleEnemies();
+        Assert(!fog.IsEnemyVisible(stealthy.Id, stealthy.Position),
+            "A csata után a lopakodó ellenfél kényszerített láthatósága megmaradt.");
         fog.UpdatePartyVisibility(maze, [new PartyPerceptionSource(origin, 4, 0, 2)], false);
         Assert(WorldSnapshotProjector.Create(maze, fog).Enemies.Single().EntityId == stealthy.Id,
             "A jobb közös észlelés nem fedte fel a lopakodó ellenfelet.");

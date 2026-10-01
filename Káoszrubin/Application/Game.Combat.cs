@@ -143,6 +143,7 @@ public sealed partial class Game
         _activeBattle = new BattleEncounter(initiatingEnemy.Position,
             characterParticipants, enemyParticipants, initiatingCharacter.Id, initiatingEnemy.Id,
             enemyStrikesFirst, formation: ActiveBattleFormation());
+        _fogOfWar.SetBattleVisibleEnemies(participantEnemies);
         var protectionMessages = new List<string>();
         foreach (var protectedParticipant in characterParticipants)
         {
@@ -159,6 +160,9 @@ public sealed partial class Game
         _session.SetPhase(GameSessionPhase.Battle);
         PlaySessionSound(SoundEffect.BattleStart);
         _renderer.DrawBattleStarted(initiatingEnemy);
+        if (!_isQuickBattle)
+            _renderer.DrawMapCellsChanged(_maze, _fogOfWar, _player.Position,
+                participantEnemies.Select(enemy => enemy.Position));
         TryLogPartyComments(PartySituationIds.BattleStarted);
         if (ambushTriggered)
             preparationEntries.Insert(0, new BattleLogEntry(
@@ -436,6 +440,10 @@ public sealed partial class Game
                 EnemyMovementAllowance(enemy), battle.Turns.Cycle + 1,
                 _battleSystem.EnemyOpeningMovementBonus(enemy)));
         }
+        _fogOfWar.AddBattleVisibleEnemies(reinforcements);
+        if (!_isQuickBattle)
+            _renderer.DrawMapCellsChanged(_maze, _fogOfWar, _player.Position,
+                reinforcements.Select(enemy => enemy.Position));
         var message = $"📯 Az ellenség erősítést hív: {reinforcements.Length} új harcos " +
                       $"a(z) {battle.Turns.Cycle + 1}. körben kapcsolódik be.";
         _renderer.DrawInventoryMessage(message, ConsoleColor.DarkYellow);

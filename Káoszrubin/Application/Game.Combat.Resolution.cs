@@ -1751,10 +1751,13 @@ public sealed partial class Game
             summoned.ConfigureSummon(caster.Id, summon.GrantsRewardsAndLoot);
             _battleSystem.PrepareEnemyForBattle(summoned);
             _maze.AddEnemy(summoned);
+            _fogOfWar.AddBattleVisibleEnemies([summoned]);
             battle.TryAddEnemy(new BattleEnemyParticipant(summoned, _battleSystem.RollEnemyInitiative(summoned),
                 EnemyMovementAllowance(summoned), battle.Turns.Cycle + 1,
                 _battleSystem.EnemyOpeningMovementBonus(summoned)));
         }
+        if (!_isQuickBattle)
+            _renderer.DrawMapCellsChanged(_maze, _fogOfWar, _player.Position, positions);
         PresentBattleEntries([new BattleLogEntry(
             $"☠️ {caster.Name} holtakat éleszt: {positions.Length} idézett lény a következő körben csatlakozik.",
             BattleLogKind.Information)]);
@@ -1831,6 +1834,7 @@ public sealed partial class Game
 
     private void FinishBattleStalemate(BattleEncounter battle)
     {
+        _fogOfWar.ClearBattleVisibleEnemies();
         _renderer.DrawBattleCommandPanel(string.Empty);
         _session.EndBattle(battle.Id);
         var cycles = Math.Max(1, battle.Turns.Cycle);
@@ -1878,6 +1882,7 @@ public sealed partial class Game
 
     private void FinishBattle(BattleEncounter battle, bool forceDefeat = false)
     {
+        _fogOfWar.ClearBattleVisibleEnemies();
         _renderer.DrawBattleCommandPanel(string.Empty);
         _session.EndBattle(battle.Id);
         var victory = !forceDefeat && battle.HostileSideDefeated && !battle.FriendlySideDefeated;
