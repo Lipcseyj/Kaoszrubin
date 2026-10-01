@@ -12,6 +12,7 @@ internal sealed partial class MapEditorForm
     private readonly TabPage _npcsTab = new("NPC-k");
     private readonly TabControl _mainTabs = new() { Dock = DockStyle.Fill };
     private readonly Dictionary<string, TextBox> _levelFields = [];
+    private readonly Dictionary<string, DataGridView> _levelDictionaryFields = [];
     private readonly ToolTip _mazeToolTip = new() { AutoPopDelay = 18000, InitialDelay = 350, ReshowDelay = 150, ShowAlways = true };
     private readonly ListBox _roomEncounterList = new() { Dock = DockStyle.Fill };
     private readonly ListBox _corridorEncounterList = new() { Dock = DockStyle.Fill };
@@ -62,7 +63,29 @@ internal sealed partial class MapEditorForm
             ("QuestRoomEnemyEncounters", "Garantált szobaellenfelek", "Adott quest- vagy boss-szobába kerülő ellenfelek.", "Példa: [new(\"MALREC_CHAMBER\", MonsterIds.SirMalrec, 1)]."),
         })
         {
-            var field = new TextBox { Width = 348 };
+            if (name is "SpecialRoomPlacements" or "QuestChestPlacements" or "QuestDoorRequirements")
+            {
+                var grid = BuildLevelDictionaryGrid(name);
+                _levelDictionaryFields.Add(name, grid);
+                var dictionaryGroup = new FlowLayoutPanel { Width = 370, Height = 238,
+                    FlowDirection = FlowDirection.TopDown, WrapContents = false, Margin = new Padding(0, 0, 0, 4) };
+                var dictionaryTitle = new Label { Text = label + "  ⓘ", AutoSize = false, Width = 355, Height = 20,
+                    Font = new Font(SystemFonts.DefaultFont, FontStyle.Bold) };
+                var dictionaryExplanation = new Label { Text = hint, AutoSize = false, Width = 355, Height = 35,
+                    ForeColor = Color.DimGray };
+                _mazeToolTip.SetToolTip(dictionaryTitle, help);
+                _mazeToolTip.SetToolTip(dictionaryExplanation, help);
+                dictionaryGroup.Controls.Add(dictionaryTitle);
+                dictionaryGroup.Controls.Add(dictionaryExplanation);
+                dictionaryGroup.Controls.Add(grid);
+                flow.Controls.Add(dictionaryGroup);
+                continue;
+            }
+            var field = new TextBox
+            {
+                Width = 348,
+                Height = 23
+            };
             _levelFields.Add(name, field);
             var group = new FlowLayoutPanel { Width = 370, Height = 104,
                 FlowDirection = FlowDirection.TopDown, WrapContents = false, Margin = new Padding(0, 0, 0, 4) };
@@ -81,6 +104,37 @@ internal sealed partial class MapEditorForm
         flow.Controls.Add(Button("Pályaadatok mentése", (_, _) => SaveLevelFields()));
         outer.Controls.Add(flow);
         return outer;
+    }
+
+    private static DataGridView BuildLevelDictionaryGrid(string propertyName)
+    {
+        var grid = new DataGridView
+        {
+            Width = 355,
+            Height = 172,
+            AllowUserToAddRows = true,
+            AllowUserToDeleteRows = true,
+            AllowUserToResizeColumns = true,
+            AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+            RowHeadersWidth = 26
+        };
+        grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "RoomId", HeaderText = "Szobaazonosító", FillWeight = 55 });
+        if (propertyName == "SpecialRoomPlacements")
+            grid.Columns.Add(new DataGridViewComboBoxColumn
+            {
+                Name = "Value",
+                HeaderText = "Elhelyezés",
+                FillWeight = 45,
+                DataSource = Enum.GetNames<SpecialRoomPlacement>()
+            });
+        else
+            grid.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "Value",
+                HeaderText = propertyName == "QuestDoorRequirements" ? "Küldetésazonosító" : "Questláda-azonosító",
+                FillWeight = 45
+            });
+        return grid;
     }
 
     private Control BuildEncountersTab()
@@ -181,6 +235,23 @@ internal sealed partial class MapEditorForm
             var block = EditorSources.ReadLevel(level);
             foreach (var (name, field) in _levelFields)
                 field.Text = EditorSources.Property(block, name) ?? "";
+            foreach (var (name, grid) in _levelDictionaryFields)
+            {
+                grid.Rows.Clear();
+                foreach (var (roomId, expression) in EditorSources.DictionaryEntries(EditorSources.Property(block, name)))
+                {
+                    var value = name switch
+                    {
+                        "SpecialRoomPlacements" => expression[(expression.LastIndexOf('.') + 1)..],
+                        "QuestDoorRequirements" => expression[(expression.LastIndexOf('.') + 1)..],
+                        "QuestChestPlacements" when expression.StartsWith("new(\"", StringComparison.Ordinal) &&
+                                                    expression.EndsWith("\")", StringComparison.Ordinal) =>
+                            expression[5..^2],
+                        _ => expression
+                    };
+                    grid.Rows.Add(roomId, value);
+                }
+            }
             LoadEncounterList(_roomEncounterList, EditorSources.Property(block, "RoomEncounters"));
             LoadEncounterList(_corridorEncounterList, EditorSources.Property(block, "CorridorEncounters"));
             _encounterArea.Items.Clear();
@@ -412,6 +483,37 @@ internal sealed partial class MapEditorForm
         {
             var values = _levelFields.Where(entry => !string.IsNullOrWhiteSpace(entry.Value.Text))
                 .ToDictionary(entry => entry.Key, entry => entry.Value.Text.Trim());
+            foreach (var (name, grid) in _levelDictionaryFields)
+            {
+                grid.EndEdit();
+                var entries = grid.Rows.Cast<DataGridViewRow>().Where(row => !row.IsNewRow)
+                    .Select(row => (RoomId: row.Cells["RoomId"].Value?.ToString()?.Trim() ?? "",
+                        Value: row.Cells["Value"].Value?.ToString()?.Trim() ?? ""))
+                    .Where(entry => entry.RoomId.Length > 0 || entry.Value.Length > 0).ToArray();
+                if (entries.Any(entry => entry.RoomId.Length == 0 || entry.Value.Length == 0))
+                    throw new InvalidDataException($"A(z) {name} minden sorában kötelező a szobaazonosító és az érték.");
+                if (entries.Select(entry => entry.RoomId).Distinct(StringComparer.OrdinalIgnoreCase).Count() != entries.Length)
+                    throw new InvalidDataException($"A(z) {name} szobaazonosítói nem ismétlődhetnek.");
+                var type = name switch
+                {
+                    "SpecialRoomPlacements" => "SpecialRoomPlacement",
+                    "QuestDoorRequirements" => "Domain.Quests.QuestId",
+                    _ => "Domain.Quests.QuestChestId"
+                };
+                var lines = entries.Select(entry =>
+                {
+                    var roomId = entry.RoomId.Replace("\\", "\\\\").Replace("\"", "\\\"");
+                    var value = name switch
+                    {
+                        "SpecialRoomPlacements" => $"SpecialRoomPlacement.{entry.Value}",
+                        "QuestDoorRequirements" => $"Domain.Quests.QuestId.{entry.Value}",
+                        _ => $"new(\"{entry.Value.Replace("\\", "\\\\").Replace("\"", "\\\"")}\")"
+                    };
+                    return $"                    [\"{roomId}\"] = {value}";
+                });
+                values[name] = $"new Dictionary<string, {type}>\n                {{\n" +
+                    string.Join(",\n", lines) + "\n                }";
+            }
             EditorSources.SaveLevel((int)_level.Value, values);
             UpdateStatus("A pályaadatok mentve. Az előnézethez indítsd újra a szerkesztőt a fordítás után.");
         }

@@ -1429,13 +1429,13 @@ PL050;Egy őrült öreg szerint egyszer eljön egy kalandozó, aki megtalálja a
 
 #NPC-k
 Id;Név;OsztályId;Viszony;Viselkedés;Toborozható;Egyedi;FajId;TörténetId;VisszatérőViszony
-NPC001;Vándor füvesasszony;C005;Neutral;Guarded;nem;nem
+NPC001;Vándor füvesasszony;C005;Neutral;Guarded;nem;nem;;;igen
 NPC002;Szörnyvadász;C001;Neutral;Aggressive;nem;nem;R002;;igen
 NPC003;Kincskereső;C004;Neutral;Opportunistic;nem;nem
 NPC004;Vándor dalnok;C006;Friendly;Friendly;igen;nem
 NPC005;Patkányvadász;C004;Neutral;Guarded;nem;nem
 NPC006;Kobold szökevény;C004;Neutral;Opportunistic;nem;nem
-NPC007;Sebesült határőr;C003;Neutral;Guarded;nem;nem
+NPC007;Elf kósza;C003;Neutral;Guarded;nem;nem;R003;;igen
 NPC008;Halottlátó remete;C005;Neutral;Guarded;nem;nem
 NPC009;Ork dezertőr;C002;Neutral;Aggressive;nem;nem
 NPC010;Barlangi alkimista;C006;Neutral;Opportunistic;nem;nem
@@ -1450,9 +1450,8 @@ NPC018;Káoszzarándok;C005;Neutral;Guarded;nem;nem
 NPC019;Óriásvadász;C001;Neutral;Aggressive;nem;nem
 NPC020;Elira Ezüstág;C004;Neutral;Guarded;igen;igen;R003;ELIRA_RESCUE
 NPC021;Sir Roderic;C003;Neutral;Guarded;igen;igen;R001;RODERIC_OATH
-NPC022;Merion;C006;Friendly;Friendly;nem;igen;R001
+NPC022;Merion;C006;Friendly;Friendly;igen;igen;R001;;igen
 NPC023;Vildar;C001;Friendly;Friendly;nem;igen;R001
-NPC024;Falusi füvesasszony;C005;Neutral;Friendly;nem;nem
 
 #Egyedi NPC karakterlap
 NpcId;Szint;Erő;Ügyesség;Egészség;Intelligencia;Alkalmazkodó;ÉleterőBónusz;MannaBónusz;Szín;HarciViselkedés;SpecializációId;TehetségId-k;Fegyver1Id;Fegyver2Id;PáncélId;VarázstárgyId-k;HátizsákId-k;FegyverjártasságId-k
@@ -1470,7 +1469,7 @@ NPCE004;NPC001;8;8;18
 NPCE005;NPC004;9;7;16
 NPCE006;NPC005;1;6;14
 NPCE007;NPC006;2;7;16
-NPCE008;NPC007;3;7;17
+NPCE008;NPC007;6;7;17;;
 NPCE009;NPC007;4;8;18
 NPCE010;NPC008;5;8;18
 NPCE011;NPC009;7;9;20
@@ -1495,7 +1494,7 @@ NPCE029;NPC021;5;1;50;RODERIC_MEETING
 NPCE030;NPC022;1;5;13
 NPCE031;NPC023;3;10;30
 NPCE032;NPC007;6;8;20
-NPCE033;NPC024;4;15;25
+NPCE033;NPC001;4;15;25;;
 NPCE034;NPC002;7;9;20
 
 #Quest ládák
@@ -1565,7 +1564,8 @@ NPCQ032;NPC018;OpenChest;ANY;3;9450;A Rubin visszhangjai;Nyiss ki három ládát
 NPCQ033;NPC019;Kill;E012;3;3690;Nagyvad;Győzz le három ogrét az óriásvadász megbízásából.;;;;;NPCD104
 NPCQ042;NPC022;OpenQuestChest;AURELIOS_HELP;1;900;Uralkodód ezt a segítséget küldi;Találd meg Aurelios máguskirály küldöttének ládáját.;MW001;1;0;;NPCD071
 NPCQ043;NPC023;Kill;E062;1;1800;Szemet szemért;Öld meg a goblin főnököt Vildar megbízásából.;T019;3;3;;NPCD114
-NPCQ044;NPC024;Collect;T031;2;1110;Húsleves;Gyűjts össze két adag nyers húst a füvesasszonynak.;T020;2;0;;NPCD116
+NPCQ044;NPC001;Collect;T031;2;1110;Húsleves;Gyűjts össze két adag nyers húst a füvesasszonynak.;T020;2;0;;NPCD116;;NPCE033;6;
+NPCQ045;NPC002;Kill;E007;5;2520;Az ork portyázók nyomában;Győzz le öt orkot a szörnyvadász megbízásából.;;;;;NPCD119;;NPCE034;6
 
 NPCQ034;NPC020;Escort;EXIT;1;1890;Ezüstág kimenekítése;Kísérd el Elirát élve a pálya kijáratáig.;T017;2;1;;NPCD105
 NPCQ035;NPC020;Collect;T019;1;720;Elszakadt kötés;Adj Elirának egy tiszta kötést hogy a sérült bokája bírja az utat.;T011;2;0;;NPCD106
@@ -1576,7 +1576,6 @@ NPCQ038;NPC021;Kill;E061;2;1950;A pátriárkák árnyai;Győzzétek le a két é
 NPCQ039;NPC021;Kill;E053;1;3600;Az esküszegő;Győzzétek le Sir Malrecet Roderic oldalán a bukott lovag sírkápolnájában.;;;1;MALREC_APPROACH;NPCD110
 NPCQ040;NPC021;KillWithTraits;MA001;8;1560;Egy oldalon harcolunk;Győzz le nyolc élőholtat hogy bizonyítsd Rodericnek: közös az ellenségetek.;;;1;;NPCD111
 NPCQ041;NPC021;OpenQuestChest;RODERIC_ORDER_RELICS;1;2250;A rend ereklyéi;Nyisd ki az Ezüst Eskü ereklyeládáját Roderickel.;;;0;;NPCD112
-NPCQ045;NPC002;Kill;E007;5;2520;Az ork portyázók nyomában;Győzz le öt orkot a szörnyvadász megbízásából.;;;;;NPCD119;;NPCE034;6
 
 #NPC párbeszédek
 Id;NpcId;MinimumBarátságosság;MaximumBarátságosság;Szöveg;TalálkozásId

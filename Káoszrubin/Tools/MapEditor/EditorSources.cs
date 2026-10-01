@@ -83,6 +83,31 @@ internal static class EditorSources
         return result;
     }
 
+    public static IReadOnlyList<KeyValuePair<string, string>> DictionaryEntries(string? expression)
+    {
+        if (string.IsNullOrWhiteSpace(expression)) return [];
+        var open = expression.IndexOf('{');
+        if (open < 0) return [];
+        var close = MatchingEnd(expression, open);
+        var inner = expression[(open + 1)..close];
+        var entries = new List<KeyValuePair<string, string>>();
+        var start = 0;
+        while (start < inner.Length)
+        {
+            var comma = TopLevelComma(inner, start);
+            var item = inner[start..comma].Trim();
+            if (item.Length > 0)
+            {
+                var match = Regex.Match(item, "^\\[\\s*\\\"(?<key>(?:\\\\.|[^\\\"])*)\\\"\\s*\\]\\s*=\\s*(?<value>.+)$",
+                    RegexOptions.Singleline);
+                if (!match.Success) throw new FormatException($"Nem értelmezhető szótárbejegyzés: {item}");
+                entries.Add(new(Regex.Unescape(match.Groups["key"].Value), match.Groups["value"].Value.Trim()));
+            }
+            start = comma + 1;
+        }
+        return entries;
+    }
+
     public static int MatchingEnd(string source, int opening)
     {
         var open = source[opening];
@@ -105,7 +130,7 @@ internal static class EditorSources
 
     private static int TopLevelComma(string source, int start)
     {
-        var round = 0; var square = 0; var curly = 0; var quoted = false; var character = false;
+        var round = 0; var square = 0; var curly = 0; var angle = 0; var quoted = false; var character = false;
         for (var i = start; i < source.Length; i++)
         {
             var c = source[i];
@@ -121,7 +146,9 @@ internal static class EditorSources
                 case ']': square--; break;
                 case '{': curly++; break;
                 case '}': curly--; break;
-                case ',' when round == 0 && square == 0 && curly == 0: return i;
+                case '<': angle++; break;
+                case '>' when angle > 0: angle--; break;
+                case ',' when round == 0 && square == 0 && curly == 0 && angle == 0: return i;
             }
         }
         return source.Length;
