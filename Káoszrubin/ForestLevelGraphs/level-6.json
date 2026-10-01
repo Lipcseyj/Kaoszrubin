@@ -10,7 +10,7 @@
           "X": 0,
           "Y": 0
         },
-        "TemplateId": "swamp",
+        "TemplateId": "mixed-forest",
         "Overrides": {
           "ForestDensity": null,
           "GroveSize": null,
@@ -26,10 +26,7 @@
           "LakeCount": null,
           "LakeRadius": null,
           "MarshChance": null,
-          "MarshCount": {
-            "Minimum": 7,
-            "Maximum": 8
-          },
+          "MarshCount": null,
           "MarshRadius": null,
           "TrailWidth": null,
           "TrailWinding": null,

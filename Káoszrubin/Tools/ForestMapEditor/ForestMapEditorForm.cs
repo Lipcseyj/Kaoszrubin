@@ -38,8 +38,13 @@ internal sealed class ForestMapEditorForm : Form
     private readonly ComboBox _entrance = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 145 };
     private readonly ComboBox _exit = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 145 };
     private readonly NumericUpDown _level = Number(1, 999, 6);
+    private readonly PropertyGrid _forestProperties = new() { Width = 390, Height = 620, HelpVisible = true, ToolbarVisible = true };
+    private bool _loadingSelection;
+    private ForestGenerationConfiguration _propertyGridInherited = new();
     private ForestAreaDefinition? _selected;
     private string? _currentFilePath;
+    private ForestGenerationConfiguration _previewBaseConfiguration = new();
+    private int? _lastPreviewSeed;
 
     public ForestMapEditorForm()
     {
@@ -59,6 +64,7 @@ internal sealed class ForestMapEditorForm : Form
 
         _canvas.SelectionChanged += SelectArea;
         _canvas.AreaMoved += MoveArea;
+        _template.SelectedIndexChanged += (_, _) => RefreshEffectiveProperties();
         Shown += (_, _) => EnsureInspectorVisible();
         SizeChanged += (_, _) => EnsureInspectorVisible();
         NewDocument();
@@ -77,7 +83,8 @@ internal sealed class ForestMapEditorForm : Form
         bar.Controls.Add(Button("Mentés másként", (_, _) => SaveDocumentAs()));
         bar.Controls.Add(Button("Validálás", (_, _) => ValidateDocument(showSuccess: true)));
         bar.Controls.Add(Button("Template-részletek", (_, _) => ShowTemplateDetails()));
-        bar.Controls.Add(Button("Képernyő előnézete", (_, _) => PreviewSelected()));
+        bar.Controls.Add(Button("Új előnézet", (_, _) => PreviewSelected(reuseLastSeed: false)));
+        bar.Controls.Add(Button("Előző seed ismétlése", (_, _) => PreviewSelected(reuseLastSeed: true)));
         bar.Controls.Add(Button("Oldalpanel", (_, _) => ToggleInspector()));
         bar.Controls.Add(Button("Súgó", (_, _) => ShowEditorHelp()));
         bar.Controls.Add(new Label { Text = "   Bejárat:", AutoSize = true, Padding = new Padding(0, 7, 0, 0) });
@@ -100,14 +107,9 @@ internal sealed class ForestMapEditorForm : Form
         flow.Controls.Add(Pair("Template ID", _newTemplateId, "Név", _newTemplateName));
         flow.Controls.Add(Button("Beállítások mentése új template-ként", CreateTemplate));
         flow.Controls.Add(Pair("X", _x, "Y", _y));
-        flow.Controls.Add(_densityEnabled);
-        flow.Controls.Add(Labelled("Erdősűrűség (%)", _density));
-        flow.Controls.Add(_lakesEnabled);
-        flow.Controls.Add(Pair("Minimum", _lakeMin, "Maximum", _lakeMax));
-        flow.Controls.Add(_marshEnabled);
-        flow.Controls.Add(Pair("Minimum", _marshMin, "Maximum", _marshMax));
-        flow.Controls.Add(_buildingsEnabled);
-        flow.Controls.Add(Pair("Minimum", _buildingMin, "Maximum", _buildingMax));
+        flow.Controls.Add(Heading("Minden generálási tulajdonság"));
+        flow.Controls.Add(Description("A rács a template és a helyi felülírások eredő értékeit mutatja. A módosított teljes állapot helyi felülírásként mentődik."));
+        flow.Controls.Add(_forestProperties);
         flow.Controls.Add(Button("Módosítások alkalmazása", (_, _) => ApplySelected()));
         flow.Controls.Add(PairButtons("Új képernyő", AddArea, "Képernyő törlése", RemoveSelected));
         flow.Controls.Add(Heading("Kapcsolat"));
@@ -127,6 +129,8 @@ internal sealed class ForestMapEditorForm : Form
         _areas.Add(new("EXIT", "Szélcsend tisztása", new(1, 0), ForestAreaTemplateCatalog.OpenGroves));
         _connections.Add(new("ENTRANCE", "EXIT"));
         _currentFilePath = null;
+        _previewBaseConfiguration = new();
+        _lastPreviewSeed = null;
         RefreshGraph();
         SelectArea(_areas[0]);
         UpdateStatus("Új, még nem mentett erdei gráf");
@@ -147,10 +151,19 @@ internal sealed class ForestMapEditorForm : Form
         try
         {
             var document = ForestConfigurationJson.DeserializeDocument(File.ReadAllText(dialog.FileName));
-            if (document.Level is { } level) _level.Value = Math.Clamp(level, (int)_level.Minimum, (int)_level.Maximum);
-            else MessageBox.Show(this,
-                "A megnyitott fájl nem tartalmaz pályaszámot (régi formátum). A jelenlegi kiválasztott pálya marad érvényben.",
-                "Régi dokumentum");
+            if (document.Level is { } level)
+            {
+                _level.Value = Math.Clamp(level, (int)_level.Minimum, (int)_level.Maximum);
+                _previewBaseConfiguration = ForestBaseConfigurationForLevel(level);
+            }
+            else
+            {
+                _previewBaseConfiguration = ForestBaseConfigurationForLevel((int)_level.Value);
+                MessageBox.Show(this,
+                    "A megnyitott fájl nem tartalmaz pályaszámot (régi formátum). A jelenlegi kiválasztott pálya marad érvényben.",
+                    "Régi dokumentum");
+            }
+            _lastPreviewSeed = null;
             var graph = document.Graph;
             LoadGraph(graph, dialog.FileName);
             _currentFilePath = dialog.FileName;
@@ -206,6 +219,8 @@ internal sealed class ForestMapEditorForm : Form
             MessageBox.Show(this, $"A(z) {level}. pályához nem található explicit erdei gráf.", "Betöltési hiba");
             return;
         }
+        _previewBaseConfiguration = layout.Forest;
+        _lastPreviewSeed = null;
         LoadGraph(layout.ExplicitGraph, $"a játék beépített {level}. pályája");
         _currentFilePath = null;
         UpdateStatus($"A(z) {level}. pálya betöltve – Mentés gombbal válassz JSON-fájlt");
@@ -254,7 +269,8 @@ internal sealed class ForestMapEditorForm : Form
             "4. A kapcsolat részben válassz két területet, majd add hozzá vagy töröld az élt.\n" +
             "5. A Mentés JSON-fájlt készít. Megnyitás ugyanilyen JSON-t tölt vissza.\n" +
             "6. A pályaszám kiválasztása után a Pálya betöltése a játék beépített gráfját nyitja meg.\n" +
-            "   Nem erdei pályánál a szerkesztő figyelmeztet és kihagyja a betöltést.\n\n" +
+            "   Nem erdei pályánál a szerkesztő figyelmeztet és kihagyja a betöltést.\n" +
+            "7. Az Új előnézet mindig új seedet használ. Az Előző seed ismétlése ugyanazt a térképet generálja újra.\n\n" +
             "Ha a jobb panel rejtve van, nyomd meg az Oldalpanel gombot.",
             "Erdei pályagenerátor – gyors súgó");
     }
@@ -352,31 +368,43 @@ internal sealed class ForestMapEditorForm : Form
         }
     }
 
-    private void PreviewSelected()
+    private void PreviewSelected(bool reuseLastSeed)
     {
         if (_selected is null || !ValidateDocument(showSuccess: false)) return;
         try
         {
             var graph = Document();
-            var configuration = ForestAreaConfigurationResolver.Resolve(new(), graph, _selected);
+            var configuration = ForestAreaConfigurationResolver.Resolve(_previewBaseConfiguration, graph, _selected);
             var settings = new MazeGenerationSettings { RoomCount = 8, MinimumRoomSize = 4,
                 MaximumRoomSize = 8, TreasureChestCount = 0, LevelName = _selected.Name };
-            var maze = new ForestMazeGenerator(settings, configuration, [], [], new Random(12345)).Create(170, 44);
-            if (!TerminalMazePreview.TryShow(maze, _selected.Name, out var error))
+            var seed = reuseLastSeed && _lastPreviewSeed is { } previousSeed
+                ? previousSeed
+                : Random.Shared.Next(1, int.MaxValue);
+            _lastPreviewSeed = seed;
+            var previewTitle = $"{_selected.Name} — seed: {seed}";
+            var maze = new ForestMazeGenerator(settings, configuration, [], [], new Random(seed)).Create(170, 44);
+            UpdateStatus($"Előnézet: {_selected.Name}, seed: {seed}");
+            if (!TerminalMazePreview.TryShow(maze, previewTitle, out var error))
             {
                 if (!string.IsNullOrWhiteSpace(error))
                     MessageBox.Show(this, error, "Windows Terminal előnézeti hiba");
-                new ForestPreviewForm(maze, _selected.Name).ShowDialog(this);
+                new ForestPreviewForm(maze, previewTitle).ShowDialog(this);
             }
         }
         catch (Exception exception) { MessageBox.Show(this, exception.Message, "Előnézeti hiba"); }
     }
 
+    private static ForestGenerationConfiguration ForestBaseConfigurationForLevel(int level) =>
+        MazeLevelConfigurations.Get(level).Layout is ForestMazeLayoutConfiguration forest
+            ? forest.Forest
+            : new ForestGenerationConfiguration();
+
     private void SelectArea(ForestAreaDefinition? area)
     {
+        _loadingSelection = true;
         _selected = area;
         _canvas.SelectedArea = area;
-        if (area is null) return;
+        if (area is null) { _loadingSelection = false; return; }
         _id.Text = area.Id; _name.Text = area.Name; _template.SelectedItem = area.TemplateId;
         _x.Value = area.Coordinate.X; _y.Value = area.Coordinate.Y;
         var patch = area.Overrides;
@@ -385,7 +413,37 @@ internal sealed class ForestMapEditorForm : Form
         SetRange(patch?.LakeCount, _lakesEnabled, _lakeMin, _lakeMax);
         SetRange(patch?.MarshCount, _marshEnabled, _marshMin, _marshMax);
         SetRange(patch?.BuildingCount, _buildingsEnabled, _buildingMin, _buildingMax);
+        _loadingSelection = false;
+        RefreshEffectiveProperties();
         _canvas.Invalidate();
+    }
+
+    private void RefreshEffectiveProperties()
+    {
+        if (_loadingSelection || _selected is null) return;
+        var templateId = _template.SelectedItem?.ToString() ?? ForestAreaTemplateCatalog.MixedForest;
+        var previewArea = _selected with { TemplateId = templateId };
+        var graph = new ExplicitForestAreaGraphConfiguration([previewArea], [], previewArea.Id, previewArea.Id,
+            _customTemplates.ToArray());
+        _propertyGridInherited = ForestAreaConfigurationResolver.Resolve(
+            _previewBaseConfiguration, graph, previewArea with { Overrides = null });
+        _forestProperties.SelectedObject = ForestAreaConfigurationResolver.Resolve(
+            _previewBaseConfiguration, graph, previewArea);
+        _forestProperties.Refresh();
+    }
+
+    private static ForestGenerationConfigurationPatch DifferencePatch(ForestGenerationConfiguration configuration,
+        ForestGenerationConfiguration inherited)
+    {
+        var patch = new ForestGenerationConfigurationPatch();
+        foreach (var patchProperty in typeof(ForestGenerationConfigurationPatch).GetProperties())
+        {
+            var sourceProperty = typeof(ForestGenerationConfiguration).GetProperty(patchProperty.Name);
+            if (sourceProperty is null) continue;
+            var value = sourceProperty.GetValue(configuration);
+            if (!Equals(value, sourceProperty.GetValue(inherited))) patchProperty.SetValue(patch, value);
+        }
+        return patch;
     }
 
 internal static class TerminalMazePreview
@@ -545,14 +603,9 @@ internal static class TerminalMazePreview
         if (_selected is null) return;
         var index = _areas.IndexOf(_selected);
         if (index < 0) return;
-        var patch = _selected.Overrides ?? new ForestGenerationConfigurationPatch();
-        patch = patch with
-        {
-            ForestDensity = _densityEnabled.Checked ? (double)_density.Value / 100 : null,
-            LakeCount = Range(_lakesEnabled, _lakeMin, _lakeMax),
-            MarshCount = Range(_marshEnabled, _marshMin, _marshMax),
-            BuildingCount = Range(_buildingsEnabled, _buildingMin, _buildingMax)
-        };
+        var patch = _forestProperties.SelectedObject is ForestGenerationConfiguration edited
+            ? DifferencePatch(edited, _propertyGridInherited)
+            : _selected.Overrides ?? new ForestGenerationConfigurationPatch();
         var replacement = _selected with
         {
             Id = _id.Text.Trim(), Name = _name.Text.Trim(),

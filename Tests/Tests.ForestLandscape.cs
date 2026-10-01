@@ -45,11 +45,32 @@ internal static partial class Program
             "A felfedezett régiótérkép rejtett területet szivárogtatott vagy kihagyta az ismert átjárót.");
 
         var campaignLayout = (ForestMazeLayoutConfiguration)MazeLevelConfigurations.Get(6).Layout!;
-        Assert(campaignLayout.ExplicitGraph is { Areas.Count: 8 } && campaignLayout.Forest.BuildingStyles.Count >= 3,
-            "A kampányerdő nem kapta meg az explicit területeket vagy a többféle épületfalat.");
+        Assert(campaignLayout.ExplicitGraph is null && campaignLayout.Graph.AreaCount.Minimum == 6 &&
+               campaignLayout.Graph.AreaCount.Maximum == 8 && campaignLayout.Forest.BuildingStyles.Count >= 3,
+            "A kampányerdő beégetett gráfot tartalmaz, vagy elvesztette a generált tartalékát.");
         Assert(MazeLevelConfigurations.Get(6).ForestGraphJsonOverrideEnabled &&
                !MazeLevelConfigurations.Get(7).ForestGraphJsonOverrideEnabled,
             "A JSON-felülírás jelölője nem látszik jól a pályakonfigurációban.");
+
+        var packagedDirectory = Path.Combine(AppContext.BaseDirectory, "ForestLevelGraphs");
+        var packagedFile = Path.Combine(packagedDirectory, "level-6.json");
+        Assert(File.Exists(packagedFile),
+            "A 6. pálya erdőgráf-JSON-ja nem került a program kimeneti mappájába.");
+        var packagedSource = new FileForestLevelGraphSource(packagedDirectory);
+        Assert(packagedSource.TryLoad(6, out var packagedDocument, out _, out var packagedWarning) &&
+               packagedWarning is null && packagedDocument is { Level: 6 },
+            $"A csomagolt 6. pályás erdőgráf nem tölthető be: {packagedWarning}");
+        var packagedGraph = packagedDocument!.Graph;
+        var packagedPlan = packagedGraph.BuildPlan();
+        Assert(packagedPlan.Nodes.Count == packagedGraph.Areas.Count &&
+               packagedPlan.EntranceAreaId == packagedGraph.EntranceAreaId &&
+               packagedPlan.ExitAreaId == packagedGraph.ExitAreaId,
+            "A csomagolt 6. pályás erdőgráf érvénytelen vagy nem összefüggő.");
+        var packagedLayout = ForestLevelGraphOverrideBridge.Apply(MazeLevelConfigurations.Get(6), packagedSource);
+        Assert(packagedLayout is ForestMazeLayoutConfiguration { ExplicitGraph: { } appliedGraph } &&
+               appliedGraph.Areas.Select(area => area.Id).SequenceEqual(
+                   packagedGraph.Areas.Select(area => area.Id)),
+            "A csomagolt JSON nem írta felül a 6. pálya generált gráfját.");
 
         var tempPath = Path.Combine(Path.GetTempPath(), $"kr-forest-override-{Guid.NewGuid():N}");
         Directory.CreateDirectory(tempPath);
@@ -71,7 +92,7 @@ internal static partial class Program
             if (Directory.Exists(tempPath)) Directory.Delete(tempPath, true);
         }
 
-        var campaignGraph = campaignLayout.ExplicitGraph!;
+        var campaignGraph = ((ForestMazeLayoutConfiguration)packagedLayout!).ExplicitGraph!;
         foreach (var area in campaignGraph.Areas)
         {
             var areaConfiguration = ForestAreaConfigurationResolver.Resolve(
@@ -107,18 +128,44 @@ internal static partial class Program
             var cabinRooms = cabin.Rooms.Where(room => room.Purpose != RoomPurpose.Starting).ToArray();
             Assert(cabinRooms.Length == 2 && cabin.CheckFullAccessibility().IsFullyAccessible,
                 $"A kétszobás kunyhó hibás vagy nem bejárható: seed={seed}.");
+            AssertBuildingDoorsOpenIntoRooms(cabin, cabinRooms, "kunyhó", seed);
 
             var manor = BuildingLandscape(seed, manorChance: 1, labyrinthChance: 0);
             var manorRooms = manor.Rooms.Where(room => room.Purpose != RoomPurpose.Starting).ToArray();
             Assert(manorRooms.Length == 6 && manorRooms.All(room => room.Width >= 3 && room.Height >= 3) &&
                    manor.CheckFullAccessibility().IsFullyAccessible,
                 $"A hatszobás nagy épület hibás vagy nem bejárható: seed={seed}, rooms={manorRooms.Length}.");
+            AssertBuildingDoorsOpenIntoRooms(manor, manorRooms, "kúria", seed);
 
             var labyrinth = BuildingLandscape(seed, manorChance: 0, labyrinthChance: 1);
             var labyrinthRooms = labyrinth.Rooms.Where(room => room.Purpose != RoomPurpose.Starting).ToArray();
             Assert(labyrinthRooms.Length == 9 && labyrinthRooms.All(room => room.Width == 3 && room.Height == 3) &&
                    labyrinth.CheckFullAccessibility().IsFullyAccessible,
                 $"A kilencszobás labirintusépület hibás vagy nem bejárható: seed={seed}, rooms={labyrinthRooms.Length}.");
+        }
+
+        static void AssertBuildingDoorsOpenIntoRooms(Maze maze, IReadOnlyList<Room> rooms,
+            string layout, int seed)
+        {
+            var roomCells = rooms.SelectMany(room => room.InteriorPositions()).ToHashSet();
+            var minimumX = rooms.Min(room => room.TopLeft.X);
+            var minimumY = rooms.Min(room => room.TopLeft.Y);
+            var maximumX = rooms.Max(room => room.TopLeft.X + room.Width);
+            var maximumY = rooms.Max(room => room.TopLeft.Y + room.Height);
+            var exteriorDoors = maze.Doors.Where(door =>
+                door.Position.X == minimumX - 1 || door.Position.X == maximumX ||
+                door.Position.Y == minimumY - 1 || door.Position.Y == maximumY).ToArray();
+            var invalidDoors = exteriorDoors.Where(door =>
+            {
+                var inside = door.Position.X == minimumX - 1 ? door.Position + Direction.Right :
+                    door.Position.X == maximumX ? door.Position + Direction.Left :
+                    door.Position.Y == minimumY - 1 ? door.Position + Direction.Down :
+                    door.Position + Direction.Up;
+                return !roomCells.Contains(inside) || !maze.IsWalkable(inside);
+            }).ToArray();
+            Assert(exteriorDoors.Length > 0 && invalidDoors.Length == 0,
+                $"A(z) {layout} egyik ajtaja válaszfal síkjába került: seed={seed}, " +
+                $"doors={string.Join(',', invalidDoors.Select(door => door.Position))}.");
         }
     }
 

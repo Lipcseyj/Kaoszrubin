@@ -84,6 +84,23 @@ public sealed class GameSaveService
         return results;
     }
 
+    public LoadedGameSave? LoadLatestCampaign(Guid campaignId)
+    {
+        if (campaignId == Guid.Empty || !Directory.Exists(_saveDirectory)) return null;
+        foreach (var path in Directory.EnumerateFiles(_saveDirectory, "*.save")
+                     .OrderByDescending(File.GetLastWriteTimeUtc))
+        {
+            try
+            {
+                var state = DeserializeAndMigrate(File.ReadAllText(path));
+                if (state.CampaignId == campaignId) return Load(path);
+            }
+            catch (Exception exception) when (exception is JsonException or IOException or
+                                                   UnauthorizedAccessException or InvalidOperationException) { }
+        }
+        return null;
+    }
+
     public string SerializeCharacter(LiveCharacter character) =>
         _characterSaveService.SerializeCharacter(character);
 
@@ -453,6 +470,7 @@ public sealed class GameSaveData
     [JsonRequired]
     public int Version { get; set; } = GameSaveFormat.CurrentVersion;
     public DateTimeOffset SavedAt { get; set; }
+    public Guid CampaignId { get; set; }
     public string MainCharacterName { get; set; } = string.Empty;
     public string RosterJson { get; set; } = string.Empty;
     public int MazeLevel { get; set; } = 1;

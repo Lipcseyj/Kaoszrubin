@@ -800,6 +800,7 @@ public sealed partial class Game
         ShowSynchronizedNarrative(NarrativeKind.CampaignFinale, "GRATULÁLUNK, KULCSHORDOZÓK!",
             "XV. fejezet — A csillagok választottai",
             StoryNarratives.CreateCampaignFinale(CharacterRoster.Party.Members.Where(character => character.IsAlive), PartyLeader.Name));
+        CharacterRoster.BindCampaign(PartyLeader, _campaignId, _mazeLevel, CharacterCampaignStatus.Completed);
         _gameOver = true;
         _session.SetPhase(GameSessionPhase.GameOver);
         RequestCoopSnapshotPublish();

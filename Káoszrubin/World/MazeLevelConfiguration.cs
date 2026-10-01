@@ -1,4 +1,6 @@
 using KaoszRubin.Domain.Combat;
+using System.ComponentModel;
+using System.Globalization;
 
 namespace KaoszRubin.World;
 
@@ -17,10 +19,34 @@ namespace KaoszRubin.World;
 
 /// <summary>Zárt, mindkét végpontját tartalmazó egész számtartomány.</summary>
 /// <remarks>Például <c>new IntRange(3, 5)</c> futásonként 3, 4 vagy 5 értéket ad.</remarks>
+[TypeConverter(typeof(IntRangeTypeConverter))]
 public sealed record IntRange(int Minimum, int Maximum)
 {
     /// <summary>Véletlen értéket választ a minimum és maximum között, mindkét végpontot beleértve.</summary>
     public int Roll(Random random) => random.Next(Minimum, Maximum + 1);
+}
+
+public sealed class IntRangeTypeConverter : ExpandableObjectConverter
+{
+    public override bool CanConvertFrom(ITypeDescriptorContext? context, Type sourceType) =>
+        sourceType == typeof(string) || base.CanConvertFrom(context, sourceType);
+    public override bool CanConvertTo(ITypeDescriptorContext? context, Type? destinationType) =>
+        destinationType == typeof(string) || base.CanConvertTo(context, destinationType);
+    public override object? ConvertFrom(ITypeDescriptorContext? context, CultureInfo? culture, object value)
+    {
+        if (value is not string text) return base.ConvertFrom(context, culture, value);
+        var parts = text.Split("..", StringSplitOptions.TrimEntries);
+        if (parts.Length != 2 || !int.TryParse(parts[0], NumberStyles.Integer, culture, out var minimum) ||
+            !int.TryParse(parts[1], NumberStyles.Integer, culture, out var maximum) || minimum > maximum)
+            throw new FormatException("A tartomány formátuma: minimum..maximum (például 2..5).");
+        return new IntRange(minimum, maximum);
+    }
+    public override object? ConvertTo(ITypeDescriptorContext? context, CultureInfo? culture, object? value,
+        Type destinationType) => destinationType == typeof(string) && value is IntRange range
+        ? $"{range.Minimum}..{range.Maximum}" : base.ConvertTo(context, culture, value, destinationType);
+    public override bool GetCreateInstanceSupported(ITypeDescriptorContext? context) => true;
+    public override object CreateInstance(ITypeDescriptorContext? context, System.Collections.IDictionary values) =>
+        new IntRange((int)values[nameof(IntRange.Minimum)]!, (int)values[nameof(IntRange.Maximum)]!);
 }
 
 /// <summary>
@@ -541,7 +567,7 @@ public static class MazeLevelConfigurations
                         TrailWinding = 0.75,
                         ExtraTrailChance = 0.35,
                         BuildingCount = new IntRange(1, 2),
-                        BuildingSize = new IntRange(5, 8),
+                        BuildingSize = new IntRange(3, 6),
                         BuildingPartitionChance = 0.75,
                         ManorBuildingChance = 0.45,
                         LabyrinthBuildingChance = 0.15,
@@ -563,7 +589,7 @@ public static class MazeLevelConfigurations
                                 new HashSet<ForestBuildingLayout>
                                     { ForestBuildingLayout.Manor, ForestBuildingLayout.Labyrinth })
                         ],
-                        LockedBuildingDoorChance = 0.18,
+                        LockedBuildingDoorChance = 0.6,
                         OpenBuildingDoorChance = 0.12,
                         Palette = new ForestTerrainPalette
                         {
@@ -578,37 +604,7 @@ public static class MazeLevelConfigurations
                             BuildingWall = new("forbidden-building-wall", new('█'), ConsoleColor.Gray,
                                 ConsoleColor.Black, false, true)
                         }
-                    },
-                    new ExplicitForestAreaGraphConfiguration(
-                    [
-                        new("MOSS_GATE", "Mohakapu", new(0, 0), ForestAreaTemplateCatalog.MixedForest),
-                        new("WHISPERING_WOOD", "Suttogó rengeteg", new(1, 0),
-                            ForestAreaTemplateCatalog.DenseCabinForest),
-                        new("RAVEN_CROSSING", "Hollók elágazása", new(2, 0),
-                            ForestAreaTemplateCatalog.MixedForest),
-                        new("OLD_PINES", "Az öreg fenyves", new(1, -1),
-                            ForestAreaTemplateCatalog.DenseCabinForest,
-                            new() { PineChance = 0.72, BuildingCount = new(0, 1) }),
-                        new("LOST_MANOR", "Az elveszett kúriák", new(1, 1),
-                            ForestAreaTemplateCatalog.LakesAndManors,
-                            new() { ManorBuildingChance = 1, LabyrinthBuildingChance = 0 }),
-                        new("BLACKWATER", "Feketevíz lápja", new(2, 1),
-                            ForestAreaTemplateCatalog.Swamp),
-                        new("THORN_MAZE", "A tövisek útvesztője", new(3, 1),
-                            ForestAreaTemplateCatalog.ForestLabyrinth),
-                        new("WINDLESS_GLADE", "A Szélcsend tisztása", new(3, 2),
-                            ForestAreaTemplateCatalog.OpenGroves)
-                    ],
-                    [
-                        new("MOSS_GATE", "WHISPERING_WOOD"),
-                        new("WHISPERING_WOOD", "RAVEN_CROSSING"),
-                        new("WHISPERING_WOOD", "OLD_PINES"),
-                        new("WHISPERING_WOOD", "LOST_MANOR"),
-                        new("RAVEN_CROSSING", "BLACKWATER"),
-                        new("LOST_MANOR", "BLACKWATER"),
-                        new("BLACKWATER", "THORN_MAZE"),
-                        new("THORN_MAZE", "WINDLESS_GLADE")
-                    ], "MOSS_GATE", "WINDLESS_GLADE")),
+                    }),
                 WallRune = new('♠'),
                 WallColor = ConsoleColor.DarkGreen,
                 RoomCount = new IntRange(42, 56),

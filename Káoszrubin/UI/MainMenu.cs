@@ -375,6 +375,22 @@ public sealed class MainMenu
             return;
         }
 
+        if (_characterRoster.CampaignOf(selectedCharacter) is { Status: CharacterCampaignStatus.Active } campaign)
+        {
+            var latest = _gameSaveService.LoadLatestCampaign(campaign.CampaignId);
+            if (latest is null)
+            {
+                ResetConsole();
+                WriteLine($"{selectedCharacter.Name} kampánya nem található a mentések között.", ConsoleColor.Red);
+                Console.ReadKey(intercept: true);
+                return;
+            }
+            _characterRoster = latest.Roster;
+            new Game(_gameData, _characterRoster, _characterRoster.SelectedCharacter!, _gameSaveService,
+                _backgroundMusicPlayer, latest.State, gameSettings: _musicSettings).Run();
+            return;
+        }
+
         _menuSoundPlayed = false;
         new Game(_gameData, _characterRoster, selectedCharacter, _gameSaveService,
             _backgroundMusicPlayer, gameSettings: _musicSettings).Run();
@@ -613,6 +629,12 @@ public sealed class MainMenu
             var row = frame.Top + 6 + (index - firstVisible) * 2;
             var active = character == _characterRoster.SelectedCharacter ? " ★ AKTÍV" : string.Empty;
             var dead = character.IsAlive ? string.Empty : " ☠ HALOTT";
+            var campaign = _characterRoster.CampaignOf(character) switch
+            {
+                { Status: CharacterCampaignStatus.Active } binding => $"   🛡️ Kampány: {binding.LastKnownLevel}. pálya",
+                { Status: CharacterCampaignStatus.Completed } => "   🏆 Kampány befejezve",
+                _ => "   Szabad karakter"
+            };
             var nameColor = !character.IsAlive ? ConsoleColor.DarkRed :
                 index == selectedIndex ? ConsoleColor.Cyan :
                 character == _characterRoster.SelectedCharacter ? ConsoleColor.Yellow : ConsoleColor.Gray;
@@ -622,7 +644,7 @@ public sealed class MainMenu
                 nameColor, listWidth);
             WriteAt(frame.Left + 8, row + 1,
                 $"Szint {character.Level}   ❤️ {character.CurrentVitality}/{character.MaximumVitality}   " +
-                $"🔷 {(character.UsesMana ? $"{character.CurrentMana}/{character.MaximumMana}" : "—")}",
+                $"🔷 {(character.UsesMana ? $"{character.CurrentMana}/{character.MaximumMana}" : "—")}{campaign}",
                 character.IsAlive ? ConsoleColor.DarkGray : ConsoleColor.Red, listWidth - 4);
         }
         if (_characterRoster.Characters.Count > 0)
@@ -691,6 +713,16 @@ public sealed class MainMenu
         {
             DrawMainBackdrop();
             DrawSidePanel("A KARAKTER HALOTT", ["Válassz másik karaktert", "vagy készíts újat.", string.Empty, "Bármely billentyű: vissza"]);
+            Console.ReadKey(intercept: true);
+            selectedCharacter = null!;
+            return false;
+        }
+        if (_characterRoster.CampaignOf(candidate) is { Status: CharacterCampaignStatus.Active } campaign)
+        {
+            DrawMainBackdrop();
+            DrawSidePanel("AKTÍV KAMPÁNY", [$"{candidate.Name} már a(z) {campaign.LastKnownLevel}. pályán jár.",
+                "Új coop játékhez válassz szabad karaktert,", "a meglévőhöz pedig töltsd be a kampánymentést.",
+                string.Empty, "Bármely billentyű: vissza"]);
             Console.ReadKey(intercept: true);
             selectedCharacter = null!;
             return false;

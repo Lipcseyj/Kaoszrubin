@@ -197,7 +197,9 @@ public sealed partial class Game
         }
         try
         {
-            var path = _gameSaveService.Save(CreateGameSaveData(), CharacterRoster);
+            var state = CreateGameSaveData();
+            CharacterRoster.BindCampaign(PartyLeader, _campaignId, _mazeLevel);
+            var path = _gameSaveService.Save(state, CharacterRoster);
             _renderer.DrawDeveloperMessage($"Játék elmentve: {Path.GetFileName(path)}");
             if (_activeCoopHost is not null)
             {
@@ -246,6 +248,7 @@ public sealed partial class Game
             entry.CompletionExperienceSummary, entry.CompletionItemRewardSummary)).ToList();
         state.Quests = _questSaveAdapter.Export(_questManager, _questJournal.Values);
         state.LocationKind = _locationKind;
+        state.CampaignId = _campaignId;
         state.LocationId = _locationId;
         state.DifficultyLevel = _difficultyLevel;
         state.SuspendedCampaign = _suspendedCampaignState;
