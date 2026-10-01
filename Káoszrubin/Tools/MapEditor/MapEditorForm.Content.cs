@@ -11,6 +11,7 @@ internal sealed partial class MapEditorForm
     private readonly TabPage _encountersTab = new("Találkozások");
     private readonly TabPage _npcsTab = new("NPC-k");
     private readonly TabControl _mainTabs = new() { Dock = DockStyle.Fill };
+    private readonly TabControl _npcTabs = new() { Dock = DockStyle.Fill };
     private readonly Dictionary<string, TextBox> _levelFields = [];
     private readonly Dictionary<string, DataGridView> _levelDictionaryFields = [];
     private readonly ToolTip _mazeToolTip = new() { AutoPopDelay = 18000, InitialDelay = 350, ReshowDelay = 150, ShowAlways = true };
@@ -66,6 +67,7 @@ internal sealed partial class MapEditorForm
             if (name is "SpecialRoomPlacements" or "QuestChestPlacements" or "QuestDoorRequirements")
             {
                 var grid = BuildLevelDictionaryGrid(name);
+                RegisterGrid("level." + name, grid);
                 _levelDictionaryFields.Add(name, grid);
                 var dictionaryGroup = new FlowLayoutPanel { Width = 370, Height = 238,
                     FlowDirection = FlowDirection.TopDown, WrapContents = false, Margin = new Padding(0, 0, 0, 4) };
@@ -115,16 +117,16 @@ internal sealed partial class MapEditorForm
             AllowUserToAddRows = true,
             AllowUserToDeleteRows = true,
             AllowUserToResizeColumns = true,
-            AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+            AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None,
             RowHeadersWidth = 26
         };
-        grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "RoomId", HeaderText = "Szobaazonosító", FillWeight = 55 });
+        grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "RoomId", HeaderText = "Szobaazonosító", Width = 185 });
         if (propertyName == "SpecialRoomPlacements")
             grid.Columns.Add(new DataGridViewComboBoxColumn
             {
                 Name = "Value",
                 HeaderText = "Elhelyezés",
-                FillWeight = 45,
+                Width = 140,
                 DataSource = Enum.GetNames<SpecialRoomPlacement>()
             });
         else
@@ -132,7 +134,7 @@ internal sealed partial class MapEditorForm
             {
                 Name = "Value",
                 HeaderText = propertyName == "QuestDoorRequirements" ? "Küldetésazonosító" : "Questláda-azonosító",
-                FillWeight = 45
+                Width = 140
             });
         return grid;
     }
@@ -174,7 +176,6 @@ internal sealed partial class MapEditorForm
     private Control BuildNpcTab()
     {
         var container = new Panel { Dock = DockStyle.Fill };
-        var tabs = new TabControl { Dock = DockStyle.Fill };
         _showAllNpcs.Dock = DockStyle.Top;
         _showAllNpcs.CheckedChanged += (_, _) => FilterNpcRows();
         _npcEncounterSelector.SelectedIndexChanged += (_, _) => FilterNpcRows();
@@ -196,6 +197,7 @@ internal sealed partial class MapEditorForm
                 AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None,
                 RowHeadersWidth = 26, ClipboardCopyMode = DataGridViewClipboardCopyMode.EnableWithoutHeaderText };
             _csvGrids[section] = grid;
+            RegisterGrid("csv." + section, grid);
             grid.CellValueChanged += NpcIdCellValueChanged;
             if (section == "NPC találkozások")
                 grid.SelectionChanged += (_, _) =>
@@ -217,9 +219,9 @@ internal sealed partial class MapEditorForm
                 actions.Controls.Add(Button("Kijelölt AreaId", (_, _) => SetNpcArea(grid)));
             actions.Controls.Add(Button("CSV mentése", (_, _) => SaveCsvSection(section)));
             page.Controls.Add(grid); page.Controls.Add(actions);
-            tabs.TabPages.Add(page);
+            _npcTabs.TabPages.Add(page);
         }
-        container.Controls.Add(tabs);
+        container.Controls.Add(_npcTabs);
         container.Controls.Add(storyHint);
         container.Controls.Add(_showAllNpcs);
         container.Controls.Add(encounterPicker);
@@ -268,6 +270,7 @@ internal sealed partial class MapEditorForm
                 .ToDictionary(row => row[0], row => row[1], StringComparer.OrdinalIgnoreCase);
             foreach (var (section, grid) in _csvGrids)
             {
+                CaptureGridColumnWidths("csv." + section, grid);
                 grid.Columns.Clear(); grid.Rows.Clear();
                 var headers = csv.Headers(section);
                 foreach (var header in headers)
@@ -298,6 +301,7 @@ internal sealed partial class MapEditorForm
                     grid.Columns.Add(npcNameColumn);
                     npcNameColumn.DisplayIndex = 0;
                 }
+                ApplyGridColumnWidths("csv." + section, grid);
                 foreach (var row in csv.Rows(section))
                 {
                     var values = new object[grid.Columns.Count];
@@ -552,7 +556,7 @@ internal sealed partial class MapEditorForm
             if (encounter is not null)
             {
                 values[1] = encounter.Cells[1].Value?.ToString() ?? "";
-                values[section == "NPC küldetések" ? 14 : 5] = encounterId ?? "";
+                values[section == "NPC küldetések" ? 16 : 5] = encounterId ?? "";
             }
         }
         if (section == "NPC párbeszédek") { values[2] = "0"; values[3] = "10"; }
@@ -586,8 +590,8 @@ internal sealed partial class MapEditorForm
                         : placed.Contains(row.Cells[0].Value?.ToString()),
                     "NPC küldetések" or "NPC párbeszédek" => selectedNpc is not null
                         ? row.Cells[1].Value?.ToString() == selectedNpc &&
-                          (row.Cells[section == "NPC küldetések" ? 14 : 5].Value?.ToString() is null or "" ||
-                           row.Cells[section == "NPC küldetések" ? 14 : 5].Value?.ToString() == selectedEncounter)
+                          (row.Cells[section == "NPC küldetések" ? 16 : 5].Value?.ToString() is null or "" ||
+                           row.Cells[section == "NPC küldetések" ? 16 : 5].Value?.ToString() == selectedEncounter)
                         : placed.Contains(row.Cells[1].Value?.ToString()),
                     "NPC történeti választások" => true,
                     _ => true
@@ -645,13 +649,13 @@ internal sealed partial class MapEditorForm
                     .Rows("NPC találkozások").ToDictionary(row => row[0], StringComparer.OrdinalIgnoreCase);
                 foreach (var row in rows)
                 {
-                    var encounterId = row[section == "NPC küldetések" ? 14 : 5];
+                    var encounterId = row[section == "NPC küldetések" ? 16 : 5];
                     if (encounterId.Length > 0 &&
                         (!savedEncounters.TryGetValue(encounterId, out var encounter) ||
                          !string.Equals(encounter[1], row[1], StringComparison.OrdinalIgnoreCase)))
                         throw new InvalidDataException($"A(z) {row[0]} találkozásazonosítója hiányzik, vagy más NPC-hez tartozik: {encounterId}. Előbb mentsd az elhelyezést.");
-                    var minimum = section == "NPC küldetések" ? 15 : 2;
-                    var maximum = section == "NPC küldetések" ? 16 : 3;
+                    var minimum = section == "NPC küldetések" ? 17 : 2;
+                    var maximum = section == "NPC küldetések" ? 18 : 3;
                     if (row[minimum].Length > 0 && (!int.TryParse(row[minimum], out var lower) || lower is < 0 or > 10) ||
                         row[maximum].Length > 0 && (!int.TryParse(row[maximum], out var upper) || upper is < 0 or > 10) ||
                         int.TryParse(row[minimum], out var minValue) &&

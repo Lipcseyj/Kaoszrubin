@@ -64,6 +64,9 @@ internal sealed partial class MapEditorForm : Form
     private int? _lastPreviewSeed;
     private bool _nonForestMode;
     private int _minimumScreenCount = 1;
+    private readonly MapEditorSettings _editorSettings = MapEditorSettings.Load();
+    private readonly System.Windows.Forms.Timer _settingsSaveTimer = new() { Interval = 500 };
+    private bool _applyingGridSettings;
 
     public MapEditorForm()
     {
@@ -74,6 +77,11 @@ internal sealed partial class MapEditorForm : Form
         WindowState = FormWindowState.Maximized;
         StartPosition = FormStartPosition.CenterScreen;
         _template.Items.AddRange(ForestAreaTemplateCatalog.BuiltIns.Select(template => template.Id).ToArray());
+        _settingsSaveTimer.Tick += (_, _) =>
+        {
+            _settingsSaveTimer.Stop();
+            SaveEditorSettings();
+        };
 
         _split.Panel1.Controls.Add(_canvas);
         _split.Panel2.Controls.Add(BuildTabs());
@@ -92,6 +100,12 @@ internal sealed partial class MapEditorForm : Form
         };
         Shown += (_, _) => EnsureInspectorVisible();
         SizeChanged += (_, _) => EnsureInspectorVisible();
+        FormClosed += (_, _) =>
+        {
+            _settingsSaveTimer.Stop();
+            SaveEditorSettings();
+            _settingsSaveTimer.Dispose();
+        };
         NewDocument();
     }
 
@@ -293,7 +307,6 @@ internal sealed partial class MapEditorForm : Form
             _previewBaseConfiguration = layout.Forest;
             _lastPreviewSeed = null;
             LoadGraph(graph, loadedJson ? jsonPath : $"a játék {level}. pályája (C#)");
-            _mainTabs.SelectedTab = _forestTab;
             _currentFilePath = loadedJson || !File.Exists(jsonPath) && configuration.ForestGraphJsonOverrideEnabled
                 ? jsonPath : null;
             UpdateForestFilePath();
@@ -321,7 +334,6 @@ internal sealed partial class MapEditorForm : Form
         _lastPreviewSeed = null;
         LoadGraph(new ExplicitForestAreaGraphConfiguration(areas, connections,
             topology.EntranceAreaId, topology.ExitAreaId), $"a játék {level}. pályája");
-        _mainTabs.SelectedTab = _mazeTab;
         _currentFilePath = null;
         UpdateForestFilePath();
         RefreshAdditionalTabs();
@@ -342,6 +354,57 @@ internal sealed partial class MapEditorForm : Form
         SelectArea(_areas.FirstOrDefault());
         _forestTab.Enabled = !_nonForestMode;
         UpdateStatus($"Betöltve: {source}");
+    }
+
+    private void RegisterGrid(string key, DataGridView grid)
+    {
+        ApplyGridColumnWidths(key, grid);
+        grid.ColumnWidthChanged += (_, _) =>
+        {
+            if (_applyingGridSettings || _refreshingContent) return;
+            CaptureGridColumnWidths(key, grid);
+            _settingsSaveTimer.Stop();
+            _settingsSaveTimer.Start();
+        };
+    }
+
+    private void ApplyGridColumnWidths(string key, DataGridView grid)
+    {
+        if (!_editorSettings.GridColumnWidths.TryGetValue(key, out var widths)) return;
+        _applyingGridSettings = true;
+        try
+        {
+            foreach (DataGridViewColumn column in grid.Columns)
+                if (widths.TryGetValue(column.Name, out var width))
+                    column.Width = Math.Clamp(width, column.MinimumWidth, 2000);
+        }
+        finally
+        {
+            _applyingGridSettings = false;
+        }
+    }
+
+    private void CaptureGridColumnWidths(string key, DataGridView grid)
+    {
+        if (grid.Columns.Count == 0) return;
+        _editorSettings.GridColumnWidths[key] = grid.Columns.Cast<DataGridViewColumn>()
+            .ToDictionary(column => column.Name, column => column.Width, StringComparer.OrdinalIgnoreCase);
+    }
+
+    private void SaveEditorSettings()
+    {
+        foreach (var (name, grid) in _levelDictionaryFields)
+            CaptureGridColumnWidths("level." + name, grid);
+        foreach (var (section, grid) in _csvGrids)
+            CaptureGridColumnWidths("csv." + section, grid);
+        try
+        {
+            _editorSettings.Save();
+        }
+        catch (Exception)
+        {
+            // A helyi ablakbeállítás mentési hibája ne akadályozza a szerkesztő bezárását.
+        }
     }
 
     private void ToggleInspector()
