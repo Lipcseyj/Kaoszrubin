@@ -26,7 +26,7 @@ public sealed partial class Game
         if (trap is null || !trap.IsActive) return true;
         if (trap.State == TrapState.Detected)
         {
-            ShowTrapMessage($"⚠️ {trap.Definition.Name} zárja el az utat. K: saját hatástalanítás | C: közeli NPC tolvaj utasítása.",
+            ShowBlockedTrapMessage($"⚠️ {trap.Definition.Name} zárja el az utat. K: saját hatástalanítás | C: közeli NPC tolvaj utasítása.",
                 ConsoleColor.Yellow, character);
             return false;
         }
@@ -160,11 +160,16 @@ public sealed partial class Game
             ConsoleColor.Red, triggeringCharacter);
     }
 
-    private void ShowTrapMessage(string message, ConsoleColor color, LiveCharacter character)
+    private void ShowBlockedTrapMessage(string message, ConsoleColor color, LiveCharacter character)
     {
         var now = DateTime.UtcNow;
-        if (now < _nextTrapMessageUtc) return;
-        _nextTrapMessageUtc = now + TimeSpan.FromSeconds(2);
+        if (now < _nextBlockedTrapMessageUtc) return;
+        _nextBlockedTrapMessageUtc = now + TimeSpan.FromSeconds(2);
+        ShowTrapMessage(message, color, character);
+    }
+
+    private void ShowTrapMessage(string message, ConsoleColor color, LiveCharacter character)
+    {
         _renderer.DrawInventoryMessage(message, color);
         RecordSessionActivity(SessionActivityKind.System, message, color, [character.Id]);
     }

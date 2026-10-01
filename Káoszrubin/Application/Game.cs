@@ -131,7 +131,7 @@ public sealed partial class Game : ISessionCommandHandler
     private static readonly TimeSpan ExplorationStatusTickInterval = TimeSpan.FromSeconds(30);
     private DateTime _nextExplorationStatusTickUtc = DateTime.MinValue;
     private DateTime _nextNpcSelfCareCheck;
-    private DateTime _nextTrapMessageUtc;
+    private DateTime _nextBlockedTrapMessageUtc;
     private readonly Dictionary<Enemy, DateTime> _nextEnemyMoves = [];
     private DateTime _nextEnemyActionUtc = DateTime.MaxValue;
     private readonly Dictionary<Position, IReadOnlyDictionary<Position, int>> _enemyDistanceMaps = [];
