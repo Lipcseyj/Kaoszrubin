@@ -33,6 +33,10 @@ public sealed class ForestMazeGenerator : MazeGenerator
         var maze = new Maze(width, height, palette.Tree.Rune, palette.Tree.ForegroundColor, Settings.LevelName);
         foreach (var style in palette.All) maze.RegisterTerrainStyle(style);
         foreach (var style in _forest.BuildingStyles) maze.RegisterTerrainStyle(style.Wall);
+        maze.RegisterTerrainGameplayProfile(palette.Tree.Id,
+            new(TerrainTag.TreeCanopy));
+        maze.RegisterTerrainGameplayProfile(palette.Pine.Id,
+            new(TerrainTag.TreeCanopy));
         maze.RegisterTerrainGameplayProfile(palette.Bush.Id,
             new(TerrainTag.Bush, ConcealmentBonus: 1, NoiseModifier: 1, SupportsAmbushPlacement: true));
         maze.RegisterTerrainGameplayProfile(palette.FlowerBush.Id,

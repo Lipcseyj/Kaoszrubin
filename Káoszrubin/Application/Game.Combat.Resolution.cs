@@ -1617,11 +1617,10 @@ public sealed partial class Game
     private bool CanFlyingEnemyTraverse(BattleEncounter battle, Position position, CombatantId actorId)
     {
         var enemy = battle.EnemyFor(actorId);
-        if (enemy is null || !enemy.Definition.HasTrait(EnemyTraits.Flying) || !_maze.IsWalkable(position))
-            return false;
-        return battle.Turns.Participants.Any(participant => participant.Id != actorId &&
+        var occupiedByActiveCombatant = battle.Turns.Participants.Any(participant => participant.Id != actorId &&
             participant.State is TacticalParticipantState.Active or TacticalParticipantState.Approaching &&
             participant.Position == position);
+        return FlyingEnemyTraversalRules.CanTraverse(enemy, _maze, position, occupiedByActiveCombatant);
     }
 
     private void SynchronizeBattleDefeats(BattleEncounter battle, LiveCharacter? killer = null)

@@ -222,6 +222,7 @@ internal static partial class Program
     ("A hátsó sor szálfegyverrel eléri az első társ lekötött ellenfelét", BattleRearPolearmReachUsesFrontEngagement),
     ("A hátsó sori pap elűzheti az első sor által lekötött élőholtat", RearPriestCanTurnFrontEngagedUndead),
     ("A hátráló varázshasználó távolságcélja repülő ellenfélnél nagyobb", SpellcasterRetreatDistanceIsCapped),
+    ("A repülő ellenfél harcban szereplők és fák fölött haladhat át", FlyingEnemiesTraverseCombatantsAndTreesOnly),
     ("Az ellenfél nézésiránya oldal- és hátbatámadási bónuszt ad", TacticalAttackArcsUseEnemyFacing),
     ("A tolvaj tőrrel a zárt alakzat hátsó sorából is orvtámad", ThiefCanBackstabFromRearFormation),
     ("A Hátra! helycsere átadja az első sori lekötéseket", BattleSwapToRearTransfersEngagements),

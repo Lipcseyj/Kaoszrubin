@@ -328,6 +328,34 @@ internal static partial class Program
             "A hátráló varázshasználó 6/8 mezős biztonsági távolsága hibás.");
     }
 
+    static void FlyingEnemiesTraverseCombatantsAndTreesOnly()
+    {
+        var maze = new Maze(9, 7);
+        var floor = new Position(2, 2);
+        var tree = new Position(3, 2);
+        var wall = new Position(4, 2);
+        var water = new Position(5, 2);
+        maze.Carve(floor);
+        var treeStyle = new MazeTerrainStyle("test-tree", new Rune('♠'), ConsoleColor.Green,
+            ConsoleColor.Black, false, true);
+        var waterStyle = new MazeTerrainStyle("test-water", new Rune('≈'), ConsoleColor.Blue,
+            ConsoleColor.Black, false, false);
+        maze.SetTerrain(tree, treeStyle);
+        maze.RegisterTerrainGameplayProfile(treeStyle.Id, new(TerrainTag.TreeCanopy));
+        maze.SetTerrain(water, waterStyle);
+        var ground = CreateEnemyAt(new Position(1, 2), "E-GROUND-TRAVERSE");
+        var flying = new ConfiguredEnemy(new Position(1, 2),
+            ground.Definition with { Id = "E-FLYING-TRAVERSE", Traits = EnemyTraits.Flying });
+
+        Assert(FlyingEnemyTraversalRules.CanTraverse(flying, maze, floor, occupiedByActiveCombatant: true) &&
+               FlyingEnemyTraversalRules.CanTraverse(flying, maze, tree, occupiedByActiveCombatant: false) &&
+               !FlyingEnemyTraversalRules.CanTraverse(flying, maze, floor, occupiedByActiveCombatant: false) &&
+               !FlyingEnemyTraversalRules.CanTraverse(flying, maze, wall, occupiedByActiveCombatant: false) &&
+               !FlyingEnemyTraversalRules.CanTraverse(flying, maze, water, occupiedByActiveCombatant: false) &&
+               !FlyingEnemyTraversalRules.CanTraverse(ground, maze, tree, occupiedByActiveCombatant: false),
+            "A repülő harci áthaladás nem kizárólag szereplők és fa lombkoronája fölött működik.");
+    }
+
     static void TacticalAttackArcsUseEnemyFacing()
     {
         var system = CreateBattleSystem(1801);

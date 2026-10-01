@@ -835,7 +835,7 @@ Az `Előkészítés` értéke megadja, hány akción át jelzi előre a szörny 
 - `Regeneration`: minden saját kör elején a megadott HP-t visszatölti;
 - `ApplyStatus`: találatkor vagy aktív képességként a CSV-ben hivatkozott állapotot alkalmazza.
 
-Az Élőholt és Démoni jellemzőt a szent sebzés, a gonosz elleni védelem és az élőholtűzés használja. A régi `MA001`, `MA009` és `MA010` azonosítók mentés- és küldetés-kompatibilitási álnevek maradtak. A Repülő jellemző +1 taktikai mozgást ad; az útkeresés más aktív harcolók mezőjén is átvezetheti a repülőt, de csak szabad mezőn szállhat le.
+Az Élőholt és Démoni jellemzőt a szent sebzés, a gonosz elleni védelem és az élőholtűzés használja. A régi `MA001`, `MA009` és `MA010` azonosítók mentés- és küldetés-kompatibilitási álnevek maradtak. A Repülő jellemző +1 taktikai mozgást ad; harcban az útkeresés más aktív harcolók és az erdei fák lombkoronája fölött is átvezetheti a repülőt, de falon, épületfalon vagy vízen nem. A repülő csak szabad, járható mezőn szállhat le.
 
 A Medúza Dermesztő tekintete 21-es nehézségű Egészség-próba ellenében két saját akcióra Kődermedtséget okoz. A baziliszkuszok és beholderek Bénító sugara továbbra is Kődermedtséget és nekrotikus sebzést okozhat, csatánként kétszer használható. A Lich, Drakolich, Balor és Vén beholder több célpontot érintő Rémületkeltést használhat, amely 5–7 nekrotikus sebzést is okoz és csatánként egyszer süthető el. Mindegyik aktív képesség a CSV-ben beállított hatótávval, eséllyel, célpontszámmal, AI-súllyal, lehűléssel és használati korláttal működik. Többcélpontos használatkor a töltet és a lehűlés egyszer fogy el. A betöltő ellenőrzi a hivatkozott állapotokat, fegyvereket és az aktív képességek pozitív lehűlését.
 

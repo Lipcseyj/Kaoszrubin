@@ -8,7 +8,8 @@ public enum TerrainTag
     Undergrowth = 2,
     DenseUndergrowth = 4,
     Marsh = 8,
-    ThicketEdge = 16
+    ThicketEdge = 16,
+    TreeCanopy = 32
 }
 
 /// <summary>A terep megjelenésétől független, felfedezés közbeni játékmeneti hatások.</summary>

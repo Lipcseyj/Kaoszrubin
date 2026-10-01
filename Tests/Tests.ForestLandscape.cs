@@ -334,6 +334,9 @@ internal static partial class Program
                profile.ConcealmentBonus == 1 && profile.NoiseModifier == 1 &&
                profile.SupportsAmbushPlacement,
             "Az aljnövényzet játékmeneti profilja nem a dokumentált értékeket adja.");
+        Assert((maze.TerrainGameplayProfiles[palette.Tree.Id].Tags & TerrainTag.TreeCanopy) != 0 &&
+               (maze.TerrainGameplayProfiles[palette.Pine.Id].Tags & TerrainTag.TreeCanopy) != 0,
+            "Az erdei lombos és fenyőmezők nem kapták meg a repülési átjáró jelölést.");
 
         var fighter = CreateCharacter("Harcos");
         var thief = CreateCharacter("Tolvaj", characterClassId: CharacterClassIds.Tolvaj);
