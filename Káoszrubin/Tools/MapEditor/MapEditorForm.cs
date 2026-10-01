@@ -40,11 +40,15 @@ internal sealed partial class MapEditorForm : Form
     private readonly ComboBox _exit = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 145 };
     private readonly NumericUpDown _level = Number(1, MazeLevelConfigurations.FinalLevel, 6);
     private readonly NumericUpDown _layoutSeed = Number(1, int.MaxValue, 6);
+    private readonly Label _layoutSeedLabel = new() { Text = "Véletlen gráf seed:", AutoSize = true, Padding = new Padding(0, 7, 0, 0) };
+    private readonly Button _newGraphButton = new() { Text = "Másik gráf", AutoSize = true };
+    private readonly ToolTip _layoutToolTip = new() { AutoPopDelay = 16000, InitialDelay = 350, ShowAlways = true };
+    private readonly TextBox _forestFilePath = new() { Width = 360, ReadOnly = true, TabStop = false };
     private readonly CheckBox _previewGameplayOverlay = new()
     {
         Text = "Terephatás/rajtaütés overlay",
         AutoSize = true,
-        Checked = true,
+        Checked = false,
         Padding = new Padding(0, 6, 0, 0)
     };
     private readonly PropertyGrid _forestProperties = new() { Width = 390, Height = 620, HelpVisible = true, ToolbarVisible = true };
@@ -55,6 +59,7 @@ internal sealed partial class MapEditorForm : Form
     private ForestGenerationConfiguration _previewBaseConfiguration = new();
     private int? _lastPreviewSeed;
     private bool _nonForestMode;
+    private int _minimumScreenCount = 1;
 
     public MapEditorForm()
     {
@@ -75,6 +80,11 @@ internal sealed partial class MapEditorForm : Form
         _canvas.SelectionChanged += SelectArea;
         _canvas.AreaMoved += MoveArea;
         _template.SelectedIndexChanged += (_, _) => RefreshEffectiveProperties();
+        _newGraphButton.Click += (_, _) =>
+        {
+            _layoutSeed.Value = Random.Shared.Next(1, int.MaxValue);
+            LoadSelectedLevel();
+        };
         Shown += (_, _) => EnsureInspectorVisible();
         SizeChanged += (_, _) => EnsureInspectorVisible();
         NewDocument();
@@ -89,18 +99,17 @@ internal sealed partial class MapEditorForm : Form
         bar.Controls.Add(new Label { Text = "Pálya:", AutoSize = true, Padding = new Padding(0, 7, 0, 0) });
         bar.Controls.Add(_level);
         bar.Controls.Add(Button("Pálya betöltése", (_, _) => LoadSelectedLevel()));
-        bar.Controls.Add(new Label { Text = "Gráf seed:", AutoSize = true, Padding = new Padding(0, 7, 0, 0) });
+        bar.Controls.Add(_layoutSeedLabel);
         bar.Controls.Add(_layoutSeed);
-        bar.Controls.Add(Button("Új gráf", (_, _) =>
-        {
-            _layoutSeed.Value = Random.Shared.Next(1, int.MaxValue);
-            LoadSelectedLevel();
-        }));
+        bar.Controls.Add(_newGraphButton);
+        var graphHelp = "Csak a véletlen képernyőgráf előnézetét változtatja. A JSON-ból betöltött erdei gráfot nem módosítja.";
+        _layoutToolTip.SetToolTip(_layoutSeedLabel, graphHelp);
+        _layoutToolTip.SetToolTip(_layoutSeed, graphHelp);
+        _layoutToolTip.SetToolTip(_newGraphButton, graphHelp);
         bar.Controls.Add(Button("Mentés", (_, _) => SaveDocument()));
         bar.Controls.Add(Button("Mentés másként", (_, _) => SaveDocumentAs()));
         bar.Controls.Add(Button("Validálás", (_, _) => ValidateDocument(showSuccess: true)));
         bar.Controls.Add(Button("Template-részletek", (_, _) => ShowTemplateDetails()));
-        bar.Controls.Add(_previewGameplayOverlay);
         bar.Controls.Add(Button("Új előnézet", (_, _) => PreviewSelected(reuseLastSeed: false)));
         bar.Controls.Add(Button("Előző seed ismétlése", (_, _) => PreviewSelected(reuseLastSeed: true)));
         bar.Controls.Add(Button("Oldalpanel", (_, _) => ToggleInspector()));
@@ -117,23 +126,43 @@ internal sealed partial class MapEditorForm : Form
         var panel = new Panel { Dock = DockStyle.Fill, AutoScroll = true, Padding = new Padding(12) };
         var flow = new FlowLayoutPanel { Dock = DockStyle.Top, FlowDirection = FlowDirection.TopDown,
             WrapContents = false, AutoSize = true, Width = 390 };
+        flow.Controls.Add(Labelled("Szerkesztett JSON-fájl", _forestFilePath));
         flow.Controls.Add(Heading("Kijelölt képernyő beállításai"));
-        flow.Controls.Add(Description("Kattints bal oldalt egy területre. A bepipált értékek felülírják a kiválasztott template alapértékét."));
+        flow.Controls.Add(new Label { Text = "Kattints bal oldalt egy területre.", Width = 380, Height = 20,
+            ForeColor = Color.DimGray, Margin = new Padding(3, 0, 3, 0) });
         flow.Controls.Add(Labelled("Azonosító", _id));
         flow.Controls.Add(Labelled("Név", _name));
         flow.Controls.Add(Labelled("Template", _template));
-        flow.Controls.Add(Pair("Template ID", _newTemplateId, "Név", _newTemplateName));
-        flow.Controls.Add(Button("Beállítások mentése új template-ként", CreateTemplate));
         flow.Controls.Add(Pair("X", _x, "Y", _y));
         flow.Controls.Add(Heading("Minden generálási tulajdonság"));
         flow.Controls.Add(Description("A rács a template és a helyi felülírások eredő értékeit mutatja. A módosított teljes állapot helyi felülírásként mentődik."));
         flow.Controls.Add(_forestProperties);
         flow.Controls.Add(Button("Módosítások alkalmazása", (_, _) => ApplySelected()));
+        flow.Controls.Add(Heading("Új template mentése"));
+        flow.Controls.Add(BuildTemplateFields());
+        flow.Controls.Add(Button("Beállítások mentése új template-ként", CreateTemplate));
         flow.Controls.Add(PairButtons("Új képernyő", AddArea, "Képernyő törlése", RemoveSelected));
         flow.Controls.Add(Heading("Kapcsolat"));
         flow.Controls.Add(Pair("Honnan", _connectionFrom, "Hová", _connectionTo));
         flow.Controls.Add(PairButtons("Kapcsolat hozzáadása", AddConnection, "Kapcsolat törlése", RemoveConnection));
+        flow.Controls.Add(_previewGameplayOverlay);
         panel.Controls.Add(flow);
+        return panel;
+    }
+
+    private Control BuildTemplateFields()
+    {
+        var panel = new TableLayoutPanel { Width = 380, Height = 58, ColumnCount = 2, RowCount = 2 };
+        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50));
+        panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 23));
+        panel.RowStyles.Add(new RowStyle(SizeType.Absolute, 32));
+        panel.Controls.Add(new Label { Text = "Template ID", Dock = DockStyle.Fill }, 0, 0);
+        panel.Controls.Add(new Label { Text = "Név", Dock = DockStyle.Fill }, 1, 0);
+        _newTemplateId.Dock = DockStyle.Fill;
+        _newTemplateName.Dock = DockStyle.Fill;
+        panel.Controls.Add(_newTemplateId, 0, 1);
+        panel.Controls.Add(_newTemplateName, 1, 1);
         return panel;
     }
 
@@ -149,6 +178,8 @@ internal sealed partial class MapEditorForm : Form
         _areas.Add(new("EXIT", "Szélcsend tisztása", new(1, 0), ForestAreaTemplateCatalog.OpenGroves));
         _connections.Add(new("ENTRANCE", "EXIT"));
         _currentFilePath = null;
+        UpdateForestFilePath();
+        SetGraphPreviewControls(false);
         _previewBaseConfiguration = new();
         _lastPreviewSeed = null;
         RefreshGraph();
@@ -188,6 +219,8 @@ internal sealed partial class MapEditorForm : Form
             _nonForestMode = false;
             LoadGraph(graph, dialog.FileName);
             _currentFilePath = dialog.FileName;
+            UpdateForestFilePath();
+            SetGraphPreviewControls(false);
             RefreshAdditionalTabs();
             UpdateStatus($"Megnyitva: {dialog.FileName}");
         }
@@ -206,9 +239,10 @@ internal sealed partial class MapEditorForm : Form
     {
         if (_nonForestMode) { MessageBox.Show(this, "Az erdei JSON mentése csak erdei pályán érhető el."); return; }
         if (!ValidateDocument(showSuccess: false)) return;
-        using var dialog = new SaveFileDialog { Filter = "Erdei gráf (*.json)|*.json", FileName = "forest-level.json" };
+        using var dialog = new SaveFileDialog { Filter = "Erdei gráf (*.json)|*.json",
+            FileName = $"level-{(int)_level.Value}.json",
+            InitialDirectory = EditorSources.PathFor("ForestLevelGraphs") };
         if (dialog.ShowDialog(this) != DialogResult.OK) return;
-        _currentFilePath = dialog.FileName;
         WriteDocument(dialog.FileName);
     }
 
@@ -217,6 +251,8 @@ internal sealed partial class MapEditorForm : Form
         try
         {
             File.WriteAllText(fileName, ForestConfigurationJson.Serialize((int)_level.Value, Document()));
+            _currentFilePath = fileName;
+            UpdateForestFilePath();
             UpdateStatus($"Mentve: {fileName}");
         }
         catch (Exception exception)
@@ -229,13 +265,18 @@ internal sealed partial class MapEditorForm : Form
     {
         var level = (int)_level.Value;
         var configuration = MazeLevelConfigurations.Get(level);
-        var source = new FileForestLevelGraphSource(EditorSources.PathFor("ForestLevelGraphs"));
-        var effectiveLayout = ForestLevelGraphOverrideBridge.Apply(configuration, source);
-        var layout = effectiveLayout as ForestMazeLayoutConfiguration;
+        var layout = configuration.Layout as ForestMazeLayoutConfiguration;
         if (layout is not null)
         {
             _nonForestMode = false;
             var graph = layout.ExplicitGraph;
+            var jsonPath = EditorSources.PathFor($"ForestLevelGraphs/level-{level}.json");
+            var source = new FileForestLevelGraphSource(EditorSources.PathFor("ForestLevelGraphs"));
+            var loadedJson = source.TryLoad(level, out var document, out _, out var warning) && document is not null;
+            if (loadedJson) graph = document!.Graph;
+            else if (warning is not null)
+                MessageBox.Show(this, warning + "\nA kódban megadott gráf jelenik meg; a hibás JSON-t a Mentés nem írja felül automatikusan.",
+                    "Erdei JSON betöltési hiba");
             if (graph is null)
             {
                 var plan = DungeonAreaGraphGenerator.Generate(layout.Graph, new Random((int)_layoutSeed.Value));
@@ -246,14 +287,26 @@ internal sealed partial class MapEditorForm : Form
             }
             _previewBaseConfiguration = layout.Forest;
             _lastPreviewSeed = null;
-            LoadGraph(graph, $"a játék {level}. pályája");
+            LoadGraph(graph, loadedJson ? jsonPath : $"a játék {level}. pályája (C#)");
             _mainTabs.SelectedTab = _forestTab;
-            _currentFilePath = null;
+            _currentFilePath = loadedJson || !File.Exists(jsonPath) && configuration.ForestGraphJsonOverrideEnabled
+                ? jsonPath : null;
+            UpdateForestFilePath();
+            SetGraphPreviewControls(!loadedJson && layout.ExplicitGraph is null);
             RefreshAdditionalTabs();
+            UpdateStatus(loadedJson
+                ? $"{level}. erdei pálya — JSON: {jsonPath}" +
+                  (configuration.ForestGraphJsonOverrideEnabled ? "" : " (a játékban a JSON-felülírás nincs engedélyezve)")
+                : $"{level}. erdei pálya — C# gráf; {_forestFilePath.Text}");
             return;
         }
         _nonForestMode = true;
-        var areaCount = effectiveLayout is WideMazeLayoutConfiguration wide
+        var variableGraph = configuration.Layout is WideMazeLayoutConfiguration
+            { AreaCount: { Minimum: var minimum, Maximum: var maximum } } && minimum != maximum;
+        SetGraphPreviewControls(variableGraph);
+        _minimumScreenCount = configuration.Layout is WideMazeLayoutConfiguration guaranteedWide
+            ? guaranteedWide.AreaCount.Minimum : 1;
+        var areaCount = configuration.Layout is WideMazeLayoutConfiguration wide
             ? wide.AreaCount.Roll(new Random((int)_layoutSeed.Value)) : 1;
         var topology = DungeonAreaGraphPlan.Linear(areaCount);
         var areas = topology.Nodes.Select((node, index) => new ForestAreaDefinition(node.Id,
@@ -265,8 +318,10 @@ internal sealed partial class MapEditorForm : Form
             topology.EntranceAreaId, topology.ExitAreaId), $"a játék {level}. pályája");
         _mainTabs.SelectedTab = _mazeTab;
         _currentFilePath = null;
+        UpdateForestFilePath();
         RefreshAdditionalTabs();
-        UpdateStatus($"{level}. pálya: {configuration.Name} — {areaCount} képernyő, gráf seed: {_layoutSeed.Value}");
+        UpdateStatus($"{level}. pálya: {configuration.Name} — {areaCount} képernyő" +
+            (variableGraph ? $", gráf seed: {_layoutSeed.Value}" : ""));
     }
 
     private void LoadGraph(ExplicitForestAreaGraphConfiguration graph, string source)
@@ -313,6 +368,8 @@ internal sealed partial class MapEditorForm : Form
             "Az NPC-k fülön az adott pálya sorai látszanak; az Összes pálya NPC-i jelölő minden sort mutat.\n" +
             "Az NPC-k fül CSV mentőgombjai a game-data.csv adott szekcióját írják.\n" +
             "A térképen kijelölt képernyő AreaId-ja a találkozásokba és az NPC-elhelyezésbe is beilleszthető.\n" +
+            "Erdei pálya betöltésekor a ForestLevelGraphs/level-x.json kerül a C# erdőprofilra; a Mentés ugyanoda ír.\n" +
+            "A véletlen gráf seedje csak új, nem mentett gráf vagy változó képernyőszámú labirintus előnézeténél számít.\n" +
             "C# konfiguráció mentése után fordítsd újra és indítsd újra a szerkesztőt az előnézet frissítéséhez.",
             "Pályaszerkesztő – gyors súgó");
     }
@@ -394,6 +451,26 @@ internal sealed partial class MapEditorForm : Form
     };
 
     private void UpdateStatus(string message) => _status.Text = message;
+
+    private void SetGraphPreviewControls(bool visible)
+    {
+        _layoutSeedLabel.Visible = visible;
+        _layoutSeed.Visible = visible;
+        _newGraphButton.Visible = visible;
+    }
+
+    private void UpdateForestFilePath()
+    {
+        if (_currentFilePath is null)
+        {
+            _forestFilePath.Text = "Nincs kiválasztott JSON-fájl";
+            _layoutToolTip.SetToolTip(_forestFilePath, "Mentés másként: válassz JSON-fájlt.");
+            return;
+        }
+        var relative = Path.GetRelativePath(EditorSources.Root, _currentFilePath);
+        _forestFilePath.Text = File.Exists(_currentFilePath) ? relative : $"Új fájl: {relative}";
+        _layoutToolTip.SetToolTip(_forestFilePath, _currentFilePath);
+    }
 
     private bool ValidateDocument(bool showSuccess)
     {
