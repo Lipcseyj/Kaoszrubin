@@ -373,7 +373,7 @@ W038;óriáspallos;WT001;12-22;9;igen;nem;nem;nem;Hatalmas kétkezes kard kiemel
 W039;rövidíj;WT002;3-6;2;igen;igen;nem;nem;Könnyű íj gyors lövésekhez és szűk folyosókhoz.;250;;;;2;szúrás;1;nem;BOW;90;0;Projectile;1;4;T029;0;C001|C004;;250
 W040;hosszúíj;WT002;4-9;5;igen;nem;nem;nem;Nagy húzóerejű hosszúíj pontos távoli lövésekhez.;560;;;;4;szúrás;1;nem;BOW;110;0;Projectile;1;5;T029;0;C001;;350
 W041;harci íj;WT002;6-12;8;igen;nem;nem;nem;Megerősített harci íj amely csak erős és gyakorlott kézben engedelmes.;820;;;;6;szúrás;1;nem;BOW;130;0;Projectile;2;6;T029;0;C001;;450
-W042;kézi íjpuska;WT001;4-7;2;nem;igen;nem;nem;Egy kézzel is elsüthető rövid íjpuska közelibb célpontok ellen.;380;;;;2;szúrás;1;nem;CROSSBOW;100;0;Projectile;1;3;T030;10;C001|C004;;500
+W042;kézi íjpuska;WT001;4-7;3;nem;igen;nem;igen;Egy kézzel is elsüthető rövid íjpuska közelibb célpontok ellen.;380;;;;2;szúrás;1;nem;CROSSBOW;100;0;Projectile;1;3;T030;10;C001|C004;;500
 W043;könnyű íjpuska;WT001;5-10;4;igen;igen;nem;nem;Kétkezes könnyű íjpuska biztos mechanikával és jó átütőerővel.;640;;;;4;szúrás;1;nem;CROSSBOW;130;0;Projectile;1;4;T030;20;C001|C004|C003;;700
 W044;nehéz íjpuska;WT001;7-14;7;igen;nem;nem;nem;Acélíves nehéz íjpuska páncélozott célpontok átütésére.;980;;;;7;szúrás;1;nem;CROSSBOW;160;0;Projectile;1;5;T030;30;C001|C003;;1000
 W045;Főnökhasító;WT002;4-8;3;nem;igen;nem;nem;Csorba, széles pengéjű rövid kard, amelynek markolatát goblinfogak és vörös rongyok díszítik. Nem szép munka, de a főnök sok ellenfelét túlélte vele.;180;;;;2;vágás;1;nem;SWORD;75;0;Melee;1;1;;0;C001|C004

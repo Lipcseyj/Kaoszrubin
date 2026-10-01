@@ -1187,7 +1187,8 @@ static void ResolveSkipsActionAfterSupportVictory()
                PlayerWindowKindRules.PausesGame(PlayerWindowKind.Help) &&
                PlayerWindowKindRules.PausesGame(PlayerWindowKind.QuestJournal) &&
                PlayerWindowKindRules.PausesGame(PlayerWindowKind.CharacterDetails) &&
-               PlayerWindowKindRules.PausesGame(PlayerWindowKind.SpellInfo),
+               PlayerWindowKindRules.PausesGame(PlayerWindowKind.SpellInfo) &&
+               PlayerWindowKindRules.PausesGame(PlayerWindowKind.DungeonMap),
             "A térkép melletti inventory vagy valamely térképtakaró személyes ablak szüneteltetése hibás.");
     }
 

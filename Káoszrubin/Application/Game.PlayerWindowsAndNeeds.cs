@@ -133,6 +133,7 @@ public sealed partial class Game
     {
         PlayerWindowKind.Help => "súgó",
         PlayerWindowKind.Bestiary => "bestiárium",
+        PlayerWindowKind.DungeonMap => "régiótérkép",
         PlayerWindowKind.Settings => "beállítások",
         PlayerWindowKind.QuestJournal => "küldetésnapló",
         PlayerWindowKind.Inventory => "felszerelés",
@@ -145,6 +146,7 @@ public sealed partial class Game
     {
         PlayerWindowKind.Help => "a súgót olvassa",
         PlayerWindowKind.Bestiary => "a bestiáriumot lapozza",
+        PlayerWindowKind.DungeonMap => "a régiótérképet nézi",
         PlayerWindowKind.Settings => "a beállításokat kezeli",
         PlayerWindowKind.QuestJournal => "a küldetésnaplót böngészi",
         PlayerWindowKind.Inventory => "a felszerelését rendezi",

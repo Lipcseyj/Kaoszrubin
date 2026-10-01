@@ -946,6 +946,7 @@ internal static partial class Program
                WindowFrameConfiguration.For(FramedWindow.SpellPreparation) == WindowFrameStyle.Magic2 &&
                WindowFrameConfiguration.For(FramedWindow.Inn) == WindowFrameStyle.Ruby &&
                WindowFrameConfiguration.For(FramedWindow.CharacterManagement) == WindowFrameStyle.Scroll &&
+               WindowFrameConfiguration.For(FramedWindow.DungeonMap) == WindowFrameStyle.Scroll2 &&
                CharacterMenuSurface.MazeGlyph(0, 0) == '┼' &&
                CharacterMenuSurface.MazeGlyph(1, 0) == '─' &&
                CharacterMenuSurface.MazeGlyph(0, 1) == '│' &&

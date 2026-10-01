@@ -490,8 +490,9 @@ public sealed partial class Game
 
                     if (GameInput.IsDungeonMapShortcut(keyInfo))
                     {
-                        _renderer.ShowDungeonMap(_dungeonLevel.CreateDiscoveredMap());
-                        _renderer.DrawInitialState(_maze, _player, _fogOfWar, _difficultyLevel);
+                        RunHostPersonalWindow(PlayerWindowKind.DungeonMap,
+                            () => DungeonMapWindow.Show(_dungeonLevel.CreateDiscoveredMap(),
+                                CurrentHostCoopWindowStatus));
                         continue;
                     }
 

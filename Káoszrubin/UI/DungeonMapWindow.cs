@@ -59,20 +59,59 @@ public static class DungeonMapWindow
         return result;
     }
 
-    public static void ShowStandalone(DungeonMapSnapshot map)
+    public static void Show(DungeonMapSnapshot map, Func<string?>? coopStatusProvider = null)
     {
-        Console.Clear();
         var lines = Build(map);
-        var width = lines.Max(line => line.Text.Length);
+        var maximumWidth = Math.Max(20, Console.WindowWidth - 4);
+        var minimumWidth = Math.Min(48, maximumWidth);
+        var width = Math.Clamp(lines.Max(line => BattleCommandPanel.DisplayWidth(line.Text)) + 6,
+            minimumWidth, maximumWidth);
+        var height = Math.Min(lines.Count + 2, Math.Max(4, Console.WindowHeight - 4));
         var left = Math.Max(0, (Console.WindowWidth - width) / 2);
-        var top = Math.Max(0, (Console.WindowHeight - lines.Count) / 2);
-        for (var index = 0; index < lines.Count; index++)
+        var top = Math.Max(0, (Console.WindowHeight - height) / 2);
+        var style = WindowFrameConfiguration.For(FramedWindow.DungeonMap);
+        using var background = new BackgroundContentRestorer(left, top, width, height);
+        DrawFrame(left, top, width, height, style);
+        var contentWidth = Math.Max(0, width - 6);
+        var availableRows = height - 2;
+        var visibleLines = lines.Count <= availableRows
+            ? lines
+            : lines.Take(Math.Max(0, availableRows - 1)).Append(lines[^1]).ToArray();
+        for (var index = 0; index < visibleLines.Count; index++)
         {
-            Console.ForegroundColor = lines[index].Color;
-            Console.SetCursorPosition(left, top + index);
-            Console.Write(lines[index].Text);
+            Console.SetCursorPosition(left + 3, top + index + 1);
+            Console.ForegroundColor = visibleLines[index].Color;
+            Console.BackgroundColor = ConsoleColor.Black;
+            Console.Write(BattleCommandPanel.FitToDisplayWidth(visibleLines[index].Text, contentWidth));
         }
-        while (Console.ReadKey(intercept: true).Key is not (ConsoleKey.Escape or ConsoleKey.Enter)) { }
+        while (CoopWindowStatusBanner.ReadKey(coopStatusProvider).Key is not (ConsoleKey.Escape or ConsoleKey.Enter)) { }
         Console.ResetColor();
+    }
+
+    private static void DrawFrame(int left, int top, int width, int height, WindowFrameStyle style)
+    {
+        Write(left, top, WindowFrameCatalog.Horizontal(style, width), ConsoleColor.Magenta, width);
+        var interiorRows = height - 2;
+        for (var row = 0; row < interiorRows; row++)
+        {
+            var sides = WindowFrameCatalog.Sides(style, row, interiorRows);
+            Write(left, top + row + 1, sides.Left, ConsoleColor.Magenta, sides.Left.Length);
+            Write(left + sides.Left.Length, top + row + 1, string.Empty, ConsoleColor.Gray,
+                width - sides.Left.Length - sides.Right.Length);
+            Write(left + width - sides.Right.Length, top + row + 1, sides.Right,
+                ConsoleColor.Magenta, sides.Right.Length);
+        }
+        Write(left, top + height - 1, WindowFrameCatalog.Horizontal(style, width, bottom: true),
+            ConsoleColor.Magenta, width);
+    }
+
+    private static void Write(int x, int y, string text, ConsoleColor color, int width)
+    {
+        if (width <= 0 || x < 0 || y < 0 || x >= Console.WindowWidth || y >= Console.WindowHeight) return;
+        var fitted = BattleCommandPanel.FitToDisplayWidth(text, Math.Min(width, Console.WindowWidth - x));
+        Console.SetCursorPosition(x, y);
+        Console.ForegroundColor = color;
+        Console.BackgroundColor = ConsoleColor.Black;
+        Console.Write(fitted);
     }
 }

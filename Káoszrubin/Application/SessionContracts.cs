@@ -46,7 +46,8 @@ public enum PlayerWindowKind
     QuestJournal,
     Inventory,
     CharacterDetails,
-    SpellInfo
+    SpellInfo,
+    DungeonMap
 }
 
 public static class PlayerWindowKindRules

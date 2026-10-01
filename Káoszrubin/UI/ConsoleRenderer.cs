@@ -3017,14 +3017,6 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
         DrawCenteredFrame(width, lines, window);
     }
 
-    public void ShowDungeonMap(DungeonMapSnapshot map)
-    {
-        var lines = DungeonMapWindow.Build(map);
-        var width = Math.Clamp(lines.Max(line => line.Text.Length) + 4, 48, 126);
-        DrawCenteredFrame(width, lines, FramedWindow.Storyline);
-        while (Console.ReadKey(intercept: true).Key is not (ConsoleKey.Escape or ConsoleKey.Enter)) { }
-    }
-
     public void ClearReplicatedWindow()
     {
         _replicatedWindowBackground?.Dispose();

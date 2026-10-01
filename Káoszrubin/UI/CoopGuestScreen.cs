@@ -255,7 +255,9 @@ public sealed class CoopGuestScreen
                     }
                     if (GameInput.IsDungeonMapShortcut(key) && client.CurrentSnapshot?.DungeonMap is { } dungeonMap)
                     {
-                        DungeonMapWindow.ShowStandalone(dungeonMap);
+                        await RunPersonalWindowAsync(client, selected.CharacterId, PlayerWindowKind.DungeonMap,
+                            () => DungeonMapWindow.Show(dungeonMap,
+                                () => CurrentCoopWindowStatus(client, selected.CharacterId)), cancellationToken);
                         _lastFrame = null;
                         Interlocked.Exchange(ref _redrawRequested, 1);
                         continue;
@@ -2144,6 +2146,7 @@ public sealed class CoopGuestScreen
     {
         PlayerWindowKind.Help => "a súgót olvassa",
         PlayerWindowKind.Bestiary => "a bestiáriumot lapozza",
+        PlayerWindowKind.DungeonMap => "a régiótérképet nézi",
         PlayerWindowKind.Settings => "a beállításokat kezeli",
         PlayerWindowKind.QuestJournal => "a küldetésnaplót böngészi",
         PlayerWindowKind.Inventory => "a felszerelését rendezi",
@@ -2156,6 +2159,7 @@ public sealed class CoopGuestScreen
     {
         PlayerWindowKind.Help => "súgó megnyitva",
         PlayerWindowKind.Bestiary => "bestiárium megnyitva",
+        PlayerWindowKind.DungeonMap => "régiótérkép megnyitva",
         PlayerWindowKind.Settings => "beállítások megnyitva",
         PlayerWindowKind.QuestJournal => "küldetésnapló megnyitva",
         PlayerWindowKind.CharacterDetails => "részletes karakterinformáció megnyitva",
