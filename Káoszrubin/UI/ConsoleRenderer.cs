@@ -343,6 +343,8 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
         _spellInfoCharacter = null;
         _spellCastingOverlaySnapshot = null;
         _spellCastingOverlayBounds = null;
+        SetBattleCommandPanelRound(null);
+        DrawBattleCommandPanel(string.Empty);
         CharacterSheet.RefreshCharacterSheet();
     }
 
