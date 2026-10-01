@@ -138,6 +138,7 @@ public sealed partial class Game : ISessionCommandHandler
     private long _enemyDistanceMapNavigationRevision = -1;
     private readonly Dictionary<PartyMemberAvatar, DateTime> _nextPartyMoves = [];
     private readonly Dictionary<CharacterId, DateTime> _nextControlledMoves = [];
+    private readonly Dictionary<CharacterId, int> _terrainExertion = [];
     private readonly Dictionary<CharacterId, DateTime> _nextExplorationShotUtc = [];
     private readonly Dictionary<CharacterId, DateTime> _nextExplorationShotNoticeUtc = [];
     private readonly List<Position> _leaderTrail = [];

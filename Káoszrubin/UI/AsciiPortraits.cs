@@ -462,7 +462,7 @@ public static class AsciiPortraits
                     /\
                   _/  \_
                  / ◉  ◉ \
-                /  __▲__  \
+                /  __\__ \
                 \_/▽▽▽▽\_/
                """),
 
@@ -572,7 +572,7 @@ public static class AsciiPortraits
                  (\_____/)
                  / ò   ó \
                 <   _▲_   > 
-                 \_▽▽_/|-/
+                 \_▽▽_▽▽-/
                    /|  |\
                """),
 
@@ -619,11 +619,11 @@ public static class AsciiPortraits
            // E063 - Ork törzsfő
            [MonsterIds.OrkTörzsfő] = Portrait(
                """
-                  \__^^__/
-                   / ò ó \
-                  | _▲_  |
+                   ▄█▀▀█▄
+                  / ò  ó \
+                  |  °°  |
                  /|=↑██↑=|\
-                   /|  |\
+                / ▄█|██|█▄ \
                """),
 
            // E064 - Ősi hidra
@@ -743,7 +743,7 @@ public static class AsciiPortraits
                  /\_/\ /\_/\
                 /  ◉ \_/ ◉  \
                <     /▲\     >
-                \__▽▽▽▽▽__/
+                \__▽▽▽▽▽▽__/
                   /_/   \_\
                """),
 
@@ -801,8 +801,8 @@ public static class AsciiPortraits
            [MonsterIds.ÉlőPáncél] = Portrait(
                """
                      /▲\    |
-                    [   ]   |
-                   | ╳██╳ |  |
+                    [· ·]   |
+                   |=████=| |
                   /|=|██|=|\|
                     /|__|\  †
                """),

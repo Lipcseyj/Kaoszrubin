@@ -184,6 +184,11 @@ public class MazeGenerator
         foreach (var encounter in encounters)
         {
             var members = RollMembers(encounter);
+            if (encounter.TargetTerrainTags != TerrainTag.None)
+            {
+                TryPlaceTerrainGroup(maze, encounter, members);
+                continue;
+            }
             var roomIndex = rooms.FindIndex(room =>
                 (encounter.TargetRoomKind is null || room.Kind == encounter.TargetRoomKind) &&
                 AvailableRoomPositions(maze, room).Count >= members.Count);
@@ -204,6 +209,11 @@ public class MazeGenerator
         foreach (var encounter in ExpandEncounters(_corridorEncounters).OrderBy(_ => Random.Next()))
         {
             var members = RollMembers(encounter);
+            if (encounter.TargetTerrainTags != TerrainTag.None)
+            {
+                TryPlaceTerrainGroup(maze, encounter, members);
+                continue;
+            }
             var available = GetOutdoorPositions(maze).Where(position => maze.GetObjectAt(position) is null &&
                 position != maze.Entrance && position != maze.Exit).ToHashSet();
             if (available.Count < members.Count) return;
@@ -248,6 +258,34 @@ public class MazeGenerator
         return result;
     }
 
+    private bool TryPlaceTerrainGroup(Maze maze, ResolvedEnemyEncounter encounter,
+        IReadOnlyList<(EnemyDefinition Definition, EnemyGroupRole Role)> members)
+    {
+        var available = GetOutdoorPositions(maze).Where(position =>
+            IsValidTerrainEncounterPosition(maze, position, encounter.TargetTerrainTags)).ToHashSet();
+        foreach (var anchor in available.OrderBy(_ => Random.Next()))
+        {
+            var positions = ConnectedPositions(anchor, available, members.Count);
+            if (positions.Count < members.Count) continue;
+            PlaceGroup(maze, encounter, members, positions,
+                roamingHorde: encounter.Behavior == EnemyEncounterBehavior.Horde);
+            return true;
+        }
+        return false;
+    }
+
+    private static bool IsValidTerrainEncounterPosition(Maze maze, Position position, TerrainTag targetTags)
+    {
+        if (!maze.IsWalkable(position) || position == maze.Entrance || position == maze.Exit ||
+            maze.GetObjectAt(position) is not null || maze.GetDoorAt(position) is not null ||
+            maze.GetPassageAt(position) is not null) return false;
+        var profile = maze.GetTerrainGameplayProfile(position);
+        if (profile.SupportsAmbushPlacement && (profile.Tags & targetTags) != 0) return true;
+        if ((targetTags & TerrainTag.ThicketEdge) == 0) return false;
+        return Directions.Any(direction =>
+            (maze.GetTerrainGameplayProfile(position + direction).Tags & TerrainTag.ThicketEdge) != 0);
+    }
+
     private void PlaceGroup(Maze maze, ResolvedEnemyEncounter encounter,
         IReadOnlyList<(EnemyDefinition Definition, EnemyGroupRole Role)> members,
         IReadOnlyList<Position> positions, bool roamingHorde)
@@ -269,6 +307,8 @@ public class MazeGenerator
             placed.Add(enemy);
         }
         ConfigureGroupAlertness(maze, placed);
+        if (encounter.Posture == EnemyEncounterPosture.Ambush)
+            foreach (var enemy in placed) enemy.ConfigureAmbush(true, encounter.TriggerDistance);
     }
 
     private void ConfigureGroupAlertness(Maze maze, IReadOnlyList<ConfiguredEnemy> group)

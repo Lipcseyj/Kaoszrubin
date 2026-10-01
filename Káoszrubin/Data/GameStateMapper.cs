@@ -29,7 +29,8 @@ internal sealed class GameStateMapper
         bool partyRegrouping, bool partyAttackMode, bool hasRestedThisLevel, DateTime? partyScatterUntil,
         DateTime nextNeedsDrain,
         IReadOnlyDictionary<Enemy, DateTime> nextEnemyMoves, IReadOnlyCollection<string> collectedBossKeyIds,
-        IReadOnlyCollection<string> seenBossIds)
+        IReadOnlyCollection<string> seenBossIds,
+        IReadOnlyDictionary<CharacterId, int>? terrainExertion = null)
     {
         var now = DateTime.UtcNow;
         var mazeData = new MazeSaveData
@@ -42,6 +43,11 @@ internal sealed class GameStateMapper
             TerrainStyles = maze.TerrainStyles.Select(style => new MazeTerrainStyleSaveData(
                 style.Id, style.Rune.Value, style.ForegroundColor, style.BackgroundColor,
                 style.Walkable, style.BlocksSight)).ToList(),
+            TerrainGameplayProfiles = maze.TerrainGameplayProfiles.Select(entry =>
+                new TerrainGameplayProfileSaveData(entry.Key, entry.Value.Tags,
+                    entry.Value.MovementDelayPercent, entry.Value.ExertionCost,
+                    entry.Value.ConcealmentBonus, entry.Value.NoiseModifier,
+                    entry.Value.SupportsAmbushPlacement)).ToList(),
             Exit = maze.Exit,
             StartingRoom = maze.StartingRoom,
             Rooms = maze.Rooms.Where(room => room != maze.StartingRoom).ToList(),
@@ -78,7 +84,8 @@ internal sealed class GameStateMapper
                 enemy.BossHitPointBonusPercent,
                 enemy.PreparedAbilityId, enemy.PreparedAbilityTurnsRemaining,
                 enemy.PreparedAbilityTargetPosition, enemy.SummonerId,
-                enemy.GrantsRewardsAndLoot, enemy.PreparedAbilityRequiresHeavyStagger)).ToList(),
+                 enemy.GrantsRewardsAndLoot, enemy.PreparedAbilityRequiresHeavyStagger,
+                 enemy.IsAmbushing, enemy.AmbushTriggerDistance)).ToList(),
             Corpses = maze.Corpses.Select(corpse => new CorpseSaveData(corpse.Position, corpse.FormerName,
                 corpse is PartyMemberCorpse partyCorpse ? CharacterIndex(partyCorpse.Character) : null,
                 (corpse as MonsterCorpse)?.EnemyDefinitionId, (corpse as MonsterCorpse)?.IsSearched ?? false,
@@ -118,6 +125,9 @@ internal sealed class GameStateMapper
             ScatterRemainingMilliseconds = partyScatterUntil is { } scatter
                 ? Math.Max(0, (int)(scatter - now).TotalMilliseconds) : 0,
             NeedsDrainRemainingMilliseconds = Math.Max(0, (int)(nextNeedsDrain - now).TotalMilliseconds),
+            TerrainExertion = (terrainExertion ?? new Dictionary<CharacterId, int>())
+                .Where(entry => entry.Value > 0)
+                .Select(entry => new CharacterTerrainExertionSaveData(entry.Key.Value, entry.Value)).ToList(),
             EnemyMoveRemainingMilliseconds = maze.Enemies.Count == 0 ? 0 : maze.Enemies.Min(enemy =>
                 Math.Max(0, (int)(nextEnemyMoves.GetValueOrDefault(enemy, now) - now).TotalMilliseconds)),
             Maze = mazeData,
@@ -148,6 +158,11 @@ internal sealed class GameStateMapper
         foreach (var style in state.Maze.TerrainStyles ?? [])
             maze.RegisterTerrainStyle(new MazeTerrainStyle(style.Id, new Rune(style.RuneCodePoint),
                 style.ForegroundColor, style.BackgroundColor, style.Walkable, style.BlocksSight));
+        foreach (var profile in state.Maze.TerrainGameplayProfiles ?? [])
+            maze.RegisterTerrainGameplayProfile(profile.TerrainStyleId,
+                new TerrainGameplayProfile(profile.Tags, profile.MovementDelayPercent,
+                    profile.ExertionCost, profile.ConcealmentBonus, profile.NoiseModifier,
+                    profile.SupportsAmbushPlacement));
         var tileIndex = 0;
         for (var y = 0; y < maze.Height; y++)
         for (var x = 0; x < maze.Width; x++)
@@ -224,6 +239,7 @@ internal sealed class GameStateMapper
                 savedEnemy.ConsecutivePursuitPathFailures, savedEnemy.SearchAnchorPosition,
                 savedEnemy.SearchVisitedPositions);
             enemy.ConfigureGroup(savedEnemy.GroupId, savedEnemy.GroupRole);
+            enemy.ConfigureAmbush(savedEnemy.IsAmbushing, savedEnemy.AmbushTriggerDistance);
             if (savedEnemy.SummonerId is { } summonerId)
                 enemy.ConfigureSummon(summonerId, savedEnemy.GrantsRewardsAndLoot);
             enemy.RestoreHordeRoaming(savedEnemy.HordeDestination,
@@ -300,7 +316,9 @@ internal sealed class GameStateMapper
             state.HasRestedThisLevel,
             state.ScatterRemainingMilliseconds > 0 ? now + TimeSpan.FromMilliseconds(state.ScatterRemainingMilliseconds) : null,
             now + TimeSpan.FromMilliseconds(Math.Max(0, state.NeedsDrainRemainingMilliseconds)),
-            nextEnemyMoves);
+            nextEnemyMoves,
+            (state.TerrainExertion ?? []).Where(entry => entry.CharacterId != Guid.Empty && entry.Accumulated > 0)
+                .ToDictionary(entry => new CharacterId(entry.CharacterId), entry => entry.Accumulated));
     }
 
     private int CharacterIndex(LiveCharacter character) => Enumerable.Range(0, _characterRoster.Characters.Count)
@@ -344,4 +362,5 @@ internal sealed record RestoredGameState(int MazeLevel, Maze Maze, Player Player
     Direction LeaderFacing, IReadOnlyList<Position> LeaderTrail, bool PartyHoldingPosition,
     bool PartyRegrouping, bool PartyAttackMode, bool HasRestedThisLevel, DateTime? PartyScatterUntil,
     DateTime NextNeedsDrain,
-    IReadOnlyDictionary<Enemy, DateTime> NextEnemyMoves);
+    IReadOnlyDictionary<Enemy, DateTime> NextEnemyMoves,
+    IReadOnlyDictionary<CharacterId, int> TerrainExertion);

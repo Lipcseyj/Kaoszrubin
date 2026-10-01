@@ -9,9 +9,18 @@ public static class EnemyTargeting
         IEnumerable<(LiveCharacter Character, Position Position)> candidates,
         Func<Position, bool> canSee,
         Random random,
+        CharacterId? preferredTargetCharacterId = null) =>
+        ChooseNearestVisibleCandidate(observerPosition, candidates, candidate => canSee(candidate.Position), random,
+            preferredTargetCharacterId);
+
+    public static (LiveCharacter Character, Position Position)? ChooseNearestVisibleCandidate(
+        Position observerPosition,
+        IEnumerable<(LiveCharacter Character, Position Position)> candidates,
+        Func<(LiveCharacter Character, Position Position), bool> canSee,
+        Random random,
         CharacterId? preferredTargetCharacterId = null)
     {
-        var visible = candidates.Where(candidate => candidate.Character.IsAlive && canSee(candidate.Position)).ToArray();
+        var visible = candidates.Where(candidate => candidate.Character.IsAlive && canSee(candidate)).ToArray();
         if (visible.Length == 0) return null;
         if (preferredTargetCharacterId is { } preferredId)
         {
@@ -30,11 +39,21 @@ public static class EnemyTargeting
         int trackingSense,
         Func<Position, int?> pathDistance,
         Random random,
+        CharacterId? preferredTargetCharacterId = null) =>
+        ChooseNearestSensedCandidate(observerPosition, candidates, trackingSense,
+            candidate => pathDistance(candidate.Position), random, preferredTargetCharacterId);
+
+    public static (LiveCharacter Character, Position Position)? ChooseNearestSensedCandidate(
+        Position observerPosition,
+        IEnumerable<(LiveCharacter Character, Position Position)> candidates,
+        int trackingSense,
+        Func<(LiveCharacter Character, Position Position), int?> pathDistance,
+        Random random,
         CharacterId? preferredTargetCharacterId = null)
     {
         if (trackingSense <= 0) return null;
         var sensed = candidates.Where(candidate => candidate.Character.IsAlive)
-            .Select(candidate => (Candidate: candidate, Distance: pathDistance(candidate.Position)))
+            .Select(candidate => (Candidate: candidate, Distance: pathDistance(candidate)))
             .Where(entry => entry.Distance is >= 0 && entry.Distance <= trackingSense).ToArray();
         if (sensed.Length == 0) return null;
         if (preferredTargetCharacterId is { } preferredId)

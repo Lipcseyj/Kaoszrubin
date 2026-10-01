@@ -39,6 +39,25 @@ public static class CharacterClassRules
                (character.Race.HasTrait(RaceTraits.KeenSenses) ? 1 : 0);
     }
 
+    public static int StealthRating(LiveCharacter character, int terrainConcealment = 0,
+        int terrainNoise = 0)
+    {
+        ArgumentNullException.ThrowIfNull(character);
+        var dexterityBonus = Math.Max(0, character.EffectiveAbilities.Dexterity - 5) / 3;
+        var classBonus = IsThief(character.CharacterClass.Id) ? 2 : 0;
+        return Math.Clamp(dexterityBonus + classBonus + Math.Max(0, terrainConcealment) -
+                          Math.Max(0, terrainNoise), 0, 8);
+    }
+
+    /// <summary>A zárt alakzat annyira lopakodó, mint a legkönnyebben észlelhető tagja.</summary>
+    public static int FormationStealthRating(
+        IEnumerable<(LiveCharacter Character, int TerrainConcealment, int TerrainNoise)> members)
+    {
+        ArgumentNullException.ThrowIfNull(members);
+        return members.Select(member => StealthRating(member.Character, member.TerrainConcealment,
+            member.TerrainNoise)).DefaultIfEmpty(0).Min();
+    }
+
     public static bool IsMartial(string characterClassId) => characterClassId is
         CharacterClassIds.Harcos or CharacterClassIds.Barbár or CharacterClassIds.Lovag;
     private static readonly HashSet<string> NonManaClassIds = new(StringComparer.OrdinalIgnoreCase)

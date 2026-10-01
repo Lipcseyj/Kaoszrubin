@@ -44,6 +44,14 @@ public sealed partial class Game
     private void StartBattle(LiveCharacter initiatingCharacter, Enemy initiatingEnemy, bool enemyStrikesFirst)
     {
         if (_battleStarted || !initiatingCharacter.IsAlive || initiatingEnemy.CurrentHitPoints <= 0) return;
+        const int ambushInitiativeBonus = 3;
+        var ambushGroupId = initiatingEnemy.IsAmbushing ? initiatingEnemy.GroupId : null;
+        var ambushingEnemyIds = _maze.Enemies.Where(enemy => enemy.IsAmbushing &&
+                (enemy == initiatingEnemy || ambushGroupId is not null && enemy.GroupId == ambushGroupId))
+            .Select(enemy => enemy.Id).ToHashSet();
+        var ambushTriggered = ambushingEnemyIds.Count > 0;
+        foreach (var enemy in _maze.Enemies.Where(enemy => ambushingEnemyIds.Contains(enemy.Id)))
+            enemy.ConfigureAmbush(false);
         _nextExplorationStatusTickUtc = DateTime.MaxValue;
         CheckBossDiscovery([initiatingEnemy], initiatingCharacter);
         _timeStopUsedThisBattle = false;
@@ -78,13 +86,15 @@ public sealed partial class Game
                             TacticalDistance.IsWithin(initiatingEnemy.Position, enemy.Position) &&
                             (enemy == initiatingEnemy || CanEnemyReachBattleWithinCycles(enemy, friendlyPositions)))
             .DistinctBy(enemy => enemy.Id)
-            .Select(enemy => new BattleEnemyParticipant(enemy, _battleSystem.RollEnemyInitiative(enemy),
+            .Select(enemy => new BattleEnemyParticipant(enemy, _battleSystem.RollEnemyInitiative(enemy) +
+                (ambushingEnemyIds.Contains(enemy.Id) ? ambushInitiativeBonus : 0),
                 EnemyMovementAllowance(enemy), enemy == initiatingEnemy ? 1 : 2,
                 _battleSystem.EnemyOpeningMovementBonus(enemy)))
             .ToList();
         if (enemyParticipants.All(value => value.Enemy != initiatingEnemy))
             enemyParticipants.Add(new BattleEnemyParticipant(initiatingEnemy,
-                _battleSystem.RollEnemyInitiative(initiatingEnemy),
+                _battleSystem.RollEnemyInitiative(initiatingEnemy) +
+                (ambushingEnemyIds.Contains(initiatingEnemy.Id) ? ambushInitiativeBonus : 0),
                 EnemyMovementAllowance(initiatingEnemy), 1,
                 _battleSystem.EnemyOpeningMovementBonus(initiatingEnemy)));
 
@@ -150,6 +160,10 @@ public sealed partial class Game
         PlaySessionSound(SoundEffect.BattleStart);
         _renderer.DrawBattleStarted(initiatingEnemy);
         TryLogPartyComments(PartySituationIds.BattleStarted);
+        if (ambushTriggered)
+            preparationEntries.Insert(0, new BattleLogEntry(
+                $"🌿 RAJTAÜTÉS: a rejtőző ellenségek +{ambushInitiativeBonus} kezdeményezést kapnak; ingyenes támadás nincs.",
+                BattleLogKind.Information));
         PresentBattleEntries(preparationEntries);
         foreach (var protectionMessage in protectionMessages)
         {

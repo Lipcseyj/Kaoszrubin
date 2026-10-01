@@ -33,6 +33,18 @@ public sealed class ForestMazeGenerator : MazeGenerator
         var maze = new Maze(width, height, palette.Tree.Rune, palette.Tree.ForegroundColor, Settings.LevelName);
         foreach (var style in palette.All) maze.RegisterTerrainStyle(style);
         foreach (var style in _forest.BuildingStyles) maze.RegisterTerrainStyle(style.Wall);
+        maze.RegisterTerrainGameplayProfile(palette.Bush.Id,
+            new(TerrainTag.Bush, ConcealmentBonus: 1, NoiseModifier: 1, SupportsAmbushPlacement: true));
+        maze.RegisterTerrainGameplayProfile(palette.FlowerBush.Id,
+            new(TerrainTag.Bush, ConcealmentBonus: 1, NoiseModifier: 1, SupportsAmbushPlacement: true));
+        maze.RegisterTerrainGameplayProfile(palette.Undergrowth.Id,
+            new(TerrainTag.Undergrowth, 20, 1, 1, 1, true));
+        maze.RegisterTerrainGameplayProfile(palette.DenseUndergrowth.Id,
+            new(TerrainTag.DenseUndergrowth, 45, 2, 2, 2, true));
+        maze.RegisterTerrainGameplayProfile(palette.Marsh.Id,
+            new(TerrainTag.Marsh, 70, 3, 0, 2, true));
+        maze.RegisterTerrainGameplayProfile(palette.Thicket.Id,
+            new(TerrainTag.ThicketEdge, ConcealmentBonus: 2, SupportsAmbushPlacement: false));
         maze.ConfigureConnectedTerrainReveal(
             [palette.Tree, palette.Pine, palette.Bush, palette.FlowerBush, palette.Thicket]);
         _reserved = new bool[width, height];

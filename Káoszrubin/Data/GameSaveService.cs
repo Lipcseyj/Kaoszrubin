@@ -494,6 +494,7 @@ public sealed class GameSaveData
     public List<string> RestedAreaIds { get; set; } = [];
     public int ScatterRemainingMilliseconds { get; set; }
     public int NeedsDrainRemainingMilliseconds { get; set; }
+    public List<CharacterTerrainExertionSaveData> TerrainExertion { get; set; } = [];
     public int EnemyMoveRemainingMilliseconds { get; set; }
     public MazeSaveData Maze { get; set; } = new();
     public FogSaveData Fog { get; set; } = new();
@@ -528,6 +529,7 @@ public sealed class MazeSaveData
     public string LevelName { get; set; } = "Labirintus";
     public List<int> TileCodePoints { get; set; } = [];
     public List<MazeTerrainStyleSaveData> TerrainStyles { get; set; } = [];
+    public List<TerrainGameplayProfileSaveData> TerrainGameplayProfiles { get; set; } = [];
     public Position Exit { get; set; }
     public Room? StartingRoom { get; set; }
     public List<Room> Rooms { get; set; } = [];
@@ -544,6 +546,10 @@ public sealed class MazeSaveData
 
 public sealed record MazeTerrainStyleSaveData(string Id, int RuneCodePoint,
     ConsoleColor ForegroundColor, ConsoleColor BackgroundColor, bool Walkable, bool BlocksSight);
+public sealed record TerrainGameplayProfileSaveData(string TerrainStyleId, TerrainTag Tags,
+    int MovementDelayPercent, int ExertionCost, int ConcealmentBonus, int NoiseModifier,
+    bool SupportsAmbushPlacement);
+public sealed record CharacterTerrainExertionSaveData(Guid CharacterId, int Accumulated);
 
 public sealed record DungeonAreaSaveData(string Id, MazeSaveData Maze, FogSaveData Fog,
     string? Name = null, int GridX = 0, int GridY = 0,
@@ -603,7 +609,9 @@ public sealed record EnemySaveData(Position Position, string DefinitionId, int C
     Position? PreparedAbilityTargetPosition = null,
     WorldEntityId? SummonerId = null,
     bool GrantsRewardsAndLoot = true,
-    bool PreparedAbilityRequiresHeavyStagger = false);
+    bool PreparedAbilityRequiresHeavyStagger = false,
+    bool IsAmbushing = false,
+    int AmbushTriggerDistance = 0);
 public sealed record EnemyEquipmentSaveData(string? WeaponId, string? ShieldId, int MagicPower = 0);
 public sealed record CorpseSaveData(Position Position, string FormerName, int? PartyCharacterIndex,
     string? EnemyDefinitionId = null, bool IsSearched = false, List<string>? GuaranteedLootIds = null,

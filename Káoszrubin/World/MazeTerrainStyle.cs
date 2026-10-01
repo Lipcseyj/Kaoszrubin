@@ -5,7 +5,7 @@ using System.Globalization;
 namespace KaoszRubin.World;
 
 /// <summary>
-/// Egy térképrúna játékmeneti és megjelenítési tulajdonságai. A stílus pályánként regisztrált,
+/// Egy térképrúna megjelenítési és alapvető járhatósági tulajdonságai. A stílus pályánként regisztrált,
 /// ezért ugyanaz a tereptípus különböző pályákon más színt kaphat.
 /// </summary>
 [TypeConverter(typeof(ExpandableObjectConverter))]

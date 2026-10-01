@@ -64,6 +64,16 @@ public sealed class PartySustenanceService
         onLogNewZeroNeed(character, NpcComplaintKind.Thirst, waterBefore, character.WaterLevel);
     }
 
+    public void DrainNeedsForTerrainExertion(LiveCharacter character, int units)
+    {
+        if (!character.IsAlive || units <= 0) return;
+        character.ConsumeFood(units);
+        character.ConsumeWater(units * 2);
+        character.SynchronizeNeedStatuses(
+            _gameData.GetStatus(CharacterStatusIds.Hungry),
+            _gameData.GetStatus(CharacterStatusIds.Thirsty));
+    }
+
     public static IEnumerable<(int Index, MiscItemDefinition Item)> BackpackConsumables(
         LiveCharacter character, ConsumableEffect effect) => Enumerable.Range(0, LiveCharacter.MaximumBackpackItemCount)
         .Select(index => (Index: index,

@@ -162,6 +162,29 @@ public sealed partial class Game
         _renderer.RefreshCharacterSheet(PartyLeader);
     }
 
+    private void RegisterTerrainExplorationStep(LiveCharacter character, Position position)
+    {
+        character.RegisterExplorationStep();
+        var cost = _maze.GetTerrainGameplayProfile(position).ExertionCost;
+        if (cost <= 0) return;
+
+        const int exertionThreshold = 10;
+        var accumulated = _terrainExertion.GetValueOrDefault(character.Id) + cost;
+        var units = accumulated / exertionThreshold;
+        _terrainExertion[character.Id] = accumulated % exertionThreshold;
+        if (units == 0) return;
+
+        _sustenanceService.DrainNeedsForTerrainExertion(character, units);
+        if (character == PartyLeader)
+        {
+            var message = "A nehéz terep fokozza az élelem- és vízfogyasztást.";
+            _renderer.DrawInventoryMessage(message, ConsoleColor.DarkYellow);
+            RecordSessionActivity(SessionActivityKind.System, message, ConsoleColor.DarkYellow, [character.Id]);
+            _renderer.RefreshCharacterSheet(character);
+        }
+        if (IsAutonomousNpc(character)) TryNpcUseConsumables(character);
+    }
+
     private void ProcessExplorationStatusEffects()
     {
         var followers = _maze.PartyMembers.Where(member => member.IsTemporaryFollower)

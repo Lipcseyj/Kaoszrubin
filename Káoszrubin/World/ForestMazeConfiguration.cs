@@ -23,11 +23,11 @@ public sealed class ForestTerrainPalette
     public MazeTerrainStyle Tree { get; init; } =
         new("forest-tree", new Rune('♠'), ConsoleColor.DarkGreen, ConsoleColor.Black, false, true);
     public MazeTerrainStyle Bush { get; init; } =
-        new("forest-bush", new Rune('♣'), ConsoleColor.Green, ConsoleColor.Black, false, false);
+        new("forest-bush", new Rune('♣'), ConsoleColor.Green, ConsoleColor.Black, true, false);
     public MazeTerrainStyle Pine { get; init; } =
         new("forest-pine", new Rune('▲'), ConsoleColor.Green, ConsoleColor.Black, false, true);
     public MazeTerrainStyle FlowerBush { get; init; } =
-        new("forest-flower-bush", new Rune('✿'), ConsoleColor.Magenta, ConsoleColor.Black, false, false);
+        new("forest-flower-bush", new Rune('✿'), ConsoleColor.Magenta, ConsoleColor.Black, true, false);
     public MazeTerrainStyle Thicket { get; init; } =
         new("forest-thicket", new Rune('#'), ConsoleColor.DarkGreen, ConsoleColor.Black, false, true);
     public MazeTerrainStyle Undergrowth { get; init; } =

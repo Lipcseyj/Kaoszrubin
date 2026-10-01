@@ -278,12 +278,12 @@ public sealed partial class Game
         _formation = formation;
         _renderer.CharacterSheet.SetFormationStatus(_formation);
 
-        PartyLeader.RegisterExplorationStep();
+        RegisterTerrainExplorationStep(PartyLeader, _player.Position);
         var leaderRevealed = RevealFor(PartyLeader, _player.Position, advanceEnemyMemory: true);
         var memberReveals = new List<Position>();
         foreach (var entry in previousMembers)
         {
-            entry.Avatar.Character.RegisterExplorationStep();
+            RegisterTerrainExplorationStep(entry.Avatar.Character, entry.Destination);
             memberReveals.AddRange(RevealFor(entry.Avatar.Character, entry.Destination,
                 advanceEnemyMemory: true));
         }
@@ -312,6 +312,10 @@ public sealed partial class Game
     {
         var delay = PartyFormationController.CalculateMoveDelay(CharacterRoster.Party.Members,
             ControlledMoveDelayMilliseconds);
+        var positions = CurrentFormationPositions().Values;
+        var terrainDelay = positions.Select(position =>
+            _maze.GetTerrainGameplayProfile(position).MovementDelayPercent).DefaultIfEmpty().Max();
+        delay = Math.Max(1, (int)Math.Round(delay * (100 + Math.Max(0, terrainDelay)) / 100d));
         var next = DateTime.UtcNow + TimeSpan.FromMilliseconds(delay);
         foreach (var member in CharacterRoster.Party.Members) _nextControlledMoves[member.Id] = next;
     }

@@ -885,7 +885,10 @@ public sealed partial class Game
             encounter.Behavior,
             encounter.ScreenNumber,
             encounter.AreaId,
-            encounter.TargetRoomKind);
+            encounter.TargetRoomKind,
+            encounter.TargetTerrainTags,
+            encounter.Posture,
+            encounter.TriggerDistance);
 
         var layout = layoutOverride ?? configuration.Layout ??
                      new ClassicMazeLayoutConfiguration(configuration.DoubleWidthCorridorChance);
@@ -1094,7 +1097,12 @@ public sealed partial class Game
                 _gameData.GetEnemy(member.EnemyId), member.Count, member.Role)).ToList(),
             encounter.MovementProfile,
             encounter.Behavior,
-            encounter.ScreenNumber);
+            encounter.ScreenNumber,
+            encounter.AreaId,
+            encounter.TargetRoomKind,
+            encounter.TargetTerrainTags,
+            encounter.Posture,
+            encounter.TriggerDistance);
         _generator = new MazeGenerator(configuration.CreateGenerationSettings(_random),
             configuration.RoomEncounters.Select(ResolveEncounter).ToList(),
             configuration.CorridorEncounters.Select(ResolveEncounter).ToList(), _random,
@@ -1255,6 +1263,8 @@ public sealed partial class Game
             _dungeonLevel.Areas.Select(area => area.Id));
         _partyScatterUntil = restored.PartyScatterUntil;
         _nextNeedsDrain = restored.NextNeedsDrain;
+        _terrainExertion.Clear();
+        foreach (var entry in restored.TerrainExertion) _terrainExertion[entry.Key] = entry.Value;
         _nextEnemyMoves.Clear();
         foreach (var enemyMove in restored.NextEnemyMoves) _nextEnemyMoves[enemyMove.Key] = enemyMove.Value;
         RefreshNextEnemyActionUtc();

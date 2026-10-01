@@ -319,6 +319,108 @@ internal static partial class Program
             { PineChance = 1, ThicketChance = 1, BushChance = 1, FlowerBushChance = 0 }, [], []);
     }
 
+    static void ForestTerrainGameplayRulesAreApplied()
+    {
+        var palette = new ForestTerrainPalette();
+        var maze = new ForestMazeGenerator(LandscapeSettings(0), new ForestGenerationConfiguration
+        {
+            ForestDensity = 0, UndergrowthChance = 1, DenseUndergrowthChance = 0,
+            LakeCount = new(0, 0), MarshCount = new(0, 0), BuildingCount = new(0, 0)
+        }, [], [], new Random(17)).Create(50, 30);
+        var undergrowth = LandscapeCells(maze).First(position =>
+            (maze.GetTerrainGameplayProfile(position).Tags & TerrainTag.Undergrowth) != 0);
+        var profile = maze.GetTerrainGameplayProfile(undergrowth);
+        Assert(profile.MovementDelayPercent == 20 && profile.ExertionCost == 1 &&
+               profile.ConcealmentBonus == 1 && profile.NoiseModifier == 1 &&
+               profile.SupportsAmbushPlacement,
+            "Az aljnövényzet játékmeneti profilja nem a dokumentált értékeket adja.");
+
+        var fighter = CreateCharacter("Harcos");
+        var thief = CreateCharacter("Tolvaj", characterClassId: CharacterClassIds.Tolvaj);
+        var fighterStealth = CharacterClassRules.StealthRating(fighter, 2, 0);
+        var thiefStealth = CharacterClassRules.StealthRating(thief, 2, 0);
+        var formation = CharacterClassRules.FormationStealthRating(
+            [(fighter, 2, 0), (thief, 2, 0)]);
+        Assert(thiefStealth == fighterStealth + 2 && formation == fighterStealth,
+            "A tolvajbónusz vagy a zárt alakzat legrosszabb-tag lopakodási szabálya hibás.");
+
+        var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
+        var foodBefore = fighter.FoodLevel;
+        var waterBefore = fighter.WaterLevel;
+        new PartySustenanceService(data, new Random(1)).DrainNeedsForTerrainExertion(fighter, 2);
+        Assert(fighter.FoodLevel == foodBefore - 2 && fighter.WaterLevel == waterBefore - 4,
+            "A terepi erőfeszítés nem 1:2 arányban fogyasztott élelmet és vizet.");
+    }
+
+    static void ForestTerrainAmbushPlacementIsStable()
+    {
+        var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
+        Maze GenerateAmbush(TerrainTag tag, ForestGenerationConfiguration configuration, int seed)
+        {
+            var encounter = new ResolvedEnemyEncounter(new(1, 1),
+                [new(data.GetEnemy(MonsterIds.Goblin), new IntRange(3, 3), EnemyGroupRole.Member)],
+                EnemyMovementProfile.Stationary, TargetTerrainTags: tag,
+                Posture: EnemyEncounterPosture.Ambush, TriggerDistance: 4);
+            return new ForestMazeGenerator(LandscapeSettings(0), configuration, [], [encounter],
+                new Random(seed)).Create(170, 44);
+        }
+
+        var bushMaze = GenerateAmbush(TerrainTag.Bush, new()
+        {
+            ForestDensity = 0.65, BushChance = 1, FlowerBushChance = 0, ThicketChance = 0,
+            UndergrowthChance = 0, DenseUndergrowthChance = 0,
+            LakeCount = new(0, 0), MarshCount = new(0, 0), BuildingCount = new(0, 0)
+        }, 23);
+        var denseMaze = GenerateAmbush(TerrainTag.DenseUndergrowth, new()
+        {
+            ForestDensity = 0, UndergrowthChance = 0, DenseUndergrowthChance = 1,
+            LakeCount = new(0, 0), MarshCount = new(0, 0), BuildingCount = new(0, 0)
+        }, 24);
+        var marshMaze = GenerateAmbush(TerrainTag.Marsh, new()
+        {
+            ForestDensity = 0, UndergrowthChance = 0, DenseUndergrowthChance = 0,
+            LakeCount = new(0, 0), MarshCount = new(3, 3), MarshRadius = new(7, 7),
+            BuildingCount = new(0, 0)
+        }, 25);
+        foreach (var (maze, tag) in new[]
+                 {
+                     (bushMaze, TerrainTag.Bush),
+                     (denseMaze, TerrainTag.DenseUndergrowth),
+                     (marshMaze, TerrainTag.Marsh)
+                 })
+            Assert(maze.Enemies.Count == 3 && maze.Enemies.All(enemy => enemy.IsAmbushing &&
+                       enemy.AmbushTriggerDistance == 4 &&
+                       (maze.GetTerrainGameplayProfile(enemy.Position).Tags & tag) != 0) &&
+                   maze.Enemies.Select(enemy => enemy.GroupId).Distinct().Count() == 1,
+                $"A(z) {tag} célzott rajtaütés elhelyezése vagy posture-je hibás.");
+
+        var level = MazeLevelConfigurations.Get(6);
+        var ambushes = level.CorridorEncounters.Where(item => item.Posture == EnemyEncounterPosture.Ambush).ToArray();
+        Assert(ambushes.Length == 3 && ambushes.All(item => item.AreaId is not null && item.TriggerDistance is 4 or 5),
+            "A Tiltott Erdő célzott rajtaütéseinek száma vagy területi rögzítése hibás.");
+    }
+
+    static void ForestTerrainGameplaySaveDataRoundTrips()
+    {
+        var state = new GameSaveData
+        {
+            TerrainExertion = [new(Guid.NewGuid(), 7)],
+            Maze = new MazeSaveData
+            {
+                TerrainGameplayProfiles = [new("forest-marsh", TerrainTag.Marsh, 70, 3, 0, 2, true)],
+                Enemies = [new(new Position(3, 3), MonsterIds.Goblin, 10,
+                    IsAmbushing: true, AmbushTriggerDistance: 4)]
+            }
+        };
+        var restored = JsonSerializer.Deserialize<GameSaveData>(JsonSerializer.Serialize(state))!;
+        var legacy = JsonSerializer.Deserialize<GameSaveData>("{\"Version\":1,\"Maze\":{}}")!;
+        Assert(restored.TerrainExertion.Single().Accumulated == 7 &&
+               restored.Maze.TerrainGameplayProfiles.Single().MovementDelayPercent == 70 &&
+               restored.Maze.Enemies.Single() is { IsAmbushing: true, AmbushTriggerDistance: 4 } &&
+               legacy.TerrainExertion.Count == 0 && legacy.Maze.TerrainGameplayProfiles.Count == 0,
+            "A terepi játékmenet mentési adatai vagy a régi mentések üres alapértékei hibásak.");
+    }
+
     static MazeGenerationSettings LandscapeSettings(int rooms) => new()
         { RoomCount = rooms, MinimumRoomSize = 4, MaximumRoomSize = 7, TreasureChestCount = 0 };
 

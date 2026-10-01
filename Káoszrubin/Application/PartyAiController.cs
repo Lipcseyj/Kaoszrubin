@@ -31,7 +31,7 @@ public sealed class PartyAiController
     }
 
     public void ScheduleNextPartyMove(PartyMemberAvatar member, DateTime from, Player player,
-        IDictionary<PartyMemberAvatar, DateTime> nextPartyMoves)
+        IDictionary<PartyMemberAvatar, DateTime> nextPartyMoves, int terrainDelayPercent = 0)
     {
         var distance = PartyMovementController.Manhattan(member.Position, player.Position);
         var minimumDelay = distance >= 8 ? CatchUpMoveDelayMilliseconds :
@@ -40,16 +40,23 @@ public sealed class PartyAiController
             distance >= 5 ? 170 : MaximumPartyMoveDelayMilliseconds;
         (minimumDelay, maximumDelay) = CharacterMobilityRules.ScaleExplorationDelay(member.Character,
             minimumDelay, maximumDelay);
+        minimumDelay = ApplyTerrainDelay(minimumDelay, terrainDelayPercent);
+        maximumDelay = ApplyTerrainDelay(maximumDelay, terrainDelayPercent);
         nextPartyMoves[member] = from + TimeSpan.FromMilliseconds(_random.Next(minimumDelay, maximumDelay + 1));
     }
 
     public bool CanControlledCharacterMove(LiveCharacter character, IReadOnlyDictionary<CharacterId, DateTime> nextControlledMoves) =>
         nextControlledMoves.GetValueOrDefault(character.Id) <= DateTime.UtcNow;
 
-    public void ScheduleNextControlledMove(LiveCharacter character, IDictionary<CharacterId, DateTime> nextControlledMoves)
+    public void ScheduleNextControlledMove(LiveCharacter character, IDictionary<CharacterId, DateTime> nextControlledMoves,
+        int terrainDelayPercent = 0)
     {
         var delay = Math.Max(35, (int)Math.Round(ControlledMoveDelayMilliseconds *
             CharacterMobilityRules.Evaluate(character).ExplorationDelayMultiplier));
+        delay = ApplyTerrainDelay(delay, terrainDelayPercent);
         nextControlledMoves[character.Id] = DateTime.UtcNow + TimeSpan.FromMilliseconds(delay);
     }
+
+    private static int ApplyTerrainDelay(int delay, int terrainDelayPercent) =>
+        Math.Max(1, (int)Math.Round(delay * (100 + Math.Max(0, terrainDelayPercent)) / 100d));
 }

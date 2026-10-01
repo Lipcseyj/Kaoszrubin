@@ -122,7 +122,7 @@ public sealed class FogOfWar
         foreach (var enemy in maze.Enemies.Where(enemy => !nowVisible.ContainsKey(enemy.Id) &&
                      (!_enemyMemories.TryGetValue(enemy.Id, out var memory) || memory.IsSoundCue)))
         {
-            if (!perceptionSources.Any(source => CanHearEnemy(source, enemy))) continue;
+            if (!perceptionSources.Any(source => CanHearEnemy(maze, source, enemy))) continue;
             _enemyMemories[enemy.Id] = new EnemySightMemory(ApproximateSoundPosition(maze, enemy), 2, true);
         }
         foreach (var id in _enemyMemories.Keys.Where(id => !livingEnemyIds.Contains(id)).ToArray())
@@ -149,21 +149,24 @@ public sealed class FogOfWar
 
     public static bool CanDetectEnemyFrom(Maze maze, PartyPerceptionSource source, Enemy enemy)
     {
+        var terrain = maze.GetTerrainGameplayProfile(enemy.Position);
         var effectiveStealth = enemy.IsPerceptiblyActive
             ? 0
-            : Math.Max(0, enemy.Definition.Stealth - source.DetectionBonus);
+            : Math.Max(0, enemy.Definition.Stealth + terrain.ConcealmentBonus - source.DetectionBonus);
         var detectionRange = Math.Max(1, source.VisionRange - effectiveStealth);
         return CanSee(maze, source.Origin, enemy.Position, detectionRange);
     }
 
-    private static bool CanHearEnemy(PartyPerceptionSource source, Enemy enemy)
+    private static bool CanHearEnemy(Maze maze, PartyPerceptionSource source, Enemy enemy)
     {
-        if (enemy.Definition.Noise <= 0 ||
-            !IsWithinVisionRange(source.Origin, enemy.Position, source.HearingRange + enemy.Definition.Noise))
+        var noise = Math.Max(0, enemy.Definition.Noise +
+            maze.GetTerrainGameplayProfile(enemy.Position).NoiseModifier);
+        if (noise <= 0 ||
+            !IsWithinVisionRange(source.Origin, enemy.Position, source.HearingRange + noise))
             return false;
-        if (enemy.Definition.Noise >= 4) return true;
+        if (noise >= 4) return true;
         var roll = (HashCode.Combine(enemy.Id.Value, enemy.Position, source.Origin) & int.MaxValue) % 100;
-        return roll < enemy.Definition.Noise * 25;
+        return roll < noise * 25;
     }
 
     private static Position ApproximateSoundPosition(Maze maze, Enemy enemy)

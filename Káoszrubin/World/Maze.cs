@@ -29,6 +29,8 @@ public sealed class Maze
     private readonly Dictionary<Position, MazeTrap> _trapsByPosition = [];
     private readonly Dictionary<Position, List<Corpse>> _corpsesByPosition = [];
     private readonly Dictionary<int, MazeTerrainStyle> _terrainStyles = [];
+    private readonly Dictionary<string, TerrainGameplayProfile> _terrainGameplayProfiles =
+        new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<int> _connectedRevealTerrainRunes = [];
 
     public WorldId Id { get; } = WorldId.New();
@@ -44,6 +46,8 @@ public sealed class Maze
     public IReadOnlyCollection<MazePassage> Passages => _passages.Values;
     public IReadOnlyCollection<MazeDoor> Doors => _doors.Values;
     public IReadOnlyCollection<MazeTerrainStyle> TerrainStyles => _terrainStyles.Values;
+    public IReadOnlyDictionary<string, TerrainGameplayProfile> TerrainGameplayProfiles =>
+        _terrainGameplayProfiles;
     public bool HasConnectedTerrainReveal => _connectedRevealTerrainRunes.Count > 0;
     public Room? StartingRoom { get; private set; }
     public int Width { get; }
@@ -121,6 +125,15 @@ public sealed class Maze
         _terrainStyles[style.Rune.Value] = style;
     }
 
+    /// <summary>Játékmeneti hatást társít egy regisztrált terepstílushoz.</summary>
+    public void RegisterTerrainGameplayProfile(string terrainStyleId, TerrainGameplayProfile profile)
+    {
+        if (string.IsNullOrWhiteSpace(terrainStyleId))
+            throw new ArgumentException("A terepstílus azonosítója nem lehet üres.", nameof(terrainStyleId));
+        ArgumentNullException.ThrowIfNull(profile);
+        _terrainGameplayProfiles[terrainStyleId] = profile;
+    }
+
     /// <summary>
     /// Az itt megadott, egymással összefüggő terepek alakja a közvetlenül meglátott
     /// perem mögött is kirajzolódhat. Ez csak a tartós térképfelfedést érinti.
@@ -149,6 +162,14 @@ public sealed class Maze
     {
         if (!IsInside(position)) return null;
         return _terrainStyles.GetValueOrDefault(Tiles[position.X, position.Y].Value);
+    }
+
+    public TerrainGameplayProfile GetTerrainGameplayProfile(Position position)
+    {
+        var style = GetTerrainStyle(position);
+        return style is not null && _terrainGameplayProfiles.TryGetValue(style.Id, out var profile)
+            ? profile
+            : TerrainGameplayProfile.None;
     }
 
     public void PlaceDoor(Position position, DoorState state,

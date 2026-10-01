@@ -219,7 +219,7 @@ public sealed partial class Game
         var state = _gameStateMapper.Create(_mazeLevel, _maze, _player, _fogOfWar, _leaderFacing,
             _leaderTrail, _partyHoldingPosition, _partyRegrouping, _partyAttackMode,
             _dungeonRestState.HasRested(_dungeonLevel?.ActiveAreaId ?? "AREA_1"), _partyScatterUntil,
-            _nextNeedsDrain, _nextEnemyMoves, _collectedBossKeyIds, _seenBossIds);
+            _nextNeedsDrain, _nextEnemyMoves, _collectedBossKeyIds, _seenBossIds, _terrainExertion);
         if (_dungeonLevel is not null)
         {
             state.ActiveAreaId = _dungeonLevel.ActiveAreaId;
@@ -351,6 +351,8 @@ public sealed partial class Game
             _dungeonLevel.Areas.Select(area => area.Id));
         _partyScatterUntil = restored.PartyScatterUntil;
         _nextNeedsDrain = restored.NextNeedsDrain;
+        _terrainExertion.Clear();
+        foreach (var entry in restored.TerrainExertion) _terrainExertion[entry.Key] = entry.Value;
         _nextEnemyMoves.Clear();
         foreach (var enemyMove in restored.NextEnemyMoves) _nextEnemyMoves[enemyMove.Key] = enemyMove.Value;
         RefreshNextEnemyActionUtc();
@@ -602,8 +604,8 @@ public sealed partial class Game
                 return;
             }
         }
-        PartyLeader.RegisterExplorationStep();
-        ScheduleNextControlledMove(PartyLeader);
+        RegisterTerrainExplorationStep(PartyLeader, _player.Position);
+        ScheduleNextControlledMove(PartyLeader, _player.Position);
         _leaderFacing = direction;
         if (_leaderTrail[^1] != _player.Position) _leaderTrail.Add(_player.Position);
         if (_leaderTrail.Count > 256) _leaderTrail.RemoveRange(0, _leaderTrail.Count - 256);
@@ -637,8 +639,8 @@ public sealed partial class Game
         if (!CanEnterTrap(member.Character, destination)) return;
         if (!_maze.TryMovePartyMember(member, destination, _player.Position,
                 allowTreasureChest: true, allowWorldNpc: true)) return;
-        member.Character.RegisterExplorationStep();
-        ScheduleNextControlledMove(member.Character);
+        RegisterTerrainExplorationStep(member.Character, member.Position);
+        ScheduleNextControlledMove(member.Character, member.Position);
         var newlyRevealed = RevealFor(member.Character, member.Position, advanceEnemyMemory: true);
         _renderer.DrawPartyMemberMovement(_maze, _fogOfWar, previous, member.Position, newlyRevealed, _player.Position);
         PlayCharacterStepSound(member.Character);

@@ -26,6 +26,12 @@ public sealed record IntRange(int Minimum, int Maximum)
     public int Roll(Random random) => random.Next(Minimum, Maximum + 1);
 }
 
+public enum EnemyEncounterPosture
+{
+    Normal,
+    Ambush
+}
+
 public sealed class IntRangeTypeConverter : ExpandableObjectConverter
 {
     public override bool CanConvertFrom(ITypeDescriptorContext? context, Type sourceType) =>
@@ -104,7 +110,10 @@ public sealed record EnemyEncounterConfiguration(IntRange GroupCount,
     EnemyEncounterBehavior Behavior = EnemyEncounterBehavior.Default,
     int? ScreenNumber = null,
     string? AreaId = null,
-    RoomKind? TargetRoomKind = null);
+    RoomKind? TargetRoomKind = null,
+    TerrainTag TargetTerrainTags = TerrainTag.None,
+    EnemyEncounterPosture Posture = EnemyEncounterPosture.Normal,
+    int TriggerDistance = 0);
 
 /// <summary>Egy különleges szobába garantáltan elhelyezett ellenségtípus.</summary>
 /// <param name="RoomId">A célként használt quest- vagy boss-szoba tartalomazonosítója.</param>
@@ -173,6 +182,13 @@ public static class Encounters
         new(groups.Range(),
             [new(leaderId, Amount.One.Range(), EnemyGroupRole.Leader), new(followerId, followers.Range())],
             EnemyMovementProfile.Wander, EnemyEncounterBehavior.Horde, screen);
+
+    /// <summary>Terepre célzott, éber és mozdulatlan csoport, amely a parti közeledésekor támad.</summary>
+    public static EnemyEncounterConfiguration TerrainAmbush(string enemyId, Amount groups, Amount size,
+        TerrainTag terrainTags, int triggerDistance = 4, int? screen = null) =>
+        new(groups.Range(), [new(enemyId, size.Range())], EnemyMovementProfile.Stationary,
+            ScreenNumber: screen, TargetTerrainTags: terrainTags,
+            Posture: EnemyEncounterPosture.Ambush, TriggerDistance: Math.Max(1, triggerDistance));
 }
 
 /// <summary>Egy kampánypálya vagy külön küldetéshelyszín teljes szerkesztői konfigurációja.</summary>
@@ -596,7 +612,7 @@ public static class MazeLevelConfigurations
                             Tree = new("forbidden-tree", new('♠'), ConsoleColor.DarkGreen,
                                 ConsoleColor.Black, false, true),
                             FlowerBush = new("forbidden-flower-bush", new('✿'), ConsoleColor.DarkMagenta,
-                                ConsoleColor.Black, false, false),
+                                ConsoleColor.Black, true, false),
                             Water = new("forbidden-water", new('≈'), ConsoleColor.DarkBlue,
                                 ConsoleColor.Black, false, false),
                             Marsh = new("forbidden-marsh", new('≋'), ConsoleColor.DarkYellow,
@@ -630,7 +646,16 @@ public static class MazeLevelConfigurations
                     Encounters.Solo(MonsterIds.HegyiHiúz, Amount.Handful, EnemyMovementProfile.Patrol),
                     Encounters.MixedHorde(MonsterIds.Goblin, Amount.Several, MonsterIds.GoblinÍjász,
                         Amount.Few, Amount.Handful),
-                    Encounters.Solo(MonsterIds.Vadkan, Amount.Handful)
+                    Encounters.Solo(MonsterIds.Vadkan, Amount.Handful),
+                    Encounters.TerrainAmbush(MonsterIds.GoblinÍjász, Amount.One, Amount.Few,
+                        TerrainTag.Bush | TerrainTag.Undergrowth, triggerDistance: 5) with
+                        { AreaId = "WHISPERING_WOOD" },
+                    Encounters.TerrainAmbush(MonsterIds.HegyiHiúz, Amount.One, Amount.Few,
+                        TerrainTag.DenseUndergrowth | TerrainTag.ThicketEdge, triggerDistance: 4) with
+                        { AreaId = "THORN_MAZE" },
+                    Encounters.TerrainAmbush(MonsterIds.Goblin, Amount.One, Amount.Several,
+                        TerrainTag.Marsh, triggerDistance: 4) with
+                        { AreaId = "BLACKWATER" }
                 ]
             },
             [7] = new()
@@ -1250,6 +1275,9 @@ public sealed record ResolvedEnemyEncounter(IntRange GroupCount,
     EnemyEncounterBehavior Behavior = EnemyEncounterBehavior.Default,
     int? ScreenNumber = null,
     string? AreaId = null,
-    RoomKind? TargetRoomKind = null);
+    RoomKind? TargetRoomKind = null,
+    TerrainTag TargetTerrainTags = TerrainTag.None,
+    EnemyEncounterPosture Posture = EnemyEncounterPosture.Normal,
+    int TriggerDistance = 0);
 
 #endregion

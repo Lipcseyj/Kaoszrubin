@@ -24,6 +24,49 @@ közös 1-es összegbe beosztani. A fenyvesek és a bozót tényleges mennyiség
 metszik a fás területet. A bokrok helyét az erdőszegély korlátozza; a tisztások belsejét és az
 épületeket nem töltik ki. A fás foltok és az aljnövényzet változó léptékű, szabálytalan formák.
 
+## Terepi játékmeneti profilok
+
+A terep megjelenése és járhatósága a `MazeTerrainStyle`, a további hatások pedig külön
+`TerrainGameplayProfile` objektumban vannak. Az erdei generátor alapértékei:
+
+| Terep | Mozgáskésleltetés | Erőfeszítés | Rejtőzés | Zaj | Rejtett encounter |
+| --- | ---: | ---: | ---: | ---: | --- |
+| Bokor / virágos bokor | 0% | 0 | +1 | +1 | igen |
+| Aljnövényzet | 20% | 1 | +1 | +1 | igen |
+| Sűrű aljnövényzet | 45% | 2 | +2 | +2 | igen |
+| Mocsár | 70% | 3 | 0 | +2 | igen |
+| Sűrű bozót széle | nem járható | 0 | +2 | 0 | nem |
+
+Az erőfeszítés a későbbi extra étel- és vízfogyasztás bemenete. A rejtőzés a látásalapú
+észlelés ellen hat, a pozitív zajérték viszont a hallhatóságot növeli. A sűrű bozót továbbra is
+járhatatlan: a mellette álló egység használhatja a takarást, de encounter nem kerülhet magára a mezőre.
+
+Minden sikeres lépés hozzáadja a célcella erőfeszítését a karakter saját számlálójához. Tíz pont
+után 1 egység extra étel és 2 egység extra víz fogy. A mozgáskésleltetés a célcellából származik;
+zárt alakzatnál a leglassabb elfoglalt terep, lopakodásnál pedig a legrosszabb tag számít.
+
+### Terepre célzott rajtaütések
+
+Az encounter-listákban az `Encounters.TerrainAmbush` helperrel lehet kis, rejtőző csoportot létrehozni:
+
+`Encounters.TerrainAmbush(MonsterIds.GoblinÍjász, Amount.One, Amount.Few,
+TerrainTag.Bush | TerrainTag.Undergrowth, triggerDistance: 5)`
+
+A `with { AreaId = "WHISPERING_WOOD" }` kiegészítés explicit gráfnál egyetlen képernyőre rögzíti.
+A célterep tagek kombinálhatók: `Bush`, `Undergrowth`, `DenseUndergrowth`, `Marsh` és
+`ThicketEdge`. A bozót esetén az ellenfél nem a járhatatlan mezőn, hanem annak járható szélén jelenik
+meg. A generátor kizárja a bejáratot, kijáratot, ajtót, átjárót és minden foglalt cellát, majd
+összefüggő területet keres a teljes csoportnak.
+
+A rajtaütők éberek, de mozdulatlanok. Aktiváláskor a teljes csoport feloldódik, és a harc elején
+tagjai +3 kezdeményezést kapnak; ingyen támadás nincs. Balanszoláskor területenként legfeljebb egy
+kis célzott csoport ajánlott. A `triggerDistance` jellemzően 4–5 legyen, és a hagyományos corridor
+encounterek számát csak akkor érdemes növelni, ha a pálya ritkának érződik.
+
+A ForestMapEditor **Terephatás/rajtaütés overlay** kapcsolója a terminál-előnézetben betűkkel jelöli
+a játékmeneti terepeket és `!` jellel az esetleg már elhelyezett ellenfelet. Kikapcsolva az eredeti
+játékszerű megjelenítés látható.
+
 ## Vizes területek és ösvények
 
 | Beállítás | Jelentés |

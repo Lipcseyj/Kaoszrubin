@@ -117,10 +117,21 @@ public sealed partial class Game
         {
             ScheduleNextEnemyMove(enemy, now);
             if (enemy.ConsumeExplorationSpellActionSkip()) continue;
+            var proximityTarget = FindAmbushProximityTarget(enemy);
             var visibleTarget = FindVisibleEnemyTarget(enemy);
-            var detectedTarget = visibleTarget ?? FindSensedEnemyTarget(enemy);
+            var detectedTarget = proximityTarget ?? visibleTarget ?? FindSensedEnemyTarget(enemy);
+            if (enemy.IsAmbushing && detectedTarget is { } ambushTarget)
+            {
+                var avatar = _maze.PartyMembers.FirstOrDefault(member =>
+                    member.Character.Id == ambushTarget.Character.Id);
+                if (avatar is null) StartBattle(enemy);
+                else StartBattle(avatar, enemy);
+                return true;
+            }
             if (detectedTarget is not null)
                 AlertEnemyGroup(enemy, detectedTarget.Value.Character.Id, detectedTarget.Value.Position);
+            else if (enemy.IsAmbushing)
+                continue;
             if (enemy.ConsumeReactionDelay()) continue;
 
             Direction? direction;
@@ -213,23 +224,60 @@ public sealed partial class Game
 
     private (LiveCharacter Character, Position Position)? FindVisibleEnemyTarget(Enemy enemy)
     {
-        return EnemyTargeting.ChooseNearestVisible(enemy.Position, LivingPartyWithPositions().ToArray(),
-            position => FogOfWar.CanSee(_maze, enemy.Position, position, enemy.EffectiveVisionRange), _random,
+        var formationStealth = LockedFormationStealthRating();
+        return EnemyTargeting.ChooseNearestVisibleCandidate(enemy.Position, LivingPartyWithPositions().ToArray(),
+            candidate =>
+            {
+                var stealth = formationStealth ?? CharacterStealthAt(candidate.Character, candidate.Position);
+                var range = Math.Max(1, enemy.EffectiveVisionRange - stealth);
+                return FogOfWar.CanSee(_maze, enemy.Position, candidate.Position, range);
+            }, _random,
             enemy.PursuitTargetCharacterId);
+    }
+
+    private (LiveCharacter Character, Position Position)? FindAmbushProximityTarget(Enemy enemy)
+    {
+        if (!enemy.IsAmbushing || enemy.AmbushTriggerDistance <= 0) return null;
+        return LivingPartyWithPositions().Where(candidate => candidate.Character.IsAlive &&
+                Manhattan(enemy.Position, candidate.Position) <= enemy.AmbushTriggerDistance)
+            .OrderBy(candidate => Manhattan(enemy.Position, candidate.Position))
+            .FirstOrDefault() is { Character: not null } target ? target : null;
     }
 
     private (LiveCharacter Character, Position Position)? FindSensedEnemyTarget(Enemy enemy)
     {
-        return EnemyTargeting.ChooseNearestSensed(enemy.Position, LivingPartyWithPositions().ToArray(),
+        return EnemyTargeting.ChooseNearestSensedCandidate(enemy.Position, LivingPartyWithPositions().ToArray(),
             enemy.Definition.TrackingSense,
-            position => EnemyDistanceMap(position).TryGetValue(enemy.Position, out var distance) ? distance : null,
+            candidate =>
+            {
+                if (!EnemyDistanceMap(candidate.Position).TryGetValue(enemy.Position, out var distance)) return null;
+                var terrain = _maze.GetTerrainGameplayProfile(candidate.Position);
+                return Math.Max(0, distance + terrain.ConcealmentBonus - terrain.NoiseModifier);
+            },
             _random, enemy.PursuitTargetCharacterId);
+    }
+
+    private int CharacterStealthAt(LiveCharacter character, Position position)
+    {
+        var terrain = _maze.GetTerrainGameplayProfile(position);
+        return CharacterClassRules.StealthRating(character, terrain.ConcealmentBonus, terrain.NoiseModifier);
+    }
+
+    private int? LockedFormationStealthRating()
+    {
+        if (_formation.State != PartyFormationState.Locked) return null;
+        return CharacterClassRules.FormationStealthRating(LivingPartyWithPositions().Select(entry =>
+        {
+            var terrain = _maze.GetTerrainGameplayProfile(entry.Position);
+            return (entry.Character, terrain.ConcealmentBonus, terrain.NoiseModifier);
+        }));
     }
 
     private void AlertEnemyGroup(Enemy observer, CharacterId targetCharacterId, Position targetPosition)
     {
         foreach (var enemy in EnemyGroup(observer))
         {
+            enemy.ConfigureAmbush(false);
             var memoryMoves = _random.Next(Enemy.MinimumPursuitMemoryMoves,
                 Enemy.MaximumPursuitMemoryMoves + 1);
             if (enemy.PursuitState == EnemyPursuitState.Pursuing &&
@@ -390,7 +438,7 @@ public sealed partial class Game
 
     private void ScheduleNextEnemyMove(Enemy enemy, DateTime from)
     {
-        var scheduled = from + EnemyMoveInterval(enemy);
+        var scheduled = from + ApplyTerrainDelay(EnemyMoveInterval(enemy), enemy.Position);
         _nextEnemyMoves[enemy] = scheduled;
         if (scheduled < _nextEnemyActionUtc) _nextEnemyActionUtc = scheduled;
     }
@@ -402,6 +450,12 @@ public sealed partial class Game
     {
         var speed = Math.Max(1, enemy.EffectiveSpeed);
         return TimeSpan.FromMilliseconds((double)ZombieMoveIntervalMilliseconds * ZombieSpeed / speed);
+    }
+
+    private TimeSpan ApplyTerrainDelay(TimeSpan interval, Position position)
+    {
+        var percent = Math.Max(0, _maze.GetTerrainGameplayProfile(position).MovementDelayPercent);
+        return TimeSpan.FromMilliseconds(interval.TotalMilliseconds * (100 + percent) / 100d);
     }
 
     private bool TryMoveEnemy(Enemy enemy, Direction direction)
@@ -419,6 +473,7 @@ public sealed partial class Game
             return true;
         }
         if (!_maze.TryMoveEnemy(enemy, destination)) return false;
+        ScheduleNextEnemyMove(enemy, DateTime.UtcNow);
         var perceptionChanges = RevealFor(PartyLeader, _player.Position);
         _renderer.DrawEnemyMovement(_maze, _fogOfWar, previousPosition, enemy.Position, _player.Position,
             perceptionChanges);
@@ -570,7 +625,8 @@ public sealed partial class Game
             var next = ChoosePartyMemberStep(member);
             if (next is null || !CanEnterTrap(member.Character, next.Value) ||
                 !_maze.TryMovePartyMember(member, next.Value, _player.Position)) continue;
-            member.Character.RegisterExplorationStep();
+            RegisterTerrainExplorationStep(member.Character, member.Position);
+            ScheduleNextPartyMove(member, now);
             var newlyRevealed = RevealFor(member.Character, member.Position, advanceEnemyMemory: true);
             _renderer.DrawPartyMemberMovement(_maze, _fogOfWar, previous, member.Position, newlyRevealed, _player.Position);
             CheckBossDiscoveryAt(newlyRevealed, member.Character);
@@ -645,7 +701,7 @@ public sealed partial class Game
 
     private void RegisterFormationAssemblyMove(PartyMemberAvatar member, Position previous)
     {
-        member.Character.RegisterExplorationStep();
+        RegisterTerrainExplorationStep(member.Character, member.Position);
         var newlyRevealed = RevealFor(member.Character, member.Position, advanceEnemyMemory: true);
         _renderer.DrawPartyMemberMovement(_maze, _fogOfWar, previous, member.Position, newlyRevealed,
             _player.Position);
@@ -731,7 +787,7 @@ public sealed partial class Game
         var previous = member.Position;
         if (!CanEnterTrap(member.Character, next.Value) ||
             !_maze.TryMovePartyMember(member, next.Value, _player.Position)) return false;
-        member.Character.RegisterExplorationStep();
+        RegisterTerrainExplorationStep(member.Character, member.Position);
         var newlyRevealed = RevealFor(member.Character, member.Position, advanceEnemyMemory: true);
         _renderer.DrawPartyMemberMovement(_maze, _fogOfWar, previous, member.Position, newlyRevealed,
             _player.Position);
@@ -770,7 +826,7 @@ public sealed partial class Game
     private void ApplyFollowerEscortMoveEffects(PartyMemberAvatar follower, Position destination,
         Position previous)
     {
-        follower.Character.RegisterExplorationStep();
+        RegisterTerrainExplorationStep(follower.Character, destination);
         var newlyRevealed = RevealFor(follower.Character, destination, advanceEnemyMemory: true);
         _renderer.DrawPartyMemberMovement(_maze, _fogOfWar, previous, destination, newlyRevealed,
             _player.Position);
@@ -792,7 +848,7 @@ public sealed partial class Game
         var previous = member.Position;
         if (!CanEnterTrap(member.Character, next.Value) ||
             !_maze.TryMovePartyMember(member, next.Value, _player.Position)) return false;
-        member.Character.RegisterExplorationStep();
+        RegisterTerrainExplorationStep(member.Character, member.Position);
         var newlyRevealed = RevealFor(member.Character, member.Position, advanceEnemyMemory: true);
         _renderer.DrawPartyMemberMovement(_maze, _fogOfWar, previous, member.Position, newlyRevealed, _player.Position);
         CheckBossDiscoveryAt(newlyRevealed, member.Character);
@@ -812,13 +868,15 @@ public sealed partial class Game
         !string.Equals(follower.StoryStateId, "JOINED", StringComparison.OrdinalIgnoreCase);
 
     private void ScheduleNextPartyMove(PartyMemberAvatar member, DateTime from) =>
-        _partyAiController.ScheduleNextPartyMove(member, from, _player, _nextPartyMoves);
+        _partyAiController.ScheduleNextPartyMove(member, from, _player, _nextPartyMoves,
+            _maze.GetTerrainGameplayProfile(member.Position).MovementDelayPercent);
 
     private bool CanControlledCharacterMove(LiveCharacter character) =>
         _partyAiController.CanControlledCharacterMove(character, _nextControlledMoves);
 
-    private void ScheduleNextControlledMove(LiveCharacter character) =>
-        _partyAiController.ScheduleNextControlledMove(character, _nextControlledMoves);
+    private void ScheduleNextControlledMove(LiveCharacter character, Position position) =>
+        _partyAiController.ScheduleNextControlledMove(character, _nextControlledMoves,
+            _maze.GetTerrainGameplayProfile(position).MovementDelayPercent);
 
     private Position? ChoosePartyMemberStep(PartyMemberAvatar member)
     {

@@ -38,6 +38,13 @@ internal sealed class ForestMapEditorForm : Form
     private readonly ComboBox _entrance = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 145 };
     private readonly ComboBox _exit = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 145 };
     private readonly NumericUpDown _level = Number(1, 999, 6);
+    private readonly CheckBox _previewGameplayOverlay = new()
+    {
+        Text = "Terephatás/rajtaütés overlay",
+        AutoSize = true,
+        Checked = true,
+        Padding = new Padding(0, 6, 0, 0)
+    };
     private readonly PropertyGrid _forestProperties = new() { Width = 390, Height = 620, HelpVisible = true, ToolbarVisible = true };
     private bool _loadingSelection;
     private ForestGenerationConfiguration _propertyGridInherited = new();
@@ -83,6 +90,7 @@ internal sealed class ForestMapEditorForm : Form
         bar.Controls.Add(Button("Mentés másként", (_, _) => SaveDocumentAs()));
         bar.Controls.Add(Button("Validálás", (_, _) => ValidateDocument(showSuccess: true)));
         bar.Controls.Add(Button("Template-részletek", (_, _) => ShowTemplateDetails()));
+        bar.Controls.Add(_previewGameplayOverlay);
         bar.Controls.Add(Button("Új előnézet", (_, _) => PreviewSelected(reuseLastSeed: false)));
         bar.Controls.Add(Button("Előző seed ismétlése", (_, _) => PreviewSelected(reuseLastSeed: true)));
         bar.Controls.Add(Button("Oldalpanel", (_, _) => ToggleInspector()));
@@ -384,7 +392,7 @@ internal sealed class ForestMapEditorForm : Form
             var previewTitle = $"{_selected.Name} — seed: {seed}";
             var maze = new ForestMazeGenerator(settings, configuration, [], [], new Random(seed)).Create(170, 44);
             UpdateStatus($"Előnézet: {_selected.Name}, seed: {seed}");
-            if (!TerminalMazePreview.TryShow(maze, previewTitle, out var error))
+            if (!TerminalMazePreview.TryShow(maze, previewTitle, _previewGameplayOverlay.Checked, out var error))
             {
                 if (!string.IsNullOrWhiteSpace(error))
                     MessageBox.Show(this, error, "Windows Terminal előnézeti hiba");
@@ -448,7 +456,7 @@ internal sealed class ForestMapEditorForm : Form
 
 internal static class TerminalMazePreview
 {
-    public static bool TryShow(Maze maze, string title, out string? error)
+    public static bool TryShow(Maze maze, string title, bool gameplayOverlay, out string? error)
     {
         error = null;
         try
@@ -458,7 +466,8 @@ internal static class TerminalMazePreview
             var columns = Math.Clamp(maze.Width + 4, 100, 260);
             var rows = Math.Clamp(maze.Height + 6, 30, 140);
             var filePath = Path.Combine(directory, $"preview-{DateTime.Now:yyyyMMdd-HHmmss-fff}.ansi");
-            File.WriteAllText(filePath, BuildAnsiMap(maze, title, columns, rows), new System.Text.UTF8Encoding(false));
+            File.WriteAllText(filePath, BuildAnsiMap(maze, title, columns, rows, gameplayOverlay),
+                new System.Text.UTF8Encoding(false));
 
             var scriptPath = Path.Combine(directory, "render-preview.ps1");
             File.WriteAllText(scriptPath,
@@ -505,18 +514,20 @@ internal static class TerminalMazePreview
         }
     }
 
-    private static string BuildAnsiMap(Maze maze, string title, int columns, int rows)
+    private static string BuildAnsiMap(Maze maze, string title, int columns, int rows, bool gameplayOverlay)
     {
         var text = new System.Text.StringBuilder();
         text.Append("\u001b[8;").Append(rows).Append(';').Append(columns).Append("t");
         text.Append("\u001b[0m");
-        text.Append(title).Append("\r\n");
+        text.Append(title).Append(gameplayOverlay
+            ? " — overlay: b=bokor, a=aljnövényzet, A=sűrű, m=mocsár, t=bozótszegély, !=ellenfél\r\n"
+            : "\r\n");
         for (var y = 0; y < maze.Height; y++)
         {
             for (var x = 0; x < maze.Width; x++)
             {
                 var position = new Position(x, y);
-                var (rune, foreground, background) = CellVisual(maze, position);
+                var (rune, foreground, background) = CellVisual(maze, position, gameplayOverlay);
                 text.Append(Ansi(foreground, background));
                 text.Append(rune.ToString());
             }
@@ -527,8 +538,10 @@ internal static class TerminalMazePreview
     }
 
     private static (System.Text.Rune Rune, ConsoleColor Foreground, ConsoleColor Background)
-        CellVisual(Maze maze, Position position)
+        CellVisual(Maze maze, Position position, bool gameplayOverlay)
     {
+        if (gameplayOverlay && maze.GetEnemyAt(position) is not null)
+            return (new System.Text.Rune('!'), ConsoleColor.Red, ConsoleColor.Black);
         if (maze.GetDoorAt(position) is { } door)
         {
             var color = door.State switch
@@ -543,6 +556,21 @@ internal static class TerminalMazePreview
         }
         if (maze.GetPassageAt(position) is not null)
             return (MazePassage.Symbol, ConsoleColor.Cyan, ConsoleColor.Black);
+
+        if (gameplayOverlay)
+        {
+            var profile = maze.GetTerrainGameplayProfile(position);
+            if ((profile.Tags & TerrainTag.Marsh) != 0)
+                return (new System.Text.Rune('m'), ConsoleColor.Yellow, ConsoleColor.DarkBlue);
+            if ((profile.Tags & TerrainTag.DenseUndergrowth) != 0)
+                return (new System.Text.Rune('A'), ConsoleColor.Green, ConsoleColor.DarkGreen);
+            if ((profile.Tags & TerrainTag.Undergrowth) != 0)
+                return (new System.Text.Rune('a'), ConsoleColor.DarkGreen, ConsoleColor.Black);
+            if ((profile.Tags & TerrainTag.Bush) != 0)
+                return (new System.Text.Rune('b'), ConsoleColor.Green, ConsoleColor.Black);
+            if (!maze.IsWalkable(position) && (profile.Tags & TerrainTag.ThicketEdge) != 0)
+                return (new System.Text.Rune('t'), ConsoleColor.DarkYellow, ConsoleColor.DarkGreen);
+        }
 
         var rune = maze.Tiles[position.X, position.Y];
         var terrain = maze.GetTerrainStyle(position);

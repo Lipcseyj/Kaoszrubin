@@ -49,6 +49,8 @@ public abstract class Enemy(Position position) : WorldObject(position)
     public CharacterId? PursuitTargetCharacterId { get; private set; }
     public int PursuitMemoryRemainingMoves { get; private set; }
     public EnemyAlertness Alertness { get; private set; } = EnemyAlertness.Alert;
+    public bool IsAmbushing { get; private set; }
+    public int AmbushTriggerDistance { get; private set; }
     public EnemySearchRole SearchRole { get; private set; }
     public Position HomePosition { get; private set; } = position;
     public Position? LastKnownTargetPosition { get; private set; }
@@ -365,6 +367,17 @@ public abstract class Enemy(Position position) : WorldObject(position)
 
     public bool CanSleep => Definition.CanSleep;
 
+    public void ConfigureAmbush(bool active, int triggerDistance = 0)
+    {
+        IsAmbushing = active;
+        AmbushTriggerDistance = active ? Math.Max(1, triggerDistance) : 0;
+        if (active)
+        {
+            Alertness = EnemyAlertness.Alert;
+            ResetPursuit();
+        }
+    }
+
     public int EffectiveVisionRange => Math.Max(1, (Alertness switch
     {
         EnemyAlertness.Sleeping => 1,
@@ -397,6 +410,7 @@ public abstract class Enemy(Position position) : WorldObject(position)
     public void BeginPursuit(CharacterId targetCharacterId, Position lastKnownPosition, int reactionDelay,
         int pursuitMemoryMoves = MinimumPursuitMemoryMoves)
     {
+        IsAmbushing = false;
         var previousKnownPosition = PursuitTargetCharacterId == targetCharacterId
             ? LastKnownTargetPosition
             : null;
