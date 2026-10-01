@@ -1,5 +1,6 @@
 using KaoszRubin.Domain.Inventory;
 using KaoszRubin.Domain.Quests;
+using KaoszRubin.Domain;
 
 namespace KaoszRubin.Application.Quests;
 
@@ -268,6 +269,15 @@ public sealed class QuestHandle
     public int RandomRewardCount =>
         _definition.RandomRewardCount;
 
+    public IItemDefinition? HighRelationshipRewardItem =>
+        _definition.HighRelationshipRewardItem;
+
+    public int HighRelationshipRewardItemCount =>
+        _definition.HighRelationshipRewardItemCount;
+
+    public NpcDialogueDefinition? HighRelationshipDialogue =>
+        _definition.HighRelationshipDialogue;
+
     /// <summary>
     /// API: YES
     /// Leadja és sikeresen lezárja a questet a
@@ -277,11 +287,12 @@ public sealed class QuestHandle
     /// A hívó ne módosítsa közvetlenül a runtime state-et.
     /// </summary>
     /// <returns>A teljesítés során ténylegesen kiosztott jutalmakat és eredményeket tartalmazó objektum.</returns>
-    public QuestCompletionResult Complete()
+    public QuestCompletionResult Complete(bool includeHighRelationshipReward = false)
     {
         return _manager.Complete(
             Id,
-            GiverInstanceId);
+            GiverInstanceId,
+            includeHighRelationshipReward);
     }
 
     /// <summary>

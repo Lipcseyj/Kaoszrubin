@@ -48,6 +48,11 @@ internal static class QuestCatalogImportTests
                 quest.CompletionDialogue?.Id == (Cell(12) == "" ? null : Cell(12)) &&
                 quest.CompletionDialogue?.NpcId == row[1],
                 $"Eltérő jutalom: {row[0]}.");
+            Require(quest.HighRelationshipRewardItem?.Id == (Cell(13) == "" ? null : Cell(13)) &&
+                quest.HighRelationshipRewardItemCount == (Cell(14) == "" ? 0 : int.Parse(Cell(14))) &&
+                quest.HighRelationshipDialogue?.Id == (Cell(15) == "" ? null : Cell(15)) &&
+                quest.HighRelationshipDialogue?.NpcId == (Cell(15) == "" ? null : row[1]),
+                $"Eltérő magas viszonyú jutalom: {row[0]}.");
             var objectiveMatches = (row[2], quest.Objective) switch
             {
                 ("KillWithTraits", QuestObjective.KillEnemyWithTraits kill) => kill.RequiredTraits == EnemyTraits.Undead && kill.RequiredFollower is null,

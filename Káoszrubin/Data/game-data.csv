@@ -1527,18 +1527,18 @@ GOBLIN_CHEST;W045;1
 GOBLIN_CHEST;A010;1
 
 #NPC küldetések
-Id;NpcId;Típus;CélId;Darabszám;XP;Cím;Leírás;FixJutalomId;FixJutalomDarab;VéletlenJutalomDarab;SzükségesTörténetÁllapot;LezáróPárbeszédId;Globális;TalálkozásId;MinimumViszony;MaximumViszony
-NPCQ001;NPC001;Collect;T011;3;810;Gyógyító készlet;Gyűjts össze három kis gyógyitalt a füvesasszonynak.;T018;2;0;;NPCD072
-NPCQ002;NPC002;Kill;E003;4;1170;Goblinvadászat;Ölj meg egy goblin vajákost a szörnyvadász megbízásából.;;;;;NPCD073;;NPCE002;;
+Id;NpcId;Típus;CélId;Darabszám;XP;Cím;Leírás;FixJutalomId;FixJutalomDarab;VéletlenJutalomDarab;SzükségesTörténetÁllapot;LezáróPárbeszédId;MagasViszonyJutalomId;MagasViszonyJutalomDarab;MagasViszonyPárbeszédId;TalálkozásId;MinimumViszony;MaximumViszony
+NPCQ001;NPC001;Collect;T011;3;810;Gyógyító készlet;Gyűjts össze három kis gyógyitalt a füvesasszonynak.;T018;2;0;;NPCD072;T011;2;NPCD120
+NPCQ002;NPC002;Kill;E003;4;1170;Goblinvadászat;Ölj meg egy goblin vajákost a szörnyvadász megbízásából.;;;;;NPCD073;T019;2;NPCD123;NPCE002;;
 NPCQ003;NPC003;Collect;T001;5;1440;Útravaló a mélybe;Szerezz öt útravalót a kincskereső következő útjához.;;;;;NPCD074
 NPCQ004;NPC004;Kill;E004;3;2160;A csontok éneke;Győzz le három csontvázat a dalnok balladájához.;;;;;NPCD075
-NPCQ005;NPC001;Collect;T019;2;990;Tiszta kötések;Vigyél két kötést a füvesasszonynak a sebesültek ellátásához.;;;;;NPCD076
-NPCQ006;NPC002;Kill;E003;6;1620;Vérdíj a zöldfülűekre;Győzz le hat goblint és bizonyítsd a szörnyvadásznak hogy értesz a mesterséghez.;;;;;NPCD077;;NPCE002
+NPCQ005;NPC001;Collect;T019;2;990;Tiszta kötések;Vigyél két kötést a füvesasszonynak a sebesültek ellátásához.;;;;;NPCD076;T018;1;NPCD121
+NPCQ006;NPC002;Kill;E003;6;1620;Vérdíj a zöldfülűekre;Győzz le hat goblint és bizonyítsd a szörnyvadásznak hogy értesz a mesterséghez.;;;;;NPCD077;T017;1;NPCD124;NPCE002
 NPCQ007;NPC003;Collect;T003;2;1350;A lezárt út;Szerezz két kulcsot a kincskeresőnek egy lezárt mellékjárathoz.;;;;;NPCD078
 NPCQ008;NPC004;Collect;T023;1;1080;A dalnok hangja;Vigyél egy mézsört a dalnoknak hogy visszatérjen a hangja.;;;;;NPCD079
 NPCQ009;NPC005;Kill;E001;5;720;A járatok megtisztítása;Ölj meg öt óriáspatkányt a patkányvadász megbízásából.;;;;;NPCD080
 NPCQ010;NPC006;Kill;E002;4;990;Nincs visszaút;Győzz le négy koboldot hogy a szökevény üldözői ne érhessék utol.;;;;;NPCD081
-NPCQ011;NPC007;Kill;E003;5;1350;Az elveszett őrjárat;Ölj meg öt goblint a határőr elesett társaiért.;;;;;NPCD082
+NPCQ011;NPC007;Kill;E003;5;1350;Az elveszett őrjárat;Ölj meg öt goblint a határőr elesett társaiért.;;;;;NPCD082;T018;1;NPCD126
 NPCQ012;NPC008;Kill;E004;5;1980;Csend a sírokban;Győzz le öt csontvázat hogy a katakombák halottai megnyugodhassanak.;;;;;NPCD083
 NPCQ013;NPC008;Kill;E006;3;1755;A nyugtalan testek;Pusztíts el három zombit a remete szertartásához.;;;;;NPCD084
 NPCQ014;NPC009;Kill;E007;5;2520;Törött agyar;Győzz le öt orkot és gyengítsd meg a dezertőr egykori törzsét.;;;;;NPCD085
@@ -1563,8 +1563,8 @@ NPCQ032;NPC018;OpenChest;ANY;3;9450;A Rubin visszhangjai;Nyiss ki három ládát
 NPCQ033;NPC019;Kill;E012;3;3690;Nagyvad;Győzz le három ogrét az óriásvadász megbízásából.;;;;;NPCD104
 NPCQ042;NPC022;OpenQuestChest;AURELIOS_HELP;1;900;Uralkodód ezt a segítséget küldi;Találd meg Aurelios máguskirály küldöttének ládáját.;MW001;1;0;;NPCD071
 NPCQ043;NPC023;Kill;E062;1;1800;Szemet szemért;Öld meg a goblin főnököt Vildar megbízásából.;T019;3;3;;NPCD114
-NPCQ044;NPC001;Collect;T031;2;1110;Húsleves;Gyűjts össze két adag nyers húst a füvesasszonynak.;T020;2;0;;NPCD116;;NPCE033;6;
-NPCQ045;NPC002;Kill;E007;5;2520;Az ork portyázók nyomában;Győzz le öt orkot a szörnyvadász megbízásából.;;;;;NPCD119;;NPCE034;6
+NPCQ044;NPC001;Collect;T031;2;1110;Húsleves;Gyűjts össze két adag nyers húst a füvesasszonynak.;T020;2;0;;NPCD116;T020;2;NPCD122;NPCE033;6;
+NPCQ045;NPC002;Kill;E007;5;2520;Az ork portyázók nyomában;Győzz le öt orkot a szörnyvadász megbízásából.;;;;;NPCD119;T019;3;NPCD125;NPCE034;6
 
 NPCQ034;NPC020;Escort;EXIT;1;1890;Ezüstág kimenekítése;Kísérd el Elirát élve a pálya kijáratáig.;T017;2;1;;NPCD105
 NPCQ035;NPC020;Collect;T019;1;720;Elszakadt kötés;Adj Elirának egy tiszta kötést hogy a sérült bokája bírja az utat.;T011;2;0;;NPCD106
@@ -1720,6 +1720,13 @@ NPCD116;NPC001;0;10;"A füvesasszony és a falusiak szeme felcsillan a hús lát
 NPCD117;NPC002;0;5;"A szörnyvadász egy ork nyomát vizsgálja. ""Ismét ti? Az orkok már itt portyáznak. Előbb látnom kell, hogy számíthatok rátok.""";NPCE034
 NPCD118;NPC002;6;10;"A szörnyvadász felismer benneteket, és félrehúzza az ágakat egy friss ork ösvényéről. ""A goblinoknál bizonyítottatok. Öt ork portyázik erre; segítsetek levadászni őket, és megkapjátok a részeteket.""";NPCE034
 NPCD119;NPC002;0;10;"A szörnyvadász végignézi az ork felszereléseket, majd bólint. ""Ezek többé nem támadnak meg senkit. Jó, hogy újra összefutottunk."""
+NPCD120;NPC001;8;10;"A füvesasszony még két gyógyitalt csúsztat a csomagba. ""Régi barátnak több jár. Ezeket tartsátok meg magatoknak."""
+NPCD121;NPC001;8;10;"A füvesasszony egy gondosan lezárt fiolát is elővesz. ""Bennetek már megbízom. Ezt csak akkor használjátok, amikor igazán nagy a baj."""
+NPCD122;NPC001;8;10;"A füvesasszony külön csomagot köt át nektek. ""A barátaim nem indulnak útra üres kézzel. Ebből nektek is jut."""
+NPCD123;NPC002;8;10;"A szörnyvadász két tiszta kötést nyújt át. ""Aki ennyiszer fedezte a hátamat, annak én is tartozom ennyivel."""
+NPCD124;NPC002;8;10;"A szörnyvadász egy ellenmérget vesz elő a belső zsebéből. ""Ezt magamnak tettem félre. Nálatok jobb helyen lesz."""
+NPCD125;NPC002;8;10;"A szörnyvadász három kötést dob a zsákotokba. ""Most már nem megbízottak vagytok. Bajtársak."""
+NPCD126;NPC007;8;10;"Az elf kósza egy ritka főzetet nyújt át. ""Kevés vándornak mondom ezt, de az erdő ösvényei barátként emlékeznek majd rátok."""
 
 #NPC történeti választások
 Id;TörténetId;ÁllapotId;Mondat;Sorrend;Válasz;ViszonyVáltozás;KövetkezőÁllapotId;Reakció;Hatás;HatásParaméter;Folytatás;MinimumViszony;MaximumViszony

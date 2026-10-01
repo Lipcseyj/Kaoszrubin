@@ -718,9 +718,10 @@ public static class CsvGameDataLoader
                     Math.Clamp(Integer(cells, 10) ?? 1, 0, 5),
                     EmptyAsNull(Cell(cells, 11)),
                     EmptyAsNull(Cell(cells, 12)),
-                    IsYes(cells, 13), EmptyAsNull(Cell(cells, 14)),
-                    Math.Clamp(Integer(cells, 15) ?? 0, 0, 10),
-                    Math.Clamp(Integer(cells, 16) ?? 10, 0, 10)));
+                    EmptyAsNull(Cell(cells, 13)), Math.Max(0, Integer(cells, 14) ?? 0),
+                    EmptyAsNull(Cell(cells, 15)), EmptyAsNull(Cell(cells, 16)),
+                    Math.Clamp(Integer(cells, 17) ?? 0, 0, 10),
+                    Math.Clamp(Integer(cells, 18) ?? 10, 0, 10)));
                 break;
             case DataSection.NpcStoryChoices:
                 npcStoryChoices.Add(new NpcStoryChoiceDefinition(id, Cell(cells, 1), Cell(cells, 2),
@@ -1151,6 +1152,20 @@ public static class CsvGameDataLoader
                 throw new InvalidDataException($"A(z) '{quest.Id}' küldetés jutalomtárgya nem található: '{rewardItemId}'.");
             if (quest.RewardItemId is null && quest.RewardItemCount != 0)
                 throw new InvalidDataException($"A(z) '{quest.Id}' küldetés jutalomdarabszámához nincs tárgy megadva.");
+            if (quest.HighRelationshipRewardItemId is { } highRewardItemId &&
+                !rewardItemIds.Contains(highRewardItemId))
+                throw new InvalidDataException(
+                    $"A(z) '{quest.Id}' küldetés magas viszonyú jutalomtárgya nem található: '{highRewardItemId}'.");
+            if (quest.HighRelationshipRewardItemId is null && quest.HighRelationshipRewardItemCount != 0 ||
+                quest.HighRelationshipRewardItemId is not null && quest.HighRelationshipRewardItemCount <= 0)
+                throw new InvalidDataException(
+                    $"A(z) '{quest.Id}' küldetés magas viszonyú jutalomtárgya és darabszáma nincs összhangban.");
+            var questNpc = npcs.Single(npc => string.Equals(npc.Id, quest.NpcId,
+                StringComparison.OrdinalIgnoreCase));
+            if (!questNpc.PersistentRelationship && (quest.HighRelationshipRewardItemId is not null ||
+                                                      quest.HighRelationshipDialogueId is not null))
+                throw new InvalidDataException(
+                    $"A(z) '{quest.Id}' küldetés csak visszatérő viszonyú NPC-nél kaphat magas viszonyú bónuszt.");
             if (quest.CompletionDialogueId is { } completionDialogueId)
             {
                 var dialogue = dialogues.SingleOrDefault(value =>
@@ -1161,6 +1176,17 @@ public static class CsvGameDataLoader
                 if (!string.Equals(dialogue.NpcId, quest.NpcId, StringComparison.OrdinalIgnoreCase))
                     throw new InvalidDataException(
                         $"A(z) '{quest.Id}' küldetés lezáró párbeszéde másik NPC-hez tartozik: '{completionDialogueId}'.");
+            }
+            if (quest.HighRelationshipDialogueId is { } highRelationshipDialogueId)
+            {
+                var dialogue = dialogues.SingleOrDefault(value =>
+                    string.Equals(value.Id, highRelationshipDialogueId, StringComparison.OrdinalIgnoreCase));
+                if (dialogue is null)
+                    throw new InvalidDataException(
+                        $"A(z) '{quest.Id}' küldetés magas viszonyú párbeszéde nem található: '{highRelationshipDialogueId}'.");
+                if (!string.Equals(dialogue.NpcId, quest.NpcId, StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidDataException(
+                        $"A(z) '{quest.Id}' küldetés magas viszonyú párbeszéde másik NPC-hez tartozik: '{highRelationshipDialogueId}'.");
             }
         }
     }

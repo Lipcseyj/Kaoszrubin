@@ -46,11 +46,7 @@ internal sealed class QuestCatalogBuilder
         var npcDefinition =
             _gameData.GetNpc(source.NpcId);
 
-        var scope = QuestScope.PerNpcInstance;
-
-        if (source.IsGlobal)
-            scope = QuestScope.Global;
-        else scope = npcDefinition.Unique
+        var scope = npcDefinition.Unique
             ? QuestScope.Global
             : QuestScope.PerNpcInstance;
 
@@ -75,16 +71,22 @@ internal sealed class QuestCatalogBuilder
                 QuestId.RodericFallenComradesInsignia or QuestId.RodericOathbreakerKnight or QuestId.RodericOrderRelics
                     ? QuestActivationKind.Story : QuestActivationKind.Offered,
             CompletionDialogue: ResolveCompletionDialogue(source),
+            HighRelationshipRewardItem: ResolveRewardItem(source.HighRelationshipRewardItemId),
+            HighRelationshipRewardItemCount: source.HighRelationshipRewardItemCount,
+            HighRelationshipDialogue: ResolveDialogue(source.HighRelationshipDialogueId),
             EncounterId: source.EncounterId,
             MinimumFriendliness: source.MinimumFriendliness,
             MaximumFriendliness: source.MaximumFriendliness);
     }
 
     private NpcDialogueDefinition? ResolveCompletionDialogue(QuestImportRow source) =>
-        string.IsNullOrWhiteSpace(source.CompletionDialogueId)
+        ResolveDialogue(source.CompletionDialogueId);
+
+    private NpcDialogueDefinition? ResolveDialogue(string? dialogueId) =>
+        string.IsNullOrWhiteSpace(dialogueId)
             ? null
             : _gameData.NpcDialogues.Single(dialogue =>
-                string.Equals(dialogue.Id, source.CompletionDialogueId, StringComparison.OrdinalIgnoreCase));
+                string.Equals(dialogue.Id, dialogueId, StringComparison.OrdinalIgnoreCase));
 
     // A történeti választás a hatás végrehajtása ELŐTT állítja át az NPC állapotát.
     // A Malrec-küldetés a helyszínre induláskor nyílik meg, nem már TRUSTED állapotban.

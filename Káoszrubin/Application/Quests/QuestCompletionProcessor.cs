@@ -72,7 +72,8 @@ public sealed class QuestCompletionProcessor
     /// </summary>
     public QuestCompletionResult Complete(
         QuestId questId,
-        QuestNpcInstanceId giverInstanceId = default)
+        QuestNpcInstanceId giverInstanceId = default,
+        bool includeHighRelationshipReward = false)
     {
         var definition =
             _catalog.Get(questId);
@@ -97,7 +98,7 @@ public sealed class QuestCompletionProcessor
 
         var rewards =
             _rewardService.Grant(
-                definition);
+                definition, includeHighRelationshipReward);
 
         state.Complete();
 

@@ -624,9 +624,12 @@ public sealed partial class Game
             // --------------------------------------------------------
 
             QuestCompletionResult completion;
+            var npcDefinition = _gameData.GetNpc(npc.DefinitionId);
+            var grantsHighRelationshipBonus = npcDefinition.PersistentRelationship &&
+                                               Math.Min(10, npc.Friendliness + 1) >= 8;
             try
             {
-                if (!confirmTurnIn) completion = quest.Complete();
+                if (!confirmTurnIn) completion = quest.Complete(grantsHighRelationshipBonus);
                 else if (!QuestTurnInService.TryComplete(
                              quest,
                              snapshot => RunHostWindow(
@@ -635,7 +638,8 @@ public sealed partial class Game
                                  () => _renderer.ConfirmQuestTurnIn(
                                      npc.Character.Name,
                                      snapshot)),
-                             out completion))
+                             out completion,
+                             grantsHighRelationshipBonus))
                 {
                     var postponedMessage =
                         $"📜 {quest.Title}: a jutalom felvétele elhalasztva.";
@@ -675,12 +679,12 @@ public sealed partial class Game
             // Egyedi és visszatérő NPC viszonya
             // --------------------------------------------------------
 
-            if (_gameData.GetNpc(npc.DefinitionId) is { Unique: true } or { PersistentRelationship: true })
+            if (npcDefinition is { Unique: true } or { PersistentRelationship: true })
             {
                 var previousFriendliness = npc.Friendliness;
                 npc.AdjustFriendliness(1);
                 if (npc.Friendliness != previousFriendliness &&
-                    _gameData.GetNpc(npc.DefinitionId).PersistentRelationship)
+                    npcDefinition.PersistentRelationship)
                     _renderer.DrawInventoryMessage(
                         $"🤝 {npc.Character.Name} viszonya: {npc.Friendliness}/10.", ConsoleColor.Green);
             }
@@ -730,13 +734,17 @@ public sealed partial class Game
                     CompletionItemRewardSummary =
                         string.IsNullOrWhiteSpace(itemRewards)
                             ? "nem volt tárgyjutalom"
-                            : itemRewards
+                            : itemRewards,
+
+                    HighRelationshipDialogueText = grantsHighRelationshipBonus
+                        ? quest.HighRelationshipDialogue?.Text
+                        : null
                 };
 
             _questJournal[quest.Key] =
                 completedEntry;
             _questSaveAdapter.RecordCompletion(quest, experienceSummary,
-                completedEntry.CompletionItemRewardSummary!);
+                completedEntry.CompletionItemRewardSummary!, completedEntry.HighRelationshipDialogueText);
 
             // --------------------------------------------------------
             // Visszajelzés

@@ -141,6 +141,7 @@ internal static partial class Program
     ("A típusos quest csak megfelelő aktív eseményre halad és nem lépi túl a célt", QuestManagerTests.ProgressOnlyUsesMatchingActiveObjectives),
     ("A típusos collect quest a készlet növekedését és visszaesését is jelzi", QuestManagerTests.CollectTracksInventoryInBothDirections),
     ("A típusos quest leadása pontosan egyszer fogyaszt és jutalmaz", QuestManagerTests.CompletionGrantsRewardsOnlyOnce),
+    ("A magas viszonyú questbónusz feltételes és csak egyszer jár", QuestManagerTests.HighRelationshipRewardIsExplicitAndGrantedOnce),
     ("A típusos quest leadáskor újraellenőrzi a megváltozott készletet", QuestManagerTests.CompletionRechecksChangedInventory),
     ("A típusos quest sikertelen tárgyelvételnél nem ad jutalmat", QuestManagerTests.FailedConsumptionDoesNotGrantRewards),
     ("A típusos quest feladása azonnal megállítja a haladást", QuestManagerTests.AbandonImmediatelyStopsProgress),

@@ -309,11 +309,13 @@ public sealed class QuestManager
     /// <param name="questId">A leadandó quest azonosítója.</param>
     /// <param name="giverInstanceId">A questadó runtime példányazonosítója.</param>
     /// <returns>A tényleges completion és reward eredménye.</returns>
-    public QuestCompletionResult Complete(QuestId questId, QuestNpcInstanceId giverInstanceId = default)
+    public QuestCompletionResult Complete(QuestId questId, QuestNpcInstanceId giverInstanceId = default,
+        bool includeHighRelationshipReward = false)
     {
         var result = _completionProcessor.Complete(
             questId,
-            giverInstanceId);
+            giverInstanceId,
+            includeHighRelationshipReward);
         QuestChanged?.Invoke(CreateHandle(questId, giverInstanceId));
         // A fogyasztás és a jutalom más aktív collect küldetést is érinthet.
         _progressEngine.SynchronizeCollectObjectives();

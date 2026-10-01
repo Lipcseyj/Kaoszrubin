@@ -21,6 +21,9 @@ public sealed record QuestDefinition(
     int RandomRewardCount = 0,
     QuestActivationKind ActivationKind = QuestActivationKind.Offered,
     NpcDialogueDefinition? CompletionDialogue = null,
+    IItemDefinition? HighRelationshipRewardItem = null,
+    int HighRelationshipRewardItemCount = 0,
+    NpcDialogueDefinition? HighRelationshipDialogue = null,
     string? EncounterId = null,
     int MinimumFriendliness = 0,
     int MaximumFriendliness = 10);

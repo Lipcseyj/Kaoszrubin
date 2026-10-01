@@ -858,11 +858,13 @@ internal static partial class Program
     {
         var entry = new QuestJournalEntrySnapshot(new(KaoszRubin.Domain.Quests.QuestId.HerbalistHealingSupplies),
             "Gyógyító készlet", "Leírás", "Füvesasszony", QuestJournalStatus.Completed, 3, 3, 810,
-            "810 XP", "2 tárgy", "A sebesültek ma megérik a reggelt.");
+            "810 XP", "2 tárgy", "A sebesültek ma megérik a reggelt.",
+            "Régi barátnak több jár.");
         var lines = QuestCompletionWindow.Build(entry).Select(line => line.Text).ToArray();
         var dialogueIndex = Array.FindIndex(lines, line => line.Contains("megérik a reggelt", StringComparison.Ordinal));
         var rewardIndex = Array.FindIndex(lines, line => line.Contains("JUTALOM", StringComparison.Ordinal));
-        Assert(dialogueIndex >= 0 && rewardIndex > dialogueIndex,
+        var relationshipIndex = Array.FindIndex(lines, line => line.Contains("Régi barátnak", StringComparison.Ordinal));
+        Assert(dialogueIndex >= 0 && relationshipIndex > dialogueIndex && rewardIndex > relationshipIndex,
             "A quest lezáró párbeszéde nem a jutalomösszegzés előtt jelenik meg.");
     }
 

@@ -14,4 +14,4 @@ public sealed record QuestNpcIdentitySaveData(int InstanceId, Guid CharacterId, 
 public sealed record QuestRuntimeSaveData(string QuestId, int GiverInstanceId, string State,
     int Progress, int CompletionCount, string Title, string Description, string GiverName,
     int ExperienceReward, string? CompletionExperienceSummary = null,
-    string? CompletionItemRewardSummary = null);
+    string? CompletionItemRewardSummary = null, string? HighRelationshipDialogueText = null);

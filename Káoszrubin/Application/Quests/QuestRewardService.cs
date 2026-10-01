@@ -20,7 +20,8 @@ public sealed class QuestRewardService
     }
 
     public QuestRewardResult Grant(
-        QuestDefinition quest)
+        QuestDefinition quest,
+        bool includeHighRelationshipReward = false)
     {
         ArgumentNullException.ThrowIfNull(quest);
 
@@ -28,7 +29,7 @@ public sealed class QuestRewardService
             GrantExperience(quest);
 
         var itemRewards =
-            GrantItems(quest);
+            GrantItems(quest, includeHighRelationshipReward);
 
         return new QuestRewardResult(
             experienceAwards,
@@ -46,10 +47,10 @@ public sealed class QuestRewardService
     }
 
     private IReadOnlyList<QuestItemRewardResult> GrantItems(
-        QuestDefinition quest)
+        QuestDefinition quest, bool includeHighRelationshipReward)
     {
         var rewards =
-            CreateRewardItems(quest);
+            CreateRewardItems(quest, includeHighRelationshipReward);
 
         if (rewards.Count == 0)
             return [];
@@ -85,7 +86,7 @@ public sealed class QuestRewardService
     }
 
     private IReadOnlyList<IItemDefinition> CreateRewardItems(
-        QuestDefinition quest)
+        QuestDefinition quest, bool includeHighRelationshipReward)
     {
         var rewards =
             new List<IItemDefinition>();
@@ -99,6 +100,12 @@ public sealed class QuestRewardService
                 rewards.Add(
                     quest.FixedRewardItem);
             }
+        }
+
+        if (includeHighRelationshipReward && quest.HighRelationshipRewardItem is not null)
+        {
+            for (var count = 0; count < quest.HighRelationshipRewardItemCount; count++)
+                rewards.Add(quest.HighRelationshipRewardItem);
         }
 
         for (var count = 0;

@@ -98,7 +98,8 @@ public sealed class QuestSaveAdapter
                     Title = entry.Title, Description = entry.Description, GiverName = entry.QuestGiverName,
                     ExperienceReward = entry.ExperienceReward,
                     CompletionExperienceSummary = entry.CompletionExperienceSummary,
-                    CompletionItemRewardSummary = entry.CompletionItemRewardSummary
+                    CompletionItemRewardSummary = entry.CompletionItemRewardSummary,
+                    HighRelationshipDialogueText = entry.HighRelationshipDialogueText
                 } : saved;
             }).ToList(),
             NpcIdentities = _instances.Export().Select(identity => new QuestNpcIdentitySaveData(
@@ -108,14 +109,16 @@ public sealed class QuestSaveAdapter
         };
     }
 
-    public void RecordCompletion(QuestHandle quest, string experienceSummary, string itemSummary)
+    public void RecordCompletion(QuestHandle quest, string experienceSummary, string itemSummary,
+        string? highRelationshipDialogueText = null)
     {
         var state = new QuestStateSnapshot(quest.Id, quest.GiverInstanceId, quest.State,
             quest.Progress, quest.CompletionCount);
         _metadata[state.Key] = WriteState(state) with
         {
             CompletionExperienceSummary = experienceSummary,
-            CompletionItemRewardSummary = itemSummary
+            CompletionItemRewardSummary = itemSummary,
+            HighRelationshipDialogueText = highRelationshipDialogueText
         };
     }
 
@@ -132,7 +135,8 @@ public sealed class QuestSaveAdapter
                         _ => QuestJournalStatus.Active
                     }, state.Progress, _catalog.Get(state.QuestId).Objective.RequiredCount, saved.ExperienceReward,
                     saved.CompletionExperienceSummary, saved.CompletionItemRewardSummary,
-                    _catalog.Get(state.QuestId).CompletionDialogue?.Text);
+                    _catalog.Get(state.QuestId).CompletionDialogue?.Text,
+                    saved.HighRelationshipDialogueText);
             }).ToArray();
 
     private QuestRuntimeSaveData WriteState(QuestStateSnapshot state)

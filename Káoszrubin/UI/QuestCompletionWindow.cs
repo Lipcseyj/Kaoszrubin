@@ -23,6 +23,13 @@ public static class QuestCompletionWindow
                 .Select(text => (text, ConsoleColor.White)));
             lines.Add((string.Empty, ConsoleColor.Gray));
         }
+        if (!string.IsNullOrWhiteSpace(quest.HighRelationshipDialogueText))
+        {
+            lines.Add(("🤝 MAGAS VISZONY BÓNUSZ", ConsoleColor.Green));
+            lines.AddRange(MessageTextLayout.Wrap($"„{quest.HighRelationshipDialogueText}”", 78)
+                .Select(text => (text, ConsoleColor.Green)));
+            lines.Add((string.Empty, ConsoleColor.Gray));
+        }
         lines.Add(("🎁 JUTALOM", ConsoleColor.Cyan));
         lines.AddRange(MessageTextLayout.Wrap(
             $"⭐ Tapasztalat: {quest.CompletionExperienceSummary ?? $"{quest.ExperienceReward} XP"}", 78)

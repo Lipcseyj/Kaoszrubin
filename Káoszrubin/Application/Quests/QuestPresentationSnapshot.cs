@@ -20,11 +20,11 @@ public sealed record QuestPresentationSnapshot(Domain.Quests.QuestKey Key, strin
 public static class QuestTurnInService
 {
     public static bool TryComplete(QuestHandle quest, Func<QuestPresentationSnapshot, bool> confirm,
-        out QuestCompletionResult result)
+        out QuestCompletionResult result, bool includeHighRelationshipReward = false)
     {
         result = null!;
         if (!confirm(QuestPresentationSnapshot.From(quest))) return false;
-        result = quest.Complete();
+        result = quest.Complete(includeHighRelationshipReward);
         return true;
     }
 }

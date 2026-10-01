@@ -130,6 +130,29 @@ internal static class QuestManagerTests
         }
     }
 
+    public static void HighRelationshipRewardIsExplicitAndGrantedOnce()
+    {
+        var definition = Define(new QuestObjective.CollectItem(Supplies, 1)) with
+        {
+            RandomRewardCount = 0,
+            HighRelationshipRewardItem = Supplies,
+            HighRelationshipRewardItemCount = 2
+        };
+        var fixture = new QuestTestFixture(definition);
+        fixture.Inventory[Supplies] = 1;
+        var quest = fixture.Manager.Activate(definition.Id);
+
+        var result = quest.Complete(includeHighRelationshipReward: true);
+
+        Require(result.Rewards.ItemRewards.Count == 3 &&
+                fixture.StoredRewards.Count(item => item.Id == Reward.Id) == 1 &&
+                fixture.StoredRewards.Count(item => item.Id == Supplies.Id) == 2,
+            "A magas viszonyú bónusz nem a rendes jutalom mellett, a konfigurált darabszámban érkezett.");
+        Throws<InvalidOperationException>(() => quest.Complete(includeHighRelationshipReward: true));
+        Require(fixture.StoredRewards.Count == 3,
+            "A lezárt küldetés magas viszonyú bónusza ismételten kiosztható volt.");
+    }
+
     public static void CompletionRechecksChangedInventory()
     {
         var fixture = new QuestTestFixture(Define(new QuestObjective.CollectItem(Supplies, 3)));
