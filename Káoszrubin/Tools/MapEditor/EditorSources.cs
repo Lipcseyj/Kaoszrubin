@@ -1,7 +1,7 @@
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace KaoszRubin.ForestMapEditor;
+namespace KaoszRubin.MapEditor;
 
 internal static class EditorSources
 {

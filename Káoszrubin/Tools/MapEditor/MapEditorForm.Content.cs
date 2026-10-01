@@ -1,9 +1,9 @@
 using System.Text.RegularExpressions;
 using KaoszRubin.World;
 
-namespace KaoszRubin.ForestMapEditor;
+namespace KaoszRubin.MapEditor;
 
-internal sealed partial class ForestMapEditorForm
+internal sealed partial class MapEditorForm
 {
     private readonly TabPage _forestTab = new("Erdős pálya");
     private readonly TabPage _mazeTab = new("Labirintus pálya");
@@ -11,6 +11,7 @@ internal sealed partial class ForestMapEditorForm
     private readonly TabPage _npcsTab = new("NPC-k");
     private readonly TabControl _mainTabs = new() { Dock = DockStyle.Fill };
     private readonly Dictionary<string, TextBox> _levelFields = [];
+    private readonly ToolTip _mazeToolTip = new() { AutoPopDelay = 18000, InitialDelay = 350, ReshowDelay = 150, ShowAlways = true };
     private readonly ListBox _roomEncounterList = new() { Dock = DockStyle.Fill };
     private readonly ListBox _corridorEncounterList = new() { Dock = DockStyle.Fill };
     private readonly TextBox _encounterExpression = new() { Dock = DockStyle.Top, Multiline = true, Height = 94, ScrollBars = ScrollBars.Vertical };
@@ -37,22 +38,40 @@ internal sealed partial class ForestMapEditorForm
             FlowDirection = FlowDirection.TopDown, WrapContents = false, Width = 390 };
         flow.Controls.Add(Heading("Pályakonfiguráció"));
         flow.Controls.Add(Description("Az értékek a MazeLevelConfiguration.cs kiválasztott pályájába kerülnek. C# kifejezések is megadhatók."));
-        foreach (var (name, label) in new (string, string)[]
+        foreach (var (name, label, hint, help) in new (string, string, string, string)[]
         {
-            ("Name", "Név"), ("Layout", "Elrendezés"), ("RoomCount", "Termek száma"),
-            ("RoomSize", "Teremméret"), ("TreasureChestCount", "Kincsesládák"),
-            ("TreasureGold", "Arany"), ("WallRune", "Fal karaktere"),
-            ("WallColor", "Fal színe"), ("DoubleWidthCorridorChance", "Széles folyosó esélye"),
-            ("QuestRoomIds", "Quest szobák"), ("BossRoomIds", "Boss szobák"),
-            ("SpecialRoomPlacements", "Különleges szobák helye"),
-            ("QuestChestPlacements", "Quest ládák helye"),
-            ("QuestDoorRequirements", "Quest ajtók"),
-            ("QuestRoomEnemyEncounters", "Garantált ellenfelek")
+            ("Name", "Pálya neve", "A játékban látható név.", "C# szövegként add meg, például: \"A holtak katakombái\"."),
+            ("Layout", "Képernyők elrendezése", "Üresen klasszikus; WideMazeLayout több képernyőt ad.", "Példa: new WideMazeLayoutConfiguration(new IntRange(2, 3), NarrowingChance: 0.12). Az üres mező a meglévő alapértelmezést hagyja érvényben."),
+            ("RoomCount", "Termek száma", "Az egész pályán generált termek darabszáma.", "Zárt tartomány: new(8, 12), vagy Amount.Pack.Range(). Több képernyőn a termek eloszlanak."),
+            ("RoomSize", "Teremméret", "A generált termek oldalhosszának tartománya.", "Példa: new(4, 7) azt jelenti, hogy a terem mérete 4 és 7 mező közé eshet."),
+            ("TreasureChestCount", "Kincsesládák száma", "Az egész pályán elhelyezett ládák száma.", "Zárt darabszámtartomány, például new(3, 6) vagy Amount.Several.Range()."),
+            ("TreasureGold", "Arany ládánként", "Egy véletlen kincs aranymennyiségének tartománya.", "Példa: new(240, 480). A két határérték is lehetséges eredmény."),
+            ("WallRune", "Fal karaktere", "A labirintus falainak megjelenő jele.", "C# Rune kifejezés, például new('▓'). Erdőben a helyi terepsablonok is befolyásolják a megjelenést."),
+            ("WallColor", "Fal színe", "A fal alapértelmezett konzolszíne.", "ConsoleColor érték, például ConsoleColor.DarkGray."),
+            ("DoubleWidthCorridorChance", "Dupla széles folyosó esélye", "0 és 1 közötti arány; klasszikus layoutnál hat.", "Példa: 0.82 = 82%. WideMazeLayout esetén a NarrowingChance szabályozza a szűkületeket."),
+            ("QuestRoomIds", "Küldetésszobák azonosítói", "Garantáltan létrejövő különleges szobák.", "Azonosítók listája, például [\"KING_CHEST_ROOM\"]. A többi quest-szobamező ezekre hivatkozhat."),
+            ("BossRoomIds", "Boss-szobák azonosítói", "Garantáltan létrejövő boss-szobák.", "Azonosítók listája, például [\"GOBLIN_CHIEF_ROOM\"]."),
+            ("SpecialRoomPlacements", "Különleges szobák helye", "Szobánként főút vagy mellékág választható.", "Szobaazonosítót SpecialRoomPlacement.MiddleRoute vagy SideBranch értékhez rendelő C# szótár."),
+            ("QuestChestPlacements", "Küldetésládák helye", "Szobaazonosítót questláda-azonosítóhoz köt.", "A láda azonosítója a game-data.csv Quest ládák szekciójában szerepeljen."),
+            ("QuestDoorRequirements", "Küldetéshez kötött ajtók", "A szobába lépéshez szükséges questet adja meg.", "Szobaazonosítót QuestId értékhez rendelő C# szótár."),
+            ("QuestRoomEnemyEncounters", "Garantált szobaellenfelek", "Adott quest- vagy boss-szobába kerülő ellenfelek.", "Példa: [new(\"MALREC_CHAMBER\", MonsterIds.SirMalrec, 1)]."),
         })
         {
-            var field = new TextBox { Width = 360 };
+            var field = new TextBox { Width = 348 };
             _levelFields.Add(name, field);
-            flow.Controls.Add(Labelled(label, field));
+            var group = new FlowLayoutPanel { Width = 370, Height = 104,
+                FlowDirection = FlowDirection.TopDown, WrapContents = false, Margin = new Padding(0, 0, 0, 4) };
+            var title = new Label { Text = label + "  ⓘ", AutoSize = false, Width = 355, Height = 20,
+                Font = new Font(SystemFonts.DefaultFont, FontStyle.Bold) };
+            var explanation = new Label { Text = hint, AutoSize = false, Width = 355, Height = 35,
+                ForeColor = Color.DimGray };
+            _mazeToolTip.SetToolTip(title, help);
+            _mazeToolTip.SetToolTip(explanation, help);
+            _mazeToolTip.SetToolTip(field, help);
+            group.Controls.Add(title);
+            group.Controls.Add(explanation);
+            group.Controls.Add(field);
+            flow.Controls.Add(group);
         }
         flow.Controls.Add(Button("Pályaadatok mentése", (_, _) => SaveLevelFields()));
         outer.Controls.Add(flow);

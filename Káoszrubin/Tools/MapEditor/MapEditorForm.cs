@@ -1,9 +1,9 @@
 using KaoszRubin.World;
 using KaoszRubin.Data;
 
-namespace KaoszRubin.ForestMapEditor;
+namespace KaoszRubin.MapEditor;
 
-internal sealed partial class ForestMapEditorForm : Form
+internal sealed partial class MapEditorForm : Form
 {
     private readonly ForestGraphCanvas _canvas = new();
     private readonly SplitContainer _split = new()
@@ -56,9 +56,9 @@ internal sealed partial class ForestMapEditorForm : Form
     private int? _lastPreviewSeed;
     private bool _nonForestMode;
 
-    public ForestMapEditorForm()
+    public MapEditorForm()
     {
-        Text = "Káoszrubin – pályaszerkesztő";
+        Text = "Káoszrubin – MapEditor";
         Width = 1280;
         Height = 800;
         MinimumSize = new Size(900, 650);
@@ -833,8 +833,13 @@ internal static class TerminalMazePreview
         AutoSize = false, Width = 380, Height = 52, Padding = new Padding(0, 0, 4, 4) };
     private static Control Labelled(string text, Control control)
     {
-        var panel = new Panel { Width = 380, Height = 52 };
-        panel.Controls.Add(control); panel.Controls.Add(new Label { Text = text, Dock = DockStyle.Top, Height = 20 }); return panel;
+        var panel = new FlowLayoutPanel { Width = 380, Height = 55,
+            FlowDirection = FlowDirection.TopDown, WrapContents = false };
+        panel.Controls.Add(new Label { Text = text, Width = 360, Height = 20 });
+        control.Dock = DockStyle.None;
+        control.Width = 360;
+        panel.Controls.Add(control);
+        return panel;
     }
     private static Control Pair(string firstText, Control first, string secondText, Control second)
     {

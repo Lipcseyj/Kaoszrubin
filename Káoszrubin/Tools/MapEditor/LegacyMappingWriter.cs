@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-namespace KaoszRubin.ForestMapEditor;
+namespace KaoszRubin.MapEditor;
 
 internal static class LegacyMappingWriter
 {

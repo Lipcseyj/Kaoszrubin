@@ -1,4 +1,4 @@
-namespace KaoszRubin.ForestMapEditor;
+namespace KaoszRubin.MapEditor;
 
 internal static class Program
 {
@@ -6,6 +6,6 @@ internal static class Program
     private static void Main()
     {
         ApplicationConfiguration.Initialize();
-        System.Windows.Forms.Application.Run(new ForestMapEditorForm());
+        System.Windows.Forms.Application.Run(new MapEditorForm());
     }
 }

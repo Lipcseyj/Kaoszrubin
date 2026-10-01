@@ -1,9 +1,9 @@
-# Pályaszerkesztő
+# MapEditor pályaszerkesztő
 
 Indítás fejlesztői környezetből:
 
 ```powershell
-dotnet run --project Tools\ForestMapEditor\ForestMapEditor.csproj
+dotnet run --project Tools\MapEditor\MapEditor.csproj
 ```
 
 A vásznon a képernyők kijelölhetők és rácspontra húzhatók. A jobb oldali panelen szerkeszthető a
@@ -38,6 +38,8 @@ típusos azonosítója és legacy leképezése is automatikusan bővül.
 
 A labirintus és a harci találkozások mezői C# kifejezéseket tartalmaznak. Mentés után fordítsd újra
 a játékot és indítsd újra a szerkesztőt, hogy az előnézet az új C# konfigurációt használja.
+Az egyes labirintusmezők fölött látható rövid magyarázat; a címkére vagy a mezőre állva részletes
+tooltip és példa jelenik meg.
 Az egyedi történeti questek külön szabályait a `QuestCatalogBuilder` tartalmazza; ezekhez a
 szabályokhoz a CSV sor önmagában nem elegendő.
 

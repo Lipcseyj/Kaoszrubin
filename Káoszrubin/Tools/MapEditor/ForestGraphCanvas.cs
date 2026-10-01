@@ -1,7 +1,7 @@
 using KaoszRubin.World;
 using System.ComponentModel;
 
-namespace KaoszRubin.ForestMapEditor;
+namespace KaoszRubin.MapEditor;
 
 internal sealed class ForestGraphCanvas : Control
 {

@@ -63,7 +63,7 @@ tagjai +3 kezdeményezést kapnak; ingyen támadás nincs. Balanszoláskor terü
 kis célzott csoport ajánlott. A `triggerDistance` jellemzően 4–5 legyen, és a hagyományos corridor
 encounterek számát csak akkor érdemes növelni, ha a pálya ritkának érződik.
 
-A ForestMapEditor **Terephatás/rajtaütés overlay** kapcsolója a terminál-előnézetben betűkkel jelöli
+A MapEditor **Terephatás/rajtaütés overlay** kapcsolója a terminál-előnézetben betűkkel jelöli
 a játékmeneti terepeket és `!` jellel az esetleg már elhelyezett ellenfelet. Kikapcsolva az eredeti
 játékszerű megjelenítés látható.
 
@@ -267,7 +267,7 @@ helyiségtípusra célozható; a régi `ScreenNumber` továbbra is támogatott.
 
 ## Erdei pályagráf-szerkesztő
 
-A `Tools/ForestMapEditor` Windows alkalmazás a gráf vizuális szerkesztésére szolgál. A csomópontok
+A `Tools/MapEditor` Windows alkalmazás a gráf vizuális szerkesztésére szolgál. A csomópontok
 rácson mozgathatók, elnevezhetők, template-hez rendelhetők, összeköthetők, és a legfontosabb
 víz-, mocsár-, erdősűrűség- és épületparaméterek képernyőnként felülírhatók. A szerkesztő ugyanazzal
 a generátorral készít ASCII előnézetet, mint a játék. A verziózott JSON formátumot a
