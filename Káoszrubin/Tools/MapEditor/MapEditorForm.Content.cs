@@ -5,6 +5,7 @@ namespace KaoszRubin.MapEditor;
 
 internal sealed partial class MapEditorForm
 {
+    private const string InformativeNpcNameColumn = "NpcName";
     private readonly TabPage _forestTab = new("Erdős pálya");
     private readonly TabPage _mazeTab = new("Labirintus pálya");
     private readonly TabPage _encountersTab = new("Találkozások");
@@ -22,6 +23,7 @@ internal sealed partial class MapEditorForm
     private readonly Dictionary<string, DataGridView> _csvGrids = [];
     private readonly CheckBox _showAllNpcs = new() { Text = "Összes pálya NPC-i", AutoSize = true };
     private readonly ComboBox _npcEncounterSelector = new() { Width = 270, DropDownStyle = ComboBoxStyle.DropDownList };
+    private IReadOnlyDictionary<string, string> _npcNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
     private bool _refreshingContent;
 
     private Control BuildTabs()
@@ -136,9 +138,11 @@ internal sealed partial class MapEditorForm
         {
             var page = new TabPage(label);
             var grid = new DataGridView { Dock = DockStyle.Fill, AllowUserToAddRows = true,
-                AllowUserToDeleteRows = true, AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.DisplayedCells,
+                AllowUserToDeleteRows = true, AllowUserToResizeColumns = true,
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.None,
                 RowHeadersWidth = 26, ClipboardCopyMode = DataGridViewClipboardCopyMode.EnableWithoutHeaderText };
             _csvGrids[section] = grid;
+            grid.CellValueChanged += NpcIdCellValueChanged;
             if (section == "NPC találkozások")
                 grid.SelectionChanged += (_, _) =>
                 {
@@ -188,10 +192,14 @@ internal sealed partial class MapEditorForm
                 ? $"A széles labirintusban képernyőszámot használj. Biztosan létező képernyők: 1–{_minimumScreenCount}."
                 : "Az erdei gráfban a stabil AreaId-val célozhatsz képernyőt.";
             var csv = new CsvSectionEditor(EditorSources.PathFor("Data/game-data.csv"));
+            _npcNames = csv.Rows("NPC-k")
+                .Where(row => row.Length > 1 && !string.IsNullOrWhiteSpace(row[0]))
+                .ToDictionary(row => row[0], row => row[1], StringComparer.OrdinalIgnoreCase);
             foreach (var (section, grid) in _csvGrids)
             {
                 grid.Columns.Clear(); grid.Rows.Clear();
-                foreach (var header in csv.Headers(section))
+                var headers = csv.Headers(section);
+                foreach (var header in headers)
                 {
                     var column = grid.Columns[grid.Columns.Add(header, header)];
                     column.ToolTipText = header switch
@@ -205,10 +213,26 @@ internal sealed partial class MapEditorForm
                         _ => ""
                     };
                 }
+                var npcIdColumnIndex = Array.FindIndex(headers,
+                    header => string.Equals(header, "NpcId", StringComparison.OrdinalIgnoreCase));
+                if (npcIdColumnIndex >= 0)
+                {
+                    var npcNameColumn = new DataGridViewTextBoxColumn
+                    {
+                        Name = InformativeNpcNameColumn,
+                        HeaderText = InformativeNpcNameColumn,
+                        ReadOnly = true,
+                        Tag = InformativeNpcNameColumn
+                    };
+                    grid.Columns.Add(npcNameColumn);
+                    npcNameColumn.DisplayIndex = 0;
+                }
                 foreach (var row in csv.Rows(section))
                 {
                     var values = new object[grid.Columns.Count];
                     for (var i = 0; i < values.Length; i++) values[i] = i < row.Length ? row[i] : "";
+                    if (npcIdColumnIndex >= 0 && _npcNames.TryGetValue(values[npcIdColumnIndex].ToString()!, out var npcName))
+                        values[^1] = npcName;
                     var rowIndex = grid.Rows.Add(values);
                     if (section == "NPC találkozások" && values.Length > 2 && values[2]?.ToString() == level.ToString())
                         grid.Rows[rowIndex].DefaultCellStyle.BackColor = Color.LightGoldenrodYellow;
@@ -219,6 +243,20 @@ internal sealed partial class MapEditorForm
         }
         catch (Exception exception) { MessageBox.Show(this, exception.Message, "Adatbetöltési hiba"); }
         finally { _refreshingContent = false; }
+    }
+
+    private void NpcIdCellValueChanged(object? sender, DataGridViewCellEventArgs args)
+    {
+        if (_refreshingContent || sender is not DataGridView grid || args.RowIndex < 0 ||
+            !grid.Columns.Contains(InformativeNpcNameColumn))
+            return;
+        var npcIdColumn = grid.Columns["NpcId"];
+        if (npcIdColumn is null || args.ColumnIndex != npcIdColumn.Index) return;
+        var row = grid.Rows[args.RowIndex];
+        var npcId = row.Cells["NpcId"].Value?.ToString();
+        row.Cells[InformativeNpcNameColumn].Value = npcId is not null && _npcNames.TryGetValue(npcId, out var npcName)
+            ? npcName
+            : "";
     }
 
     private void RefreshNpcEncounterChoices()
@@ -469,8 +507,11 @@ internal sealed partial class MapEditorForm
         {
             var grid = _csvGrids[section];
             grid.EndEdit();
+            var persistedColumnIndexes = grid.Columns.Cast<DataGridViewColumn>()
+                .Where(column => !Equals(column.Tag, InformativeNpcNameColumn))
+                .Select(column => column.Index).ToArray();
             var rows = grid.Rows.Cast<DataGridViewRow>().Where(row => !row.IsNewRow)
-                .Select(row => row.Cells.Cast<DataGridViewCell>().Select(cell => cell.Value?.ToString() ?? "").ToArray())
+                .Select(row => persistedColumnIndexes.Select(index => row.Cells[index].Value?.ToString() ?? "").ToArray())
                 .Where(row => row.Any(value => value.Length > 0)).ToArray();
             if (rows.Any(row => string.IsNullOrWhiteSpace(row[0])) ||
                 rows.Select(row => row[0]).Distinct(StringComparer.OrdinalIgnoreCase).Count() != rows.Length)
