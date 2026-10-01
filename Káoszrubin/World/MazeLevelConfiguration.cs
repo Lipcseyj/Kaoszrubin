@@ -27,7 +27,7 @@ public sealed record IntRange(int Minimum, int Maximum)
 /// Jól olvasható mennyiségi kategóriák pályakonfigurációkhoz. A pontos tartományokat az
 /// <see cref="AmountRanges.Range"/> adja meg.
 /// </summary>
-public enum Amount { One, Few, TwoThree, Handful, Several, Pack, Lots, Horde }
+public enum Amount { One, Few, Pair, TwoThree, Handful, Several, Pack, Lots, Horde }
 
 /// <summary>Az <see cref="Amount"/> kategóriákat konkrét, véletleníthető tartományokká alakítja.</summary>
 public static class AmountRanges
@@ -37,6 +37,7 @@ public static class AmountRanges
     {
         Amount.One => new(1, 1),
         Amount.Few => new(1, 2),
+        Amount.Pair => new(2, 2),
         Amount.TwoThree => new(2, 3),
         Amount.Handful => new(2, 4),
         Amount.Several => new(5, 9),
@@ -505,7 +506,8 @@ public static class MazeLevelConfigurations
                 [
                     Encounters.Solo(MonsterIds.Csontváz, Amount.Several, EnemyMovementProfile.Patrol),
                     Encounters.Solo(MonsterIds.Zombi, Amount.Few),
-                    Encounters.MixedHorde(MonsterIds.Zombi, Amount.Few, MonsterIds.Csontváz, Amount.Few, Amount.Few),
+                    Encounters.MixedHorde(MonsterIds.Zombi, Amount.Few, MonsterIds.Csontváz, Amount.Handful, Amount.Few),
+                    Encounters.Horde(MonsterIds.Zombi, Amount.Few, Amount.Several)
                 ]
             },
             [6] = new()
@@ -1230,8 +1232,9 @@ public static class QuestLocationConfigurations
             CorridorEncounters =
             [
                 Encounters.Solo(MonsterIds.CsontvázŐr, Amount.Several, EnemyMovementProfile.Patrol),
-                Encounters.Solo(MonsterIds.Zombi, Amount.Several),
-                Encounters.Solo(MonsterIds.CsontvázLovag, Amount.Several, EnemyMovementProfile.Patrol)
+                Encounters.Solo(MonsterIds.Zombi, Amount.Several, EnemyMovementProfile.Wander),
+                Encounters.Solo(MonsterIds.CsontvázLovag, Amount.Several, EnemyMovementProfile.Patrol),
+                Encounters.Horde(MonsterIds.Ghoul, Amount.Few, Amount.Pair)
             ]
         },
         _ => throw new KeyNotFoundException($"Ismeretlen küldetéshelyszín: {id}")
