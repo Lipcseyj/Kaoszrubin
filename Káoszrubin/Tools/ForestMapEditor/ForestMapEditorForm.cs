@@ -1,8 +1,9 @@
 using KaoszRubin.World;
+using KaoszRubin.Data;
 
 namespace KaoszRubin.ForestMapEditor;
 
-internal sealed class ForestMapEditorForm : Form
+internal sealed partial class ForestMapEditorForm : Form
 {
     private readonly ForestGraphCanvas _canvas = new();
     private readonly SplitContainer _split = new()
@@ -37,7 +38,8 @@ internal sealed class ForestMapEditorForm : Form
     private readonly ComboBox _connectionTo = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 145 };
     private readonly ComboBox _entrance = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 145 };
     private readonly ComboBox _exit = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 145 };
-    private readonly NumericUpDown _level = Number(1, 999, 6);
+    private readonly NumericUpDown _level = Number(1, MazeLevelConfigurations.FinalLevel, 6);
+    private readonly NumericUpDown _layoutSeed = Number(1, int.MaxValue, 6);
     private readonly CheckBox _previewGameplayOverlay = new()
     {
         Text = "Terephatás/rajtaütés overlay",
@@ -52,10 +54,11 @@ internal sealed class ForestMapEditorForm : Form
     private string? _currentFilePath;
     private ForestGenerationConfiguration _previewBaseConfiguration = new();
     private int? _lastPreviewSeed;
+    private bool _nonForestMode;
 
     public ForestMapEditorForm()
     {
-        Text = "Káoszrubin – erdei pályagráf-szerkesztő";
+        Text = "Káoszrubin – pályaszerkesztő";
         Width = 1280;
         Height = 800;
         MinimumSize = new Size(900, 650);
@@ -64,7 +67,7 @@ internal sealed class ForestMapEditorForm : Form
         _template.Items.AddRange(ForestAreaTemplateCatalog.BuiltIns.Select(template => template.Id).ToArray());
 
         _split.Panel1.Controls.Add(_canvas);
-        _split.Panel2.Controls.Add(BuildInspector());
+        _split.Panel2.Controls.Add(BuildTabs());
         Controls.Add(_split);
         Controls.Add(BuildToolbar());
         Controls.Add(new StatusStrip { Items = { _status } });
@@ -86,6 +89,13 @@ internal sealed class ForestMapEditorForm : Form
         bar.Controls.Add(new Label { Text = "Pálya:", AutoSize = true, Padding = new Padding(0, 7, 0, 0) });
         bar.Controls.Add(_level);
         bar.Controls.Add(Button("Pálya betöltése", (_, _) => LoadSelectedLevel()));
+        bar.Controls.Add(new Label { Text = "Gráf seed:", AutoSize = true, Padding = new Padding(0, 7, 0, 0) });
+        bar.Controls.Add(_layoutSeed);
+        bar.Controls.Add(Button("Új gráf", (_, _) =>
+        {
+            _layoutSeed.Value = Random.Shared.Next(1, int.MaxValue);
+            LoadSelectedLevel();
+        }));
         bar.Controls.Add(Button("Mentés", (_, _) => SaveDocument()));
         bar.Controls.Add(Button("Mentés másként", (_, _) => SaveDocumentAs()));
         bar.Controls.Add(Button("Validálás", (_, _) => ValidateDocument(showSuccess: true)));
@@ -129,6 +139,8 @@ internal sealed class ForestMapEditorForm : Form
 
     private void NewDocument()
     {
+        _nonForestMode = false;
+        _forestTab.Enabled = true;
         _areas.Clear();
         _connections.Clear();
         _customTemplates.Clear();
@@ -173,8 +185,10 @@ internal sealed class ForestMapEditorForm : Form
             }
             _lastPreviewSeed = null;
             var graph = document.Graph;
+            _nonForestMode = false;
             LoadGraph(graph, dialog.FileName);
             _currentFilePath = dialog.FileName;
+            RefreshAdditionalTabs();
             UpdateStatus($"Megnyitva: {dialog.FileName}");
         }
         catch (Exception exception) { MessageBox.Show(this, exception.Message, "Megnyitási hiba"); }
@@ -182,6 +196,7 @@ internal sealed class ForestMapEditorForm : Form
 
     private void SaveDocument()
     {
+        if (_nonForestMode) { MessageBox.Show(this, "Az erdei JSON mentése csak erdei pályán érhető el."); return; }
         if (!ValidateDocument(showSuccess: false)) return;
         if (_currentFilePath is null) { SaveDocumentAs(); return; }
         WriteDocument(_currentFilePath);
@@ -189,6 +204,7 @@ internal sealed class ForestMapEditorForm : Form
 
     private void SaveDocumentAs()
     {
+        if (_nonForestMode) { MessageBox.Show(this, "Az erdei JSON mentése csak erdei pályán érhető el."); return; }
         if (!ValidateDocument(showSuccess: false)) return;
         using var dialog = new SaveFileDialog { Filter = "Erdei gráf (*.json)|*.json", FileName = "forest-level.json" };
         if (dialog.ShowDialog(this) != DialogResult.OK) return;
@@ -213,25 +229,44 @@ internal sealed class ForestMapEditorForm : Form
     {
         var level = (int)_level.Value;
         var configuration = MazeLevelConfigurations.Get(level);
-        var layout = configuration.Layout as ForestMazeLayoutConfiguration;
-        if (layout is null)
+        var source = new FileForestLevelGraphSource(EditorSources.PathFor("ForestLevelGraphs"));
+        var effectiveLayout = ForestLevelGraphOverrideBridge.Apply(configuration, source);
+        var layout = effectiveLayout as ForestMazeLayoutConfiguration;
+        if (layout is not null)
         {
-            MessageBox.Show(this,
-                $"A(z) {level}. pálya nem erdei layout, ezért a szerkesztő kihagyja.",
-                "Betöltés kihagyva");
-            UpdateStatus($"Kihagyva: {level}. pálya nem erdei layout ({configuration.Name})");
+            _nonForestMode = false;
+            var graph = layout.ExplicitGraph;
+            if (graph is null)
+            {
+                var plan = DungeonAreaGraphGenerator.Generate(layout.Graph, new Random((int)_layoutSeed.Value));
+                graph = new ExplicitForestAreaGraphConfiguration(
+                    plan.Nodes.Select(node => new ForestAreaDefinition(node.Id, node.Id, node.Coordinate)).ToArray(),
+                    plan.Connections.Select(edge => new ForestAreaConnectionDefinition(edge.FirstAreaId, edge.SecondAreaId)).ToArray(),
+                    plan.EntranceAreaId, plan.ExitAreaId);
+            }
+            _previewBaseConfiguration = layout.Forest;
+            _lastPreviewSeed = null;
+            LoadGraph(graph, $"a játék {level}. pályája");
+            _mainTabs.SelectedTab = _forestTab;
+            _currentFilePath = null;
+            RefreshAdditionalTabs();
             return;
         }
-        if (layout.ExplicitGraph is null)
-        {
-            MessageBox.Show(this, $"A(z) {level}. pályához nem található explicit erdei gráf.", "Betöltési hiba");
-            return;
-        }
-        _previewBaseConfiguration = layout.Forest;
+        _nonForestMode = true;
+        var areaCount = effectiveLayout is WideMazeLayoutConfiguration wide
+            ? wide.AreaCount.Roll(new Random((int)_layoutSeed.Value)) : 1;
+        var topology = DungeonAreaGraphPlan.Linear(areaCount);
+        var areas = topology.Nodes.Select((node, index) => new ForestAreaDefinition(node.Id,
+            areaCount == 1 ? configuration.Name : $"{index + 1}. terület", node.Coordinate)).ToArray();
+        var connections = topology.Connections.Select(edge =>
+            new ForestAreaConnectionDefinition(edge.FirstAreaId, edge.SecondAreaId)).ToArray();
         _lastPreviewSeed = null;
-        LoadGraph(layout.ExplicitGraph, $"a játék beépített {level}. pályája");
+        LoadGraph(new ExplicitForestAreaGraphConfiguration(areas, connections,
+            topology.EntranceAreaId, topology.ExitAreaId), $"a játék {level}. pályája");
+        _mainTabs.SelectedTab = _mazeTab;
         _currentFilePath = null;
-        UpdateStatus($"A(z) {level}. pálya betöltve – Mentés gombbal válassz JSON-fájlt");
+        RefreshAdditionalTabs();
+        UpdateStatus($"{level}. pálya: {configuration.Name} — {areaCount} képernyő, gráf seed: {_layoutSeed.Value}");
     }
 
     private void LoadGraph(ExplicitForestAreaGraphConfiguration graph, string source)
@@ -245,6 +280,7 @@ internal sealed class ForestMapEditorForm : Form
         RefreshTemplateList();
         RefreshGraph(graph.EntranceAreaId, graph.ExitAreaId);
         SelectArea(_areas.FirstOrDefault());
+        _forestTab.Enabled = !_nonForestMode;
         UpdateStatus($"Betöltve: {source}");
     }
 
@@ -271,16 +307,14 @@ internal sealed class ForestMapEditorForm : Form
     private void ShowEditorHelp()
     {
         MessageBox.Show(this,
-            "1. Kattints egy területdobozra; a jobb oldali panel annak adatait mutatja.\n" +
-            "2. A dobozt húzva rácsponton mozgathatod. Csak egymás melletti rácspontok köthetők össze.\n" +
-            "3. A template adja az alapkaraktert. Csak a bepipált helyi értékek írják felül.\n" +
-            "4. A kapcsolat részben válassz két területet, majd add hozzá vagy töröld az élt.\n" +
-            "5. A Mentés JSON-fájlt készít. Megnyitás ugyanilyen JSON-t tölt vissza.\n" +
-            "6. A pályaszám kiválasztása után a Pálya betöltése a játék beépített gráfját nyitja meg.\n" +
-            "   Nem erdei pályánál a szerkesztő figyelmeztet és kihagyja a betöltést.\n" +
-            "7. Az Új előnézet mindig új seedet használ. Az Előző seed ismétlése ugyanazt a térképet generálja újra.\n\n" +
-            "Ha a jobb panel rejtve van, nyomd meg az Oldalpanel gombot.",
-            "Erdei pályagenerátor – gyors súgó");
+            "Válassz pályaszámot, majd nyomd meg a Pálya betöltése gombot.\n" +
+            "Az Erdős pálya fülön a gráf és a template-ek szerkeszthetők; a felső Mentés csak az erdei JSON-t menti.\n" +
+            "A Labirintus pálya és Találkozások fülek saját mentőgombjai a MazeLevelConfiguration.cs fájlt írják.\n" +
+            "Az NPC-k fülön az adott pálya sorai látszanak; az Összes pálya NPC-i jelölő minden sort mutat.\n" +
+            "Az NPC-k fül CSV mentőgombjai a game-data.csv adott szekcióját írják.\n" +
+            "A térképen kijelölt képernyő AreaId-ja a találkozásokba és az NPC-elhelyezésbe is beilleszthető.\n" +
+            "C# konfiguráció mentése után fordítsd újra és indítsd újra a szerkesztőt az előnézet frissítéséhez.",
+            "Pályaszerkesztő – gyors súgó");
     }
 
     private void ShowTemplateDetails()
@@ -365,8 +399,14 @@ internal sealed class ForestMapEditorForm : Form
     {
         try
         {
-            Document().Validate();
-            if (showSuccess) MessageBox.Show(this, "A gráf és minden template-hivatkozás érvényes.", "Siker");
+            if (!_nonForestMode) Document().Validate();
+            if (showSuccess)
+            {
+                _ = EditorSources.ReadLevel((int)_level.Value);
+                _ = CsvGameDataLoader.Load(EditorSources.PathFor("Data/game-data.csv"));
+            }
+            if (showSuccess) MessageBox.Show(this,
+                "A pályaadatok és a CSV az aktuális szerkesztőverzióval betölthetők.", "Siker");
             return true;
         }
         catch (Exception exception)
@@ -378,19 +418,32 @@ internal sealed class ForestMapEditorForm : Form
 
     private void PreviewSelected(bool reuseLastSeed)
     {
-        if (_selected is null || !ValidateDocument(showSuccess: false)) return;
+        if (_selected is null || !_nonForestMode && !ValidateDocument(showSuccess: false)) return;
         try
         {
-            var graph = Document();
-            var configuration = ForestAreaConfigurationResolver.Resolve(_previewBaseConfiguration, graph, _selected);
-            var settings = new MazeGenerationSettings { RoomCount = 8, MinimumRoomSize = 4,
-                MaximumRoomSize = 8, TreasureChestCount = 0, LevelName = _selected.Name };
             var seed = reuseLastSeed && _lastPreviewSeed is { } previousSeed
                 ? previousSeed
                 : Random.Shared.Next(1, int.MaxValue);
             _lastPreviewSeed = seed;
             var previewTitle = $"{_selected.Name} — seed: {seed}";
-            var maze = new ForestMazeGenerator(settings, configuration, [], [], new Random(seed)).Create(170, 44);
+            Maze maze;
+            if (_nonForestMode)
+            {
+                var level = MazeLevelConfigurations.Get((int)_level.Value);
+                var settings = level.CreateGenerationSettings(new Random(seed));
+                var generator = level.Layout is WideMazeLayoutConfiguration
+                    ? new WideMazeGenerator(settings, [], [], new Random(seed))
+                    : new MazeGenerator(settings, [], [], new Random(seed));
+                maze = generator.Create(170, 44);
+            }
+            else
+            {
+                var graph = Document();
+                var configuration = ForestAreaConfigurationResolver.Resolve(_previewBaseConfiguration, graph, _selected);
+                var settings = new MazeGenerationSettings { RoomCount = 8, MinimumRoomSize = 4,
+                    MaximumRoomSize = 8, TreasureChestCount = 0, LevelName = _selected.Name };
+                maze = new ForestMazeGenerator(settings, configuration, [], [], new Random(seed)).Create(170, 44);
+            }
             UpdateStatus($"Előnézet: {_selected.Name}, seed: {seed}");
             if (!TerminalMazePreview.TryShow(maze, previewTitle, _previewGameplayOverlay.Checked, out var error))
             {
@@ -660,6 +713,7 @@ internal static class TerminalMazePreview
 
     private void MoveArea(ForestAreaDefinition area, AreaCoordinate coordinate)
     {
+        if (_nonForestMode) return;
         SelectArea(area); _x.Value = coordinate.X; _y.Value = coordinate.Y; ApplySelected();
     }
 

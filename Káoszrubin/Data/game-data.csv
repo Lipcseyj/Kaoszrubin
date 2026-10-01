@@ -1462,7 +1462,7 @@ NPC022;9;3;9;4;11;INT;8;10;Magenta;Defensive;;;W001;;A001;;T011|T001|T002;
 NPC023;3;8;3;8;4;STR;5;0;Magenta;Aggressive;;;W004;;A002;;T011|T001|T002;
 
 #NPC találkozások
-Id;NpcId;Pályaszint;MinimumTávolság;MaximumTávolság;QuestRoomId
+Id;NpcId;Pályaszint;MinimumTávolság;MaximumTávolság;QuestRoomId;AreaId
 NPCE001;NPC001;2;6;14
 NPCE002;NPC002;3;20;40
 NPCE003;NPC003;5;8;18

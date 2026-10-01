@@ -1501,8 +1501,14 @@ public sealed partial class Game
         {
             var targetArea = encounter.QuestRoomId is { } targetRoomId
                 ? _dungeonLevel.Areas.FirstOrDefault(area => area.Maze.GetRoomByContentId(targetRoomId) is not null)
-                : activeArea;
-            targetArea ??= activeArea;
+                : encounter.AreaId is { } areaId
+                    ? _dungeonLevel.Areas.FirstOrDefault(area => string.Equals(area.Id, areaId, StringComparison.Ordinal))
+                    : activeArea;
+            if (targetArea is null)
+            {
+                Log.Warning($"A(z) '{encounter.Id}' NPC-találkozás célterülete nem található.");
+                continue;
+            }
             _maze = targetArea.Maze;
             _fogOfWar = targetArea.FogOfWar;
             var definition = _gameData.GetNpc(encounter.NpcId);

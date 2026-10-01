@@ -1,4 +1,4 @@
-# Erdei pályagráf-szerkesztő
+# Pályaszerkesztő
 
 Indítás fejlesztői környezetből:
 
@@ -14,8 +14,9 @@ képernyő között hozható létre vagy törölhető él.
 
 ## Első lépések
 
-1. Válassz pályaszámot, majd a **Pálya betöltése** gomb a kiválasztott kampánypálya beépített erdőgráfját nyitja meg.
-   Ha a pálya nem erdei layoutot használ, a szerkesztő figyelmeztet és kihagyja a betöltést.
+1. Válassz pályaszámot, majd a **Pálya betöltése** gomb megmutatja a kampánypályát. A klasszikus pálya egy
+   képernyő, a széles labirintus a megadott gráf seed alapján sorsolt képernyőszámmal látható. Az erdőnél a tényleges
+   JSON-felülírás gráfja jelenik meg, ha van ilyen fájl.
 2. Kattints egy területdobozra. A jobb oldali **Kijelölt képernyő beállításai** panel frissül.
 3. A bepipált erdősűrűség-, tó-, mocsár- és épületértékek felülírják a template-et.
 4. A **Módosítások alkalmazása** után az előnézet már az új beállítást használja.
@@ -27,9 +28,18 @@ képernyő között hozható létre vagy törölhető él.
 Az **Oldalpanel** gombbal a jobb oldali panel bármikor elrejthető vagy visszahozható. A szerkesztő
 maximalizálva indul, ezért kisebb vagy nagyított kijelzőn sem kellene lelógnia.
 
-A pálya betöltése jelenleg a képernyőgráfot, neveket, template-választásokat és helyi
-felülírásokat hozza be. A pálya közös alapkonfigurációja, encounterei és jutalmai továbbra is
-a játék pályakonfigurációjában maradnak; a szerkesztő JSON-ja az erdei gráfot írja le.
+A jobb oldali négy fülön az erdei gráf, a labirintus pályakonfigurációja, a harci találkozások,
+valamint az NPC-k, elhelyezéseik, párbeszédeik és küldetéseik szerkeszthetők. A felső **Mentés**
+csak az erdei gráf JSON-ját írja. A többi fül saját mentőgombja közvetlenül a
+`World/MazeLevelConfiguration.cs`, illetve `Data/game-data.csv` megfelelő részét írja.
+Az NPC-találkozások `AreaId` oszlopába a térképen kijelölt erdei képernyő azonosítója illeszthető;
+`QuestRoomId` és `AreaId` egyszerre nem használható. A CSV-ben létrehozott új NPC-k és questek
+típusos azonosítója és legacy leképezése is automatikusan bővül.
+
+A labirintus és a harci találkozások mezői C# kifejezéseket tartalmaznak. Mentés után fordítsd újra
+a játékot és indítsd újra a szerkesztőt, hogy az előnézet az új C# konfigurációt használja.
+Az egyedi történeti questek külön szabályait a `QuestCatalogBuilder` tartalmazza; ezekhez a
+szabályokhoz a CSV sor önmagában nem elegendő.
 
 A **Validálás** ellenőrzi az összefüggőséget, az azonosítókat, koordinátákat, kapcsolatokat és
 template-hivatkozásokat. Az előnézet a kiválasztott pálya közös erdőkonfigurációjával és a játék tényleges

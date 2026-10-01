@@ -695,7 +695,7 @@ public static class CsvGameDataLoader
             case DataSection.NpcEncounters:
                 npcEncounters.Add(new NpcEncounterDefinition(id, Cell(cells, 1),
                     Integer(cells, 2) ?? 1, Integer(cells, 3) ?? 6, Integer(cells, 4) ?? 14,
-                    EmptyAsNull(Cell(cells, 5))));
+                    EmptyAsNull(Cell(cells, 5)), EmptyAsNull(Cell(cells, 6))));
                 break;
             case DataSection.NpcDialogues:
                 npcDialogues.Add(new NpcDialogueDefinition(id, Cell(cells, 1),
@@ -1065,12 +1065,18 @@ public static class CsvGameDataLoader
                 throw new InvalidDataException($"A(z) '{reference.Id}' bejegyzés ismeretlen NPC-re hivatkozik: '{reference.NpcId}'.");
         foreach (var encounter in encounters)
         {
+            if (encounter.QuestRoomId is not null && encounter.AreaId is not null)
+                throw new InvalidDataException($"A(z) '{encounter.Id}' NPC-találkozás QuestRoomId és AreaId értéke egyszerre nem adható meg.");
             if (encounter.MazeLevel is < 1 or > MazeLevelConfigurations.FinalLevel ||
                 encounter.MinimumDistance < 1 || encounter.MaximumDistance < encounter.MinimumDistance)
                 throw new InvalidDataException($"A(z) '{encounter.Id}' NPC-találkozás pálya- vagy távolságadata érvénytelen.");
             if (encounter.QuestRoomId is { } questRoomId && !MazeLevelConfigurations.Get(encounter.MazeLevel)
                     .QuestRoomIds.Contains(questRoomId, StringComparer.OrdinalIgnoreCase))
                 throw new InvalidDataException($"A(z) '{encounter.Id}' NPC-találkozás ismeretlen quest roomra hivatkozik: '{questRoomId}'.");
+            if (encounter.AreaId is { } areaId && MazeLevelConfigurations.Get(encounter.MazeLevel).Layout is
+                    ForestMazeLayoutConfiguration { ExplicitGraph: { } graph } &&
+                !graph.Areas.Any(area => string.Equals(area.Id, areaId, StringComparison.Ordinal)))
+                throw new InvalidDataException($"A(z) '{encounter.Id}' NPC-találkozás ismeretlen erdei területre hivatkozik: '{areaId}'.");
         }
         foreach (var dialogue in dialogues)
             if (dialogue.MinimumFriendliness > dialogue.MaximumFriendliness)

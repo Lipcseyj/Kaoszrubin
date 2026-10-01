@@ -20,7 +20,7 @@ public sealed record UniqueNpcCharacterDefinition(string NpcId, int Level, Prima
 }
 
 public sealed record NpcEncounterDefinition(string Id, string NpcId, int MazeLevel,
-    int MinimumDistance, int MaximumDistance, string? QuestRoomId = null) : IGameDefinition
+    int MinimumDistance, int MaximumDistance, string? QuestRoomId = null, string? AreaId = null) : IGameDefinition
 {
     public string Name => Id;
 }
