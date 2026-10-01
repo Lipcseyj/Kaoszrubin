@@ -394,6 +394,8 @@ public sealed partial class Game
                 }
             }
 
+            Console.CursorVisible = false;
+
             while (!_gameOver)
             {
                 try
@@ -668,8 +670,6 @@ public sealed partial class Game
                 }
             }
             _activeCoopHost = null;
-            try { Console.CursorVisible = true; }
-            catch (Exception exception) when (TerminalViewport.IsTransientConsoleException(exception)) { }
             try
             {
                 Console.SetCursorPosition(0, Math.Min(ConsoleRenderer.ScreenRowCount - 1,

@@ -302,8 +302,6 @@ public sealed class CoopGuestScreen
         {
             if (_ownsBackgroundMusic) _backgroundMusic.Dispose();
             _soundEffects.Dispose();
-            try { Console.CursorVisible = true; }
-            catch (Exception exception) when (TerminalViewport.IsTransientConsoleException(exception)) { }
             if (_personalWindowId is { } windowId && _personalWindowKind is { } windowKind &&
                 client.State == CoopClientConnectionState.Connected)
             {
