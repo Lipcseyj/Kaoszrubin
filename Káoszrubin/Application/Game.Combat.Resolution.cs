@@ -1765,10 +1765,13 @@ public sealed partial class Game
         if (!battle.TryResolveDeath(enemy)) return;
         battle.MarkDefeated(enemy);
         if (!_maze.Enemies.Contains(enemy)) return;
+        var defeatedPosition = enemy.Position;
         if (!enemy.GrantsRewardsAndLoot)
         {
             _maze.RemoveEnemy(enemy);
             _nextEnemyMoves.Remove(enemy);
+            if (!_isQuickBattle)
+                _renderer.DrawMapCellsChanged(_maze, _fogOfWar, _player.Position, [defeatedPosition]);
             RecordSessionActivity(SessionActivityKind.Battle,
                 $"☠ {enemy.Name} idézett teste szertefoszlik.", ConsoleColor.DarkGray);
             return;
@@ -1786,6 +1789,8 @@ public sealed partial class Game
         }
         _maze.ReplaceEnemyWithCorpse(enemy);
         _nextEnemyMoves.Remove(enemy);
+        if (!_isQuickBattle)
+            _renderer.DrawMapCellsChanged(_maze, _fogOfWar, _player.Position, [defeatedPosition]);
         var message = $"☠ {enemy.Name} elesett. +{enemy.Definition.ExperienceReward} XP kerül szétosztásra.";
         if (!_isQuickBattle) _renderer.DrawInventoryMessage(message, ConsoleColor.Green);
         RecordSessionActivity(SessionActivityKind.Battle, message, ConsoleColor.Green);
