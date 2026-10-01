@@ -472,7 +472,7 @@ internal sealed partial class MapEditorForm
             !row.IsNewRow && row.Cells[0].Value?.ToString() == selectedEncounter)?.Cells[1].Value?.ToString();
         foreach (var (section, grid) in _csvGrids)
         {
-            grid.CurrentCell = null;
+            var visibility = new List<(DataGridViewRow Row, bool Show)>();
             foreach (DataGridViewRow row in grid.Rows)
             {
                 if (row.IsNewRow) continue;
@@ -490,8 +490,15 @@ internal sealed partial class MapEditorForm
                     "NPC történeti választások" => true,
                     _ => true
                 };
-                row.Visible = show;
+                visibility.Add((row, show));
             }
+            // A kijelölést csak akkor szüntessük meg, ha a sor valóban eltűnik.
+            // Ellenkező esetben az elhelyezési rács kiválasztása után azonnal
+            // elveszne az aktív cella, és nem lehetne szerkeszteni.
+            if (grid.CurrentRow is { IsNewRow: false } current &&
+                visibility.Any(entry => entry.Row == current && !entry.Show))
+                grid.CurrentCell = null;
+            foreach (var (row, show) in visibility) row.Visible = show;
         }
     }
 
