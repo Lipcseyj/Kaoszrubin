@@ -582,6 +582,11 @@ public sealed partial class Game
                     continue;
                 }
 
+#if DEBUG
+                if (!_battleStarted && _developerGodMode)
+                    DefeatEnemiesNearPartyLeader();
+#endif
+
                 if (!_battleStarted && now >= _nextEnemyActionUtc)
                 {
                     if (MoveEnemies(now)) MarkCoopSnapshotDirty();
@@ -733,6 +738,11 @@ public sealed partial class Game
         if (IsDeveloperBattleTestShortcut(keyInfo))
         {
             StartDeveloperBattleTest();
+            devToolStarted = true;
+        }
+        if (IsDeveloperGodModeShortcut(keyInfo))
+        {
+            ToggleDeveloperGodMode();
             devToolStarted = true;
         }
         if (IsFillPartySetYShortcut(keyInfo))

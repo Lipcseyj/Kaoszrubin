@@ -86,6 +86,10 @@ internal static class GameInput
         keyInfo.Key == ConsoleKey.T &&
         HasControlAlt(keyInfo);
 
+    public static bool IsDeveloperGodModeShortcut(ConsoleKeyInfo keyInfo) =>
+        keyInfo.Key == ConsoleKey.G &&
+        HasControlAlt(keyInfo);
+
     public static bool IsFillPartySetYShortcut(ConsoleKeyInfo keyInfo) =>
         keyInfo.Key == ConsoleKey.Y &&
         HasControlShift(keyInfo);

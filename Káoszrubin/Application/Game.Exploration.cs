@@ -692,7 +692,7 @@ public sealed partial class Game
         _maze.RemoveTreasureChest(chest);
         ProcessQuestProgressChanges(_questManager.RegisterChestOpened());
         _renderer.RefreshCharacterSheet(PartyLeader);
-        _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);
+        _renderer.DrawMapCellsChanged(_maze, _fogOfWar, _player.Position, [position]);
         if (character == PartyLeader)
             _renderer.DrawTreasureCollected(goldAmount, jackpot, jackpotChance, rewardMultiplier);
 

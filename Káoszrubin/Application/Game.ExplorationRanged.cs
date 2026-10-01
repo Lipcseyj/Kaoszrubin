@@ -89,7 +89,7 @@ public sealed partial class Game
                 attackWeaponSlotIndex: rangedWeapon.Slot,
                 rangedHitModifier: RangedWeaponRules.CloseRangeModifier(attacker, rangedWeapon.Weapon, distance));
             PresentBattleEntries([entry]);
-            if (enemyTarget.CurrentHitPoints <= 0) ResolveExplorationRangedEnemyDefeat(attacker, enemyTarget);
+            if (enemyTarget.CurrentHitPoints <= 0) ResolveExplorationEnemyDefeat(attacker, enemyTarget);
         }
         else if (friendlyTarget is not null)
         {
@@ -118,9 +118,16 @@ public sealed partial class Game
         RequestCoopSnapshotPublish();
     }
 
-    private void ResolveExplorationRangedEnemyDefeat(LiveCharacter attacker, Enemy enemy)
+    private void ResolveExplorationEnemyDefeat(LiveCharacter attacker, Enemy enemy)
     {
         if (!_maze.Enemies.Contains(enemy)) return;
+        if (!enemy.GrantsRewardsAndLoot)
+        {
+            _maze.RemoveEnemy(enemy);
+            _nextEnemyMoves.Remove(enemy);
+            _renderer.DrawMapCellAfterBattle(_maze, _fogOfWar, enemy.Position, _player.Position);
+            return;
+        }
         AwardBossKey(enemy);
         RegisterNpcQuestKill(enemy);
         attacker.RecordMonsterKill(enemy.Definition.Id);

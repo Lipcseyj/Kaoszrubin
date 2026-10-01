@@ -331,6 +331,29 @@ public sealed partial class Game
             : "Fejlesztői mód: fal-áthaladás letiltva.");
     }
 
+    private void ToggleDeveloperGodMode()
+    {
+        _developerGodMode = !_developerGodMode;
+        _renderer.DrawDeveloperMessage(_developerGodMode
+            ? "God mode bekapcsolva: a vezér 7 mezős körzetében az ellenségek elesnek."
+            : "God mode kikapcsolva.");
+        if (_developerGodMode) DefeatEnemiesNearPartyLeader();
+    }
+
+    private void DefeatEnemiesNearPartyLeader()
+    {
+        if (_battleStarted || !PartyLeader.IsAlive) return;
+        var enemies = _maze.Enemies
+            .Where(enemy => Manhattan(enemy.Position, _player.Position) <= 7)
+            .ToArray();
+        foreach (var enemy in enemies)
+        {
+            enemy.SetCurrentHitPoints(0);
+            ResolveExplorationEnemyDefeat(PartyLeader, enemy);
+        }
+        if (enemies.Length > 0) MarkCoopSnapshotDirty();
+    }
+
     private void StartDeveloperBattleTest()
     {
         if (_session.ConnectedRemoteCharacterCount > 0)

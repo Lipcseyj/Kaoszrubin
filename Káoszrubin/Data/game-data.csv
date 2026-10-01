@@ -1450,7 +1450,7 @@ NPC018;Káoszzarándok;C005;Neutral;Guarded;nem;nem
 NPC019;Óriásvadász;C001;Neutral;Aggressive;nem;nem
 NPC020;Elira Ezüstág;C004;Neutral;Guarded;igen;igen;R003;ELIRA_RESCUE
 NPC021;Sir Roderic;C003;Neutral;Guarded;igen;igen;R001;RODERIC_OATH
-NPC022;Merion;C006;Friendly;Friendly;igen;igen;R001;;igen
+NPC022;Merion;C006;Friendly;Friendly;igen;igen;R001;;nem
 NPC023;Vildar;C001;Friendly;Friendly;nem;igen;R001
 
 #Egyedi NPC karakterlap
@@ -1493,7 +1493,6 @@ NPCE028;NPC020;2;8;18
 NPCE029;NPC021;5;1;50;RODERIC_MEETING
 NPCE030;NPC022;1;5;13
 NPCE031;NPC023;3;10;30
-NPCE032;NPC007;6;8;20
 NPCE033;NPC001;4;15;25;;
 NPCE034;NPC002;7;9;20
 
@@ -1716,8 +1715,8 @@ NPCD111;NPC021;0;10;"Roderic megszámolja az elesett élőholtakat, majd elősz�
 NPCD112;NPC021;0;10;"Roderic letérdel az Ezüst Eskü ereklyéi előtt, és kezét a rend megkopott jelvényére teszi. ""A rend nem a falakban és nem is a kincsekben él. Addig létezik, amíg valaki felemeli azt, amit mások elejtettek. Ma ti is ezt tettétek."""
 NPCD113;NPC023;0;10;"Egy fiatal harcos áll az út szélén, kezében egy vérfoltos, csorba nyílhegyet forgat. Amikor közelebb értek, ökölbe szorul a keze. ""Vildar vagyok. Ezt a nyílhegyet a testvérem mellkasából húztam ki. A goblinok törzsfőnöke ölte meg, amikor a falunkat védte. Egyedül indultam volna utána, de tudom, hogy csak én is ott maradnék mellette. Ha megtaláljátok azt a szörnyeteget... öljétek meg érte. Nem aranyat kérek vissza, csak azt, hogy a testvérem végre békében nyugodhasson."""
 NPCD114;NPC023;0;10;"Vildar egy kidőlt fatörzs mellett ül, és némán a kezében tartott csorba nyílhegyet nézi. Amikor meglátja nálatok a goblin főnök fejét, hosszú másodpercekig egyetlen szót sem tud kimondani. Végül lehajtja a fejét, és remegő kézzel markolja meg a régi nyílhegyet. ""Hát... vége. Annyi éjszakán át azt hittem, csak akkor tudok majd újra lélegezni, ha az a gyilkos halott lesz. Bátyám... most már nyugodhatsz."" Vildar megtörli a szemét, majd felétek fordul. ""Köszönöm. Nemcsak bosszút álltatok érte... visszaadtatok nekem valamit abból, amit azon a napon elvesztettem. Fogadjátok el ezeket a kötéseket. Nem sok, de a testvérem mindig azt mondta: egy jó harcos nem szégyelli, ha életben akar maradni. Legyen most nektek hasznotokra. Úgy hallottam a vadállatok odúiban farkashordák kószálnak."""
-NPCD115;NPC024;0;10;"A füvesasszony egy kondért mellett kuporog, mellette rongyos falusiak. Fakanalat forgat az ujjai között, majd végigmér benneteket. ""Húslevest főznék ezeknek a szerencsétleneknek de nincs elég friss húsunk. Szerezzetek nekem és meghálálom. Vadkanhús különösen jó lenne."""
-NPCD116;NPC024;0;10;"A füvesasszony és a falusiak szeme felcsillan a hús láttán, felkel a kondér mellől és azonnal készíteni kezdi a levest. ""Jótét lelkek vagytok!"" Már csak főzés közben fűzi hozzá: ""Vigyetek gyógyteát cserébe, sokat főztem, jut nektek is."""
+NPCD115;NPC001;0;10;"A füvesasszony egy kondért mellett kuporog, mellette rongyos falusiak. Fakanalat forgat az ujjai között, majd végigmér benneteket. ""Húslevest főznék ezeknek a szerencsétleneknek de nincs elég friss húsunk. Szerezzetek nekem és meghálálom. Vadkanhús különösen jó lenne."""
+NPCD116;NPC001;0;10;"A füvesasszony és a falusiak szeme felcsillan a hús láttán, felkel a kondér mellől és azonnal készíteni kezdi a levest. ""Jótét lelkek vagytok!"" Már csak főzés közben fűzi hozzá: ""Vigyetek gyógyteát cserébe, sokat főztem, jut nektek is."""
 NPCD117;NPC002;0;5;"A szörnyvadász egy ork nyomát vizsgálja. ""Ismét ti? Az orkok már itt portyáznak. Előbb látnom kell, hogy számíthatok rátok.""";NPCE034
 NPCD118;NPC002;6;10;"A szörnyvadász felismer benneteket, és félrehúzza az ágakat egy friss ork ösvényéről. ""A goblinoknál bizonyítottatok. Öt ork portyázik erre; segítsetek levadászni őket, és megkapjátok a részeteket.""";NPCE034
 NPCD119;NPC002;0;10;"A szörnyvadász végignézi az ork felszereléseket, majd bólint. ""Ezek többé nem támadnak meg senkit. Jó, hogy újra összefutottunk."""

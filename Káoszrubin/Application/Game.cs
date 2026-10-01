@@ -180,6 +180,7 @@ public sealed partial class Game : ISessionCommandHandler
     private bool _pendingRodericReturn;
     private readonly DungeonRestState _dungeonRestState = new();
     private bool _developerPhasing;
+    private bool _developerGodMode;
     private int _lastDeveloperUniqueNpcIndex = -1;
     private int _lastDeveloperBossIndex = -1;
     private readonly HashSet<string> _collectedBossKeyIds = new(StringComparer.OrdinalIgnoreCase);
