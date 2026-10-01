@@ -112,6 +112,10 @@ public static class SpellcastingRules
         _ => false
     };
 
+    public static bool HasReachedSpellLearningLevel(string characterClassId, int level) =>
+        Enumerable.Range(1, Math.Max(0, level)).Any(candidate =>
+            LearnsSpellAtLevel(characterClassId, candidate));
+
     public static int EffectiveManaCost(LiveCharacter character, SpellDefinition spell) =>
         character.NextDivineSpellTriggersJudgment(spell)
             ? 0

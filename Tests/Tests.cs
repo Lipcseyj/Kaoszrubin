@@ -130,6 +130,7 @@ internal static partial class Program
     ("A buff varázslatok időtartama CSV-ből, harci körökben érkezik", SpellBuffDurationLoadsAsRounds),
     ("Az új varázslatok hatásai és célpontszabályai működnek", NewSpellEffectsAreSupported),
     ("A varázsmemória osztályonként eltérően fejlődik", SpellMemorizationCapacityUsesClassFormula),
+    ("A lovag ismert varázslata nem tűnik el köztes szinten mentéskor", KnightKnownSpellSurvivesNonLearningLevelSave),
     ("A kasztok CSV-ből módosítják a HP- és mannanövekedést", ClassResourceGrowthLoadsFromCsv),
     ("Az NPC-k és első küldetéseik CSV-ből töltődnek", NpcDefinitionsLoadFromCsv),
     ("A szörnyzsákmány-tábla csak a felszerelést vagy kincset hordó lényeket engedi", MonsterLootTableMatchesCreatureRoles),

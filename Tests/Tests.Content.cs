@@ -117,6 +117,30 @@ internal static partial class Program
             "A lovag memóriaképlete vagy négyhelyes korlátja hibás.");
     }
 
+    static void KnightKnownSpellSurvivesNonLearningLevelSave()
+    {
+        var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory,
+            CsvGameDataLoader.GameDataFileName));
+        var knight = new LiveCharacter("Mentett lovag", catalog.GetRace("R001"),
+            catalog.GetCharacterClass(CharacterClassIds.Lovag), new PrimaryAbilities(8, 7, 8, 6),
+            30, 16, 1, 1);
+        knight.SetProgress(2, 0);
+        var spell = catalog.GetSpells(SpellSchool.Divine, 1).First();
+        Assert(knight.LearnSpell(spell) && knight.SetMemorizedSpells([spell]),
+            "A lovag első varázslata nem készíthető elő a mentési teszthez.");
+        knight.SetProgress(3, 0);
+
+        var roster = new CharacterRoster();
+        roster.Add(knight);
+        roster.Select(knight);
+        var service = new CharacterSaveService(Path.Combine(Path.GetTempPath(), "unused-knight-save.json"), catalog);
+        var restored = service.Deserialize(service.Serialize(roster)).SelectedCharacter!;
+
+        Assert(restored.KnownSpells.Select(candidate => candidate.Id).SequenceEqual([spell.Id]) &&
+               restored.MemorizedSpells.Select(candidate => candidate.Id).SequenceEqual([spell.Id]),
+            "A lovag korábban megtanult varázslata eltűnt egy nem tanulási szinten végzett mentési kör után.");
+    }
+
     static void InventoryStackSplitIsAtomicAndRequiresSpace()
     {
         var party = new Party();
