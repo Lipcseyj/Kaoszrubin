@@ -20,7 +20,10 @@ public sealed record QuestDefinition(
     int FixedRewardItemCount = 0,
     int RandomRewardCount = 0,
     QuestActivationKind ActivationKind = QuestActivationKind.Offered,
-    NpcDialogueDefinition? CompletionDialogue = null);
+    NpcDialogueDefinition? CompletionDialogue = null,
+    string? EncounterId = null,
+    int MinimumFriendliness = 0,
+    int MaximumFriendliness = 10);
 
 public enum QuestActivationKind
 {

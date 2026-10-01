@@ -116,7 +116,7 @@ public sealed class GameSaveService
 public static class GameSaveFormat
 {
     public const int OldestSupportedVersion = 1;
-    public const int CurrentVersion = 34;
+    public const int CurrentVersion = 35;
 
     public static GameSaveData MigrateToCurrent(GameSaveData state)
     {
@@ -162,10 +162,18 @@ public static class GameSaveFormat
                 31 => MigrateVersion31To32(state),
                 32 => MigrateVersion32To33(state),
                 33 => MigrateVersion33To34(state),
+                34 => MigrateVersion34To35(state),
                 _ => throw new InvalidOperationException($"Hiányzó mentésmigráció a(z) {state.Version}. verzióhoz.")
             };
         }
         if (state.SuspendedCampaign is { } suspended) MigrateToCurrent(suspended);
+        return state;
+    }
+
+    private static GameSaveData MigrateVersion34To35(GameSaveData state)
+    {
+        state.NpcRelationships ??= new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        state.Version = 35;
         return state;
     }
 
@@ -510,6 +518,7 @@ public sealed class GameSaveData
     public int? EliraInnCharacterIndex { get; set; }
     public int EliraInnVisitsRemaining { get; set; }
     public List<WaitingDismissedCompanionSaveData> WaitingDismissedCompanions { get; set; } = [];
+    public Dictionary<string, int> NpcRelationships { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 }
 
 public sealed record WaitingDismissedCompanionSaveData(Guid CharacterId, int InnVisitsRemaining);
@@ -625,7 +634,7 @@ public sealed record WorldNpcSaveData(Position Position, string DefinitionId, in
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] List<LegacyNpcQuestProgress>? Quests = null,
     int ConversationStage = 0,
     string? StoryId = null, string StoryStateId = "INITIAL", int QuestInstanceId = 0,
-    Guid? CharacterId = null);
+    Guid? CharacterId = null, string? EncounterId = null);
 public sealed record GroundPileSaveData(Position Position, List<SavedItemReference> Items);
 public sealed record TrapSaveData(Position Position, string DefinitionId, TrapState State,
     bool DetectionAttempted, int FailedDisarmAttempts);

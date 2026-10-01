@@ -13,9 +13,10 @@ public sealed class WorldNpc(Position position, string definitionId, LiveCharact
     NpcDisposition disposition, bool recruitable, bool isQuestNpc, string dialogue,
     WorldNpcState state = WorldNpcState.Available, int friendliness = 5,
     NpcWorldBehavior behavior = NpcWorldBehavior.Guarded,
-    string? storyId = null, string storyStateId = "INITIAL") : WorldObject(position)
+    string? storyId = null, string storyStateId = "INITIAL", string? encounterId = null) : WorldObject(position)
 {
     public string DefinitionId { get; } = definitionId;
+    public string? EncounterId { get; } = encounterId;
     public LiveCharacter Character { get; } = character;
     public NpcDisposition Disposition { get; } = disposition;
     public bool Recruitable { get; } = recruitable;

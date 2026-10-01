@@ -331,7 +331,7 @@ internal sealed class GameStateMapper
     private WorldNpcSaveData SaveWorldNpc(WorldNpc npc) => new(npc.Position, npc.DefinitionId,
         CharacterIndex(npc.Character), npc.Disposition, npc.Recruitable, npc.IsQuestNpc,
         npc.Dialogue, npc.State, npc.Friendliness, npc.Behavior, null, null, npc.ConversationStage, npc.StoryId, npc.StoryStateId,
-        npc.IsQuestNpc ? _questInstances.GetOrCreate(npc).Value : 0, npc.Character.Id.Value);
+        npc.IsQuestNpc ? _questInstances.GetOrCreate(npc).Value : 0, npc.Character.Id.Value, npc.EncounterId);
 
     private WorldNpc RestoreWorldNpc(WorldNpcSaveData saved)
     {
@@ -341,7 +341,7 @@ internal sealed class GameStateMapper
                     ?? throw new InvalidDataException($"Hiányzó mentett NPC-karakter: {id}.")
                 : _characterRoster.Characters[saved.CharacterIndex], saved.Disposition, saved.Recruitable,
             saved.IsQuestNpc, saved.Dialogue, saved.State, saved.Friendliness, saved.Behavior,
-            saved.StoryId, saved.StoryStateId);
+            saved.StoryId, saved.StoryStateId, saved.EncounterId);
         restored.RestoreConversationStage(saved.ConversationStage);
         if (saved.IsQuestNpc && saved.QuestInstanceId > 0)
             _questInstances.Restore(restored, new QuestNpcInstanceId(saved.QuestInstanceId));

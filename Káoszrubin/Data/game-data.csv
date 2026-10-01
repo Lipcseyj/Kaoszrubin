@@ -1428,9 +1428,9 @@ PL049;Azt mondják, valahol a mélységben egy fekete sárkány olyan kincshalmo
 PL050;Egy őrült öreg szerint egyszer eljön egy kalandozó, aki megtalálja a Káoszrubint és eldönti vele a világ sorsát. A fogadós szerint ugyanezt minden új vendégnek elmondja egy korsó sörért.
 
 #NPC-k
-Id;Név;OsztályId;Viszony;Viselkedés;Toborozható;Egyedi;FajId;TörténetId
+Id;Név;OsztályId;Viszony;Viselkedés;Toborozható;Egyedi;FajId;TörténetId;VisszatérőViszony
 NPC001;Vándor füvesasszony;C005;Neutral;Guarded;nem;nem
-NPC002;Szörnyvadász;C001;Neutral;Aggressive;nem;nem
+NPC002;Szörnyvadász;C001;Neutral;Aggressive;nem;nem;;;igen
 NPC003;Kincskereső;C004;Neutral;Opportunistic;nem;nem
 NPC004;Vándor dalnok;C006;Friendly;Friendly;igen;nem
 NPC005;Patkányvadász;C004;Neutral;Guarded;nem;nem
@@ -1496,6 +1496,7 @@ NPCE030;NPC022;1;5;13
 NPCE031;NPC023;3;10;30
 NPCE032;NPC007;6;8;20
 NPCE033;NPC024;4;15;25
+NPCE034;NPC002;7;9;20
 
 #Quest ládák
 Id;Név;Arany;Térképjel;Előtérszín;Háttérszín
@@ -1528,13 +1529,13 @@ GOBLIN_CHEST;W045;1
 GOBLIN_CHEST;A010;1
 
 #NPC küldetések
-Id;NpcId;Típus;CélId;Darabszám;XP;Cím;Leírás;FixJutalomId;FixJutalomDarab;VéletlenJutalomDarab;SzükségesTörténetÁllapot;LezáróPárbeszédId;Globális
+Id;NpcId;Típus;CélId;Darabszám;XP;Cím;Leírás;FixJutalomId;FixJutalomDarab;VéletlenJutalomDarab;SzükségesTörténetÁllapot;LezáróPárbeszédId;Globális;TalálkozásId;MinimumViszony;MaximumViszony
 NPCQ001;NPC001;Collect;T011;3;810;Gyógyító készlet;Gyűjts össze három kis gyógyitalt a füvesasszonynak.;T018;2;0;;NPCD072
-NPCQ002;NPC002;Kill;E003;4;1170;Goblinvadászat;Ölj meg négy goblint a szörnyvadász megbízásából.;;;;;NPCD073
+NPCQ002;NPC002;Kill;E003;4;1170;Goblinvadászat;Ölj meg négy goblint a szörnyvadász megbízásából.;;;;;NPCD073;;NPCE002
 NPCQ003;NPC003;Collect;T001;5;1440;Útravaló a mélybe;Szerezz öt útravalót a kincskereső következő útjához.;;;;;NPCD074
 NPCQ004;NPC004;Kill;E004;3;2160;A csontok éneke;Győzz le három csontvázat a dalnok balladájához.;;;;;NPCD075
 NPCQ005;NPC001;Collect;T019;2;990;Tiszta kötések;Vigyél két kötést a füvesasszonynak a sebesültek ellátásához.;;;;;NPCD076
-NPCQ006;NPC002;Kill;E003;6;1620;Vérdíj a zöldfülűekre;Győzz le hat goblint és bizonyítsd a szörnyvadásznak hogy értesz a mesterséghez.;;;;;NPCD077
+NPCQ006;NPC002;Kill;E003;6;1620;Vérdíj a zöldfülűekre;Győzz le hat goblint és bizonyítsd a szörnyvadásznak hogy értesz a mesterséghez.;;;;;NPCD077;;NPCE002
 NPCQ007;NPC003;Collect;T003;2;1350;A lezárt út;Szerezz két kulcsot a kincskeresőnek egy lezárt mellékjárathoz.;;;;;NPCD078
 NPCQ008;NPC004;Collect;T023;1;1080;A dalnok hangja;Vigyél egy mézsört a dalnoknak hogy visszatérjen a hangja.;;;;;NPCD079
 NPCQ009;NPC005;Kill;E001;5;720;A járatok megtisztítása;Ölj meg öt óriáspatkányt a patkányvadász megbízásából.;;;;;NPCD080
@@ -1575,9 +1576,10 @@ NPCQ038;NPC021;Kill;E061;2;1950;A pátriárkák árnyai;Győzzétek le a két é
 NPCQ039;NPC021;Kill;E053;1;3600;Az esküszegő;Győzzétek le Sir Malrecet Roderic oldalán a bukott lovag sírkápolnájában.;;;1;MALREC_APPROACH;NPCD110
 NPCQ040;NPC021;KillWithTraits;MA001;8;1560;Egy oldalon harcolunk;Győzz le nyolc élőholtat hogy bizonyítsd Rodericnek: közös az ellenségetek.;;;1;;NPCD111
 NPCQ041;NPC021;OpenQuestChest;RODERIC_ORDER_RELICS;1;2250;A rend ereklyéi;Nyisd ki az Ezüst Eskü ereklyeládáját Roderickel.;;;0;;NPCD112
+NPCQ045;NPC002;Kill;E007;5;2520;Az ork portyázók nyomában;Győzz le öt orkot a szörnyvadász megbízásából.;;;;;NPCD119;;NPCE034;6
 
 #NPC párbeszédek
-Id;NpcId;MinimumBarátságosság;MaximumBarátságosság;Szöveg
+Id;NpcId;MinimumBarátságosság;MaximumBarátságosság;Szöveg;TalálkozásId
 NPCD001;NPC001;0;3;"A félhomályban egy idős füvesasszony kuporog ládák és megszárított növénycsomók között. Amikor észrevesz benneteket, gyorsan maga mellé húzza a táskáját. ""Ne nyúljatok a csomagjaimhoz. Errefelé az ember előbb számolja meg az ujjait, aztán az új ismerőseit."""
 NPCD002;NPC001;4;7;"A füvesasszony egy üres gyógyitalos fiolát forgat az ujjai között, majd végigmér benneteket. ""Kifogytam a kis gyógyitalokból, odakint pedig még akadnak sebesültek. Hozzatok nekem három kis gyógyitalt, és én sem felejtem el a segítségeteket."""
 NPCD003;NPC001;8;10;"A füvesasszony most már mosolyogva fogad, és félreteszi a mozsarát. ""Három kis gyógyital sokkal többet ér itt, mint három marék arany. Ha találtok belőlük, hozzátok el nekem. Jó kezekbe kerülnek."""
@@ -1717,6 +1719,9 @@ NPCD113;NPC023;0;10;"Egy fiatal harcos áll az út szélén, kezében egy vérfo
 NPCD114;NPC023;0;10;"Vildar egy kidőlt fatörzs mellett ül, és némán a kezében tartott csorba nyílhegyet nézi. Amikor meglátja nálatok a goblin főnök fejét, hosszú másodpercekig egyetlen szót sem tud kimondani. Végül lehajtja a fejét, és remegő kézzel markolja meg a régi nyílhegyet. ""Hát... vége. Annyi éjszakán át azt hittem, csak akkor tudok majd újra lélegezni, ha az a gyilkos halott lesz. Bátyám... most már nyugodhatsz."" Vildar megtörli a szemét, majd felétek fordul. ""Köszönöm. Nemcsak bosszút álltatok érte... visszaadtatok nekem valamit abból, amit azon a napon elvesztettem. Fogadjátok el ezeket a kötéseket. Nem sok, de a testvérem mindig azt mondta: egy jó harcos nem szégyelli, ha életben akar maradni. Legyen most nektek hasznotokra. Úgy hallottam a vadállatok odúiban farkashordák kószálnak."""
 NPCD115;NPC024;0;10;"A füvesasszony egy kondért mellett kuporog, mellette rongyos falusiak. Fakanalat forgat az ujjai között, majd végigmér benneteket. ""Húslevest főznék ezeknek a szerencsétleneknek de nincs elég friss húsunk. Szerezzetek nekem és meghálálom. Vadkanhús különösen jó lenne."""
 NPCD116;NPC024;0;10;"A füvesasszony és a falusiak szeme felcsillan a hús láttán, felkel a kondér mellől és azonnal készíteni kezdi a levest. ""Jótét lelkek vagytok!"" Már csak főzés közben fűzi hozzá: ""Vigyetek gyógyteát cserébe, sokat főztem, jut nektek is."""
+NPCD117;NPC002;0;5;"A szörnyvadász egy ork nyomát vizsgálja. ""Ismét ti? Az orkok már itt portyáznak. Előbb látnom kell, hogy számíthatok rátok.""";NPCE034
+NPCD118;NPC002;6;10;"A szörnyvadász felismer benneteket, és félrehúzza az ágakat egy friss ork ösvényéről. ""A goblinoknál bizonyítottatok. Öt ork portyázik erre; segítsetek levadászni őket, és megkapjátok a részeteket.""";NPCE034
+NPCD119;NPC002;0;10;"A szörnyvadász végignézi az ork felszereléseket, majd bólint. ""Ezek többé nem támadnak meg senkit. Jó, hogy újra összefutottunk."""
 
 #NPC történeti választások
 Id;TörténetId;ÁllapotId;Mondat;Sorrend;Válasz;ViszonyVáltozás;KövetkezőÁllapotId;Reakció;Hatás;HatásParaméter;Folytatás;MinimumViszony;MaximumViszony

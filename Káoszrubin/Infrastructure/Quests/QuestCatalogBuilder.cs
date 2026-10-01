@@ -74,7 +74,10 @@ internal sealed class QuestCatalogBuilder
             ActivationKind: id is QuestId.RodericTheDeadAreNotPrey or
                 QuestId.RodericFallenComradesInsignia or QuestId.RodericOathbreakerKnight or QuestId.RodericOrderRelics
                     ? QuestActivationKind.Story : QuestActivationKind.Offered,
-            CompletionDialogue: ResolveCompletionDialogue(source));
+            CompletionDialogue: ResolveCompletionDialogue(source),
+            EncounterId: source.EncounterId,
+            MinimumFriendliness: source.MinimumFriendliness,
+            MaximumFriendliness: source.MaximumFriendliness);
     }
 
     private NpcDialogueDefinition? ResolveCompletionDialogue(QuestImportRow source) =>

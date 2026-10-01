@@ -6,7 +6,7 @@ public enum NpcWorldBehavior { Friendly, Guarded, Opportunistic, Aggressive }
 
 public sealed record NpcDefinition(string Id, string Name, string CharacterClassId,
     NpcDisposition Disposition, NpcWorldBehavior Behavior, bool Recruitable, bool Unique,
-    string? RaceId = null, string? StoryId = null) : IGameDefinition;
+    string? RaceId = null, string? StoryId = null, bool PersistentRelationship = false) : IGameDefinition;
 
 public sealed record UniqueNpcCharacterDefinition(string NpcId, int Level, PrimaryAbilities RolledAbilities,
     PrimaryAbilities AdaptableAbilityBonus, int VitalityBonus, int ManaBonus, ConsoleColor Color,
@@ -26,7 +26,7 @@ public sealed record NpcEncounterDefinition(string Id, string NpcId, int MazeLev
 }
 
 public sealed record NpcDialogueDefinition(string Id, string NpcId, int MinimumFriendliness,
-    int MaximumFriendliness, string Text) : IGameDefinition
+    int MaximumFriendliness, string Text, string? EncounterId = null) : IGameDefinition
 {
     public string Name => Id;
 }

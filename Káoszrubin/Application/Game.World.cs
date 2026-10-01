@@ -808,6 +808,7 @@ public sealed partial class Game
 
     private void StartNewMaze(bool showLevelImage = true)
     {
+        RememberCurrentNpcRelationships();
         _locationKind = AdventureLocationKind.Campaign;
         _locationId = $"CAMPAIGN_{_mazeLevel:00}";
         _difficultyLevel = _mazeLevel;
@@ -1517,6 +1518,13 @@ public sealed partial class Game
                 Log.Warning($"A(z) '{definition.Id}' egyedi NPC már szerepel a karakterlistában, ezért nem kerül elhelyezésre a pályán.");
                 continue; 
             }
+            var recurringCharacter = definition.PersistentRelationship
+                ? CharacterRoster.Characters.FirstOrDefault(character =>
+                    string.Equals(character.SourceNpcDefinitionId, definition.Id, StringComparison.OrdinalIgnoreCase))
+                : null;
+            if (recurringCharacter is not null &&
+                (!recurringCharacter.IsAlive || CharacterRoster.Party.Members.Contains(recurringCharacter)))
+                continue;
             var candidates = new List<Position>();
             for (var y = 0; y < _maze.Height; y++)
             for (var x = 0; x < _maze.Width; x++)
@@ -1541,7 +1549,7 @@ public sealed partial class Game
             }
 
             var generator = new RandomCharacterGenerator(_gameData, _random);
-            var recruit = definition.Unique && _gameData.GetUniqueNpcCharacter(definition.Id) is not null
+            var recruit = recurringCharacter ?? (definition.Unique && _gameData.GetUniqueNpcCharacter(definition.Id) is not null
                 ? new UniqueNpcCharacterFactory(_gameData).Create(definition,
                     string.Equals(definition.Id, "NPC021", StringComparison.OrdinalIgnoreCase)
                         ? RodericTargetLevel()
@@ -1550,26 +1558,47 @@ public sealed partial class Game
                     ? generator.GenerateUniqueWorldNpc(definition.Name, _gameData.GetRace(raceId),
                         _gameData.GetCharacterClass(definition.CharacterClassId), PartyLeader.Level)
                 : generator.GenerateWorldNpc(_gameData.GetCharacterClass(definition.CharacterClassId),
-                    PartyLeader.Level, CharacterRoster.Characters.Select(character => character.Name).ToArray());
+                    PartyLeader.Level, CharacterRoster.Characters.Select(character => character.Name).ToArray()));
             recruit.SetSourceNpcDefinitionId(definition.Id);
-            CharacterRoster.Add(recruit);
-            var friendliness = definition.Unique ? 4 : RollNpcFriendliness(definition);
+            if (recurringCharacter is null) CharacterRoster.Add(recruit);
+            var friendliness = definition.PersistentRelationship &&
+                               _npcRelationships.TryGetValue(definition.Id, out var remembered)
+                ? remembered : definition.Unique ? 4 : RollNpcFriendliness(definition);
+            if (definition.PersistentRelationship) _npcRelationships[definition.Id] = friendliness;
             var completionDialogueIds = _gameData.Quests.All
                 .Select(quest => quest.CompletionDialogue?.Id)
                 .Where(id => id is not null)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
-            var dialogue = _gameData.GetNpcDialogues(definition.Id)
+            var greetings = _gameData.GetNpcDialogues(definition.Id)
                 .Where(value => !completionDialogueIds.Contains(value.Id))
                 .Where(value => friendliness >= value.MinimumFriendliness && friendliness <= value.MaximumFriendliness)
+                .ToArray();
+            var contextual = greetings.Where(value => string.Equals(value.EncounterId, encounter.Id,
+                StringComparison.OrdinalIgnoreCase)).ToArray();
+            var dialogue = (contextual.Length > 0 ? contextual : greetings.Where(value => value.EncounterId is null))
                 .OrderBy(_ => _random.Next()).FirstOrDefault()?.Text ?? "Az idegen óvatosan végigmér benneteket.";
             var isQuestNpc = _gameData.Quests.GetByGiver(LegacyNpcIdMap.ToQuestNpcId(definition.Id)).Count > 0;
             _maze.AddWorldNpc(new WorldNpc(candidates[_random.Next(candidates.Count)], definition.Id, recruit,
                 definition.Disposition, definition.Recruitable, isQuestNpc, dialogue,
                 friendliness: friendliness, behavior: definition.Behavior,
-                storyId: definition.StoryId));
+                storyId: definition.StoryId, encounterId: encounter.Id));
         }
         _maze = activeArea.Maze;
         _fogOfWar = activeArea.FogOfWar;
+    }
+
+    private void RememberNpcRelationship(WorldNpc npc)
+    {
+        if (_gameData.Npcs.Any(definition => definition.PersistentRelationship &&
+                string.Equals(definition.Id, npc.DefinitionId, StringComparison.OrdinalIgnoreCase)))
+            _npcRelationships[npc.DefinitionId] = npc.Friendliness;
+    }
+
+    private void RememberCurrentNpcRelationships()
+    {
+        if (_dungeonLevel is null) return;
+        foreach (var npc in _dungeonLevel.Areas.SelectMany(area => area.Maze.WorldNpcs))
+            RememberNpcRelationship(npc);
     }
 
     private EnemyMagicWeaponContext CreateEnemyMagicWeaponContext(int difficultyLevel,

@@ -60,6 +60,7 @@ public static class LegacyQuestIdMap
             "NPCQ042" => QuestId.AureliosEmissaryChest,
             "NPCQ043" => QuestId.GoblinChiefHunt,
             "NPCQ044" => QuestId.VillagerMeat,
+            "NPCQ045" => QuestId.MonsterHunterOrcTrail,
 
             _ => throw new InvalidDataException(
                 $"Ismeretlen legacy quest-azonosító: '{legacyId}'.")
@@ -111,6 +112,7 @@ public static class LegacyQuestIdMap
         QuestId.AureliosEmissaryChest => "NPCQ042",
         QuestId.GoblinChiefHunt => "NPCQ043",
         QuestId.VillagerMeat => "NPCQ044",
+        QuestId.MonsterHunterOrcTrail => "NPCQ045",
         _ => throw new InvalidDataException("Ismeretlen típusos questazonosító.")
     };
 }

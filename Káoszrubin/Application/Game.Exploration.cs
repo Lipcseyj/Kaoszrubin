@@ -215,6 +215,7 @@ public sealed partial class Game
 
     private GameSaveData CreateGameSaveData()
     {
+        RememberCurrentNpcRelationships();
         SynchronizeInventoryQuests();
         var state = _gameStateMapper.Create(_mazeLevel, _maze, _player, _fogOfWar, _leaderFacing,
             _leaderTrail, _partyHoldingPosition, _partyRegrouping, _partyAttackMode,
@@ -247,6 +248,7 @@ public sealed partial class Game
             entry.Status, entry.Progress, entry.ExperienceReward,
             entry.CompletionExperienceSummary, entry.CompletionItemRewardSummary)).ToList();
         state.Quests = _questSaveAdapter.Export(_questManager, _questJournal.Values);
+        state.NpcRelationships = new Dictionary<string, int>(_npcRelationships, StringComparer.OrdinalIgnoreCase);
         state.LocationKind = _locationKind;
         state.CampaignId = _campaignId;
         state.LocationId = _locationId;
@@ -290,6 +292,11 @@ public sealed partial class Game
 
     private void RestoreGame(GameSaveData state)
     {
+        _npcRelationships.Clear();
+        foreach (var (npcId, friendliness) in state.NpcRelationships ?? new Dictionary<string, int>())
+            if (_gameData.Npcs.Any(npc => npc.PersistentRelationship &&
+                    string.Equals(npc.Id, npcId, StringComparison.OrdinalIgnoreCase)))
+                _npcRelationships[npcId] = Math.Clamp(friendliness, 0, 10);
         var questStates = _questSaveAdapter.PrepareRestore(state, CharacterRoster);
         foreach (var character in CharacterRoster.Characters.Where(character =>
                      character.SourceNpcDefinitionId is null))
@@ -330,6 +337,7 @@ public sealed partial class Game
         _renderer.SetGoldenKeyCount(_collectedBossKeyIds.Count);
         _dungeonLevel = RestoreDungeonLevel(state, restored);
         _maze = _dungeonLevel.ActiveArea.Maze;
+        RememberCurrentNpcRelationships();
         CaptureExpeditionEnemyTemplates();
         _player = restored.Player;
         _fogOfWar = _dungeonLevel.ActiveArea.FogOfWar;

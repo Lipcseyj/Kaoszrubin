@@ -671,7 +671,8 @@ public static class CsvGameDataLoader
             case DataSection.Npcs:
                 npcs.Add(new NpcDefinition(id, name, Cell(cells, 2),
                     EnumValue<NpcDisposition>(cells, 3), EnumValue<NpcWorldBehavior>(cells, 4),
-                    IsYes(cells, 5), IsYes(cells, 6), EmptyAsNull(Cell(cells, 7)), EmptyAsNull(Cell(cells, 8))));
+                    IsYes(cells, 5), IsYes(cells, 6), EmptyAsNull(Cell(cells, 7)), EmptyAsNull(Cell(cells, 8)),
+                    IsYes(cells, 9)));
                 break;
             case DataSection.UniqueNpcCharacters:
                 uniqueNpcCharacters.Add(new UniqueNpcCharacterDefinition(id,
@@ -700,7 +701,7 @@ public static class CsvGameDataLoader
             case DataSection.NpcDialogues:
                 npcDialogues.Add(new NpcDialogueDefinition(id, Cell(cells, 1),
                     Math.Clamp(Integer(cells, 2) ?? 0, 0, 10), Math.Clamp(Integer(cells, 3) ?? 10, 0, 10),
-                    Cell(cells, 4)));
+                    Cell(cells, 4), EmptyAsNull(Cell(cells, 5))));
                 break;
             case DataSection.NpcQuests:
                 npcQuests.Add(new QuestImportRow(
@@ -717,7 +718,9 @@ public static class CsvGameDataLoader
                     Math.Clamp(Integer(cells, 10) ?? 1, 0, 5),
                     EmptyAsNull(Cell(cells, 11)),
                     EmptyAsNull(Cell(cells, 12)),
-                    IsYes(cells, 13)));
+                    IsYes(cells, 13), EmptyAsNull(Cell(cells, 14)),
+                    Math.Clamp(Integer(cells, 15) ?? 0, 0, 10),
+                    Math.Clamp(Integer(cells, 16) ?? 10, 0, 10)));
                 break;
             case DataSection.NpcStoryChoices:
                 npcStoryChoices.Add(new NpcStoryChoiceDefinition(id, Cell(cells, 1), Cell(cells, 2),
@@ -1028,6 +1031,8 @@ public static class CsvGameDataLoader
         var raceIds = races.Select(race => race.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
         foreach (var npc in npcs)
         {
+            if (npc.Unique && npc.PersistentRelationship)
+                throw new InvalidDataException($"A(z) '{npc.Id}' NPC nem lehet egyszerre egyedi és visszatérő viszonyú.");
             if (!classIds.Contains(npc.CharacterClassId))
                 throw new InvalidDataException($"A(z) '{npc.Id}' NPC ismeretlen kasztra hivatkozik: '{npc.CharacterClassId}'.");
             if (npc.RaceId is { } raceId && !raceIds.Contains(raceId))
@@ -1065,6 +1070,11 @@ public static class CsvGameDataLoader
                 throw new InvalidDataException($"A(z) '{reference.Id}' bejegyzés ismeretlen NPC-re hivatkozik: '{reference.NpcId}'.");
         foreach (var encounter in encounters)
         {
+            if (npcs.Any(npc => npc.PersistentRelationship &&
+                    string.Equals(npc.Id, encounter.NpcId, StringComparison.OrdinalIgnoreCase)) &&
+                encounters.Count(other => other.MazeLevel == encounter.MazeLevel &&
+                    string.Equals(other.NpcId, encounter.NpcId, StringComparison.OrdinalIgnoreCase)) > 1)
+                throw new InvalidDataException($"A(z) '{encounter.NpcId}' visszatérő NPC egy pályán csak egyszer helyezhető el.");
             if (encounter.QuestRoomId is not null && encounter.AreaId is not null)
                 throw new InvalidDataException($"A(z) '{encounter.Id}' NPC-találkozás QuestRoomId és AreaId értéke egyszerre nem adható meg.");
             if (encounter.MazeLevel is < 1 or > MazeLevelConfigurations.FinalLevel ||
@@ -1081,6 +1091,10 @@ public static class CsvGameDataLoader
         foreach (var dialogue in dialogues)
             if (dialogue.MinimumFriendliness > dialogue.MaximumFriendliness)
                 throw new InvalidDataException($"A(z) '{dialogue.Id}' NPC-párbeszéd viszonytartománya érvénytelen.");
+            else if (dialogue.EncounterId is { } dialogueEncounter && !encounters.Any(encounter =>
+                         string.Equals(encounter.Id, dialogueEncounter, StringComparison.OrdinalIgnoreCase) &&
+                         string.Equals(encounter.NpcId, dialogue.NpcId, StringComparison.OrdinalIgnoreCase)))
+                throw new InvalidDataException($"A(z) '{dialogue.Id}' párbeszéd ismeretlen vagy más NPC-hez tartozó találkozásra hivatkozik: '{dialogueEncounter}'.");
         foreach (var choice in storyChoices)
             if (!storyIds.Contains(choice.StoryId) || string.IsNullOrWhiteSpace(choice.StateId) ||
                 string.IsNullOrWhiteSpace(choice.Prompt) || string.IsNullOrWhiteSpace(choice.Text) ||
@@ -1109,6 +1123,12 @@ public static class CsvGameDataLoader
             .Concat(magicItems.Select(item => item.Id)).ToHashSet(StringComparer.OrdinalIgnoreCase);
         foreach (var quest in quests)
         {
+            if (quest.MinimumFriendliness > quest.MaximumFriendliness)
+                throw new InvalidDataException($"A(z) '{quest.Id}' quest viszonytartománya érvénytelen.");
+            if (quest.EncounterId is { } questEncounter && !encounters.Any(encounter =>
+                    string.Equals(encounter.Id, questEncounter, StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(encounter.NpcId, quest.NpcId, StringComparison.OrdinalIgnoreCase)))
+                throw new InvalidDataException($"A(z) '{quest.Id}' quest ismeretlen vagy más NPC-hez tartozó találkozásra hivatkozik: '{questEncounter}'.");
             var targetIsValid = quest.Type switch
             {
                 QuestImportType.OpenQuestChest => !string.IsNullOrWhiteSpace(quest.TargetId),

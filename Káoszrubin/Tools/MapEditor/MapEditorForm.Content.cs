@@ -21,6 +21,7 @@ internal sealed partial class MapEditorForm
     private readonly TabControl _encounterKinds = new() { Dock = DockStyle.Fill };
     private readonly Dictionary<string, DataGridView> _csvGrids = [];
     private readonly CheckBox _showAllNpcs = new() { Text = "Összes pálya NPC-i", AutoSize = true };
+    private readonly ComboBox _npcEncounterSelector = new() { Width = 270, DropDownStyle = ComboBoxStyle.DropDownList };
     private bool _refreshingContent;
 
     private Control BuildTabs()
@@ -120,8 +121,12 @@ internal sealed partial class MapEditorForm
         var tabs = new TabControl { Dock = DockStyle.Fill };
         _showAllNpcs.Dock = DockStyle.Top;
         _showAllNpcs.CheckedChanged += (_, _) => FilterNpcRows();
+        _npcEncounterSelector.SelectedIndexChanged += (_, _) => FilterNpcRows();
+        var encounterPicker = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 31 };
+        encounterPicker.Controls.Add(new Label { Text = "NPC-találkozás:", AutoSize = true, Padding = new Padding(0, 5, 0, 0) });
+        encounterPicker.Controls.Add(_npcEncounterSelector);
         var storyHint = new Label { Dock = DockStyle.Top, Height = 42, ForeColor = Color.DarkOrange,
-            Text = "Az alap questek teljesen szerkeszthetők. Egyedi történeti szabályhoz a QuestCatalogBuilder C# kódját is módosítani kell." };
+            Text = "Válassz NPC-találkozást: az új párbeszéd és quest ahhoz kötődik. A helyi szöveg elsőbbséget élvez; az üres találkozásmező általános." };
         foreach (var (section, label) in new (string, string)[]
         {
             ("NPC találkozások", "Elhelyezés"), ("NPC-k", "NPC-k"),
@@ -138,6 +143,9 @@ internal sealed partial class MapEditorForm
                 grid.SelectionChanged += (_, _) =>
                 {
                     if (_refreshingContent || grid.CurrentRow is not { IsNewRow: false } row || row.Cells.Count <= 6) return;
+                    var encounterId = row.Cells[0].Value?.ToString();
+                    if (encounterId is not null && _npcEncounterSelector.Items.Contains(encounterId))
+                        _npcEncounterSelector.SelectedItem = encounterId;
                     var area = _areas.FirstOrDefault(candidate => candidate.Id == row.Cells[6].Value?.ToString());
                     if (area is not null) SelectArea(area);
                 };
@@ -156,6 +164,7 @@ internal sealed partial class MapEditorForm
         container.Controls.Add(tabs);
         container.Controls.Add(storyHint);
         container.Controls.Add(_showAllNpcs);
+        container.Controls.Add(encounterPicker);
         return container;
     }
 
@@ -182,7 +191,20 @@ internal sealed partial class MapEditorForm
             foreach (var (section, grid) in _csvGrids)
             {
                 grid.Columns.Clear(); grid.Rows.Clear();
-                foreach (var header in csv.Headers(section)) grid.Columns.Add(header, header);
+                foreach (var header in csv.Headers(section))
+                {
+                    var column = grid.Columns[grid.Columns.Add(header, header)];
+                    column.ToolTipText = header switch
+                    {
+                        "VisszatérőViszony" => "Igen esetén ugyanaz a karakter és a mentett viszony jelenik meg a későbbi pályákon.",
+                        "TalálkozásId" => "Üresen minden megjelenésnél érvényes. Kitöltve csak a megadott NPC-találkozásnál.",
+                        "MinimumViszony" => "Ennél kisebb viszonynál a quest nem ajánlható fel (0–10).",
+                        "MaximumViszony" => "Ennél nagyobb viszonynál a quest nem ajánlható fel (0–10).",
+                        "MinimumBarátságosság" => "A párbeszédhez szükséges legalacsonyabb viszony (0–10).",
+                        "MaximumBarátságosság" => "A párbeszédhez megengedett legmagasabb viszony (0–10).",
+                        _ => ""
+                    };
+                }
                 foreach (var row in csv.Rows(section))
                 {
                     var values = new object[grid.Columns.Count];
@@ -192,10 +214,25 @@ internal sealed partial class MapEditorForm
                         grid.Rows[rowIndex].DefaultCellStyle.BackColor = Color.LightGoldenrodYellow;
                 }
             }
+            RefreshNpcEncounterChoices();
             FilterNpcRows();
         }
         catch (Exception exception) { MessageBox.Show(this, exception.Message, "Adatbetöltési hiba"); }
         finally { _refreshingContent = false; }
+    }
+
+    private void RefreshNpcEncounterChoices()
+    {
+        var previouslySelected = _npcEncounterSelector.SelectedItem?.ToString();
+        _npcEncounterSelector.Items.Clear();
+        _npcEncounterSelector.Items.Add("(pálya összes NPC-je)");
+        foreach (DataGridViewRow row in _csvGrids["NPC találkozások"].Rows)
+            if (!row.IsNewRow && row.Cells[2].Value?.ToString() == ((int)_level.Value).ToString() &&
+                row.Cells[0].Value?.ToString() is { Length: > 0 } id)
+                _npcEncounterSelector.Items.Add(id);
+        _npcEncounterSelector.SelectedItem = previouslySelected is not null &&
+            _npcEncounterSelector.Items.Contains(previouslySelected)
+            ? previouslySelected : "(pálya összes NPC-je)";
     }
 
     private static void LoadEncounterList(ListBox list, string? property)
@@ -366,6 +403,19 @@ internal sealed partial class MapEditorForm
             if (_selected is not null && grid.Columns.Count > 6) values[6] = _selected.Id;
         }
         if (section == "NPC küldetések") { values[2] = "Kill"; values[4] = "1"; values[5] = "0"; }
+        if (section is "NPC küldetések" or "NPC párbeszédek" &&
+            _npcEncounterSelector.SelectedIndex > 0)
+        {
+            var encounterId = _npcEncounterSelector.SelectedItem?.ToString();
+            var encounter = _csvGrids["NPC találkozások"].Rows.Cast<DataGridViewRow>()
+                .FirstOrDefault(row => !row.IsNewRow && row.Cells[0].Value?.ToString() == encounterId);
+            if (encounter is not null)
+            {
+                values[1] = encounter.Cells[1].Value?.ToString() ?? "";
+                values[section == "NPC küldetések" ? 14 : 5] = encounterId ?? "";
+            }
+        }
+        if (section == "NPC párbeszédek") { values[2] = "0"; values[3] = "10"; }
         var index = grid.Rows.Add(values);
         grid.CurrentCell = grid.Rows[index].Cells[0];
     }
@@ -378,6 +428,10 @@ internal sealed partial class MapEditorForm
                 row.Cells.Count > 2 && row.Cells[2].Value?.ToString() == level)
             .Select(row => row.Cells[1].Value?.ToString()).Where(id => !string.IsNullOrWhiteSpace(id))
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var selectedEncounter = _npcEncounterSelector.SelectedIndex > 0
+            ? _npcEncounterSelector.SelectedItem?.ToString() : null;
+        var selectedNpc = encounters.Rows.Cast<DataGridViewRow>().FirstOrDefault(row =>
+            !row.IsNewRow && row.Cells[0].Value?.ToString() == selectedEncounter)?.Cells[1].Value?.ToString();
         foreach (var (section, grid) in _csvGrids)
         {
             grid.CurrentCell = null;
@@ -387,8 +441,14 @@ internal sealed partial class MapEditorForm
                 var show = _showAllNpcs.Checked || section switch
                 {
                     "NPC találkozások" => row.Cells[2].Value?.ToString() == level,
-                    "NPC-k" or "Egyedi NPC karakterlap" => placed.Contains(row.Cells[0].Value?.ToString()),
-                    "NPC küldetések" or "NPC párbeszédek" => placed.Contains(row.Cells[1].Value?.ToString()),
+                    "NPC-k" or "Egyedi NPC karakterlap" => selectedNpc is not null
+                        ? row.Cells[0].Value?.ToString() == selectedNpc
+                        : placed.Contains(row.Cells[0].Value?.ToString()),
+                    "NPC küldetések" or "NPC párbeszédek" => selectedNpc is not null
+                        ? row.Cells[1].Value?.ToString() == selectedNpc &&
+                          (row.Cells[section == "NPC küldetések" ? 14 : 5].Value?.ToString() is null or "" ||
+                           row.Cells[section == "NPC küldetések" ? 14 : 5].Value?.ToString() == selectedEncounter)
+                        : placed.Contains(row.Cells[1].Value?.ToString()),
                     "NPC történeti választások" => true,
                     _ => true
                 };
@@ -429,6 +489,26 @@ internal sealed partial class MapEditorForm
                         throw new InvalidDataException($"A(z) {row[0]} ismeretlen AreaId-ra mutat: {row[6]}");
                 }
             }
+            if (section is "NPC küldetések" or "NPC párbeszédek")
+            {
+                var savedEncounters = new CsvSectionEditor(EditorSources.PathFor("Data/game-data.csv"))
+                    .Rows("NPC találkozások").ToDictionary(row => row[0], StringComparer.OrdinalIgnoreCase);
+                foreach (var row in rows)
+                {
+                    var encounterId = row[section == "NPC küldetések" ? 14 : 5];
+                    if (encounterId.Length > 0 &&
+                        (!savedEncounters.TryGetValue(encounterId, out var encounter) ||
+                         !string.Equals(encounter[1], row[1], StringComparison.OrdinalIgnoreCase)))
+                        throw new InvalidDataException($"A(z) {row[0]} találkozásazonosítója hiányzik, vagy más NPC-hez tartozik: {encounterId}. Előbb mentsd az elhelyezést.");
+                    var minimum = section == "NPC küldetések" ? 15 : 2;
+                    var maximum = section == "NPC küldetések" ? 16 : 3;
+                    if (row[minimum].Length > 0 && (!int.TryParse(row[minimum], out var lower) || lower is < 0 or > 10) ||
+                        row[maximum].Length > 0 && (!int.TryParse(row[maximum], out var upper) || upper is < 0 or > 10) ||
+                        int.TryParse(row[minimum], out var minValue) &&
+                        int.TryParse(row[maximum], out var maxValue) && minValue > maxValue)
+                        throw new InvalidDataException($"A(z) {row[0]} viszonytartománya érvénytelen (0–10).");
+                }
+            }
             var paths = new List<string> { EditorSources.PathFor("Data/game-data.csv") };
             if (section is "NPC-k" or "NPC küldetések")
             {
@@ -450,6 +530,7 @@ internal sealed partial class MapEditorForm
                 throw;
             }
             UpdateStatus($"{section}: CSV és azonosítók mentve.");
+            if (section == "NPC találkozások") RefreshNpcEncounterChoices();
         }
         catch (Exception exception) { MessageBox.Show(this, exception.Message, "CSV mentési hiba"); }
     }

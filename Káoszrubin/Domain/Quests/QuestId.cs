@@ -100,5 +100,6 @@ public enum QuestId
     GoblinChiefHunt,
 
     // NPC024 - Falusi füvesasszony
-    VillagerMeat
+    VillagerMeat,
+    MonsterHunterOrcTrail
 }

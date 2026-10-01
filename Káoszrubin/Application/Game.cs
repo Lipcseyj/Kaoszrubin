@@ -53,6 +53,7 @@ public sealed partial class Game : ISessionCommandHandler
     private const int MazeWidth = ConsoleRenderer.PlayfieldWidth;
     private const int MazeHeight = ConsoleRenderer.PlayfieldHeight;
     private readonly GameDataCatalog _gameData;
+    private readonly Dictionary<string, int> _npcRelationships = new(StringComparer.OrdinalIgnoreCase);
     private MazeGenerator _generator = null!;
     private DungeonLevel _dungeonLevel = null!;
     private readonly ConsoleRenderer _renderer;

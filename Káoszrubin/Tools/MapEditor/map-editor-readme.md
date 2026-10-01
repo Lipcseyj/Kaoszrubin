@@ -42,6 +42,17 @@ Az NPC-találkozások `AreaId` oszlopába a térképen kijelölt erdei képerny�
 `QuestRoomId` és `AreaId` egyszerre nem használható. A CSV-ben létrehozott új NPC-k és questek
 típusos azonosítója és legacy leképezése is automatikusan bővül.
 
+Az NPC-fülön a **NPC-találkozás** választóval egy megjelenés szövegei és questjei
+tekinthetők át. A kiválasztott találkozásnál létrehozott sor automatikusan megkapja
+az NPC- és találkozásazonosítót. A párbeszéd `TalálkozásId` mezője üresen általános
+szöveget, kitöltve csak az adott megjelenésre érvényes szöveget jelent. Azonos
+viszonysávban a találkozáshoz kötött szöveg elsőbbséget élvez. A questek
+`TalálkozásId`, `MinimumViszony` és `MaximumViszony` mezői a felajánlást korlátozzák;
+a már aktív quest a következő találkozásnál is leadható. Az NPC-k
+`VisszatérőViszony` oszlopába írt `igen` ugyanazt a karaktert és mentett viszonyát
+viszi tovább a későbbi pályákra. Az elhelyezést mentsd el a rá hivatkozó szöveg
+vagy quest előtt.
+
 A harci találkozásoknál az erdei gráf stabil `AreaId`-t, a klasszikus és széles labirintus
 képernyőszámot (`ScreenNumber`) használ a célzás segédgombján. A széles pálya `AREA_1`, `AREA_2`
 stb. azonosítókat is kap, de változó képernyőszámnál csak a konfigurált minimumig létező

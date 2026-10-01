@@ -23,8 +23,12 @@ public sealed partial class Game
     private bool EncounterWorldNpc(WorldNpc npc)
     {
         if (!npc.CanStartConversation) return false;
-        return RunHostWindow($"Beszélgetés — {npc.Character.Name}",
-            $"A vezető {npc.Character.Name} párbeszédét kezeli…", () => EncounterWorldNpcCore(npc));
+        try
+        {
+            return RunHostWindow($"Beszélgetés — {npc.Character.Name}",
+                $"A vezető {npc.Character.Name} párbeszédét kezeli…", () => EncounterWorldNpcCore(npc));
+        }
+        finally { RememberNpcRelationship(npc); }
     }
 
     private IReadOnlyList<NpcQuestUiEntry> GetNpcQuestUiEntries(WorldNpc npc)
@@ -42,6 +46,7 @@ public sealed partial class Game
         return _questManager
             .For(npcId, instanceId)
             .GetQuests()
+            .Where(quest => quest.IsInProgress || quest.IsResolved || CanOfferNpcQuest(npc, quest.Id))
             .Select(quest =>
                 new NpcQuestUiEntry(
                     quest.Title,
@@ -49,6 +54,20 @@ public sealed partial class Game
                     quest.Progress,
                     quest.RequiredCount))
             .ToArray();
+    }
+
+    private bool CanOfferNpcQuest(WorldNpc npc, QuestId questId)
+    {
+        var definition = _gameData.Quests.Get(questId);
+        var encounterMatches = definition.EncounterId is null ||
+            string.Equals(definition.EncounterId, npc.EncounterId, StringComparison.OrdinalIgnoreCase) ||
+            npc.EncounterId is null && _gameData.NpcEncounters.Any(encounter =>
+                encounter.MazeLevel == _mazeLevel &&
+                string.Equals(encounter.NpcId, npc.DefinitionId, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(encounter.Id, definition.EncounterId, StringComparison.OrdinalIgnoreCase));
+        return encounterMatches &&
+               npc.Friendliness >= definition.MinimumFriendliness &&
+               npc.Friendliness <= definition.MaximumFriendliness;
     }
 
     private bool EncounterWorldNpcCore(WorldNpc npc)
@@ -552,8 +571,10 @@ public sealed partial class Game
 
         if (activateOffered)
         {
-            var activated =
-                questNpc.ActivateAvailableQuests();
+            var activated = questNpc.GetAvailableQuests()
+                .Where(quest => CanOfferNpcQuest(npc, quest.Id))
+                .ToArray();
+            foreach (var quest in activated) quest.Activate();
 
             foreach (var quest in activated)
             {
@@ -651,14 +672,17 @@ public sealed partial class Game
             }
 
             // --------------------------------------------------------
-            // Unique NPC barátságosság
+            // Egyedi és visszatérő NPC viszonya
             // --------------------------------------------------------
 
-            if (_gameData
-                .GetNpc(npc.DefinitionId)
-                .Unique)
+            if (_gameData.GetNpc(npc.DefinitionId) is { Unique: true } or { PersistentRelationship: true })
             {
+                var previousFriendliness = npc.Friendliness;
                 npc.AdjustFriendliness(1);
+                if (npc.Friendliness != previousFriendliness &&
+                    _gameData.GetNpc(npc.DefinitionId).PersistentRelationship)
+                    _renderer.DrawInventoryMessage(
+                        $"🤝 {npc.Character.Name} viszonya: {npc.Friendliness}/10.", ConsoleColor.Green);
             }
 
             // --------------------------------------------------------
