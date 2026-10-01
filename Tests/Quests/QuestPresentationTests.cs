@@ -79,6 +79,31 @@ internal static class QuestPresentationTests
         Require(!abandoned.Manager.Elira.CanResolveDeparture, "A feladás sikeres megmentésnek számított.");
     }
 
+    public static void RandomRewardsUseRaisedThresholdsAndAffinityWeights()
+    {
+        var allowed = new HashSet<string>([CharacterClassIds.Mágus], StringComparer.OrdinalIgnoreCase);
+        var magic = new MagicItemDefinition("TEST-MAGIC", "Mágustárgy", MagicItemKind.Ring, ItemRarity.Magic,
+            100, 0, null, MagicItemEffect.Intelligence, 1, allowed, "Teszt", 0);
+        var legendary = magic with { Id = "TEST-LEGENDARY", Rarity = ItemRarity.Legendary };
+        var quest = Define(new QuestObjective.DisarmTraps(1)) with { ExperienceReward = 3_999 };
+
+        Require(QuestRandomRewardSelector.Select([magic], quest, CharacterClassIds.Mágus, 10, new Random(1)) is null &&
+                QuestRandomRewardSelector.Select([magic], quest with { ExperienceReward = 4_000 },
+                    CharacterClassIds.Mágus, 10, new Random(1))?.Id == magic.Id &&
+                QuestRandomRewardSelector.Select([legendary], quest with { ExperienceReward = 9_999 },
+                    CharacterClassIds.Mágus, 20, new Random(1)) is null &&
+                QuestRandomRewardSelector.Select([legendary], quest with { ExperienceReward = 10_000 },
+                    CharacterClassIds.Mágus, 20, new Random(1))?.Id == legendary.Id,
+            "A véletlen questjutalom 4000/10000 XP-s ritkasági küszöbe hibás.");
+
+        var tierTwo = magic with { Id = "TEST-TIER-TWO", MagicPower = 2 };
+        Require(QuestRandomRewardSelector.Weight(magic, CharacterClassIds.Mágus, 10) >
+                QuestRandomRewardSelector.Weight(magic, CharacterClassIds.Harcos, 10) &&
+                QuestRandomRewardSelector.Weight(tierTwo, CharacterClassIds.Mágus, 12) >
+                QuestRandomRewardSelector.Weight(tierTwo, CharacterClassIds.Mágus, 1),
+            "Az NPC-kaszt vagy a pályaszint nem módosítja a véletlen jutalom súlyát.");
+    }
+
     private static void Require(bool condition, string message)
     {
         if (!condition) throw new InvalidOperationException(message);

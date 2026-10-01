@@ -25,6 +25,7 @@ internal static partial class Program
     ("A questreplikáció és resync nem ismétli a jutalmat vagy értesítést", QuestReplicationTests.ReplicationAndReconnectNeverReplayCompletion),
     ("A vendég questértesítése példányonként egyszer jelenik meg", QuestReplicationTests.NotificationsDistinguishInstancesAndSkipHistoricalBaseline),
     ("A questmegjelenítés változatlan típusos adatot kap", QuestPresentationTests.PresentationIsAnImmutableTypedSnapshot),
+    ("A questjutalom magasabb XP-küszöböket, NPC-kasztot és pályaszintet használ", QuestPresentationTests.RandomRewardsUseRaisedThresholdsAndAffinityWeights),
     ("Az elhalasztott questleadás nem fogyaszt és nem jutalmaz", QuestPresentationTests.DeferredTurnInNeverConsumesOrRewards),
     ("A leadási megerősítés után friss készletellenőrzés történik", QuestPresentationTests.ConfirmationDoesNotFreezeInventoryEligibility),
     ("Elira kijárati döntése tényleges questlezárást igényel", QuestPresentationTests.EliraDepartureRequiresActualCompletion),

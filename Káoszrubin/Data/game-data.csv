@@ -1431,12 +1431,12 @@ PL050;Egy őrült öreg szerint egyszer eljön egy kalandozó, aki megtalálja a
 Id;Név;OsztályId;Viszony;Viselkedés;Toborozható;Egyedi;FajId;TörténetId;VisszatérőViszony
 NPC001;Vándor füvesasszony;C005;Neutral;Guarded;nem;nem;;;igen
 NPC002;Szörnyvadász;C001;Neutral;Aggressive;nem;nem;R002;;igen
-NPC003;Kincskereső;C004;Neutral;Opportunistic;nem;nem
+NPC003;Kincskereső;C004;Neutral;Opportunistic;nem;nem;;;igen
 NPC004;Vándor dalnok;C006;Friendly;Friendly;igen;nem
 NPC005;Patkányvadász;C004;Neutral;Guarded;nem;nem
 NPC006;Kobold szökevény;C004;Neutral;Opportunistic;nem;nem
 NPC007;Elf kósza;C003;Neutral;Guarded;nem;nem;R003;;igen
-NPC008;Halottlátó remete;C005;Neutral;Guarded;nem;nem
+NPC008;Halottlátó remete;C005;Neutral;Guarded;nem;nem;;;igen
 NPC009;Ork dezertőr;C002;Neutral;Aggressive;nem;nem
 NPC010;Barlangi alkimista;C006;Neutral;Opportunistic;nem;nem
 NPC011;Hadifogoly felderítő;C001;Neutral;Guarded;nem;nem
@@ -1464,7 +1464,7 @@ NPC023;3;8;3;8;4;STR;5;0;Magenta;Aggressive;;;W004;;A002;;T011|T001|T002;
 Id;NpcId;Pályaszint;MinimumTávolság;MaximumTávolság;QuestRoomId;AreaId
 NPCE001;NPC001;2;6;14
 NPCE002;NPC002;3;20;40
-NPCE003;NPC003;5;8;18
+NPCE003;NPC003;5;8;22;;
 NPCE004;NPC001;8;8;18
 NPCE005;NPC004;9;7;16
 NPCE006;NPC005;1;6;14
@@ -1530,11 +1530,11 @@ GOBLIN_CHEST;A010;1
 Id;NpcId;Típus;CélId;Darabszám;XP;Cím;Leírás;FixJutalomId;FixJutalomDarab;VéletlenJutalomDarab;SzükségesTörténetÁllapot;LezáróPárbeszédId;MagasViszonyJutalomId;MagasViszonyJutalomDarab;MagasViszonyPárbeszédId;TalálkozásId;MinimumViszony;MaximumViszony
 NPCQ001;NPC001;Collect;T011;3;810;Gyógyító készlet;Gyűjts össze három kis gyógyitalt a füvesasszonynak.;T018;2;0;;NPCD072;T011;2;NPCD120
 NPCQ002;NPC002;Kill;E003;4;1170;Goblinvadászat;Ölj meg egy goblin vajákost a szörnyvadász megbízásából.;;;;;NPCD073;T019;2;NPCD123;NPCE002;;
-NPCQ003;NPC003;Collect;T001;5;1440;Útravaló a mélybe;Szerezz öt útravalót a kincskereső következő útjához.;;;;;NPCD074
+NPCQ003;NPC003;Collect;T001;5;1440;Útravaló a mélybe;Szerezz öt útravalót a kincskereső következő útjához.;T030;30;;;NPCD074;;;;;;
 NPCQ004;NPC004;Kill;E004;3;2160;A csontok éneke;Győzz le három csontvázat a dalnok balladájához.;;;;;NPCD075
 NPCQ005;NPC001;Collect;T019;2;990;Tiszta kötések;Vigyél két kötést a füvesasszonynak a sebesültek ellátásához.;;;;;NPCD076;T018;1;NPCD121
 NPCQ006;NPC002;Kill;E003;6;1620;Vérdíj a zöldfülűekre;Győzz le hat goblint és bizonyítsd a szörnyvadásznak hogy értesz a mesterséghez.;;;;;NPCD077;T017;1;NPCD124;NPCE002
-NPCQ007;NPC003;Collect;T003;2;1350;A lezárt út;Szerezz két kulcsot a kincskeresőnek egy lezárt mellékjárathoz.;;;;;NPCD078
+NPCQ007;NPC003;Collect;T003;2;1350;A lezárt út;Szerezz két kulcsot a kincskeresőnek egy lezárt mellékjárathoz.;;;1;;NPCD078;;;;;;
 NPCQ008;NPC004;Collect;T023;1;1080;A dalnok hangja;Vigyél egy mézsört a dalnoknak hogy visszatérjen a hangja.;;;;;NPCD079
 NPCQ009;NPC005;Kill;E001;5;720;A járatok megtisztítása;Ölj meg öt óriáspatkányt a patkányvadász megbízásából.;;;;;NPCD080
 NPCQ010;NPC006;Kill;E002;4;990;Nincs visszaút;Győzz le négy koboldot hogy a szökevény üldözői ne érhessék utol.;;;;;NPCD081
@@ -1563,7 +1563,7 @@ NPCQ032;NPC018;OpenChest;ANY;3;9450;A Rubin visszhangjai;Nyiss ki három ládát
 NPCQ033;NPC019;Kill;E012;3;3690;Nagyvad;Győzz le három ogrét az óriásvadász megbízásából.;;;;;NPCD104
 NPCQ042;NPC022;OpenQuestChest;AURELIOS_HELP;1;900;Uralkodód ezt a segítséget küldi;Találd meg Aurelios máguskirály küldöttének ládáját.;MW001;1;0;;NPCD071
 NPCQ043;NPC023;Kill;E062;1;1800;Szemet szemért;Öld meg a goblin főnököt Vildar megbízásából.;T019;3;3;;NPCD114
-NPCQ044;NPC001;Collect;T031;2;1110;Húsleves;Gyűjts össze két adag nyers húst a füvesasszonynak.;T020;2;0;;NPCD116;T020;2;NPCD122;NPCE033;6;
+NPCQ044;NPC001;Collect;T031;2;1110;Húsleves;Gyűjts össze két adag nyers húst a füvesasszonynak.;T020;2;0;;NPCD116;T017;2;NPCD122;NPCE033;6;
 NPCQ045;NPC002;Kill;E007;5;2520;Az ork portyázók nyomában;Győzz le öt orkot a szörnyvadász megbízásából.;;;;;NPCD119;T019;3;NPCD125;NPCE034;6
 
 NPCQ034;NPC020;Escort;EXIT;1;1890;Ezüstág kimenekítése;Kísérd el Elirát élve a pálya kijáratáig.;T017;2;1;;NPCD105

@@ -114,7 +114,7 @@ public sealed class QuestRewardService
         {
             var reward =
                 _context.RollRandomReward(
-                    quest.ExperienceReward);
+                    quest);
 
             if (reward is not null)
                 rewards.Add(reward);

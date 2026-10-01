@@ -1,5 +1,6 @@
 ﻿using KaoszRubin.Domain.Characters;
 using KaoszRubin.Domain.Inventory;
+using KaoszRubin.Domain.Quests;
 
 namespace KaoszRubin.Application.Quests;
 
@@ -9,7 +10,7 @@ public interface IQuestRewardContext
 
     IEnumerable<LiveCharacter> PartyMembers { get; }
 
-    IItemDefinition? RollRandomReward(int experienceReward);
+    IItemDefinition? RollRandomReward(QuestDefinition quest);
 
     bool TryStoreItem(IItemDefinition item, out string ownerName);
 

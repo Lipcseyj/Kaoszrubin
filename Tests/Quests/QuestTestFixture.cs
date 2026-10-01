@@ -104,7 +104,7 @@ internal sealed class QuestTestFixture : IQuestWorldContext, IQuestRewardContext
     public bool HasOpenedQuestChest(QuestChestId id) => OpenedChests.Contains(id);
     public bool HasDiscoveredLocation(QuestLocation location) => DiscoveredLocations.Contains(location);
 
-    public IItemDefinition? RollRandomReward(int experienceReward)
+    public IItemDefinition? RollRandomReward(QuestDefinition quest)
     {
         RandomRewardRolls++;
         return Reward;

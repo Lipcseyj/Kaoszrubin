@@ -954,15 +954,10 @@ public sealed partial class Game
         return NpcQuestCoordinator.OrderedQuestJournal(_questJournal.Values);
     }
 
-    private IItemDefinition? RollQuestReward(int experienceReward)
+    private IItemDefinition? RollQuestReward(QuestDefinition quest)
     {
-        var maximumRarity = experienceReward >= 2000 ? ItemRarity.Legendary :
-            experienceReward >= 800 ? ItemRarity.Magic : ItemRarity.Normal;
-        var maximumPrice = Math.Max(80, experienceReward * 2);
-        var maximumMagicPower = Math.Max(0, experienceReward / 300);
-        var candidates = QuestRewardItems().Where(item => item.Rarity <= maximumRarity &&
-            item.BasePrice <= maximumPrice && item.MagicPower <= maximumMagicPower).ToArray();
-        return candidates.Length == 0 ? null : candidates[_random.Next(candidates.Length)];
+        var npcClassId = _gameData.GetNpc(quest.Giver).CharacterClassId;
+        return QuestRandomRewardSelector.Select(QuestRewardItems(), quest, npcClassId, _mazeLevel, _random);
     }
 
 

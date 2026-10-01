@@ -108,9 +108,9 @@ public sealed partial class Game
                     () => CharacterRoster.Party.Members,
 
                 rollRandomReward:
-                    experienceReward =>
+                    quest =>
                         RollQuestReward(
-                            experienceReward),
+                            quest),
 
                 tryStoreItem:
                     (IItemDefinition item, out string ownerName) =>

@@ -1,6 +1,7 @@
 using KaoszRubin.Application.Quests;
 using KaoszRubin.Domain.Characters;
 using KaoszRubin.Domain.Inventory;
+using KaoszRubin.Domain.Quests;
 
 namespace KaoszRubin.Infrastructure.Quests;
 
@@ -13,14 +14,14 @@ public sealed class QuestRewardContext
 {
     private readonly Func<LiveCharacter> _getSelectedCharacter;
     private readonly Func<IEnumerable<LiveCharacter>> _getPartyMembers;
-    private readonly Func<int, IItemDefinition?> _rollRandomReward;
+    private readonly Func<QuestDefinition, IItemDefinition?> _rollRandomReward;
     private readonly TryStoreQuestReward _tryStoreItem;
     private readonly Action<IItemDefinition> _dropItem;
 
     public QuestRewardContext(
         Func<LiveCharacter> getSelectedCharacter,
         Func<IEnumerable<LiveCharacter>> getPartyMembers,
-        Func<int, IItemDefinition?> rollRandomReward,
+        Func<QuestDefinition, IItemDefinition?> rollRandomReward,
         TryStoreQuestReward tryStoreItem,
         Action<IItemDefinition> dropItem)
     {
@@ -57,9 +58,9 @@ public sealed class QuestRewardContext
         _getPartyMembers();
 
     public IItemDefinition? RollRandomReward(
-        int experienceReward) =>
+        QuestDefinition quest) =>
         _rollRandomReward(
-            experienceReward);
+            quest);
 
     public bool TryStoreItem(
         IItemDefinition item,
