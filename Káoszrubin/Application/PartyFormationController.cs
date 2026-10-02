@@ -105,6 +105,18 @@ public sealed class PartyFormationController
         var order = SingleFileOrder(formation, currentPositions, leaderId);
         var destinations = new Dictionary<CharacterId, Position>();
         if (order.Count == 0) return destinations;
+
+        // Visszaforduláskor a vezér egy társ mezőjére léphet. A helycserével
+        // a sor a fal melletti vagy kanyargó szűkületben is elfér.
+        var occupant = order.Skip(1).FirstOrDefault(id => currentPositions[id] == leaderDestination);
+        if (occupant != default)
+        {
+            foreach (var id in order)
+                destinations[id] = id == leaderId ? leaderDestination :
+                    id == occupant ? currentPositions[leaderId] : currentPositions[id];
+            return destinations;
+        }
+
         destinations[leaderId] = leaderDestination;
         for (var index = 1; index < order.Count; index++)
             destinations[order[index]] = currentPositions[order[index - 1]];
@@ -167,6 +179,26 @@ public sealed class PartyFormationController
         Maze maze) =>
         blockPositions.Values.Any(position => !maze.IsWalkable(position)) &&
         singleFilePositions.Values.All(maze.IsWalkable);
+
+    public static IReadOnlyList<Position> SidePassageEntries(
+        IReadOnlyDictionary<CharacterId, Position> blockDestinations,
+        Position leaderPosition,
+        Position leaderDestination,
+        Direction direction,
+        Maze maze)
+    {
+        var forward = DirectionOffset(direction);
+        var frontEdge = blockDestinations.Values.Max(position =>
+            position.X * forward.X + position.Y * forward.Y);
+        return blockDestinations.Values.Distinct()
+            .Where(position => position != leaderDestination && maze.IsWalkable(position))
+            .Where(position => position.X * forward.X + position.Y * forward.Y == frontEdge)
+            .Where(position => (position.X - leaderPosition.X) * forward.X +
+                               (position.Y - leaderPosition.Y) * forward.Y > 0)
+            .OrderBy(position => maze.GetDoorAt(position) is { IsWalkable: true } ? 0 : 1)
+            .ThenBy(position => Manhattan(position, leaderDestination))
+            .ToArray();
+    }
 
     private static Position DirectionOffset(Direction direction) => direction switch
     {

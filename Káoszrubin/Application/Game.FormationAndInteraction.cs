@@ -172,12 +172,45 @@ public sealed partial class Game
         }
 
         var singleFileFormation = travelFormation with { Layout = PartyFormationLayout.SingleFile };
+        var currentPositions = CurrentFormationPositions();
         var singleFilePositions = PartyFormationController.SingleFileDestinations(singleFileFormation,
-            CurrentFormationPositions(), PartyLeader.Id, leaderDestination);
-        if (!PartyFormationController.IsSingleFilePassage(blockDestinations, singleFilePositions, _maze) ||
-            !TryMoveFormationTo(singleFilePositions, singleFileFormation, direction, preserveFormationFacing)) return;
-        AnnouncePartyCommand("Az egymezos szukuletben az alakzat ideiglenesen libasorra valt.",
-            ConsoleColor.Cyan);
+            currentPositions, PartyLeader.Id, leaderDestination);
+        if (PartyFormationController.IsSingleFilePassage(blockDestinations, singleFilePositions, _maze) &&
+            TryMoveFormationTo(singleFilePositions, singleFileFormation, direction, preserveFormationFacing))
+        {
+            if (_formation.Layout == PartyFormationLayout.SingleFile)
+                AnnouncePartyCommand("Az egymezos szukuletben az alakzat ideiglenesen libasorra valt.",
+                    ConsoleColor.Cyan);
+            return;
+        }
+
+        // Ha a társak korábbi helye nem fér el a szűkületben, próbáljunk
+        // egyenes sort a vezér mögött.
+        var alignedSingleFilePositions = PartyFormationController.Positions(singleFileFormation, PartyLeader.Id,
+            leaderDestination);
+        if (PartyFormationController.IsSingleFilePassage(blockDestinations, alignedSingleFilePositions, _maze) &&
+            TryMoveFormationTo(alignedSingleFilePositions, singleFileFormation, direction, preserveFormationFacing))
+        {
+            if (_formation.Layout == PartyFormationLayout.SingleFile)
+                AnnouncePartyCommand("Az egymezos szukuletben az alakzat ideiglenesen libasorra valt.",
+                    ConsoleColor.Cyan);
+            return;
+        }
+
+        // Oldalsó ajtónál a vezér előtti mező lehet fal, miközben a 2x2-es
+        // alakzat másik oszlopa előtt járható a kijárat.
+        foreach (var entry in PartyFormationController.SidePassageEntries(blockDestinations,
+                     _player.Position, leaderDestination, direction, _maze))
+        {
+            var sidePositions = PartyFormationController.SingleFileDestinations(singleFileFormation,
+                currentPositions, PartyLeader.Id, entry);
+            if (!PartyFormationController.IsSingleFilePassage(blockDestinations, sidePositions, _maze) ||
+                !TryMoveFormationTo(sidePositions, singleFileFormation, direction, preserveFormationFacing)) continue;
+            if (_formation.Layout == PartyFormationLayout.SingleFile)
+                AnnouncePartyCommand("Az egymezos szukuletben az alakzat ideiglenesen libasorra valt.",
+                    ConsoleColor.Cyan);
+            return;
+        }
     }
 
     private bool TryMoveFormationTo(IReadOnlyDictionary<CharacterId, Position> destinations,
