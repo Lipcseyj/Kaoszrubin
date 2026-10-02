@@ -13,18 +13,7 @@ internal static class SpellImpactVisual
         if (!spell.HasAreaImpact)
             return enemyTargets.Append(target).Where(maze.IsInside).Distinct().ToArray();
 
-        var center = spell.TargetType == SpellTargetType.Direction ? caster : target;
-        var radius = spell.TargetType == SpellTargetType.Direction ? 2 : spell.AreaRadius;
-        var cells = new List<Position>();
-        for (var y = Math.Max(0, center.Y - radius); y <= Math.Min(maze.Height - 1, center.Y + radius); y++)
-            for (var x = Math.Max(0, center.X - radius); x <= Math.Min(maze.Width - 1, center.X + radius); x++)
-            {
-                var position = new Position(x, y);
-                if (spell.TargetType != SpellTargetType.Direction ||
-                    SpellExecutionService.IsInSpellCone(caster, position, target))
-                    cells.Add(position);
-            }
-        return cells;
+        return SpellAreaFootprint.GetCells(spell, caster, target, maze);
     }
 
     public static (ConsoleColor Foreground, ConsoleColor Background) GetColors(

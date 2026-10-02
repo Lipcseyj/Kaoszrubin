@@ -844,6 +844,50 @@ internal static partial class Program
             "A célpontváltás előreléptette a körsorrendet vagy nem őrizte meg a célpontot.");
     }
 
+    static void AreaSpellWallsBlockDamageAndImpact()
+    {
+        var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory,
+            CsvGameDataLoader.GameDataFileName));
+        var maze = new Maze(9, 9);
+        for (var y = 0; y < maze.Height; y++)
+        for (var x = 0; x < maze.Width; x++) maze.Carve(new Position(x, y));
+        for (var y = 0; y < maze.Height; y++) maze.SetTile(new Position(4, y), Maze.Wall);
+        var near = CreateEnemyAt(new Position(3, 4), "AREA-NEAR");
+        var behindWall = CreateEnemyAt(new Position(5, 4), "AREA-BEHIND-WALL");
+        maze.AddEnemy(near);
+        maze.AddEnemy(behindWall);
+        var caster = new Position(2, 4);
+        var center = near.Position;
+        var area = catalog.GetSpell("S007");
+        var service = new SpellExecutionService(catalog, new Random(1730));
+        var targets = service.ResolveEnemySpellTargets(area, center, near, caster, maze).ToArray();
+        var impact = SpellImpactVisual.GetCells(area, caster, center, targets.Select(enemy => enemy.Position), maze)
+            .ToHashSet();
+        Assert(targets.SequenceEqual([near]) && impact.Contains(center) &&
+               !impact.Contains(behindWall.Position) && !impact.Contains(new Position(4, 4)),
+            "A területi varázslat sebzése vagy rajza átért a falon.");
+
+        var cone = catalog.GetSpell("S003");
+        var coneImpact = SpellImpactVisual.GetCells(cone, caster, new Position(3, 4), [], maze).ToHashSet();
+        Assert(coneImpact.Contains(new Position(3, 4)) &&
+               !coneImpact.Contains(new Position(4, 4)),
+            "Az irányított lángtölcsér rajza nem állt meg a fal előtt.");
+        var coneTargets = service.ResolveEnemySpellTargets(cone, new Position(4, 4), behindWall,
+            new Position(3, 4), maze);
+        Assert(!coneTargets.Contains(behindWall),
+            "Az irányított lángtölcsér sebzése átért a falon.");
+
+        var chain = catalog.GetSpell("S016");
+        var chainEffect = catalog.GetSpellEffects(chain.Id).Single(effect =>
+            effect.Type == SpellEffectType.ChainDamage);
+        var chainedDamage = new Dictionary<Enemy, int>();
+        var initialHitPoints = new Dictionary<Enemy, int>();
+        service.ApplyChainDamage(CreateCharacter("Villámmágus"), chainEffect, chain, center, near,
+            chainedDamage, initialHitPoints, [], maze);
+        Assert(chainedDamage.ContainsKey(near) && !chainedDamage.ContainsKey(behindWall),
+            "A láncvillám másodlagos célpontot talált a fal túloldalán.");
+    }
+
     static void NpcSpellcastingPolicyPreservesMana()
     {
         var race = new RaceDefinition("R001", "Ember", PrimaryAbilities.Zero);

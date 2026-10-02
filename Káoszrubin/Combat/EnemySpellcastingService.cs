@@ -13,7 +13,7 @@ public sealed class EnemySpellcastingService(GameDataCatalog gameData, Random ra
 {
     public EnemySpellPlan? SelectSpell(Enemy caster, IReadOnlyList<Enemy> allies,
         IReadOnlyList<(LiveCharacter Character, Position Position)> hostiles,
-        Func<Position, Position, int, bool>? canSee = null)
+        Func<Position, Position, int, bool>? canSee = null, Maze? maze = null)
     {
         var profile = caster.Definition.SpellcasterProfile;
         if (profile is null || hostiles.Count == 0) return null;
@@ -24,7 +24,7 @@ public sealed class EnemySpellcastingService(GameDataCatalog gameData, Random ra
         {
             var spell = gameData.GetSpell(spellId);
             if (spell.ManaCost > caster.CurrentMana || !caster.IsSpellReady(spell.Id)) continue;
-            var plan = BuildPlan(caster, allies, hostiles, spell, canSee);
+            var plan = BuildPlan(caster, allies, hostiles, spell, canSee, maze);
             if (plan is null) continue;
             plan = plan with { Score = ApplyStyle(profile.Style, spell, plan.Score) };
             var urgent = plan.Score >= 140;
@@ -87,7 +87,7 @@ public sealed class EnemySpellcastingService(GameDataCatalog gameData, Random ra
 
     private EnemySpellPlan? BuildPlan(Enemy caster, IReadOnlyList<Enemy> allies,
         IReadOnlyList<(LiveCharacter Character, Position Position)> hostiles, SpellDefinition spell,
-        Func<Position, Position, int, bool>? canSee)
+        Func<Position, Position, int, bool>? canSee, Maze? maze)
     {
         bool InRange(Position position) => TacticalDistance.Between(caster.Position, position) <= spell.Range &&
             (!spell.RequiresLineOfSight || canSee?.Invoke(caster.Position, position, spell.Range) != false);
@@ -109,13 +109,26 @@ public sealed class EnemySpellcastingService(GameDataCatalog gameData, Random ra
         }
         if (spell.TargetType is SpellTargetType.Area or SpellTargetType.Direction)
         {
-            var best = hostiles.Where(item => InRange(item.Position)).Select(center => new
+            var centers = spell.TargetType == SpellTargetType.Direction && maze is not null
+                ? new[] { new Position(caster.Position.X + 1, caster.Position.Y),
+                    new Position(caster.Position.X - 1, caster.Position.Y),
+                    new Position(caster.Position.X, caster.Position.Y + 1),
+                    new Position(caster.Position.X, caster.Position.Y - 1) }
+                    .Where(InRange)
+                : hostiles.Where(item => InRange(item.Position)).Select(item => item.Position);
+            var best = centers.Select(center =>
             {
-                center.Position,
-                Targets = hostiles.Where(item =>
-                    TacticalDistance.Between(center.Position, item.Position) <= Math.Max(1, spell.AreaRadius))
-                    .Select(item => item.Character).ToArray()
-            }).OrderByDescending(item => item.Targets.Length).FirstOrDefault();
+                var footprint = maze is null ? null :
+                    SpellAreaFootprint.GetCells(spell, caster.Position, center, maze);
+                return new
+                {
+                    Position = center,
+                    Targets = hostiles.Where(item => footprint?.Contains(item.Position) ??
+                        TacticalDistance.Between(center, item.Position) <= Math.Max(1, spell.AreaRadius))
+                        .Select(item => item.Character).ToArray()
+                };
+            }).Where(item => item.Targets.Length > 0)
+                .OrderByDescending(item => item.Targets.Length).FirstOrDefault();
             return best is null ? null : new EnemySpellPlan(spell, best.Position, best.Targets, [],
                 Score(effects, best.Targets.Length, best.Targets.Min(target => target.CurrentVitality)));
         }

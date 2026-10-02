@@ -262,7 +262,7 @@ public sealed partial class Game
             ? _enemySpellcastingService.SelectSpell(enemy,
                 battle.Enemies.Where(candidate => candidate.CurrentHitPoints > 0).ToArray(),
                 livingTargets.Select(target => (target, GetCasterPosition(target))).ToArray(),
-                (origin, target, range) => FogOfWar.CanSee(_maze, origin, target, range))
+                (origin, target, range) => FogOfWar.CanSee(_maze, origin, target, range), _maze)
             : null;
         var usableAbilities = enemy.PreparedWeaponId is null && preparedAbility is null
             ? _battleSystem.EnemyActiveAbilities(enemy, closestDistance, ability =>

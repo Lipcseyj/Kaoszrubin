@@ -56,6 +56,8 @@ internal static class SpellImpactTests
     {
         var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
         var maze = new Maze(9, 9);
+        for (var y = 0; y < maze.Height; y++)
+        for (var x = 0; x < maze.Width; x++) maze.Carve(new Position(x, y));
         var caster = new Position(4, 4);
         var target = new Position(5, 4);
         var cone = SpellImpactVisual.GetCells(catalog.GetSpell("S003"), caster, target, [], maze).ToHashSet();

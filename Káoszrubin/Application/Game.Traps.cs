@@ -156,7 +156,7 @@ public sealed partial class Game
         var intelligence = _random.Next(6, 13);
         var casterLevel = Math.Max(1, _mazeLevel);
         var result = _dungeonTrapService.TriggerSpell(trap, casterLevel, intelligence,
-            LivingPartyWithPositions().ToArray());
+            LivingPartyWithPositions().ToArray(), _maze);
         PlaySpellImpact(result.Spell, trap.Position, result.Aim, result.AffectedPositions);
         foreach (var affected in result.AffectedCharacters) _renderer.RefreshCharacterSheet(affected);
         _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);

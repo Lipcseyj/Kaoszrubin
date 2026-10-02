@@ -100,6 +100,17 @@ internal static partial class Program
             [(target, new Position(5, 2)), (secondTarget, new Position(5, 3))], (_, _, _) => true);
         Assert(areaPlan is { HostileTargets.Count: 2 },
             "A területi ellenséges varázslat nem a legtöbb partitagot lefedő célpontot választotta.");
+        var walledMaze = new Maze(9, 9);
+        for (var y = 0; y < walledMaze.Height; y++)
+        for (var x = 0; x < walledMaze.Width; x++) walledMaze.Carve(new Position(x, y));
+        for (var y = 0; y < walledMaze.Height; y++)
+            walledMaze.SetTile(new Position(5, y), Maze.Wall);
+        var wallPlan = service.SelectSpell(artillery, [artillery],
+            [(target, new Position(4, 2)), (secondTarget, new Position(6, 2))],
+            (origin, destination, range) => FogOfWar.CanSee(walledMaze, origin, destination, range),
+            walledMaze);
+        Assert(wallPlan is { HostileTargets.Count: 1 } && wallPlan.HostileTargets[0] == target,
+            "Az ellenséges területi varázslat a fal túloldali csapattagot is érintette.");
 
         var healerDefinition = data.GetEnemy(MonsterIds.Káoszpap);
         var healer = new ConfiguredEnemy(new Position(2, 2), healerDefinition with

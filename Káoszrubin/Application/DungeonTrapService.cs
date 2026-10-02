@@ -77,22 +77,29 @@ public sealed class DungeonTrapService
     }
 
     public MagicTrapSpellResult TriggerSpell(MazeTrap trap, int casterLevel, int intelligence,
-        IReadOnlyList<(LiveCharacter Character, Position Position)> livingParty)
+        IReadOnlyList<(LiveCharacter Character, Position Position)> livingParty, Maze maze)
     {
         if (trap.Definition.Effect != TrapEffect.Spell || trap.Definition.SpellId is null)
             throw new InvalidOperationException($"A(z) {trap.Definition.Id} nem érvényes varázscsapda.");
         var party = livingParty.Where(member => member.Character.IsAlive)
             .DistinctBy(member => member.Character.Id).ToArray();
+        var spell = _gameData.GetSpell(trap.Definition.SpellId);
         if (party.Length == 0)
-            return new MagicTrapSpellResult(_gameData.GetSpell(trap.Definition.SpellId), trap.Position, [], [],
+            return new MagicTrapSpellResult(spell, trap.Position, [], [],
                 "nincs élő célpont");
 
-        var nearestDistance = party.Min(member => Chebyshev(trap.Position, member.Position));
-        var nearest = party.Where(member => Chebyshev(trap.Position, member.Position) == nearestDistance).ToArray();
+        var reachable = party.Where(member => !spell.RequiresLineOfSight ||
+            FogOfWar.CanSee(maze, trap.Position, member.Position, spell.Range)).ToArray();
+        if (reachable.Length == 0)
+            return new MagicTrapSpellResult(spell, trap.Position, [], [], "nincs elérhető célpont");
+        var nearestDistance = reachable.Min(member => Chebyshev(trap.Position, member.Position));
+        var nearest = reachable.Where(member => Chebyshev(trap.Position, member.Position) == nearestDistance).ToArray();
         var aim = nearest[_random.Next(nearest.Length)].Position;
-        var spell = _gameData.GetSpell(trap.Definition.SpellId);
+        var areaCells = spell.TargetType == SpellTargetType.Area
+            ? SpellAreaFootprint.GetCells(spell, trap.Position, aim, maze)
+            : null;
         var primaryTargets = spell.TargetType == SpellTargetType.Area
-            ? party.Where(member => Chebyshev(aim, member.Position) <= spell.AreaRadius).ToArray()
+            ? party.Where(member => areaCells!.Contains(member.Position)).ToArray()
             : party.Where(member => member.Position == aim).Take(1).ToArray();
         var allAffected = new HashSet<CharacterId>(primaryTargets.Select(member => member.Character.Id));
         var damageByTarget = party.ToDictionary(member => member.Character, _ => 0);
@@ -102,7 +109,10 @@ public sealed class DungeonTrapService
         foreach (var effect in _gameData.GetSpellEffects(spell.Id))
         {
             var effectTargets = effect.Type == SpellEffectType.ChainDamage
-                ? party.OrderBy(member => member.Position == aim ? 0 : 1)
+                ? party.Where(member => member.Position == aim ||
+                        Chebyshev(aim, member.Position) <= 4 &&
+                        FogOfWar.CanSee(maze, aim, member.Position, 4))
+                    .OrderBy(member => member.Position == aim ? 0 : 1)
                     .ThenBy(member => Chebyshev(aim, member.Position)).ToArray()
                 : primaryTargets;
             if (effect.Type == SpellEffectType.ChainDamage)

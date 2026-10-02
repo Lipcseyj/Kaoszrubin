@@ -511,12 +511,15 @@ public sealed class SpellExecutionService
         Position casterPosition, Maze maze)
     {
         var enemies = maze.Enemies.Where(enemy => enemy.CurrentHitPoints > 0);
+        var areaCells = spell.HasAreaImpact
+            ? SpellAreaFootprint.GetCells(spell, casterPosition, target, maze)
+            : null;
         return spell.TargetType switch
         {
             SpellTargetType.Enemy => enemies.Where(enemy => enemy.Position == target)
                 .Concat(currentEnemy is not null && currentEnemy.Position == target ? [currentEnemy] : []).Distinct(),
-            SpellTargetType.Area => enemies.Where(enemy => Chebyshev(enemy.Position, target) <= spell.AreaRadius),
-            SpellTargetType.Direction => enemies.Where(enemy => IsInSpellCone(casterPosition, enemy.Position, target)),
+            SpellTargetType.Area or SpellTargetType.Direction => enemies.Where(enemy =>
+                areaCells!.Contains(enemy.Position)),
             _ => []
         };
     }
@@ -743,7 +746,9 @@ public sealed class SpellExecutionService
         var candidates = maze.Enemies.Where(enemy => enemy.CurrentHitPoints > 0)
             .Concat(currentEnemy is null ? [] : [currentEnemy]).Distinct()
             .OrderBy(enemy => enemy.Position == target ? 0 : Chebyshev(enemy.Position, target))
-            .Where(enemy => enemy.Position == target || Chebyshev(enemy.Position, target) <= 4).Take(4).ToList();
+            .Where(enemy => enemy.Position == target ||
+                Chebyshev(enemy.Position, target) <= 4 &&
+                FogOfWar.CanSee(maze, target, enemy.Position, 4)).Take(4).ToList();
         var multipliers = (effect.Parameter ?? "100|75|50|25").Split('|')
             .Select(value => int.TryParse(value, out var parsed) ? parsed : 100).ToArray();
         for (var index = 0; index < candidates.Count; index++)
