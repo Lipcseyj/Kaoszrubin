@@ -348,6 +348,24 @@ internal static partial class Program
             "A vadkan ID-kivétele vagy a pihenéskori nyershús-sütés hibás.");
     }
 
+    static void NpcAutomaticEatingSkipsRawMeat()
+    {
+        var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
+        var npc = CreateCharacter("Éhes társ");
+        var rawMeat = catalog.GetItem(MiscItemIds.RawMeat);
+        var bread = catalog.GetItem("T004");
+        Assert(npc.AddToBackpack(rawMeat) && npc.AddToBackpack(bread),
+            "Az NPC ételválasztási tesztkészlete nem fért el.");
+
+        var choices = PartySustenanceService.BackpackConsumables(npc, ConsumableEffect.Food)
+            .Select(entry => entry.Item.Id).ToArray();
+        Assert(choices.Length == 1 && choices[0] == bread.Id,
+            "Az NPC automatikus ételválasztása nyers húst is enged, vagy a rendes ételt kizárja.");
+        Assert(PartySustenanceService.BackpackConsumables(npc, ConsumableEffect.Water).Count() == 0 &&
+               npc.GetInventoryItem(InventorySlotKind.Backpack, 0)?.Id == rawMeat.Id,
+            "Az automatikus ételválasztás nem őrzi meg a nyers húst a hátizsákban.");
+    }
+
     static void NonRecruitableFriendlyNpcShowsUsableActions()
     {
         var actions = ConsoleRenderer.WorldNpcRecruitmentActions(canJoin: false);

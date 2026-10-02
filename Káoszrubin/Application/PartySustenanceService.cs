@@ -78,7 +78,9 @@ public sealed class PartySustenanceService
         LiveCharacter character, ConsumableEffect effect) => Enumerable.Range(0, LiveCharacter.MaximumBackpackItemCount)
         .Select(index => (Index: index,
             Item: character.GetInventoryItem(InventorySlotKind.Backpack, index) as MiscItemDefinition))
-        .Where(entry => entry.Item?.Effect == effect)
+        .Where(entry => entry.Item?.Effect == effect &&
+                        (effect != ConsumableEffect.Food ||
+                         !string.Equals(entry.Item.Id, MiscItemIds.RawMeat, StringComparison.OrdinalIgnoreCase)))
         .Select(entry => (entry.Index, entry.Item!));
 
     public static bool HasHealingPotion(LiveCharacter character) =>
