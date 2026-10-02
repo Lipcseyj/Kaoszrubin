@@ -104,6 +104,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
     private const int MessagePanelLeft = 2;
     private const int FirstMessageLineOffset = 1;
     private readonly Queue<MessageLogLine> _messageLog = new();
+    private IReadOnlyList<MessageLogLine>? _targetingPromptLines;
     private int _messageLogScrollOffset;
     private BackgroundContentRestorer? _replicatedWindowBackground;
     private BackgroundContentRestorer? _innWindowBackground;
@@ -2958,7 +2959,9 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
 
     private void RenderMessageLog(int displayedLines = 0)
     {
-        var messages = _messageLog.ToArray();
+        var messages = _targetingPromptLines is null
+            ? _messageLog.ToArray()
+            : _messageLog.Concat(_targetingPromptLines).ToArray();
         var effectiveLineCount = displayedLines > 0 ? displayedLines : MessageLineCount;
         var linesToSkip = MessageLineCount - effectiveLineCount;
 
@@ -3153,17 +3156,28 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         WriteRuneWithColor(visual.Rune, visual.ForegroundColor, visual.BackgroundColor);
     }
 
-    public void DrawSpellTargetCursor(Maze maze, FogOfWar fogOfWar, Position? previousPosition,
-        Position position, bool valid, string prompt)
+    public void DrawSpellTargetCursor(Maze maze, FogOfWar fogOfWar, Position playerPosition,
+        Position? previousPosition, Position position, bool valid, string prompt)
     {
-        if (previousPosition is { } previous) DrawMapCell(maze, fogOfWar, previous);
+        if (previousPosition is { } previous && previous != position)
+        {
+            if (previous == playerPosition) DrawPlayer(playerPosition);
+            else DrawMapCell(maze, fogOfWar, previous);
+        }
         Console.SetCursorPosition(position.X, position.Y);
         WriteRuneWithColor(new Rune('╳'), valid ? ConsoleColor.Green : ConsoleColor.Red, ConsoleColor.DarkBlue);
-        DrawBattleMessage(prompt, valid ? ConsoleColor.Cyan : ConsoleColor.DarkYellow);
+        var color = valid ? ConsoleColor.Cyan : ConsoleColor.DarkYellow;
+        _targetingPromptLines = WrapMessage(prompt).Select(line => new MessageLogLine(line, color)).ToArray();
+        _messageLogScrollOffset = 0;
+        RenderMessageLog();
     }
 
-    public void FinishSpellTargeting(Maze maze, FogOfWar fogOfWar, Position playerPosition) =>
+    public void FinishSpellTargeting(Maze maze, FogOfWar fogOfWar, Position playerPosition)
+    {
+        _targetingPromptLines = null;
+        RenderMessageLog();
         DrawMapVisibilityChanged(maze, fogOfWar, playerPosition);
+    }
 
     public void DrawInventoryMessage(string message, ConsoleColor color = ConsoleColor.Cyan) => DrawBattleMessage(message, color);
     public void DrawNpcBattleSummary(string message, ConsoleColor color) => DrawBattleMessage(message, color);

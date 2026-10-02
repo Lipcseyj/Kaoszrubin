@@ -524,7 +524,7 @@ public sealed partial class Game
         {
             var current = doors[selected];
             var verb = action == CharacterAction.OpenDoor ? "nyitás" : "bezárás/zárás";
-            _renderer.DrawSpellTargetCursor(_maze, _fogOfWar, previous, current, true,
+            _renderer.DrawSpellTargetCursor(_maze, _fogOfWar, _player.Position, previous, current, true,
                 $"Ajtó kiválasztása ({verb}): nyilak/Tab, Enter: kész, Esc: mégse");
             previous = current;
             RequestCoopSnapshotPublish();

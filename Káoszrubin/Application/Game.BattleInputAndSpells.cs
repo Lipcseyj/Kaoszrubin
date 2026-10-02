@@ -642,7 +642,7 @@ public sealed partial class Game
                          (spell.AreaRadius > 0 ? $", sugár {spell.AreaRadius}" : string.Empty) +
                          $" | {(valid ? DescribeSpellTarget(caster, spell, cursor, currentEnemy) :
                              $"érvénytelen cél: {validation.InvalidReason}")} | Enter: célzás, Tab: következő, Esc: mégse";
-            _renderer.DrawSpellTargetCursor(_maze, _fogOfWar, previous, cursor, valid, prompt);
+            _renderer.DrawSpellTargetCursor(_maze, _fogOfWar, _player.Position, previous, cursor, valid, prompt);
             previous = cursor;
             var key = Console.ReadKey(intercept: true);
             if (IsHelpShortcut(key))
@@ -655,6 +655,7 @@ public sealed partial class Game
             if (key.Key == ConsoleKey.Escape)
             {
                 _renderer.FinishSpellTargeting(_maze, _fogOfWar, _player.Position);
+                _renderer.DrawInventoryMessage("A célzás megszakadt.", ConsoleColor.DarkYellow);
                 return null;
             }
             if (key.Key == ConsoleKey.Enter && valid)

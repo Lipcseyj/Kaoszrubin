@@ -52,7 +52,7 @@ public sealed partial class Game
                     while (true)
                     {
                         var valid = DeveloperPartyTeleport.FindDestinations(_maze, cursor, companions).Count > 0;
-                        _renderer.DrawSpellTargetCursor(_maze, _fogOfWar, previous, cursor, valid,
+                        _renderer.DrawSpellTargetCursor(_maze, _fogOfWar, _player.Position, previous, cursor, valid,
                             $"Teleport ({cursor.X}, {cursor.Y}) | Nyilak: célpont | Enter: teleport | Esc: mégse" +
                             (valid ? string.Empty : " | Nincs szabad hely a csapatnak"));
                         previous = cursor;
