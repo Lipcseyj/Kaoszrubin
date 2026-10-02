@@ -697,6 +697,8 @@ public sealed class CoopGuestScreen
                         BattleActionKind.PrepareRearLeft,
                     ConsoleKey.J when battle.AllowedActions.Contains(BattleActionKind.PrepareRearRight) =>
                         BattleActionKind.PrepareRearRight,
+                    ConsoleKey.O when battle.AllowedActions.Contains(BattleActionKind.DisbandFormation) =>
+                        BattleActionKind.DisbandFormation,
                     ConsoleKey.P when battle.AllowedActions.Contains(BattleActionKind.Pass) =>
                         BattleActionKind.Pass,
                     ConsoleKey.Spacebar when battle.AllowedActions.Contains(BattleActionKind.Pass) &&

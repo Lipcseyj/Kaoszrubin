@@ -667,6 +667,21 @@ public sealed partial class Game
                     BattleLogKind.Information)]);
                 AdvanceBattleTurn(battle);
                 break;
+            case BattleActionKind.DisbandFormation:
+                if (!battle.DisbandFormation())
+                {
+                    RejectBattleAction(command, "Nincs feloszlatható alakzat.");
+                    return;
+                }
+                _formation = battle.Formation!;
+                _renderer.CharacterSheet.SetFormationStatus(_formation);
+                _session.SetFormationMovementLocked(false);
+                var disbandStatus = _battleSystem.FinishCharacterAction(character, battle.RuntimeFor(character));
+                PresentBattleEntries([new BattleLogEntry(
+                    $"{character.Name}: OSZOLJ! A harci kötéseket megtartják.{disbandStatus}",
+                    BattleLogKind.Information)]);
+                AdvanceBattleTurn(battle);
+                break;
             case BattleActionKind.Pass:
                 if (IsBattleMovementInProgress(battle))
                 {

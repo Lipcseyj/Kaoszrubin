@@ -167,6 +167,12 @@ public sealed class BattleEncounter
     public bool HasActiveFormation => Formation is { State: PartyFormationState.Locked };
     public bool HasProtectiveFormation => Formation is
         { State: PartyFormationState.Locked, Layout: PartyFormationLayout.Block };
+    public bool DisbandFormation()
+    {
+        if (!HasActiveFormation) return false;
+        Formation = PartyFormationRules.WithState(Formation!, PartyFormationState.Disbanded);
+        return true;
+    }
     public TacticalBattleState Turns { get; }
     public int ActionNumber { get; private set; }
     public IReadOnlySet<BattleSide> InactiveSidesLastCompletedCycle { get; private set; } = new HashSet<BattleSide>();
@@ -215,7 +221,7 @@ public sealed class BattleEncounter
 
     public FormationSlot? FormationSlotFor(LiveCharacter character)
     {
-        if (Formation is not { } formation) return null;
+        if (!HasActiveFormation || Formation is not { } formation) return null;
         for (var index = 0; index < formation.Slots.Count; index++)
             if (formation.Slots[index] == character.Id) return (FormationSlot)index;
         return null;

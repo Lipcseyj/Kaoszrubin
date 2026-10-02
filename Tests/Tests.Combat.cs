@@ -650,7 +650,8 @@ internal static partial class Program
         var actions = coordinator.GetAllowedBattleActions(encounter, leader, enemy, leader,
             new Position(3, 3), false, new Dictionary<LiveCharacter, int>());
         Assert(actions.Contains(BattleActionKind.PrepareRearLeft) &&
-               actions.Contains(BattleActionKind.PrepareRearRight),
+               actions.Contains(BattleActionKind.PrepareRearRight) &&
+               actions.Contains(BattleActionKind.DisbandFormation),
             "A vezér nem kapta meg mindkét hátsó alakzathely felkészítő akcióját.");
 
         Assert(encounter.TryOrderRearCombatPreparation(FormationSlot.RearLeft, out var ordered) &&
@@ -673,10 +674,29 @@ internal static partial class Program
         Assert(encounter.TrySwapToRear(leader, out _, out _, out _, out _) &&
                !encounter.ShouldPrioritizeRearSelfBuff(rearLeft),
             "Az előresorolt tag megtartotta a csak hátsó sorban érvényes felkészítési utasítást.");
-        var panel = BattleCommandPanel.Format([BattleActionKind.PrepareRearLeft, BattleActionKind.PrepareRearRight], true, "testactor");
-        Assert(panel.Contains("B: bal hátul", StringComparison.Ordinal) &&
-               panel.Contains("J: jobb hátul", StringComparison.Ordinal),
-            "A két hátsó felkészítő parancs nem jelent meg külön a csatapanelen.");
+        var panel = BattleCommandPanel.Format(
+            [BattleActionKind.PrepareRearLeft, BattleActionKind.PrepareRearRight, BattleActionKind.DisbandFormation],
+            true, "testactor");
+        Assert(panel.Contains("B: ↙⚔", StringComparison.Ordinal) &&
+               panel.Contains("J: ↘⚔", StringComparison.Ordinal) &&
+               panel.Contains("O: ⤢ OSZOLJ", StringComparison.Ordinal),
+            "A vezér rövid alakzatparancsai nem jelentek meg külön a csatapanelen.");
+        var crowdedPanel = BattleCommandPanel.Format(
+            [BattleActionKind.SwapToRear, BattleActionKind.SwapWeapon, BattleActionKind.PrepareRearLeft,
+                BattleActionKind.PrepareRearRight, BattleActionKind.DisbandFormation,
+                BattleActionKind.PhysicalAttack, BattleActionKind.ShieldBash, BattleActionKind.MoveFormation,
+                BattleActionKind.CastSpell, BattleActionKind.SelectTarget, BattleActionKind.UseItem,
+                BattleActionKind.TurnUndead, BattleActionKind.Retreat, BattleActionKind.Pass],
+            true, "Hosszú nevű vezér", physicalAttackLabel: "lövés (99 nyíl)");
+        Assert(BattleCommandPanel.DisplayWidth(crowdedPanel) <= BattleCommandPanel.Width &&
+               crowdedPanel.Contains("O: ⤢ OSZOLJ", StringComparison.Ordinal),
+            "A sok elérhető vezéri akció lelóg a csatapanelről vagy elrejti az OSZOLJ parancsot.");
+        encounter.Engage(leader, enemy);
+        Assert(encounter.DisbandFormation() && !encounter.HasActiveFormation &&
+               encounter.Formation?.State == PartyFormationState.Disbanded &&
+               encounter.IsEngaged(leader) && encounter.FormationSlotFor(leader) is null &&
+               !encounter.DisbandFormation(),
+            "Az OSZOLJ nem bontotta fel az alakzatot, vagy elvesztek a fennálló harci kötések.");
         var roundSegments = BattleCommandPanel.WithRound(7,
             BattleCommandPanel.FormatWithHighlighting([BattleActionKind.PhysicalAttack]));
         Assert(string.Concat(roundSegments.Select(segment => segment.Text)).StartsWith("7. KÖR ",

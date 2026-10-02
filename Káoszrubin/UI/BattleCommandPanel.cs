@@ -78,22 +78,25 @@ public sealed class BattleCommandPanel
         if (actionSet.SetEquals([BattleActionKind.Move, BattleActionKind.Pass]))
             return Decorate($"{actorName} akciói: nyilak: további lépés | Space/P: mozgás vége");
 
+        var compact = actionSet.Contains(BattleActionKind.DisbandFormation);
         var commands = new List<string>();
-        if (actionSet.Contains(BattleActionKind.SwapToRear)) commands.Add("H: hátra!");
-        if (actionSet.Contains(BattleActionKind.SwapWeapon)) commands.Add("C: fegyvercsere");
-        if (actionSet.Contains(BattleActionKind.PrepareRearLeft)) commands.Add("B: bal hátul készülj");
-        if (actionSet.Contains(BattleActionKind.PrepareRearRight)) commands.Add("J: jobb hátul készülj");
+        if (actionSet.Contains(BattleActionKind.SwapToRear)) commands.Add(compact ? "H: ↩" : "H: hátra!");
+        if (actionSet.Contains(BattleActionKind.SwapWeapon)) commands.Add(compact ? "C: ⇄" : "C: fegyvercsere");
+        if (actionSet.Contains(BattleActionKind.PrepareRearLeft)) commands.Add("B: ↙⚔");
+        if (actionSet.Contains(BattleActionKind.PrepareRearRight)) commands.Add("J: ↘⚔");
+        if (actionSet.Contains(BattleActionKind.DisbandFormation)) commands.Add("O: ⤢ OSZOLJ");
         if (actionSet.Contains(BattleActionKind.PhysicalAttack))
-            commands.Add($"Space: {physicalAttackLabel ?? "támadás"}");
-        if (actionSet.Contains(BattleActionKind.ShieldBash)) commands.Add("Q: pajzslökés");
+            commands.Add(compact ? $"Space: {(physicalAttackLabel is null ? "⚔" : "🏹")}" :
+                $"Space: {physicalAttackLabel ?? "támadás"}");
+        if (actionSet.Contains(BattleActionKind.ShieldBash)) commands.Add(compact ? "Q: 🛡" : "Q: pajzslökés");
         if (actionSet.Contains(BattleActionKind.Move) || actionSet.Contains(BattleActionKind.MoveFormation))
-            commands.Add("nyilak: mozgás");
-        if (actionSet.Contains(BattleActionKind.CastSpell)) commands.Add("V/F1-F8: varázslat");
-        if (actionSet.Contains(BattleActionKind.SelectTarget)) commands.Add("Tab: célpont");
-        if (actionSet.Contains(BattleActionKind.UseItem)) commands.Add("U: tárgy");
-        if (actionSet.Contains(BattleActionKind.TurnUndead)) commands.Add("T: halottűzés");
-        if (actionSet.Contains(BattleActionKind.Retreat)) commands.Add("R: visszavonulás");
-        if (actionSet.Contains(BattleActionKind.Pass)) commands.Add("P: passz");
+            commands.Add(compact ? "nyilak: ↔" : "nyilak: mozgás");
+        if (actionSet.Contains(BattleActionKind.CastSpell)) commands.Add(compact ? "V/F1-F8: ✦" : "V/F1-F8: varázslat");
+        if (actionSet.Contains(BattleActionKind.SelectTarget)) commands.Add(compact ? "Tab: ◎" : "Tab: célpont");
+        if (actionSet.Contains(BattleActionKind.UseItem)) commands.Add(compact ? "U: ▣" : "U: tárgy");
+        if (actionSet.Contains(BattleActionKind.TurnUndead)) commands.Add(compact ? "T: ☠" : "T: halottűzés");
+        if (actionSet.Contains(BattleActionKind.Retreat)) commands.Add(compact ? "R: ⇤" : "R: visszavonulás");
+        if (actionSet.Contains(BattleActionKind.Pass)) commands.Add(compact ? "P: ⏳" : "P: passz");
         return commands.Count == 0 ? string.Empty : Decorate($"{actorName} akciói: " + string.Join(" | ", commands));
     }
 
@@ -127,7 +130,7 @@ public sealed class BattleCommandPanel
         var knownHotkeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
             "Space", "nyilak", "V", "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8",
-            "Tab", "U", "T", "R", "P", "Q", "C", "H", "B", "J", "Space/P", "V/F1-F8", "1", "2", "3", "4", "5", "6", "7", "8", "9"
+            "Tab", "U", "T", "R", "P", "Q", "C", "H", "B", "J", "O", "Space/P", "V/F1-F8", "1", "2", "3", "4", "5", "6", "7", "8", "9"
         };
 
         var segments = new List<TextSegment>();

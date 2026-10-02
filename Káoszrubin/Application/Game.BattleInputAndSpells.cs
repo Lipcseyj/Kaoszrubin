@@ -136,6 +136,11 @@ public sealed partial class Game
             SubmitLocalBattleCommand(BattleActionKind.PrepareRearRight);
             return;
         }
+        if (key.Key == ConsoleKey.O && allowed.Contains(BattleActionKind.DisbandFormation))
+        {
+            SubmitLocalBattleCommand(BattleActionKind.DisbandFormation);
+            return;
+        }
         if (TryGetDirection(key.Key, out var formationDirection) &&
             allowed.Contains(BattleActionKind.MoveFormation))
         {

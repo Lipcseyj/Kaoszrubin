@@ -155,6 +155,7 @@ public enum BattleActionKind
     SwapWeapon,
     PrepareRearLeft,
     PrepareRearRight,
+    DisbandFormation,
     ResumeBattle
 }
 

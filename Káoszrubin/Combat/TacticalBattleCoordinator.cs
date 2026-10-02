@@ -462,6 +462,8 @@ public sealed class TacticalBattleCoordinator
                 openingActions.Add(BattleActionKind.SelectTarget);
             if (character.CanSwapReserveWeapon) openingActions.Add(BattleActionKind.SwapWeapon);
             AddRearPreparationActions(battle, character, selectedCharacter, openingActions);
+            if (battle.HasActiveFormation && character == selectedCharacter)
+                openingActions.Add(BattleActionKind.DisbandFormation);
             return openingActions;
         }
         var actions = new List<BattleActionKind> { BattleActionKind.Pass };
@@ -494,6 +496,8 @@ public sealed class TacticalBattleCoordinator
         if (!staggered && character == selectedCharacter && battle.Turns.Cycle > 1)
             actions.Add(BattleActionKind.Retreat);
         AddRearPreparationActions(battle, character, selectedCharacter, actions);
+        if (battle.HasActiveFormation && character == selectedCharacter)
+            actions.Add(BattleActionKind.DisbandFormation);
         return actions;
     }
 

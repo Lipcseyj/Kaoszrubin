@@ -669,7 +669,8 @@ public sealed class GameSession
     {
         BattleActionKind.ResumeBattle or BattleActionKind.AdvanceEnemyTurn or BattleActionKind.Retreat or
         BattleActionKind.SwapToRear or BattleActionKind.PrepareRearLeft or
-        BattleActionKind.PrepareRearRight or BattleActionKind.SwapWeapon or BattleActionKind.Pass or
+        BattleActionKind.PrepareRearRight or BattleActionKind.DisbandFormation or
+        BattleActionKind.SwapWeapon or BattleActionKind.Pass or
         BattleActionKind.FighterPrecise or BattleActionKind.FighterPowerful or
         BattleActionKind.FighterDefensive or BattleActionKind.ThiefAmbush or
         BattleActionKind.ThiefObserve or BattleActionKind.ThiefPoison =>
