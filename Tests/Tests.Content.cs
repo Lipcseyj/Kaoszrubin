@@ -670,6 +670,33 @@ internal static partial class Program
             "Az egyedi NPC lerakását még mindig a játékos által választott név blokkolja, vagy az NPC-ID nem stabil.");
     }
 
+    static void UniqueNpcPlacementIsScopedToCurrentCampaign()
+    {
+        var roster = new CharacterRoster();
+        var previousCampaignNpc = CreateCharacter("Merion");
+        previousCampaignNpc.SetSourceNpcDefinitionId("NPC022");
+        roster.Add(previousCampaignNpc);
+        var previousCampaign = Guid.NewGuid();
+        var currentCampaign = Guid.NewGuid();
+        roster.BindCampaign(previousCampaignNpc, previousCampaign, 1);
+
+        Assert(!Game.HasUniqueNpcInCampaign(roster, "NPC022", currentCampaign, false),
+            "Egy korábbi kampány Merionja nem akadályozhatja az új kampány első pályáján való megjelenést.");
+        Assert(Game.HasUniqueNpcInCampaign(roster, "NPC022", previousCampaign, false),
+            "Az ugyanabban a kampányban már létrehozott egyedi NPC nem jelenhet meg újra.");
+
+        var unboundNpc = CreateCharacter("Régi Merion");
+        unboundNpc.SetSourceNpcDefinitionId("NPC022");
+        var legacyRoster = new CharacterRoster();
+        legacyRoster.Add(unboundNpc);
+        Assert(!Game.HasUniqueNpcInCampaign(legacyRoster, "NPC022", currentCampaign, false) &&
+               Game.HasUniqueNpcInCampaign(legacyRoster, "NPC022", currentCampaign, true),
+            "A régi mentésből betöltött, kampányhoz nem kötött NPC-ket továbbra is fel kell ismerni.");
+        legacyRoster.Party.SetLeader(unboundNpc);
+        Assert(Game.HasUniqueNpcInCampaign(legacyRoster, "NPC022", currentCampaign, false),
+            "A partiban lévő egyedi NPC-t nem szabad újra elhelyezni.");
+    }
+
     static void WorldNpcGenerationExcludesWhiteColor()
     {
         Assert(CharacterColors.Selectable.Contains(ConsoleColor.White) &&

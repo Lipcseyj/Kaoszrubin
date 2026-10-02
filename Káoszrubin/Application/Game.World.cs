@@ -1524,9 +1524,10 @@ public sealed partial class Game
             _maze = targetArea.Maze;
             _fogOfWar = targetArea.FogOfWar;
             var definition = _gameData.GetNpc(encounter.NpcId);
-            if (definition.Unique && HasUniqueNpcInRoster(CharacterRoster.Characters, definition.Id))
+            if (definition.Unique && HasUniqueNpcInCampaign(CharacterRoster, definition.Id,
+                    _campaignId, _loadedState is not null))
             { 
-                Log.Warning($"A(z) '{definition.Id}' egyedi NPC már szerepel a karakterlistában, ezért nem kerül elhelyezésre a pályán.");
+                Log.Info($"A(z) '{definition.Id}' egyedi NPC már szerepel az aktuális kampányban, ezért nem kerül ismét elhelyezésre.");
                 continue; 
             }
             var recurringCharacter = definition.PersistentRelationship
@@ -1572,6 +1573,7 @@ public sealed partial class Game
                     PartyLeader.Level, CharacterRoster.Characters.Select(character => character.Name).ToArray()));
             recruit.SetSourceNpcDefinitionId(definition.Id);
             if (recurringCharacter is null) CharacterRoster.Add(recruit);
+            if (definition.Unique) CharacterRoster.BindCampaign(recruit, _campaignId, _mazeLevel);
             var friendliness = definition.PersistentRelationship &&
                                _npcRelationships.TryGetValue(definition.Id, out var remembered)
                 ? remembered : definition.Unique ? 4 : RollNpcFriendliness(definition);
@@ -1619,6 +1621,14 @@ public sealed partial class Game
     internal static bool HasUniqueNpcInRoster(IEnumerable<LiveCharacter> characters, string npcDefinitionId) =>
         characters.Any(character => string.Equals(character.SourceNpcDefinitionId, npcDefinitionId,
             StringComparison.OrdinalIgnoreCase));
+
+    internal static bool HasUniqueNpcInCampaign(CharacterRoster roster, string npcDefinitionId,
+        Guid campaignId, bool includeUnboundCharactersFromLoadedSave) =>
+        roster.Characters.Any(character =>
+            string.Equals(character.SourceNpcDefinitionId, npcDefinitionId, StringComparison.OrdinalIgnoreCase) &&
+            (roster.Party.Members.Contains(character) ||
+             roster.CampaignOf(character) is { } binding && binding.CampaignId == campaignId ||
+             includeUnboundCharactersFromLoadedSave && roster.CampaignOf(character) is null));
 
     private void PlaceQuestRoomEnemies(MazeLevelConfiguration configuration)
     {

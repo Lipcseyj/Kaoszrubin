@@ -315,7 +315,9 @@ public sealed partial class Game
         var partyMembers = CharacterRoster.Party.Members.ToHashSet();
         foreach (var character in CharacterRoster.Characters.Where(character =>
                      !partyMembers.Contains(character) &&
-                     string.Equals(character.Name, definition.Name, StringComparison.OrdinalIgnoreCase)).ToArray())
+                     string.Equals(character.SourceNpcDefinitionId, definition.Id,
+                         StringComparison.OrdinalIgnoreCase) &&
+                     CharacterRoster.CampaignOf(character)?.CampaignId == _campaignId).ToArray())
             CharacterRoster.Remove(character);
     }
 
