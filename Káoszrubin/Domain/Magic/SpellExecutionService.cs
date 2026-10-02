@@ -306,14 +306,18 @@ public sealed class SpellExecutionService
                     if (spell.HasAreaImpact && effect.Dice is { } stormDice)
                     {
                         var cells = SpellAreaFootprint.GetCells(spell, casterPosition, target, maze).ToArray();
+                        var duration = AdjustedDuration(caster, spell, effect, divineJudgment);
+                        var stormMultiplier = caster.HasPerk(PerkIds.MageElementalMaster) ? 125 : 100;
+                        if (caster.SpecializationId == ClassSpecializations.PriestJudgment &&
+                            spell.School == SpellSchool.Divine)
+                            stormMultiplier = stormMultiplier * 120 / 100;
                         maze.AddStormZone(new ActiveStormZone(Guid.NewGuid(), spell.Id, target, cells,
-                            AdjustedDuration(caster, spell, effect, divineJudgment), stormDice,
+                            duration, stormDice,
                             effect.Value + (int)Math.Round(caster.EffectiveAbilities.Intelligence *
                                 effect.IntelligenceMultiplier) + spell.Level * effect.LevelMultiplier,
                             10 + caster.EffectiveAbilities.Intelligence / 2 + spell.Level,
-                            effect.Resolution, caster.Id, DamageMultiplierPercent:
-                                caster.HasPerk(PerkIds.MageElementalMaster) ? 125 : 100));
-                        notes.Add($"{spell.Name}: vihar a területen ({effect.Duration} kör)");
+                            effect.Resolution, caster.Id, DamageMultiplierPercent: stormMultiplier));
+                        notes.Add($"{spell.Name}: vihar a területen ({duration} kör)");
                     }
                     else
                     {

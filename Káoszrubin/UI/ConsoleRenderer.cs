@@ -3115,15 +3115,18 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
                 TerminalViewport.TryGetSize(out var size) && size.CanFit(maze.Width, maze.Height))
             {
                 foreach (var zone in drawStorms ? maze.StormZones : [])
+                {
+                    var stormSpell = _gameData.Spells.FirstOrDefault(spell => spell.Id == zone.SpellId);
                     foreach (var position in zone.Cells.Where(fogOfWar.IsVisible))
                     {
                         var visual = GetMapCellVisual(maze, fogOfWar, position, playerPosition);
-                        var storm = StormZoneVisual.Cell(zone.SpellId, position, now);
+                        var storm = StormZoneVisual.Cell(stormSpell, position, now);
                         Console.SetCursorPosition(position.X, position.Y);
                         WriteRuneWithColor(visual.Rune == Maze.Floor ? new Rune(storm.EmptyGlyph) : visual.Rune,
                             visual.Rune == Maze.Floor ? storm.Foreground : visual.ForegroundColor,
                             storm.Background);
                     }
+                }
                 foreach (var rendered in renderedImpacts)
                 {
                     var impact = rendered.Impact;
@@ -3135,7 +3138,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
                             impact.MeteorCenters, impact.MeteorHitCells);
                         Console.SetCursorPosition(position.X, position.Y);
                         var glyph = SpellImpactVisual.GetGlyph(impact.Spell, position, impact.Origin,
-                            impact.MeteorCenters, visual.Rune.ToString(), impact.MeteorHitCells);
+                            impact.MeteorCenters, visual.Rune.ToString(), impact.MeteorHitCells, elapsed);
                         WriteRuneWithColor(Rune.GetRuneAt(glyph, 0), colors.Foreground, colors.Background);
                     }
                 }
@@ -3241,7 +3244,9 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         {
             var character = _party.Leader ?? throw new InvalidOperationException("A főkarakter rajzolása előtt a partit inicializálni kell.");
             return new MapCellVisual(Rune.GetRuneAt(PartyAvatarGlyph(character), 0),
-                character.Color, ConsoleColor.Black);
+                character.Color, SpellAuraVisual.Background(character.ActiveSpellEffects
+                    .Where(effect => effect.Beneficial).Select(effect => effect.SourceSpellId), _gameData)
+                    ?? ConsoleColor.Black);
         }
         if (!fogOfWar.IsVisible(position))
             return fogOfWar.EnemyMemoryAt(position) is { IsSoundCue: true }
@@ -3249,7 +3254,9 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
                 : new MapCellVisual(FogSymbol, ConsoleColor.Black, ConsoleColor.Black);
         if (maze.GetPartyMemberAt(position) is { } partyMember)
             return new MapCellVisual(Rune.GetRuneAt(PartyAvatarGlyph(partyMember.Character), 0),
-                partyMember.ForegroundColor, partyMember.BackgroundColor);
+                partyMember.ForegroundColor, SpellAuraVisual.Background(partyMember.Character.ActiveSpellEffects
+                    .Where(effect => effect.Beneficial).Select(effect => effect.SourceSpellId), _gameData)
+                    ?? partyMember.BackgroundColor);
         if (maze.GetEnemyAt(position) is { } visibleEnemy &&
             fogOfWar.IsEnemyVisible(visibleEnemy.Id, visibleEnemy.Position))
             return new MapCellVisual(visibleEnemy.Symbol,
@@ -3299,7 +3306,9 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         var character = _party.Leader ?? throw new InvalidOperationException("A főkarakter rajzolása előtt a partit inicializálni kell.");
         Console.SetCursorPosition(position.X, position.Y);
         var symbol = Rune.GetRuneAt(PartyAvatarGlyph(character), 0);
-        WriteRuneWithColor(symbol, character.Color, ConsoleColor.Black);
+        var aura = SpellAuraVisual.Background(character.ActiveSpellEffects
+            .Where(effect => effect.Beneficial).Select(effect => effect.SourceSpellId), _gameData);
+        WriteRuneWithColor(symbol, character.Color, aura ?? ConsoleColor.Black);
     }
 
     private string PartyAvatarGlyph(LiveCharacter character) =>

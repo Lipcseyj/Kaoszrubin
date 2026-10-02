@@ -38,11 +38,34 @@ public enum SpellImpactPalette
     BloodRed
 }
 
+public enum SpellImpactPattern
+{
+    Ripple,
+    Flash,
+    Bolt,
+    Pillars,
+    FallingFlames,
+    Halo,
+    Ward,
+    Vortex
+}
+
+public enum StormVisualPattern
+{
+    Drift,
+    Embers,
+    Rain,
+    Crackle
+}
+
 public sealed record SpellDefinition(string Id, string Name, SpellSchool School, int Level,
     int ManaCost, string Description, SpellTargetType TargetType, int Range, int AreaRadius,
     bool RequiresLineOfSight, SpellUsageMode UsageMode) : IGameDefinition
 {
     public SpellImpactPalette ImpactPalette { get; init; } = SpellImpactPalette.Blue;
+    public SpellImpactPattern ImpactPattern { get; init; } = SpellImpactPattern.Ripple;
+    public StormVisualPattern StormPattern { get; init; } = StormVisualPattern.Drift;
+    public SpellImpactPalette? StormPalette { get; init; }
     public int? ImpactDurationMilliseconds { get; init; }
     public bool EnemyOnly { get; init; }
     public bool HasAreaImpact => TargetType is SpellTargetType.Area or SpellTargetType.Direction;

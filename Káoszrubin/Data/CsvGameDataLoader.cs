@@ -600,7 +600,10 @@ public static class CsvGameDataLoader
                 {
                     ImpactPalette = OptionalImpactPalette(cells, id, SpellImpactPalette.Blue),
                     ImpactDurationMilliseconds = OptionalImpactDuration(cells, id),
-                    EnemyOnly = IsYes(cells, 12)
+                    EnemyOnly = IsYes(cells, 12),
+                    ImpactPattern = OptionalSpellVisual<SpellImpactPattern>(cells, 13, id, "becsapódásminta", SpellImpactPattern.Ripple),
+                    StormPattern = OptionalSpellVisual<StormVisualPattern>(cells, 14, id, "viharminta", StormVisualPattern.Drift),
+                    StormPalette = OptionalSpellVisual<SpellImpactPalette>(cells, 15, id, "viharszín")
                 });
                 break;
             case DataSection.StrengthHitBonuses:
@@ -631,7 +634,10 @@ public static class CsvGameDataLoader
                 {
                     ImpactPalette = OptionalImpactPalette(cells, id, SpellImpactPalette.YellowBrown),
                     ImpactDurationMilliseconds = OptionalImpactDuration(cells, id),
-                    EnemyOnly = IsYes(cells, 12)
+                    EnemyOnly = IsYes(cells, 12),
+                    ImpactPattern = OptionalSpellVisual<SpellImpactPattern>(cells, 13, id, "becsapódásminta", SpellImpactPattern.Ripple),
+                    StormPattern = OptionalSpellVisual<StormVisualPattern>(cells, 14, id, "viharminta", StormVisualPattern.Drift),
+                    StormPalette = OptionalSpellVisual<SpellImpactPalette>(cells, 15, id, "viharszín")
                 });
                 break;
             case DataSection.SpellEffects:
@@ -1371,6 +1377,15 @@ public static class CsvGameDataLoader
         Enum.TryParse<SpellImpactPalette>(Cell(cells, 10), true, out var palette) && Enum.IsDefined(palette)
             ? palette
             : throw new InvalidOperationException($"A(z) '{id}' becsapódásszíne Red, Blue, YellowBrown, Purple, SicklyGreen, Shadow vagy BloodRed legyen.");
+
+    private static T OptionalSpellVisual<T>(string[] cells, int index, string id, string field, T fallback)
+        where T : struct, Enum => OptionalSpellVisual<T>(cells, index, id, field) ?? fallback;
+
+    private static T? OptionalSpellVisual<T>(string[] cells, int index, string id, string field)
+        where T : struct, Enum => string.IsNullOrWhiteSpace(Cell(cells, index)) ? null :
+        Enum.TryParse<T>(Cell(cells, index), true, out var value) && Enum.IsDefined(value)
+            ? value
+            : throw new InvalidOperationException($"A(z) '{id}' {field} értéke érvénytelen. Lehetséges értékek: {string.Join(", ", Enum.GetNames<T>())}.");
 
     private static int? OptionalImpactDuration(string[] cells, string id) =>
         string.IsNullOrWhiteSpace(Cell(cells, 11)) ? null :

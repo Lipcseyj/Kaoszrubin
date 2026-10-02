@@ -256,7 +256,9 @@ public sealed partial class Game : ISessionCommandHandler
             positions.GetValueOrDefault(character.Id), character.Statuses.Select(status => status.Id).ToArray(),
             Inventory: InventorySnapshotProjector.Create(character),
             CharacterSheet: CharacterSheetWithCombatConditions(character, battle), Color: character.Color,
-            IsTemporaryFollower: true, History: CreateCharacterHistory(character))).ToArray();
+            IsTemporaryFollower: true, History: CreateCharacterHistory(character),
+            ActiveVisualSpellIds: character.ActiveSpellEffects.Where(effect => effect.Beneficial)
+                .Select(effect => effect.SourceSpellId).Distinct().ToArray())).ToArray();
         return snapshot with
         {
             GoldenKeyCount = _collectedBossKeyIds.Count,

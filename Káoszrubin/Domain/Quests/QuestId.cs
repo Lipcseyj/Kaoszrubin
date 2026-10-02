@@ -99,7 +99,9 @@ public enum QuestId
     // NPC002 - Szörnyvadász
     GoblinChiefHunt,
 
-    // NPC024 - Falusi füvesasszony
+    // NPC001 - Vándor füvesasszony
     VillagerMeat,
+
+    // NPC002 - Szörnyvadász
     MonsterHunterOrcTrail
 }

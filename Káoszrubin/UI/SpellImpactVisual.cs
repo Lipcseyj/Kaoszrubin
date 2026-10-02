@@ -36,33 +36,58 @@ internal static class SpellImpactVisual
                 ? (ConsoleColor.Yellow, ConsoleColor.DarkRed)
                 : (ConsoleColor.DarkRed, ConsoleColor.Black);
         }
-        var (light, dark) = spell.ImpactPalette switch
-        {
-            SpellImpactPalette.Red => (ConsoleColor.Red, ConsoleColor.DarkRed),
-            SpellImpactPalette.YellowBrown => (ConsoleColor.Yellow, ConsoleColor.DarkYellow),
-            SpellImpactPalette.Purple => (ConsoleColor.Magenta, ConsoleColor.DarkMagenta),
-            SpellImpactPalette.SicklyGreen => (ConsoleColor.Green, ConsoleColor.DarkGreen),
-            SpellImpactPalette.Shadow => (ConsoleColor.Gray, ConsoleColor.DarkGray),
-            SpellImpactPalette.BloodRed => (ConsoleColor.Red, ConsoleColor.DarkMagenta),
-            _ => (ConsoleColor.Cyan, ConsoleColor.DarkBlue)
-        };
+        var (light, dark) = SpellVisualPalette.Colors(spell.ImpactPalette);
         var distance = Math.Max(Math.Abs(position.X - origin.X), Math.Abs(position.Y - origin.Y));
-        // Area rings travel outwards; single targets pulse together.
-        var phase = ((int)(elapsedMilliseconds / 150) - (spell.HasAreaImpact ? distance : 0)) % 6;
-        if (phase < 0) phase += 6;
-        return phase switch
+        var frame = (int)(elapsedMilliseconds / 150);
+        var phase = ((frame - (spell.HasAreaImpact ? distance : 0)) % 6 + 6) % 6;
+        return spell.ImpactPattern switch
         {
-            0 => (ConsoleColor.White, light),
-            1 or 2 => (ConsoleColor.White, dark),
-            _ => (light, ConsoleColor.Black)
+            SpellImpactPattern.Flash => frame < 3
+                ? (ConsoleColor.White, light)
+                : (light, frame < 6 ? dark : ConsoleColor.Black),
+            SpellImpactPattern.Bolt => frame % 4 < 2
+                ? (ConsoleColor.White, light)
+                : (light, dark),
+            SpellImpactPattern.Pillars => (frame + position.X * 2) % 7 < 3
+                ? (ConsoleColor.White, light)
+                : (light, dark),
+            SpellImpactPattern.FallingFlames => (frame * 2 + position.Y * 3 + position.X * 7) % 9 < 3
+                ? (ConsoleColor.White, light)
+                : (light, dark),
+            SpellImpactPattern.Halo => frame % 8 < 3
+                ? (ConsoleColor.White, light)
+                : (light, ConsoleColor.Black),
+            SpellImpactPattern.Ward => frame % 10 < 3
+                ? (light, dark)
+                : (ConsoleColor.White, ConsoleColor.Black),
+            SpellImpactPattern.Vortex => (frame + position.X * 2 - position.Y * 3 + 1200) % 8 < 3
+                ? (ConsoleColor.White, light)
+                : (light, dark),
+            _ => phase switch
+            {
+                0 => (ConsoleColor.White, light),
+                1 or 2 => (ConsoleColor.White, dark),
+                _ => (light, ConsoleColor.Black)
+            }
         };
     }
 
     public static string GetGlyph(SpellDefinition spell, Position position, Position origin,
         IReadOnlyList<Position>? meteorCenters, string underlying,
-        IReadOnlyList<Position>? meteorHitCells = null)
+        IReadOnlyList<Position>? meteorHitCells = null, double elapsedMilliseconds = 0)
     {
-        if (spell.Id != "S011" || meteorCenters is not { Count: > 0 }) return underlying;
+        if (spell.Id != "S011" || meteorCenters is not { Count: > 0 })
+        {
+            if (underlying != " ") return underlying;
+            var frame = (int)(elapsedMilliseconds / 200);
+            return spell.ImpactPattern switch
+            {
+                SpellImpactPattern.Pillars => (frame + position.X) % 3 == 0 ? "│" : "·",
+                SpellImpactPattern.FallingFlames => (frame + position.X * 3 + position.Y) % 4 == 0 ? "✦" : "·",
+                SpellImpactPattern.Vortex => (frame + position.X + position.Y) % 3 == 0 ? "╱" : "·",
+                _ => underlying
+            };
+        }
         var impacts = meteorCenters.Count(center => center == position);
         if (impacts > 1) return impacts.ToString();
         if (impacts == 1) return "✹";

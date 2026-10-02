@@ -39,7 +39,6 @@ public static class LegacyNpcIdMap
             "NPC021" => QuestNpcId.SirRoderic,
             "NPC022" => QuestNpcId.AureliosEmissary,
             "NPC023" => QuestNpcId.Vildar,
-            "NPC024" => QuestNpcId.VillagerHerbalist,
             "NPC-FIRST-COMPANION" => QuestNpcId.None,
 
             _ => throw new InvalidDataException(
@@ -71,7 +70,6 @@ public static class LegacyNpcIdMap
         QuestNpcId.SirRoderic => "NPC021",
         QuestNpcId.AureliosEmissary => "NPC022",
         QuestNpcId.Vildar => "NPC023",
-        QuestNpcId.VillagerHerbalist => "NPC024",
         _ => throw new InvalidDataException("Ismeretlen típusos questadó-azonosító.")
     };
 }

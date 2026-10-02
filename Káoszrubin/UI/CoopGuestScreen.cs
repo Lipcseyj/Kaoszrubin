@@ -1722,7 +1722,8 @@ public sealed class CoopGuestScreen
         foreach (var character in snapshot.Party.Where(ShouldDrawPartyAvatar))
             Put(grid, character.Position!.Value, CharacterSheetPanel.PartyAvatarGlyph(character.CharacterClassId,
                     _musicSettings.Settings.PartyAvatars),
-                character.Color);
+                character.Color, SpellAuraVisual.Background(character.ActiveVisualSpellIds ?? [], _gameData)
+                                 ?? ConsoleColor.Black);
         foreach (var participant in snapshot.Battle?.Participants ?? [])
         {
             var position = ResolveBattleHighlightPosition(participant, snapshot.Party, world.Enemies);
@@ -1762,12 +1763,14 @@ public sealed class CoopGuestScreen
             ? world.Enemies.ToDictionary(enemy => enemy.EntityId, enemy => enemy.Position)
             : new Dictionary<WorldEntityId, Position>();
         foreach (var zone in world.StormZones ?? [])
+        {
+            var stormSpell = _gameData.Spells.FirstOrDefault(spell => spell.Id == zone.SpellId);
             foreach (var position in zone.Cells)
             {
                 if (position.X < 0 || position.X >= grid.GetLength(0) ||
                     position.Y < 0 || position.Y >= grid.GetLength(1)) continue;
                 var cell = grid[position.X, position.Y];
-                var storm = StormZoneVisual.Cell(zone.SpellId, position, utcNow);
+                var storm = StormZoneVisual.Cell(stormSpell, position, utcNow);
                 grid[position.X, position.Y] = cell with
                 {
                     Glyph = cell.Glyph == " " ? storm.EmptyGlyph.ToString() : cell.Glyph,
@@ -1775,6 +1778,7 @@ public sealed class CoopGuestScreen
                     Background = storm.Background
                 };
             }
+        }
         foreach (var impact in activeSpellImpacts)
             foreach (var position in impact.CellsAt(spellImpactCharacterPositions, spellImpactEnemyPositions))
             {
@@ -1786,7 +1790,8 @@ public sealed class CoopGuestScreen
                 grid[position.X, position.Y] = cell with
                 {
                     Glyph = SpellImpactVisual.GetGlyph(impact.Spell, position, impact.Origin,
-                        impact.MeteorCenters, cell.Glyph, impact.MeteorHitCells),
+                        impact.MeteorCenters, cell.Glyph, impact.MeteorHitCells,
+                        impact.ElapsedMillisecondsAt(utcNow)),
                     Color = colors.Foreground,
                     Background = colors.Background
                 };

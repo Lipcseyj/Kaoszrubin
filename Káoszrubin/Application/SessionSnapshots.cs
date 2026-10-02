@@ -181,7 +181,8 @@ public sealed record SessionCharacterSnapshot(CharacterId CharacterId, string Na
     CharacterSheetSnapshot? CharacterSheet = null, ConsoleColor Color = ConsoleColor.Gray,
     IReadOnlyList<BattleSpellOption>? ExplorationSpellOptions = null,
     SpellInfoSnapshot? SpellInfo = null, bool IsTemporaryFollower = false,
-    CharacterHistorySnapshot? History = null);
+    CharacterHistorySnapshot? History = null,
+    IReadOnlyList<string>? ActiveVisualSpellIds = null);
 
 public sealed record SpellInfoSnapshot(string FocusName, int MemorizationCapacity,
     IReadOnlyList<KnownSpellSnapshot> KnownSpells);

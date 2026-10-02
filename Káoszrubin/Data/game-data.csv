@@ -895,7 +895,7 @@ TR111;Meteorrúna;✺;Spell;18;14;14;0;0;0;650;1300;Meteorzáport zúdít a cél
 TR112;Lélekvihar-rúna;◈;Spell;21;15;16;0;0;0;800;1600;Sötét lélekvihart szakít a kalandozókra.;S025
 
 #Varázslatok
-Id;Név;Szint;Manna;Leírás;Célzás;Hatótáv;Terület;Látóvonal;HasználatiMód;BecsapódásSzín;BecsapódásIdőMs;CsakEllenség
+Id;Név;Szint;Manna;Leírás;Célzás;Hatótáv;Terület;Látóvonal;HasználatiMód;BecsapódásSzín;BecsapódásIdőMs;CsakEllenség;BecsapódásMinta;ViharMinta;ViharSzín
 S001;Mágikus lövedék;1;6;Biztosan célba találó arkán lövedék amely a varázsló erejével növekszik.;Enemy;8;0;igen;Both;Blue;700;
 S002;Fagyasztó érintés;1;5;Fagyos közelharci varázslat amely megsebzi és lelassítja az ellenfelet.;Enemy;1;0;igen;Both;Blue;1200;
 S003;Égő kéz;1;8;Rövid lángtölcsér amely minden benne állót megsebezhet és lángra lobbanthat.;Direction;2;1;igen;Both;Red;2200;
@@ -903,8 +903,8 @@ S004;Villámcsapás;2;12;Egyetlen célpontba vezetett nagy erejű villámcsapás
 S005;Lángoló nyíl;1;7;Nagy hatótávú tűznyíl amely találatkor égést okoz.;Enemy;8;0;igen;Both;Red;1000;
 S006;Láthatatlanság;2;11;Egy partitag eltűnik az ellenfelek szeme elől amíg támadást nem indít.;PartyMember;6;0;igen;Both;Blue;500;
 S007;Tűzgolyó;3;18;Koncentrált 3x3-as robbanás nagy azonnali tűzsebzéssel. A társakat is eltalálhatja.;Area;8;1;igen;Both;Red;3000;
-S008;Jégvihar;3;18;5x5-ös fagyos vihar amely minden érintettet megsebez és lelassít.;Area;8;2;igen;Both;Blue;3600;
-S009;Villámvihar;4;26;5x5-ös tartós villámvihar amely a kezdeti csapás után minden érintettet tovább sebez.;Area;8;2;igen;Both;YellowBrown;3800;
+S008;Jégvihar;3;18;5x5-ös fagyos vihar amely minden érintettet megsebez és lelassít.;Area;8;2;igen;Both;Blue;3600;;Flash;Rain
+S009;Villámvihar;4;26;5x5-ös tartós villámvihar amely a kezdeti csapás után minden érintettet tovább sebez.;Area;8;2;igen;Both;YellowBrown;3800;;Bolt;Crackle
 S010;Teleportáció;3;14;A varázsló egy már felfedezett szabad mezőre teleportál.;Cell;8;0;nem;Both;Blue;0;
 S011;Meteorzápor;4;30;A kijelölt 5x5-ös területre több meteor csapódik. A becsapódások és az égés a társakat is elérhetik.;Area;10;2;igen;Both;Red;4700;
 S012;Időmegállítás;5;42;A mágus rövid időre megállítja környezetét és két további akciót kap.;Self;0;0;nem;Combat;Blue;0;
@@ -920,7 +920,7 @@ S021;Erőpajzs;1;6;Sűrű arkán mező amely hosszú időre megerősíti a mágu
 S022;Jégbilincs;2;11;A fagyos bilincs kihagyatja a célpont következő akcióját és rövid időre lassítja.;Enemy;8;0;igen;Both;Blue;2000;
 S023;Hasadó villám;3;18;Egy villámív több egymáshoz közeli ellenfélen is végigfut.;Enemy;8;0;igen;Both;YellowBrown;1800;
 S024;Harci gyorsítás;4;25;Felgyorsítja a teljes partit és pontosabbá teszi a támadásaikat.;Party;0;0;nem;Both;Blue;0;
-S025;Armageddon;5;44;7x7-ös pusztító és tartós viharcsapás: kisebb kezdeti csapás és öt körig erős utósebzés. A társakat is éri.;Area;9;3;igen;Both;Red;4200;
+S025;Armageddon;5;44;7x7-ös pusztító és tartós viharcsapás: kisebb kezdeti csapás és öt körig erős utósebzés. A társakat is éri.;Area;9;3;igen;Both;Red;4200;;Pillars;Crackle
 S026;Fényvarázslat;1;6;Arkán fény veszi körül a mágust és messzebbre tárja fel előtte a labirintust. A fény 15 százalékponttal javítja a csapdafelderítést.;Self;0;0;nem;Exploration;Blue;3000;
 S027;Vakítás;2;11;Vakító arkán villanás homályosítja el az ellenfél látását és jelentősen rontja a támadásainak pontosságát.;Enemy;8;0;igen;Both;YellowBrown;600;
 S028;Rémkép;3;15;Rémisztő látomásokat idéz az ellenségek elméjébe amelyek megtorpannak és bizonytalanabbul támadnak.;Area;7;1;igen;Both;Blue;3400;
@@ -935,9 +935,9 @@ D005;Árnyékpajzs;1;6;Sűrű árnyékmező óvja rövid időre a varázshaszná
 D006;Vérvillám;2;12;Bíbor villám tépi fel egyetlen áldozat életerejét.;Enemy;6;0;igen;Combat;BloodRed;700;igen
 D007;Fekete bilincs;2;11;Élő árnyékok béklyózzák meg és akasztják meg az áldozat mozdulatait.;Enemy;8;0;igen;Combat;Shadow;2100;igen
 D008;Pokoltűzgömb;3;18;Robbanó pokoltűz borítja lángba a célterületet.;Area;8;2;igen;Combat;BloodRed;3200;igen
-D009;Dögvészvihar;3;18;Mérgező zöld vihar sebzi és lassítja a terület áldozatait.;Area;8;2;igen;Combat;SicklyGreen;3700;igen
+D009;Dögvészvihar;3;18;Mérgező zöld vihar sebzi és lassítja a terület áldozatait.;Area;8;2;igen;Combat;SicklyGreen;3700;igen;Ripple;Rain
 D010;Rémület hulláma;3;15;Sötét látomások bénítják meg és bizonytalanítják el a közel állókat.;Area;7;1;igen;Combat;Purple;3500;igen
-D011;Kárhozatvihar;4;26;Tartós sötét villámvihar emészti a teljes célterületet.;Area;8;2;igen;Combat;Purple;4000;igen
+D011;Kárhozatvihar;4;26;Tartós sötét villámvihar emészti a teljes célterületet.;Area;8;2;igen;Combat;Purple;4000;igen;Bolt;Crackle
 D012;Léleklánc;4;28;Áldozatról áldozatra ugró fekete energia tépi ki az életerőt.;Enemy;8;0;igen;Combat;Shadow;2800;igen
 D013;Vérbástya;3;18;Vérrel táplált oltalom védi a varázshasználó szövetségeseit.;Party;0;0;nem;Combat;BloodRed;0;igen
 D014;Sötét litánia;3;14;Baljós ima fokozza a szövetségesek harci erejét és gyorsaságát.;Party;0;0;nem;Combat;Purple;0;igen
@@ -947,7 +947,7 @@ D017;Vérgyógyítás;2;11;Tiltott vérmágia állítja helyre egy szövetséges
 
 
 #Papi varázslatok
-Id;Név;Szint;Manna;Leírás;Célzás;Hatótáv;Terület;Látóvonal;HasználatiMód;BecsapódásSzín;BecsapódásIdőMs;CsakEllenség
+Id;Név;Szint;Manna;Leírás;Célzás;Hatótáv;Terület;Látóvonal;HasználatiMód;BecsapódásSzín;BecsapódásIdőMs;CsakEllenség;BecsapódásMinta;ViharMinta;ViharSzín
 P001;Gyógyító érintés;1;5;Érintéssel gyógyít 2d8 plusz Intelligencia plusz karakterszint HP-t.;PartyMember;1;0;igen;Both;YellowBrown;1000;
 P002;Szent fény;1;6;Szent fényt lő egy ellenfélre amely élőholt és démoni célpont ellen másfélszeres sebzést okoz.;Enemy;8;0;igen;Both;YellowBrown;800;
 P003;Áldás;1;8;Négy körre találatot védelmet és kezdeményezést ad minden élő part tagnak.;Party;0;0;nem;Both;YellowBrown;2000;
@@ -956,28 +956,29 @@ P005;Gyógyítás;2;11;Hat mezőről nagy mennyiségű életerőt állít vissza
 P006;Méregűzés;1;5;Eltávolítja a Mérgezés állapotot egy élő part tagjáról.;PartyMember;6;0;igen;Both;YellowBrown;1000;
 P007;Védelem a gonosztól;2;12;Öt körre védelmet és sebzéscsökkentést ad élőholt vagy démoni támadó ellen.;PartyMember;6;0;igen;Both;Purple;2000;
 P008;Feltámasztás;4;30;Egy elesett társat huszonöt százalék HP-val és nulla mannával hoz vissza.;Corpse;6;0;igen;Both;YellowBrown;5000;
-P009;Szent csapás;3;17;Súlyos szent sebzést okoz és rontott ellenpróbánál elveszi a következő ellenséges akciót.;Enemy;8;0;igen;Both;YellowBrown;1400;
+P009;Szent csapás;3;17;Súlyos szent sebzést okoz és rontott ellenpróbánál elveszi a következő ellenséges akciót.;Enemy;8;0;igen;Both;YellowBrown;1400;;Bolt
 P010;Isteni védelem;3;18;Négy körre védelmet és huszonöt százalék fizikai sebzéscsökkentést ad a teljes partinak.;Party;0;0;nem;Both;YellowBrown;3000;
-P011;Szent ítélet;4;28;Nagy szent sebzést okoz és rontott ellenpróbánál eltávolítja a pozitív varázshatásokat.;Enemy;8;0;igen;Both;YellowBrown;3200;
+P011;Szent ítélet;4;28;Nagy szent sebzést okoz és rontott ellenpróbánál eltávolítja a pozitív varázshatásokat.;Enemy;8;0;igen;Both;YellowBrown;3200;;Pillars
 P012;Isteni csoda;5;45;Maximumra gyógyítja és minden súlyos állapottól megtisztítja a teljes élő partit.;Party;0;0;nem;Both;YellowBrown;3000;
 P013;Betegségűzés;2;10;Eltávolítja a Betegség állapotot és visszaállítja a normál erőforrásmaximumokat.;PartyMember;6;0;igen;Both;YellowBrown;1500;
 P014;Megtisztítás;3;15;Eltávolítja a Mérgezés Betegség és Vérzés állapotot majd gyógyítja a célpontot.;PartyMember;6;0;igen;Both;YellowBrown;1200;
 P015;Bátorság imája;3;14;Öt körre találatot fizikai sebzést és kezdeményezést ad a teljes partinak.;Party;0;0;nem;Both;YellowBrown;2500;
-P016;Őrangyal;4;26;Öt körig kivédi a célpont első halálos csapását majd gyógyítja őt.;PartyMember;6;0;igen;Both;YellowBrown;4000;
+P016;Őrangyal;4;26;Öt körig kivédi a célpont első halálos csapását majd gyógyítja őt.;PartyMember;6;0;igen;Both;YellowBrown;4000;;Halo
 P017;Tömeges gyógyítás;4;30;Minden élő part tagnak egyszerre nagy mennyiségű életerőt állít vissza.;Party;0;0;nem;Both;YellowBrown;3000;
-P018;Isteni harag;5;46;Hatalmas területi szent sebzést okoz mindenkinek a hatóterületen.;Area;8;3;igen;Both;YellowBrown;4000;
-P019;Szentély;5;38;Négy körre felére csökkenti a közeli part tagokat érő sebzést és állapotvédelmet ad.;Self;0;3;nem;Both;YellowBrown;3000;
+P018;Isteni harag;5;42;Hatalmas területi szent sebzést okoz és szétoszlathatja az ellenségek pozitív varázshatásait. A társakat is sebzi.;Area;8;3;igen;Both;YellowBrown;4000;;Pillars
+P019;Szentély;5;38;Négy körre felére csökkenti a közeli part tagokat érő sebzést és állapotvédelmet ad.;Self;0;3;nem;Both;YellowBrown;3000;;Ward
 P020;Igazi feltámasztás;5;50;Egy elesett társat teljes HP-val fél mannával és negatív állapotok nélkül hoz vissza.;Corpse;8;0;igen;Both;YellowBrown;5000;
 P021;Étel és ital teremtése;1;6;Mennyei útravalót és tiszta vizet teremt amely az egész parti szükségleteit enyhíti.;Party;0;0;nem;Exploration;YellowBrown;0;
 P022;Remény imája;2;12;Szelíd isteni erő gyógyítja egyszerre a teljes élő partit.;Party;0;0;nem;Both;YellowBrown;1100;
 P023;Szent fegyver;3;16;Áldott erő teszi pontosabbá és pusztítóbbá a teljes parti fegyvereit.;Party;0;0;nem;Both;YellowBrown;2000;
 P024;Égi bástya;4;27;Mennyei oltalom növeli a teljes parti védelmét és csökkenti a fizikai sérüléseket.;Party;0;0;nem;Both;YellowBrown;2500;
-P025;Mennyei tűz;5;45;Tiszta égi láng borít el mindenkit a hatóterületen és tovább perzseli őket.;Area;9;3;igen;Both;Red;4500;
+P025;Mennyei tűz;5;45;Tiszta égi láng borít el mindenkit a hatóterületen és tovább perzseli őket.;Area;9;3;igen;Both;Red;4500;;FallingFlames
 P026;Fegyveráldás;1;6;A pap rövid időre szent erővel áldja meg saját fegyverét amely pontosabban és nagyobb erővel sújt le.;Self;0;0;nem;Both;YellowBrown;800;
 P027;Átoktörés;2;11;Isteni erő töri meg az egy partitagot sújtó káros mágikus hatásokat és annak legerősebb aktív tárgyátkát.;PartyMember;6;0;igen;Both;YellowBrown;1700;
-P028;Fénykitörés;3;16;Robbanásszerű szent fény sújt mindenkit a célterületen és megrendítheti őket.;Area;7;1;igen;Both;YellowBrown;2400;
+P028;Fénykitörés;3;16;Robbanásszerű szent fény sújt mindenkit a célterületen és megrendítheti őket.;Area;7;1;igen;Both;YellowBrown;2400;;Flash
 P029;Lángáldás;2;11;Isteni lánggal vonja be egy partitag támadó fegyverét négy körre.;PartyMember;6;0;igen;Both;Red;3000;
 P030;Lángoló fegyverzet;4;28;Isteni lánggal vonja be a teljes élő parti támadó fegyvereit négy körre.;Party;0;0;nem;Both;Red;3000;
+P031;Lángörvény;3;19;3x3-as tartós szent tűzörvény perzseli a területen állókat és a belépőket. A társakat is sebzi.;Area;7;1;igen;Both;Red;2200;;Vortex;Embers;YellowBrown
 
 #Varázshatások
 Id;VarázslatId;Sorrend;Típus;Kocka;IntSzorzó;SzintSzorzó;Érték;IdőtartamKör;Esély;Ellenpróba;Paraméter;Leírás
@@ -1091,9 +1092,10 @@ FX-P024-2;P024;2;PhysicalReduction;;0;0;35;5;100;Auto;;Öt körre harmincöt sz�
 FX-P012-1;P012;1;CureStatus;;0;0;0;0;100;Auto;STATUS003|STATUS004|STATUS005;Minden élő part tagjáról eltávolítja a súlyos állapotokat.
 FX-P012-2;P012;2;Heal;;0;0;0;0;100;Auto;Full;Minden élő partitag életerejét maximumra tölti.
 FX-P018-1;P018;1;Damage;18d10;5;12;0;0;100;SaveHalf;Holy50;Hatalmas területi szent sebzés minden érintettnek.
+FX-P018-2;P018;2;DispelBeneficial;;0;0;0;0;100;SaveNegates;;Rontott ellenpróbánál szétoszlatja az ellenségek pozitív varázshatásait.
 FX-P019-1;P019;1;Sanctuary;;0;0;50;4;100;Auto;;A Pap közelében álló társakat védi amíg nem támadnak.
 FX-P020-1;P020;1;Resurrect;;0;0;100;0;100;Auto;50|STATUS003|STATUS004|STATUS005;Teljes HP-val fél mannával és megtisztítva hoz vissza egy elesett társat.
-FX-P025-1;P025;1;Damage;20d10;5;14;0;0;100;SaveHalf;Holy50;Hatalmas területi szent sebzés élőholt és démoni célpont ellen másfélszeres erővel.
+FX-P025-1;P025;1;Damage;20d10;5;14;0;0;100;SaveHalf;;Hatalmas területi égi tűzsebzés.
 FX-P025-2;P025;2;Burning;2d8;0;0;0;3;100;SaveNegates;;Három körig égi lánggal perzsel.
 FX-P026-1;P026;1;HitBonus;;0;0;2;4;100;Auto;;Négy körre két pont találati bónuszt ad a papnak.
 FX-P026-2;P026;2;DamageBonus;;0;0;2;4;100;Auto;;Négy körre két pont fizikai sebzést ad a papnak.
@@ -1103,6 +1105,8 @@ FX-P028-1;P028;1;Damage;6d8;2;3;0;0;100;SaveHalf;Holy50;Szent területi sebzés 
 FX-P028-2;P028;2;SkipAlternate;;0;0;1;1;100;SaveNegates;Next;Sikertelen ellenpróbánál a célpont következő akciója kimarad.
 FX-P029-1;P029;1;WeaponDamageType;;0;0;0;4;100;Auto;Fire;Négy körre tűzzé változtatja a célpont fegyversebzését.
 FX-P030-1;P030;1;WeaponDamageType;;0;0;0;4;100;Auto;Fire;Négy körre tűzzé változtatja a teljes parti fegyversebzését.
+FX-P031-1;P031;1;Damage;3d6;1;2;0;0;100;SaveHalf;;A lángörvény kezdeti 3x3-as tűzsebzése.
+FX-P031-2;P031;2;Storm;1d6;0.5;0;0;3;100;SaveNegates;;Három körön át perzseli a bent állókat és a belépőket.
 
 #Karakternevek
 Id;Név;OsztályId
@@ -1471,7 +1475,7 @@ NPCE004;NPC001;8;8;18
 NPCE005;NPC004;9;7;16
 NPCE006;NPC005;1;6;14
 NPCE007;NPC006;2;7;16
-NPCE008;NPC007;6;7;17;;
+NPCE008;NPC007;6;7;17;;MOSS_GATE
 NPCE009;NPC007;4;8;18
 NPCE010;NPC008;5;8;18
 NPCE011;NPC009;7;9;20
@@ -1541,8 +1545,8 @@ NPCQ008;NPC004;Collect;T023;1;1080;A dalnok hangja;Vigyél egy mézsört a dalno
 NPCQ009;NPC005;Kill;E001;5;720;A járatok megtisztítása;Ölj meg öt óriáspatkányt a patkányvadász megbízásából.;;;;;NPCD080
 NPCQ010;NPC006;Kill;E002;4;990;Nincs visszaút;Győzz le négy koboldot hogy a szökevény üldözői ne érhessék utol.;;;;;NPCD081
 NPCQ011;NPC007;Kill;E003;5;1350;Az elveszett őrjárat;Ölj meg öt goblint a határőr elesett társaiért.;;;;;NPCD082;T018;1;NPCD126
-NPCQ012;NPC008;Kill;E004;5;1980;Csend a sírokban;Győzz le öt csontvázat hogy a katakombák halottai megnyugodhassanak.;;;;;NPCD083
-NPCQ013;NPC008;Kill;E006;3;1755;A nyugtalan testek;Pusztíts el három zombit a remete szertartásához.;;;;;NPCD084
+NPCQ012;NPC008;Kill;E004;5;1980;Csend a sírokban;Győzz le öt csontvázat hogy a katakombák halottai megnyugodhassanak.;;;1;;NPCD083;;;;;;
+NPCQ013;NPC008;Kill;E006;3;1755;A nyugtalan testek;Pusztíts el három zombit a remete szertartásához.;PS007;1;;;NPCD084;;;;;;
 NPCQ014;NPC009;Kill;E007;5;2520;Törött agyar;Győzz le öt orkot és gyengítsd meg a dezertőr egykori törzsét.;;;;;NPCD085
 NPCQ015;NPC009;Kill;E008;3;2790;A hadúr testőrei;Győzz le három hobgoblint az ork hadúr elitjéből.;;;;;NPCD086
 NPCQ016;NPC010;Kill;E009;4;2430;Méregmirigyek;Győzz le négy óriáspókot az alkimista kísérleteihez.;;;;;NPCD087
