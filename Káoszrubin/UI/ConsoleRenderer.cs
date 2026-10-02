@@ -137,6 +137,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
     private IReadOnlyDictionary<Position, ConsoleColor>? _lastIlluminatedWallInput;
     private WorldId? _illuminatedWorldId;
     private readonly List<SpellImpactAnimation> _activeSpellImpacts = [];
+    private long _lastStormVisualFrame = -1;
     private readonly HashSet<Position> _spellImpactDrawnCells = [];
     private Maze? _spellImpactMaze;
     private readonly HashSet<CharacterId> _staggeredBattleCharacterIds = [];
@@ -3061,10 +3062,12 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         {
             _activeSpellImpacts.Clear();
             _spellImpactDrawnCells.Clear();
+            _lastStormVisualFrame = -1;
             _spellImpactMaze = maze;
         }
         var origin = spell.TargetType == SpellTargetType.Direction ? casterPosition : target;
-        _activeSpellImpacts.Add(new SpellImpactAnimation(spell, origin, cells, trackedTargets, DateTime.UtcNow));
+        _activeSpellImpacts.Add(new SpellImpactAnimation(spell, origin, cells, trackedTargets, DateTime.UtcNow,
+            casterPosition));
         UpdateSpellImpacts(maze, fogOfWar, playerPosition);
     }
 
@@ -3075,6 +3078,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         {
             _activeSpellImpacts.Clear();
             _spellImpactDrawnCells.Clear();
+            _lastStormVisualFrame = -1;
             _spellImpactMaze = maze;
             return;
         }
@@ -3097,12 +3101,27 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
             var visibleCells = renderedImpacts
                 .SelectMany(rendered => rendered.Cells)
                 .Where(fogOfWar.IsVisible).ToHashSet();
+            visibleCells.UnionWith(maze.StormZones.SelectMany(zone => zone.Cells).Where(fogOfWar.IsVisible));
+            var stormFrame = now.Ticks / TimeSpan.TicksPerSecond;
+            var drawStorms = _activeSpellImpacts.Count > 0 ||
+                             _lastStormVisualFrame != stormFrame ||
+                             !_spellImpactDrawnCells.SetEquals(visibleCells);
             foreach (var position in _spellImpactDrawnCells.Where(position => !visibleCells.Contains(position)).ToArray())
                 DrawCurrentMapCell(maze, fogOfWar, position, playerPosition);
 
-            if (_activeSpellImpacts.Count > 0 &&
+            if (visibleCells.Count > 0 &&
                 TerminalViewport.TryGetSize(out var size) && size.CanFit(maze.Width, maze.Height))
             {
+                foreach (var zone in drawStorms ? maze.StormZones : [])
+                    foreach (var position in zone.Cells.Where(fogOfWar.IsVisible))
+                    {
+                        var visual = GetMapCellVisual(maze, fogOfWar, position, playerPosition);
+                        var storm = StormZoneVisual.Cell(zone.SpellId, position, now);
+                        Console.SetCursorPosition(position.X, position.Y);
+                        WriteRuneWithColor(visual.Rune == Maze.Floor ? new Rune(storm.EmptyGlyph) : visual.Rune,
+                            visual.Rune == Maze.Floor ? storm.Foreground : visual.ForegroundColor,
+                            storm.Background);
+                    }
                 foreach (var rendered in renderedImpacts)
                 {
                     var impact = rendered.Impact;
@@ -3110,14 +3129,18 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
                     foreach (var position in rendered.Cells.Where(fogOfWar.IsVisible))
                     {
                         var visual = GetMapCellVisual(maze, fogOfWar, position, playerPosition);
-                        var colors = SpellImpactVisual.GetColors(impact.Spell, position, impact.Origin, elapsed);
+                        var colors = SpellImpactVisual.GetColors(impact.Spell, position, impact.Origin, elapsed,
+                            impact.CasterPosition);
                         Console.SetCursorPosition(position.X, position.Y);
-                        WriteRuneWithColor(visual.Rune, colors.Foreground, colors.Background);
+                        var glyph = SpellImpactVisual.GetGlyph(impact.Spell, position, impact.Origin,
+                            impact.CasterPosition, visual.Rune.ToString());
+                        WriteRuneWithColor(Rune.GetRuneAt(glyph, 0), colors.Foreground, colors.Background);
                     }
                 }
             }
             _spellImpactDrawnCells.Clear();
             _spellImpactDrawnCells.UnionWith(visibleCells);
+            _lastStormVisualFrame = stormFrame;
         }
         catch (Exception exception) when (TerminalViewport.IsTransientConsoleException(exception))
         {

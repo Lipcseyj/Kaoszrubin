@@ -13,7 +13,11 @@ public sealed record WorldSnapshot(WorldId WorldId, int Width, int Height, Posit
     IReadOnlyList<WorldEnemySnapshot> Enemies, IReadOnlyList<WorldChestSnapshot> Chests,
     IReadOnlyList<WorldCorpseSnapshot> Corpses, IReadOnlyList<WorldGroundPileSnapshot> GroundPiles,
     IReadOnlyList<WorldNpcSnapshot>? Npcs = null,
-    IReadOnlyList<WorldLastKnownEnemySnapshot>? LastKnownEnemies = null);
+    IReadOnlyList<WorldLastKnownEnemySnapshot>? LastKnownEnemies = null,
+    IReadOnlyList<WorldStormZoneSnapshot>? StormZones = null);
+
+public sealed record WorldStormZoneSnapshot(Guid Id, string SpellId, IReadOnlyList<Position> Cells,
+    int RemainingRounds);
 
 public sealed record WorldCellSnapshot(Position Position, int TileCodePoint,
     ConsoleColor ForegroundColor = ConsoleColor.Black, ConsoleColor BackgroundColor = ConsoleColor.Black);
@@ -173,6 +177,9 @@ public static class WorldSnapshotProjector
             IsVisible(maze.Exit) ? maze.Exit : null,
             cells, doors, enemies, chests, corpses, groundPiles, npcs,
             fogOfWar.EnemyMemories.Select(memory => new WorldLastKnownEnemySnapshot(memory.Key,
-                memory.Value.Position, memory.Value.RemainingPartyMoves, memory.Value.IsSoundCue)).ToArray());
+                memory.Value.Position, memory.Value.RemainingPartyMoves, memory.Value.IsSoundCue)).ToArray(),
+            maze.StormZones.Select(zone => new WorldStormZoneSnapshot(zone.Id, zone.SpellId,
+                    zone.Cells.Where(fogOfWar.IsVisible).ToArray(), zone.RemainingRounds))
+                .Where(zone => zone.Cells.Count > 0).ToArray());
     }
 }

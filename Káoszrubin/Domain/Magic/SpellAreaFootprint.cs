@@ -25,15 +25,20 @@ public static class SpellAreaFootprint
 
     public static int MeteorDamagePercent(Position caster, Position target, Position position)
     {
-        var offsets = new (int X, int Y)[] { (-1, -1), (1, -1), (-1, 1), (1, 1) };
-        var first = (int)(Math.Abs((long)target.X * 31 + (long)target.Y * 17 + caster.X * 7 + caster.Y) % 4);
-        var impacts = new[] { target,
-            new Position(target.X + offsets[first].X, target.Y + offsets[first].Y),
-            new Position(target.X + offsets[(first + 2) % 4].X, target.Y + offsets[(first + 2) % 4].Y) };
+        var impacts = MeteorImpactCenters(caster, target);
         var overlaps = impacts.Count(impact => Math.Max(Math.Abs(position.X - impact.X),
             Math.Abs(position.Y - impact.Y)) <= 1);
         if (overlaps == 0) return 0;
         return Math.Min(130, (impacts.Contains(position) ? 100 : 60) + (overlaps - 1) * 15);
+    }
+
+    public static IReadOnlyList<Position> MeteorImpactCenters(Position caster, Position target)
+    {
+        var offsets = new (int X, int Y)[] { (-1, -1), (1, -1), (-1, 1), (1, 1) };
+        var first = (int)(Math.Abs((long)target.X * 31 + (long)target.Y * 17 + caster.X * 7 + caster.Y) % 4);
+        return new[] { target,
+            new Position(target.X + offsets[first].X, target.Y + offsets[first].Y),
+            new Position(target.X + offsets[(first + 2) % 4].X, target.Y + offsets[(first + 2) % 4].Y) };
     }
 
     private static IReadOnlySet<Position> GetCells(Position origin, int radius, Maze maze,

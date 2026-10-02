@@ -1761,6 +1761,20 @@ public sealed class CoopGuestScreen
         var spellImpactEnemyPositions = hasTrackedSpellImpact
             ? world.Enemies.ToDictionary(enemy => enemy.EntityId, enemy => enemy.Position)
             : new Dictionary<WorldEntityId, Position>();
+        foreach (var zone in world.StormZones ?? [])
+            foreach (var position in zone.Cells)
+            {
+                if (position.X < 0 || position.X >= grid.GetLength(0) ||
+                    position.Y < 0 || position.Y >= grid.GetLength(1)) continue;
+                var cell = grid[position.X, position.Y];
+                var storm = StormZoneVisual.Cell(zone.SpellId, position, utcNow);
+                grid[position.X, position.Y] = cell with
+                {
+                    Glyph = cell.Glyph == " " ? storm.EmptyGlyph.ToString() : cell.Glyph,
+                    Color = cell.Glyph == " " ? storm.Foreground : cell.Color,
+                    Background = storm.Background
+                };
+            }
         foreach (var impact in activeSpellImpacts)
             foreach (var position in impact.CellsAt(spellImpactCharacterPositions, spellImpactEnemyPositions))
             {
@@ -1768,9 +1782,11 @@ public sealed class CoopGuestScreen
                     position.Y < 0 || position.Y >= grid.GetLength(1)) continue;
                 var cell = grid[position.X, position.Y];
                 var colors = SpellImpactVisual.GetColors(impact.Spell, position, impact.Origin,
-                    impact.ElapsedMillisecondsAt(utcNow));
+                    impact.ElapsedMillisecondsAt(utcNow), impact.CasterPosition);
                 grid[position.X, position.Y] = cell with
                 {
+                    Glyph = SpellImpactVisual.GetGlyph(impact.Spell, position, impact.Origin,
+                        impact.CasterPosition, cell.Glyph),
                     Color = colors.Foreground,
                     Background = colors.Background
                 };

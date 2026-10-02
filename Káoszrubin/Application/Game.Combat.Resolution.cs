@@ -303,7 +303,7 @@ public sealed partial class Game
         {
             if (spellPlan.HostileTargets.Count > 0) battle.FaceEnemyToward(enemy, spellPlan.HostileTargets[0]);
             var failureChance = EnemySpellFailureChance(enemy, battle.IsEngaged(enemy));
-            var spellEntry = _enemySpellcastingService.Execute(enemy, spellPlan, failureChance);
+            var spellEntry = _enemySpellcastingService.Execute(enemy, spellPlan, failureChance, _maze);
             if (spellEntry.Kind != BattleLogKind.Information &&
                 spellPlan.Spell.EffectiveImpactDurationMilliseconds > 0)
                 PlaySpellImpact(spellPlan.Spell, enemy.Position, spellPlan.TargetPosition,

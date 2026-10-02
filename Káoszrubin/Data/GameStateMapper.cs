@@ -40,6 +40,7 @@ internal sealed class GameStateMapper
             WallCodePoint = maze.WallRune.Value,
             WallColor = maze.WallColor,
             LevelName = maze.LevelName,
+            StormZones = maze.StormZones.ToList(),
             TerrainStyles = maze.TerrainStyles.Select(style => new MazeTerrainStyleSaveData(
                 style.Id, style.Rune.Value, style.ForegroundColor, style.BackgroundColor,
                 style.Walkable, style.BlocksSight)).ToList(),
@@ -155,6 +156,7 @@ internal sealed class GameStateMapper
             : Maze.Wall;
         var maze = new Maze(state.Maze.Width, state.Maze.Height, wallRune,
             state.Maze.WallColor, state.Maze.LevelName);
+        foreach (var zone in state.Maze.StormZones ?? []) maze.AddStormZone(zone);
         foreach (var style in state.Maze.TerrainStyles ?? [])
             maze.RegisterTerrainStyle(new MazeTerrainStyle(style.Id, new Rune(style.RuneCodePoint),
                 style.ForegroundColor, style.BackgroundColor, style.Walkable, style.BlocksSight));

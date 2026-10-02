@@ -253,10 +253,11 @@ public sealed partial class Game
                 RecordSessionActivity(SessionActivityKind.Battle, message, ConsoleColor.DarkYellow);
             }
 
-            var current = battle.Current;
             if (_battleLogCycle != battle.Turns.Cycle)
             {
                 _battleLogCycle = battle.Turns.Cycle;
+                TickStormZones(battle);
+                if (battle.IsCompleted || !PartyLeader.IsAlive) continue;
                 _renderer.SetBattleCommandPanelRound(battle.Turns.Cycle);
                 if (battle.InitiativeChangesAtCycleStart.Count > 0)
                 {
@@ -270,6 +271,7 @@ public sealed partial class Game
                         BattleLogKind.Information)]);
                 }
             }
+            var current = battle.Current;
             UpdateBattleFocus(battle, current);
 
             if (DelayAutomaticTurns(battle))

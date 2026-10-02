@@ -52,6 +52,7 @@ internal static partial class Program
     ("A buff és gyógyítás hangját a varázslótól és célponttól eltérő játékos is hallja", DefensiveSpellSoundIsShared),
     ("A becsapódások CSV-színe, ideje, alapértéke és validációja működik", SpellImpactTests.CsvSettings),
     ("A becsapódások területe, tölcsére, lánca és színhulláma pontos", SpellImpactTests.FootprintsAndAnimation),
+    ("A meteor középpontjai látszanak, a vihar területen marad és lejár", SpellImpactTests.MeteorCentersAndPersistentStorm),
     ("A fal megállítja a területi varázslat sebzését és animációját", AreaSpellWallsBlockDamageAndImpact),
     ("A területi sebzés baráti tüzet okoz, a láncvillám válogat", SpellImpactTests.AreaDamageHitsAllSidesButChainsSelectTargets),
     ("A varázseffekt idővonala nem blokkolja a játékhurkot", SpellImpactTests.AnimationTimelineDoesNotOwnTheGameLoop),

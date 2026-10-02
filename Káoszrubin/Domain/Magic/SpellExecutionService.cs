@@ -295,9 +295,25 @@ public sealed class SpellExecutionService
                         ActiveSpellEffectType.Burning, friendlySaves, divineJudgment, notes);
                     break;
                 case SpellEffectType.Storm:
-                    ApplyEnemyTimedEffect(caster, effect, spell, targets, ActiveSpellEffectType.Storm, resolutionCache, notes, divineJudgment);
-                    ApplyFriendlyTimedEffect(caster, effect, spell, friendlyFireTargets,
-                        ActiveSpellEffectType.Storm, friendlySaves, divineJudgment, notes);
+                    if (spell.HasAreaImpact && effect.Dice is { } stormDice)
+                    {
+                        var cells = SpellAreaFootprint.GetCells(spell, casterPosition, target, maze).ToArray();
+                        maze.AddStormZone(new ActiveStormZone(Guid.NewGuid(), spell.Id, target, cells,
+                            AdjustedDuration(caster, spell, effect, divineJudgment), stormDice,
+                            effect.Value + (int)Math.Round(caster.EffectiveAbilities.Intelligence *
+                                effect.IntelligenceMultiplier) + spell.Level * effect.LevelMultiplier,
+                            10 + caster.EffectiveAbilities.Intelligence / 2 + spell.Level,
+                            effect.Resolution, caster.Id, DamageMultiplierPercent:
+                                caster.HasPerk(PerkIds.MageElementalMaster) ? 125 : 100));
+                        notes.Add($"{spell.Name}: vihar a területen ({effect.Duration} kör)");
+                    }
+                    else
+                    {
+                        ApplyEnemyTimedEffect(caster, effect, spell, targets, ActiveSpellEffectType.Storm,
+                            resolutionCache, notes, divineJudgment);
+                        ApplyFriendlyTimedEffect(caster, effect, spell, friendlyFireTargets,
+                            ActiveSpellEffectType.Storm, friendlySaves, divineJudgment, notes);
+                    }
                     break;
                 case SpellEffectType.SpeedPenalty:
                     ApplyEnemyTimedEffect(caster, effect, spell, targets, ActiveSpellEffectType.SpeedPenalty, resolutionCache, notes, divineJudgment);

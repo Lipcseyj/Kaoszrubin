@@ -999,6 +999,7 @@ FX-S022-2;S022;2;SkipAlternate;;0;0;1;1;100;SaveNegates;Next;A következő akci�
 FX-S007-1;S007;1;Damage;8d8;3;5;0;0;100;SaveHalf;;Koncentrált tűzsebzés mentőre felezve.
 FX-S008-1;S008;1;Damage;4d8;2;3;0;0;100;SaveHalf;;Nagyobb területű fagysebzés mentőre felezve.
 FX-S008-2;S008;2;SpeedPenalty;;0;0;4;3;100;SaveNegates;;Három körig jeges lassítást okoz.
+FX-S008-3;S008;3;Storm;1d8;0.5;0;0;3;100;SaveNegates;;Három körig jeges viharsebzést okoz a területen.
 FX-S010-1;S010;1;TeleportSelf;;0;0;0;0;100;Auto;;A varázslót a célmezőre teleportálja.
 FX-S015-1;S015;1;Dispel;;0;0;0;0;100;Auto;;Eltávolítja az ideiglenes mágikus hatásokat.
 FX-S023-1;S023;1;ChainDamage;6d8;2;4;0;0;100;SaveHalf;100|70|40;Legfeljebb két további célpontra ugró villámsebzés.
@@ -1043,6 +1044,7 @@ FX-D008-1;D008;1;Damage;8d8;3;5;0;0;100;SaveHalf;;Nagy területi pokoltűz sebz�
 FX-D008-2;D008;2;Burning;1d6;0;0;0;2;100;SaveNegates;;Sikertelen mentőnél tovább éget.
 FX-D009-1;D009;1;Damage;6d8;3;5;0;0;100;SaveHalf;;Területi dögvészsebzés mentőre felezve.
 FX-D009-2;D009;2;SpeedPenalty;;0;0;4;3;100;SaveNegates;;Három körre beteges gyengeséget okoz.
+FX-D009-3;D009;3;Storm;1d8;0.5;0;0;3;100;SaveNegates;;Három körig dögvészsebzést okoz a területen.
 FX-D010-1;D010;1;SkipAlternate;;0;0;1;1;100;SaveNegates;Next;Sikertelen ellenpróbánál kimarad a következő akció.
 FX-D010-2;D010;2;HitBonus;;0;0;-2;3;100;SaveNegates;;Három körre rontja a találati értéket.
 FX-D013-1;D013;1;DefenseBonus;;0;0;3;4;100;Auto;;Négy körre védelmet ad a teljes ellenséges csapatnak.

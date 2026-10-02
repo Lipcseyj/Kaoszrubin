@@ -70,7 +70,8 @@ public sealed record SessionSoundSnapshot(long Sequence, SoundEffect Effect,
 /// <summary>A hoston kiszámított varázslat-becsapódás, amelyből a guest ugyanazt az animációt építi fel.</summary>
 public sealed record SessionSpellImpactSnapshot(long Sequence, WorldId WorldId, string SpellId,
     Position Origin, IReadOnlyList<Position> Cells,
-    IReadOnlyList<SpellImpactTrackedTargetSnapshot>? TrackedTargets = null);
+    IReadOnlyList<SpellImpactTrackedTargetSnapshot>? TrackedTargets = null,
+    Position? CasterPosition = null);
 
 /// <summary>Egy rövid varázseffekt mozgó célpontja; pontosan az egyik azonosító értéke van kitöltve.</summary>
 public sealed record SpellImpactTrackedTargetSnapshot(CharacterId? CharacterId = null,

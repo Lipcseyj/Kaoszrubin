@@ -19,6 +19,7 @@ public sealed class Maze
     private readonly List<WorldNpc> _worldNpcs = [];
     private readonly List<GroundItemPile> _groundItemPiles = [];
     private readonly List<MazeTrap> _traps = [];
+    private readonly List<ActiveStormZone> _stormZones = [];
     private readonly Dictionary<Position, MazePassage> _passages = [];
     private readonly Dictionary<Position, MazeDoor> _doors = [];
     private readonly Dictionary<Position, TreasureChest> _treasureChestsByPosition = [];
@@ -43,6 +44,22 @@ public sealed class Maze
     public IReadOnlyList<WorldNpc> WorldNpcs => _worldNpcs;
     public IReadOnlyList<GroundItemPile> GroundItemPiles => _groundItemPiles;
     public IReadOnlyList<MazeTrap> Traps => _traps;
+    public IReadOnlyList<ActiveStormZone> StormZones => _stormZones;
+
+    public void AddStormZone(ActiveStormZone zone)
+    {
+        if (zone.RemainingRounds > 0 && zone.Cells.Count > 0) _stormZones.Add(zone);
+    }
+
+    public void AdvanceStormZones()
+    {
+        for (var index = _stormZones.Count - 1; index >= 0; index--)
+        {
+            var next = _stormZones[index].AfterTick();
+            if (next.RemainingRounds <= 0) _stormZones.RemoveAt(index);
+            else _stormZones[index] = next;
+        }
+    }
     public IReadOnlyCollection<MazePassage> Passages => _passages.Values;
     public IReadOnlyCollection<MazeDoor> Doors => _doors.Values;
     public IReadOnlyCollection<MazeTerrainStyle> TerrainStyles => _terrainStyles.Values;

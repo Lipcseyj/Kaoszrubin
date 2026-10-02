@@ -537,6 +537,7 @@ public sealed class MazeSaveData
     public ConsoleColor WallColor { get; set; } = ConsoleColor.DarkGray;
     public string LevelName { get; set; } = "Labirintus";
     public List<int> TileCodePoints { get; set; } = [];
+    public List<ActiveStormZone> StormZones { get; set; } = [];
     public List<MazeTerrainStyleSaveData> TerrainStyles { get; set; } = [];
     public List<TerrainGameplayProfileSaveData> TerrainGameplayProfiles { get; set; } = [];
     public Position Exit { get; set; }

@@ -63,7 +63,8 @@ public sealed class EnemySpellcastingService(GameDataCatalog gameData, Random ra
         return score * percent / 100;
     }
 
-    public BattleLogEntry Execute(Enemy caster, EnemySpellPlan plan, int combatFailureChance = 0)
+    public BattleLogEntry Execute(Enemy caster, EnemySpellPlan plan, int combatFailureChance = 0,
+        Maze? maze = null)
     {
         if (!caster.SpendMana(plan.Spell.ManaCost))
             return new BattleLogEntry($"{caster.Name} nem tudja befejezni a varázslatot.", BattleLogKind.Information);
@@ -80,7 +81,19 @@ public sealed class EnemySpellcastingService(GameDataCatalog gameData, Random ra
         foreach (var effect in gameData.GetSpellEffects(plan.Spell.Id))
         {
             if (random.Next(100) >= effect.ChancePercent) continue;
-            ApplyEffect(caster, plan, effect, notes);
+            if (effect.Type == SpellEffectType.Storm && plan.Spell.HasAreaImpact &&
+                effect.Dice is { } stormDice && maze is not null)
+            {
+                var intelligence = caster.Definition.SpellcasterProfile!.Intelligence;
+                maze.AddStormZone(new ActiveStormZone(Guid.NewGuid(), plan.Spell.Id,
+                    plan.TargetPosition, SpellAreaFootprint.GetCells(plan.Spell, caster.Position,
+                        plan.TargetPosition, maze).ToArray(), Math.Max(1, effect.Duration), stormDice,
+                    effect.Value + (int)Math.Round(intelligence * effect.IntelligenceMultiplier) +
+                    caster.Definition.StrengthTier * effect.LevelMultiplier,
+                    10 + intelligence / 2 + plan.Spell.Level, effect.Resolution, EnemyCasterId: caster.Id));
+                notes.Add($"vihar a területen ({effect.Duration} kör)");
+            }
+            else ApplyEffect(caster, plan, effect, notes);
         }
         var result = notes.Count == 0 ? "a célpont ellenáll" : string.Join(", ", notes);
         return new BattleLogEntry(

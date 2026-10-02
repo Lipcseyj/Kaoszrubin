@@ -234,6 +234,7 @@ public sealed partial class Game
                 RecordSessionActivity(SessionActivityKind.Spell, message, ConsoleColor.Magenta);
             }
         }
+        if (!_gameOver) TickStormZones(null);
         if (changed) RequestCoopSnapshotPublish();
     }
 

@@ -470,7 +470,8 @@ public sealed partial class Game
         var cells = SpellImpactVisual.GetCells(spell, casterPosition, target, enemyTargets, _maze)
             .Where(position => !trackedPositions.Contains(position) && _fogOfWar.IsVisible(position))
             .Distinct().ToArray();
-        _sessionEventService.RecordSpellImpact(_maze.Id, spell.Id, origin, cells, trackedTargets);
+        _sessionEventService.RecordSpellImpact(_maze.Id, spell.Id, origin, cells, trackedTargets,
+            casterPosition);
     }
 
     private IReadOnlyList<SpellImpactTrackedTargetSnapshot> ResolveSpellImpactTrackedTargets(

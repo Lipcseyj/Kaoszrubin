@@ -211,7 +211,8 @@ public static class WorldDeltaReducer
             Npcs = npcs.Values.OrderBy(entity => entity.Position.Y).ThenBy(entity => entity.Position.X)
                 .ThenBy(entity => entity.EntityId.Value).ToArray(),
             LastKnownEnemies = memories.Values.OrderBy(memory => memory.Position.Y)
-                .ThenBy(memory => memory.Position.X).ToArray()
+                .ThenBy(memory => memory.Position.X).ToArray(),
+            StormZones = delta.StormZones ?? baseline.StormZones
         };
     }
 

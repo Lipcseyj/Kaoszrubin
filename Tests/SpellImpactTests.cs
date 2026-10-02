@@ -132,6 +132,60 @@ internal static class SpellImpactTests
                 cells.Count < 25 && cells.Contains(enemy.Position),
             "A Meteorzápor szétszórt becsapódása nem egyezik a látvánnyal.");
     }
+
+    public static void MeteorCentersAndPersistentStorm()
+    {
+        var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
+        var maze = new Maze(11, 11);
+        for (var y = 0; y < maze.Height; y++)
+        for (var x = 0; x < maze.Width; x++) maze.Carve(new Position(x, y));
+        var casterPosition = new Position(2, 5);
+        var target = new Position(5, 5);
+        var meteor = catalog.GetSpell("S011");
+        var centers = SpellAreaFootprint.MeteorImpactCenters(casterPosition, target);
+        Require(centers.Count == 3 && centers.Distinct().Count() == 3 &&
+                centers.All(center => SpellImpactVisual.GetGlyph(meteor, center, target,
+                    casterPosition, " ") == "✹") &&
+                SpellImpactVisual.GetGlyph(meteor, new Position(4, 5), target, casterPosition, " ") == " ",
+            "A meteorbécsapódások középpontjai nem különülnek el a területtől.");
+
+        var caster = new LiveCharacter("Mágus", catalog.Races[0],
+            catalog.CharacterClasses.First(c => c.Id == CharacterClassIds.Mágus),
+            new PrimaryAbilities(5, 5, 5, 8), 100, 100, 1, 0);
+        var service = new SpellExecutionService(catalog, new Random(7));
+        var timeStop = false;
+        service.ExecuteSpell(caster, casterPosition, catalog.GetSpell("S009"), target,
+            false, null, false, ref timeStop, [(caster, casterPosition)], maze,
+            (_, victim, damage, _) => victim.ReceiveSpellDamage(damage),
+            (_, _) => false, (_, _) => "", (_, _) => "");
+        Require(maze.StormZones.Count == 1 && maze.StormZones[0].RemainingRounds == 3 &&
+                maze.StormZones[0].Contains(target) && !maze.StormZones[0].Contains(new Position(9, 9)) &&
+                !caster.HasSpellEffect(ActiveSpellEffectType.Storm),
+            "A vihar nem önálló, három körig maradó térképhatásként jött létre.");
+        var zone = maze.StormZones[0];
+        var restored = System.Text.Json.JsonSerializer.Deserialize<ActiveStormZone>(
+            System.Text.Json.JsonSerializer.Serialize(zone));
+        Require(restored is not null && restored.SpellId == zone.SpellId &&
+                restored.Cells.SequenceEqual(zone.Cells) && restored.RemainingRounds == 3,
+            "A mentés nem őrzi meg a vihar területét és hátralévő idejét.");
+        var world = new WorldSnapshot(maze.Id, maze.Width, maze.Height, null, null,
+            [], [], [], [], [], [], StormZones:
+            [new WorldStormZoneSnapshot(zone.Id, zone.SpellId, zone.Cells, zone.RemainingRounds)]);
+        var expiredWorld = world with { StormZones = [] };
+        var delta = WorldDeltaProjector.Create(1, world, 2, expiredWorld);
+        Require(!delta.IsEmpty && delta.StormZones is { Count: 0 },
+            "A lejárt vihar eltűnését nem továbbítja a világdelta.");
+        var inside = target;
+        var outside = new Position(9, 9);
+        Require(zone.Contains(inside) && !zone.Contains(outside),
+            "A viharsebzést nem az aktuális mező határozza meg.");
+        maze.AdvanceStormZones();
+        maze.AdvanceStormZones();
+        Require(maze.StormZones.Count == 1 && maze.StormZones[0].RemainingRounds == 1,
+            "A vihar túl korán járt le.");
+        maze.AdvanceStormZones();
+        Require(maze.StormZones.Count == 0, "A vihar nem járt le a harmadik ütem után.");
+    }
     public static void AnimationTimelineDoesNotOwnTheGameLoop()
     {
         var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));

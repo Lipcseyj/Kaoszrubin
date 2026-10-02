@@ -9,13 +9,15 @@ public sealed record WorldDelta(long FromSnapshotSequence, long ToSnapshotSequen
     IReadOnlyList<WorldCorpseSnapshot> CorpseUpserts, IReadOnlyList<WorldGroundPileSnapshot> GroundPileUpserts,
     IReadOnlyList<WorldEntityId> RemovedEntityIds, IReadOnlyList<WorldNpcSnapshot>? NpcUpserts = null,
     IReadOnlyList<WorldLastKnownEnemySnapshot>? LastKnownEnemyUpserts = null,
-    IReadOnlyList<WorldEntityId>? RemovedLastKnownEnemyIds = null)
+    IReadOnlyList<WorldEntityId>? RemovedLastKnownEnemyIds = null,
+    IReadOnlyList<WorldStormZoneSnapshot>? StormZones = null)
 {
     public bool IsEmpty => RevealedEntrance is null && RevealedExit is null &&
         RevealedOrChangedCells.Count == 0 && DoorUpserts.Count == 0 && RemovedDoorPositions.Count == 0 &&
         EnemyUpserts.Count == 0 && ChestUpserts.Count == 0 && CorpseUpserts.Count == 0 &&
         GroundPileUpserts.Count == 0 && RemovedEntityIds.Count == 0 && (NpcUpserts?.Count ?? 0) == 0 &&
-        (LastKnownEnemyUpserts?.Count ?? 0) == 0 && (RemovedLastKnownEnemyIds?.Count ?? 0) == 0;
+        (LastKnownEnemyUpserts?.Count ?? 0) == 0 && (RemovedLastKnownEnemyIds?.Count ?? 0) == 0 &&
+        StormZones is null;
 }
 
 public static class WorldDeltaProjector
@@ -63,13 +65,20 @@ public static class WorldDeltaProjector
             .Where(id => !currentMemoryIds.Contains(id)).ToArray();
         var previousEntities = EntityIds(previous).ToHashSet();
         var currentEntities = EntityIds(current).ToHashSet();
+        var previousStorms = previous.StormZones ?? [];
+        var currentStorms = current.StormZones ?? [];
+        var stormsChanged = previousStorms.Count != currentStorms.Count ||
+            previousStorms.Where((zone, index) =>
+                zone.Id != currentStorms[index].Id || zone.SpellId != currentStorms[index].SpellId ||
+                zone.RemainingRounds != currentStorms[index].RemainingRounds ||
+                !zone.Cells.SequenceEqual(currentStorms[index].Cells)).Any();
 
         return new WorldDelta(fromSnapshotSequence, toSnapshotSequence,
             previous.Entrance is null ? current.Entrance : null,
             previous.Exit is null ? current.Exit : null,
             changedCells, doorChanges, removedDoors, enemyChanges, chestChanges, corpseChanges, pileChanges,
             previousEntities.Where(id => !currentEntities.Contains(id)).ToArray(), npcChanges,
-            memoryChanges, removedMemoryIds);
+            memoryChanges, removedMemoryIds, stormsChanged ? currentStorms : null);
     }
 
     private static IEnumerable<T> Upserts<T, TKey>(IEnumerable<T> previous, IEnumerable<T> current,

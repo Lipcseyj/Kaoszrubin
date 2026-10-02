@@ -17,8 +17,21 @@ internal static class SpellImpactVisual
     }
 
     public static (ConsoleColor Foreground, ConsoleColor Background) GetColors(
-        SpellDefinition spell, Position position, Position origin, double elapsedMilliseconds)
+        SpellDefinition spell, Position position, Position origin, double elapsedMilliseconds,
+        Position? casterPosition = null)
     {
+        if (spell.Id == "S011" && casterPosition is { } caster)
+        {
+            var centers = SpellAreaFootprint.MeteorImpactCenters(caster, origin);
+            var centerIndex = -1;
+            for (var index = 0; index < centers.Count; index++)
+                if (centers[index] == position) { centerIndex = index; break; }
+            if (centerIndex >= 0)
+                return elapsedMilliseconds >= centerIndex * 450 && elapsedMilliseconds < centerIndex * 450 + 700
+                    ? (ConsoleColor.White, ConsoleColor.Red)
+                    : (ConsoleColor.Yellow, ConsoleColor.DarkRed);
+            return (ConsoleColor.DarkYellow, ConsoleColor.DarkRed);
+        }
         var (light, dark) = spell.ImpactPalette switch
         {
             SpellImpactPalette.Red => (ConsoleColor.Red, ConsoleColor.DarkRed),
@@ -40,11 +53,16 @@ internal static class SpellImpactVisual
             _ => (light, ConsoleColor.Black)
         };
     }
+
+    public static string GetGlyph(SpellDefinition spell, Position position, Position origin,
+        Position? casterPosition, string underlying) =>
+        spell.Id == "S011" && casterPosition is { } caster &&
+        SpellAreaFootprint.MeteorImpactCenters(caster, origin).Contains(position) ? "✹" : underlying;
 }
 
 internal sealed record SpellImpactAnimation(SpellDefinition Spell, Position Origin,
     IReadOnlyList<Position> FixedCells, IReadOnlyList<SpellImpactTrackedTargetSnapshot> TrackedTargets,
-    DateTime StartedUtc)
+    DateTime StartedUtc, Position? CasterPosition = null)
 {
     public double ElapsedMillisecondsAt(DateTime utcNow) =>
         Math.Max(0, (utcNow - StartedUtc).TotalMilliseconds);
@@ -100,7 +118,8 @@ internal sealed class ReplicatedSpellImpactTracker
                 if (impact.WorldId != worldId || impact.Cells.Count == 0 &&
                     impact.TrackedTargets is not { Count: > 0 }) continue;
                 _active.Add(new SpellImpactAnimation(gameData.GetSpell(impact.SpellId), impact.Origin,
-                    impact.Cells.Distinct().ToArray(), impact.TrackedTargets?.Distinct().ToArray() ?? [], utcNow));
+                    impact.Cells.Distinct().ToArray(), impact.TrackedTargets?.Distinct().ToArray() ?? [], utcNow,
+                    impact.CasterPosition));
             }
             RemoveExpired(utcNow);
             return _active.ToArray();
