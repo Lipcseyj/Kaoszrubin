@@ -376,17 +376,17 @@ public sealed partial class ConsoleRenderer
         public void SetFormationStatus(PartyFormationSnapshot formation)
         {
             _formation = formation;
-            if (_displayedCharacter is null) return;
-            if (_owner._spellInfoCharacter is not null)
-            {
-                RefreshSpellInfoPage();
-                return;
-            }
-            WriteSheetLine(CharacterSheetControlsLine, FormationStatusText(formation),
+            if (_displayedCharacter is null || _itemInspectionPanel is not null ||
+                _owner._spellInfoCharacter is not null) return;
+
+            var line = new CharacterSheetPanelLine(CharacterSheetControlsLine,
+                FormationStatusText(formation),
                 formation.State == PartyFormationState.Locked ? ConsoleColor.Green : ConsoleColor.DarkCyan);
-            _lastCharacterSheetLines[CharacterSheetControlsLine] = new CharacterSheetPanelLine(
-                CharacterSheetControlsLine, FormationStatusText(formation),
-                formation.State == PartyFormationState.Locked ? ConsoleColor.Green : ConsoleColor.DarkCyan);
+            if (_lastCharacterSheetLines.TryGetValue(CharacterSheetControlsLine, out var previous) &&
+                SheetLineEquals(previous, line)) return;
+
+            WriteSheetLine(line.Row, line.Text, line.Color, line.Background);
+            _lastCharacterSheetLines[CharacterSheetControlsLine] = line;
         }
 
         /// <summary>
