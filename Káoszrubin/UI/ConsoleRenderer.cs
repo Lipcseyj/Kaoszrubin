@@ -22,7 +22,7 @@ public sealed record SpellCastSelection(SpellDefinition Spell, LiveCharacter Cas
     MagicItemDefinition? CastingItem = null, int? CastingItemSlotIndex = null);
 public sealed record UniqueNpcConversationResult(int FriendlinessChange, bool FollowRequested, int ChoiceIndex);
 
-public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
+public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfieldConsoleOutput
 {
     public CharacterSheetRenderer CharacterSheet { get; }
 
@@ -353,10 +353,16 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
     /// </summary>
     private void DrawPlayfield(Maze maze, FogOfWar fogOfWar)
     {
+        var row = new PlayfieldCellVisual[maze.Width];
+        var textBuffer = new char[maze.Width * 2];
         for (var y = 0; y < maze.Height; y++)
         {
-            Console.SetCursorPosition(0, y);
-            for (var x = 0; x < maze.Width; x++) DrawMapRune(maze, fogOfWar, new Position(x, y));
+            for (var x = 0; x < maze.Width; x++)
+            {
+                var visual = GetMapCellVisual(maze, fogOfWar, new Position(x, y), null);
+                row[x] = new PlayfieldCellVisual(visual.Rune, visual.ForegroundColor, visual.BackgroundColor);
+            }
+            PlayfieldConsoleWriter.WriteRow(y, row, textBuffer, this);
         }
     }
 
@@ -3366,6 +3372,13 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer
             _currentBackgroundColor = backgroundColor;
         }
     }
+
+    void IPlayfieldConsoleOutput.SetCursorPosition(int left, int top) => Console.SetCursorPosition(left, top);
+
+    void IPlayfieldConsoleOutput.SetColors(ConsoleColor foregroundColor, ConsoleColor backgroundColor) =>
+        SetColors(foregroundColor, backgroundColor);
+
+    void IPlayfieldConsoleOutput.Write(ReadOnlySpan<char> value) => Console.Write(value);
 
     /// <summary>Reseteli a konzol színeket és törli a cache-elt színértékeket.</summary>
     private void ResetColorCache()

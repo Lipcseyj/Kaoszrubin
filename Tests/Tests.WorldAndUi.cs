@@ -39,6 +39,48 @@ internal static partial class Program
         }
     }
 
+    static void PlayfieldRenderingPreservesVisualsAndBatchesColorRuns()
+    {
+        PlayfieldCellVisual[] cells =
+        [
+            new(new Rune('A'), ConsoleColor.Red, ConsoleColor.Black),
+            new(new Rune(0x1F600), ConsoleColor.Red, ConsoleColor.Black),
+            new(new Rune('B'), ConsoleColor.Green, ConsoleColor.DarkBlue)
+        ];
+        Span<char> textBuffer = stackalloc char[cells.Length * 2];
+        var output = new RecordingPlayfieldConsoleOutput();
+
+        PlayfieldConsoleWriter.WriteRow(7, cells, textBuffer, output);
+
+        Assert(output.CursorPositions.SequenceEqual([(0, 7)]) &&
+               output.Colors.SequenceEqual([
+                   (ConsoleColor.Red, ConsoleColor.Black),
+                   (ConsoleColor.Green, ConsoleColor.DarkBlue)]) &&
+               output.Writes.SequenceEqual(["A😀", "B"]),
+            "A kötegelt játéktérrajzolás megváltoztatta a kurzort, a színeket vagy a Unicode rúnákat.");
+
+        var uniformCells = Enumerable.Repeat(
+            new PlayfieldCellVisual(new Rune('█'), ConsoleColor.Black, ConsoleColor.Black), 170).ToArray();
+        output = new RecordingPlayfieldConsoleOutput();
+        PlayfieldConsoleWriter.WriteRow(0, uniformCells, new char[uniformCells.Length * 2], output);
+        Assert(output.Writes.Count == 1 && output.Writes[0].Length == 170,
+            "Az azonos színű játéktérsort a rajzoló nem egyetlen konzolírásba vonta össze.");
+    }
+
+    private sealed class RecordingPlayfieldConsoleOutput : IPlayfieldConsoleOutput
+    {
+        public List<(int Left, int Top)> CursorPositions { get; } = [];
+        public List<(ConsoleColor Foreground, ConsoleColor Background)> Colors { get; } = [];
+        public List<string> Writes { get; } = [];
+
+        public void SetCursorPosition(int left, int top) => CursorPositions.Add((left, top));
+
+        public void SetColors(ConsoleColor foregroundColor, ConsoleColor backgroundColor) =>
+            Colors.Add((foregroundColor, backgroundColor));
+
+        public void Write(ReadOnlySpan<char> value) => Writes.Add(value.ToString());
+    }
+
     static void CharacterSheetFocusHeaderUsesTwoRowsAndKeepsClockLayout()
     {
         const int width = 34;
