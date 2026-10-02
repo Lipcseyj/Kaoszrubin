@@ -51,10 +51,11 @@ public sealed class Maze
         if (zone.RemainingRounds > 0 && zone.Cells.Count > 0) _stormZones.Add(zone);
     }
 
-    public void AdvanceStormZones()
+    public void AdvanceStormZones(Guid? onlyZoneId = null)
     {
         for (var index = _stormZones.Count - 1; index >= 0; index--)
         {
+            if (onlyZoneId is { } id && _stormZones[index].Id != id) continue;
             var next = _stormZones[index].AfterTick();
             if (next.RemainingRounds <= 0) _stormZones.RemoveAt(index);
             else _stormZones[index] = next;

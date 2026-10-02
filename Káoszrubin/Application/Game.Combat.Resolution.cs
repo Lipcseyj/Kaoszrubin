@@ -572,6 +572,7 @@ public sealed partial class Game
 
     private void AdvanceBattleTurn(BattleEncounter battle)
     {
+        ProcessStormZoneEntries(battle, DateTime.UtcNow);
         ResetBattleMovement();
         battle.CaptureNewStatuses();
         if (battle.IsCompleted)

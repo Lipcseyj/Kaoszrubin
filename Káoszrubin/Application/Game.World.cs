@@ -600,6 +600,10 @@ public sealed partial class Game
                     if (MovePartyMembers(now)) MarkCoopSnapshotDirty();
                 }
 
+                ProcessStormZoneEntries(_battleStarted ? _activeBattle : null, now);
+                if (!_battleStarted) ProcessExplorationStormPulses(now);
+                if (_gameOver) continue;
+
                 if (!_battleStarted && now >= _nextAdHocConversationCheckUtc)
                 {
                     _nextAdHocConversationCheckUtc = now + TimeSpan.FromMinutes(1);
