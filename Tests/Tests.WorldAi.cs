@@ -183,7 +183,7 @@ internal static partial class Program
         Assert(enchanted.EffectiveWeaponDamageType(weapon) == weapon.DamageType,
             "Varázshatás nélkül megváltozott a fegyver sebzéstípusa.");
         var fireEffect = catalog.GetSpellEffects("P029").Single();
-        var necroticEffect = catalog.GetSpellEffects("S029").Single();
+        var necroticEffect = catalog.GetSpellEffects("S029").Single(effect => effect.Type == SpellEffectType.WeaponDamageType);
         new SpellExecutionService(catalog, new Random(2)).ApplyCharacterEffect(enchanted, enchanted,
             fireEffect, catalog.GetSpell("P029"), ActiveSpellEffectType.WeaponDamageType);
         Assert(enchanted.EffectiveWeaponDamageType(weapon) == DamageType.Fire,
@@ -194,7 +194,24 @@ internal static partial class Program
                enchanted.ActiveSpellEffects.Count(effect =>
                    effect.Type == ActiveSpellEffectType.WeaponDamageType) == 1,
             "A Sírpenge nem írta felül egységesen a korábbi fegyverbűvölést.");
-        for (var round = 0; round < 4; round++) enchanted.AdvanceSpellEffects();
+        var focusedBonus = catalog.GetSpellEffects("S029").Single(effect =>
+            effect.Type == SpellEffectType.DamageBonus);
+        var partyBonus = catalog.GetSpellEffects("S030").Single(effect =>
+            effect.Type == SpellEffectType.DamageBonus);
+        Assert(focusedBonus.Value == 4 && partyBonus.Value == 2 &&
+               focusedBonus.Duration == 4 && partyBonus.Duration == 4,
+            "A fókuszált Sírpenge és a teljes partira ható fegyverbűvölés sebzésbónusza nem különül el.");
+        Assert(catalog.GetSpellEffects("S014") is [{ Type: SpellEffectType.SpeedPenalty, Duration: 6 }] &&
+               catalog.GetSpellEffects("S022").Any(effect => effect.Type == SpellEffectType.SkipAlternate &&
+                   effect.Parameter == "Next" && effect.Duration == 1),
+            "A tartós Lassítás és a következő akciót megakasztó Jégbilincs nem különül el.");        new SpellExecutionService(catalog, new Random(4)).ApplyCharacterEffect(enchanted, enchanted,
+            focusedBonus, catalog.GetSpell("S029"), ActiveSpellEffectType.DamageBonus);
+        Assert(enchanted.SpellEffectValue(ActiveSpellEffectType.DamageBonus) == 4,
+            "A Sírpenge fegyversebzés-bónusza nem került fel a célpontra.");
+        var shackled = new ConfiguredEnemy(new Position(4, 4), catalog.GetEnemy("E001"));
+        shackled.ApplySpellEffect(new ActiveSpellEffect("S022", ActiveSpellEffectType.SkipNext, 0, 1));
+        Assert(shackled.AdvanceSpellEffects(new Random(5)).SkipAction,
+            "A Jégbilincs nem a célpont következő akcióját szakítja meg.");        for (var round = 0; round < 4; round++) enchanted.AdvanceSpellEffects();
         Assert(enchanted.EffectiveWeaponDamageType(weapon) == weapon.DamageType,
             "A fegyver eredeti sebzéstípusa nem állt vissza a varázslat lejártakor.");
 

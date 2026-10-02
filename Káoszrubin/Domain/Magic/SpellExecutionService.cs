@@ -342,7 +342,8 @@ public sealed class SpellExecutionService
                     notes.Add(onTeleportLivingParty(target, inCombat));
                     break;
                 case SpellEffectType.Dispel:
-                    notes.Add(DispelAt(target, spell.AreaRadius, maze, livingParty, effect.Parameter));
+                    notes.Add(DispelAt(target, spell.AreaRadius, maze, livingParty, effect.Parameter,
+                        spell.HasAreaImpact ? SpellAreaFootprint.GetCells(spell, casterPosition, target, maze) : null));
                     break;
                 case SpellEffectType.ExtraActions:
                     if (timeStopUsedThisBattle && inCombat)
@@ -387,7 +388,7 @@ public sealed class SpellExecutionService
                     break;
                 case SpellEffectType.DamageBonus:
                     ApplyCharacterEffects(caster, characterTargets, effect, spell, ActiveSpellEffectType.DamageBonus, divineJudgment);
-                    notes.Add($"+{effect.Value} fizikai sebzés {AdjustedDuration(caster, spell, effect, divineJudgment)} körre");
+                    notes.Add($"+{effect.Value} fegyversebzés {AdjustedDuration(caster, spell, effect, divineJudgment)} körre");
                     break;
                 case SpellEffectType.WeaponDamageType:
                     ApplyCharacterEffects(caster, characterTargets, effect, spell,
@@ -919,13 +920,15 @@ public sealed class SpellExecutionService
     private static int MagicResistance(Enemy enemy) => Math.Clamp(enemy.Definition.MagicResistance, 0, 100);
 
     public string DispelAt(Position target, int radius, Maze maze,
-        IReadOnlyList<(LiveCharacter Character, Position Position)> livingParty, string? parameter = null)
+        IReadOnlyList<(LiveCharacter Character, Position Position)> livingParty, string? parameter = null,
+        IReadOnlySet<Position>? affectedCells = null)
     {
         var harmfulOnly = string.Equals(parameter, "HarmfulOnly", StringComparison.OrdinalIgnoreCase);
         bool Remove(ActiveSpellEffect effect) => !harmfulOnly || !effect.Beneficial;
-        var removed = maze.Enemies.Where(enemy => Chebyshev(enemy.Position, target) <= radius)
+        bool IsAffected(Position position) => affectedCells?.Contains(position) ?? Chebyshev(position, target) <= radius;
+        var removed = maze.Enemies.Where(enemy => IsAffected(enemy.Position))
             .Sum(enemy => enemy.RemoveSpellEffects(Remove));
-        foreach (var member in livingParty.Where(member => Chebyshev(member.Position, target) <= radius))
+        foreach (var member in livingParty.Where(member => IsAffected(member.Position)))
             removed += member.Character.RemoveSpellEffects(Remove);
         return harmfulOnly
             ? $"✨ megtört káros varázshatások: {removed}"

@@ -98,6 +98,8 @@ public static class NpcSpellPlanEvaluator
         var raw = effect.Type switch
         {
             SpellEffectType.SpeedPenalty => Math.Max(0, effect.Value) * duration * 0.75,
+            SpellEffectType.SkipAlternate when string.Equals(effect.Parameter, "Next", StringComparison.OrdinalIgnoreCase)
+                => 24.0,
             SpellEffectType.SkipAlternate => duration * 5.0,
             SpellEffectType.HitBonus when effect.Value < 0 => -effect.Value * duration * 0.7,
             SpellEffectType.DamageBonus when effect.Value < 0 => -effect.Value * duration * 0.7,

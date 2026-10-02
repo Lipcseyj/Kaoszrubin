@@ -886,6 +886,18 @@ internal static partial class Program
             chainedDamage, initialHitPoints, [], maze);
         Assert(chainedDamage.ContainsKey(near) && !chainedDamage.ContainsKey(behindWall),
             "A láncvillám másodlagos célpontot talált a fal túloldalán.");
+        near.ApplySpellEffect(new ActiveSpellEffect("TEST-WARD", ActiveSpellEffectType.DefenseBonus,
+            2, 3, Beneficial: true));
+        behindWall.ApplySpellEffect(new ActiveSpellEffect("TEST-WARD", ActiveSpellEffectType.DefenseBonus,
+            2, 3, Beneficial: true));
+        var dispel = catalog.GetSpell("S015") with { AreaRadius = 2 };
+        var timeStop = false;
+        service.ExecuteSpell(CreateCharacter("Szétoszlató"), caster, dispel, center, false, null,
+            false, ref timeStop, [], maze, (_, _, _, _) => { }, (_, _) => false,
+            (_, _) => "", (_, _) => "");
+        Assert(!near.ActiveSpellEffects.Any(effect => effect.Type == ActiveSpellEffectType.DefenseBonus) &&
+               behindWall.ActiveSpellEffects.Any(effect => effect.Type == ActiveSpellEffectType.DefenseBonus),
+            "A Mágia szétoszlatása a fal mögötti varázshatást is megszüntette.");
     }
 
     static void NpcSpellcastingPolicyPreservesMana()
