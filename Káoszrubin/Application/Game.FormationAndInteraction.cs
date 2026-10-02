@@ -20,6 +20,10 @@ namespace KaoszRubin.Application;
 
 public sealed partial class Game
 {
+    private Queue<PartyFormationAssemblyPlanner.Step>? _formationAssemblySteps;
+    private Position _formationAssemblyLeaderPosition;
+    private long _formationAssemblyMazeRevision;
+
     private void EditFormation()
     {
         NormalizeFormation();
@@ -29,6 +33,7 @@ public sealed partial class Game
                 CharacterRoster.Party.Members.Where(member => member.IsAlive).ToArray(),
                 _formation, _npcSpellcasterTactics, CaptureSharedWindowPresentation));
         _formation = PartyFormationRules.WithSlots(_formation, result.Slots);
+        _formationAssemblySteps = null;
         _npcSpellcasterTactics.Clear();
         foreach (var pair in result.SpellcasterTactics) _npcSpellcasterTactics[pair.Key] = pair.Value.Normalize();
         _renderer.CharacterSheet.SetFormationStatus(_formation);
@@ -43,10 +48,11 @@ public sealed partial class Game
         _formation = PartyFormationController.Normalize(_formation,
             CharacterRoster.Party.Members.Where(member => member.IsAlive).Select(member => member.Id),
             PartyLeader.Id, out var transitionedToAssembling);
+        if (_formation.State != PartyFormationState.Assembling) _formationAssemblySteps = null;
         if (transitionedToAssembling)
         {
+            _formationAssemblySteps = null;
             _session.SetFormationMovementLocked(false);
-            _formationObstacleReported = false;
         }
         _renderer.CharacterSheet.SetFormationStatus(_formation);
         return _formation != previous;
@@ -58,24 +64,34 @@ public sealed partial class Game
         if (_formation.State != PartyFormationState.Disbanded)
         {
             _formation = PartyFormationRules.WithState(_formation, PartyFormationState.Disbanded);
+            _formationAssemblySteps = null;
             _renderer.CharacterSheet.SetFormationStatus(_formation);
             _session.SetFormationMovementLocked(false);
-            _formationObstacleReported = false;
             AnnouncePartyCommand("Az alakzat feloszlott; minden partitag ujra egyenileg mozoghat.", ConsoleColor.Gray);
             return;
         }
-        _formation = _formation with
+        var assembling = _formation with
         {
             Facing = _leaderFacing,
             State = PartyFormationState.Assembling,
             Layout = PartyFormationLayout.Block
         };
+        var targets = PartyFormationController.Positions(assembling, PartyLeader.Id, _player.Position);
+        var plan = PartyFormationAssemblyPlanner.Plan(_maze, _player.Position, PartyLeader.Id, targets);
+        if (!plan.Succeeded)
+        {
+            AnnouncePartyCommand($"Az alakzat nem tud összeállni: {plan.Failure}", ConsoleColor.DarkYellow);
+            return;
+        }
+        _formation = assembling;
+        _formationAssemblySteps = new Queue<PartyFormationAssemblyPlanner.Step>(plan.Steps);
+        _formationAssemblyLeaderPosition = _player.Position;
+        _formationAssemblyMazeRevision = _maze.NavigationRevision;
         _renderer.CharacterSheet.SetFormationStatus(_formation);
         _partyHoldingPosition = false;
         _partyRegrouping = false;
         _partyAttackMode = false;
         _partyScatterUntil = null;
-        _formationObstacleReported = false;
         foreach (var member in _maze.PartyMembers) _nextPartyMoves[member] = DateTime.UtcNow;
         AnnouncePartyCommand("ALAKZAT: a partitagok elfoglaljak a beallitott 2x2-es helyuket.", ConsoleColor.Cyan);
     }

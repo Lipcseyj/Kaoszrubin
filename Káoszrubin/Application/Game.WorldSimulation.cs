@@ -661,42 +661,81 @@ public sealed partial class Game
     private bool AdvanceFormationAssembly(DateTime now)
     {
         var targets = PartyFormationController.Positions(_formation, PartyLeader.Id, _player.Position);
-        var result = PartyFormationAssemblyCoordinator.Advance(
-            now,
-            _maze,
-            _player,
-            PartyLeader.Id,
-            targets,
-            _maze.PartyMembers,
-            _nextPartyMoves,
-            FindNextFormationAssemblyStep,
-            (member, targetPosition) => CanEnterTrap(member.Character, targetPosition),
-            (member, position) => _maze.GetPartyMemberAt(position),
-            (member, nextPosition) => _maze.TryMovePartyMember(member, nextPosition, _player.Position),
-            (member, blockingFriend, position) => _maze.TrySwapPartyMembers(member, blockingFriend, _player.Position),
-            RegisterFormationAssemblyMove,
-            ScheduleNextPartyMove,
-            (member, nextPosition) => _maze.GetEnemyAt(nextPosition),
-            (member, enemy) => StartBattle(member, enemy),
-            FormationAvatar);
+        if (_formationAssemblySteps is null || _formationAssemblyLeaderPosition != _player.Position ||
+            _formationAssemblyMazeRevision != _maze.NavigationRevision ||
+            _formationAssemblySteps.TryPeek(out var nextStep) &&
+            (nextStep.Member.Position != nextStep.From ||
+             _maze.GetPartyMemberAt(nextStep.To) != nextStep.SwappedMember))
+        {
+            if (!ReplanFormationAssembly(targets)) return true;
+        }
 
-        if (result.BattleStarted) return true;
-        if (result.AllInPlace)
+        var steps = _formationAssemblySteps ?? throw new InvalidOperationException("Hiányzik az alakzat lépésterve.");
+        if (steps.Count == 0)
         {
             _formation = PartyFormationRules.WithState(_formation, PartyFormationState.Locked);
+            _formationAssemblySteps = null;
             _renderer.CharacterSheet.SetFormationStatus(_formation);
             _session.SetFormationMovementLocked(true);
-            _formationObstacleReported = false;
             AnnouncePartyCommand("Az alakzat osszeallt. Csak a vezer mozgathatja; Ctrl+bal/jobb: fordulas.",
                 ConsoleColor.Green);
             return true;
         }
-        if (!result.MadeProgress && !_formationObstacleReported && result.ObstacleReported)
+
+        var step = steps.Peek();
+        if (_nextPartyMoves.GetValueOrDefault(step.Member) > now) return false;
+        if (_maze.GetEnemyAt(step.To) is not null)
         {
-            _formationObstacleReported = true;
-            _renderer.DrawDeveloperMessage("Az alakzat meg nem tud osszeallni: egy kijelolt hely nem erheto el.");
+            ReplanFormationAssembly(targets);
+            return true;
         }
-        return result.MadeProgress;
+        if (!CanEnterTrap(step.Member.Character, step.To) ||
+            step.SwappedMember is { } blocker && !CanEnterTrap(blocker.Character, step.From))
+        {
+            StopFormationAssembly("Egy felfedezett csapda elzárja a tervezett útvonalat.");
+            return true;
+        }
+
+        var moved = step.SwappedMember is { } swapped
+            ? _maze.TrySwapPartyMembers(step.Member, swapped, _player.Position)
+            : _maze.TryMovePartyMember(step.Member, step.To, _player.Position);
+        if (!moved)
+        {
+            ReplanFormationAssembly(targets);
+            return true;
+        }
+        steps.Dequeue();
+        RegisterFormationAssemblyMove(step.Member, step.From);
+        ScheduleNextPartyMove(step.Member, now);
+        if (step.SwappedMember is { } displaced)
+        {
+            RegisterFormationAssemblyMove(displaced, step.To);
+            ScheduleNextPartyMove(displaced, now);
+        }
+        return true;
+    }
+
+    private bool ReplanFormationAssembly(IReadOnlyDictionary<CharacterId, Position> targets)
+    {
+        var plan = PartyFormationAssemblyPlanner.Plan(_maze, _player.Position, PartyLeader.Id, targets);
+        if (!plan.Succeeded)
+        {
+            StopFormationAssembly(plan.Failure!);
+            return false;
+        }
+        _formationAssemblySteps = new Queue<PartyFormationAssemblyPlanner.Step>(plan.Steps);
+        _formationAssemblyLeaderPosition = _player.Position;
+        _formationAssemblyMazeRevision = _maze.NavigationRevision;
+        return true;
+    }
+
+    private void StopFormationAssembly(string reason)
+    {
+        _formationAssemblySteps = null;
+        _formation = PartyFormationRules.WithState(_formation, PartyFormationState.Disbanded);
+        _renderer.CharacterSheet.SetFormationStatus(_formation);
+        _session.SetFormationMovementLocked(false);
+        AnnouncePartyCommand($"Az alakzat nem tud összeállni: {reason}", ConsoleColor.DarkYellow);
     }
 
     private void RegisterFormationAssemblyMove(PartyMemberAvatar member, Position previous)

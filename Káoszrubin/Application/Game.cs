@@ -162,7 +162,6 @@ public sealed partial class Game : ISessionCommandHandler
     private Direction _leaderFacing = Direction.Right;
     private PartyFormationSnapshot _formation;
     private readonly Dictionary<CharacterId, NpcSpellcasterTactics> _npcSpellcasterTactics = [];
-    private bool _formationObstacleReported;
     private string? _leaderDecisionMessage;
     private string? _leaderDecisionTitle;
     private ReplicatedWindowSnapshot? _activeSharedWindow;
