@@ -65,7 +65,7 @@ internal static class SpellImpactTests
             "A lángtölcsér nem a valódi támadási területet rajzolja.");
         var area = catalog.GetSpell("S007");
         var edge = SpellImpactVisual.GetCells(area, caster, new Position(0, 0), [], maze).ToHashSet();
-        Require(edge.Count == 9 && edge.All(maze.IsInside), "A területi effekt túllóg a térkép szélén.");
+        Require(edge.Count == 4 && edge.All(maze.IsInside), "A területi effekt túllóg a térkép szélén.");
         var secondary = new Position(7, 4);
         var chain = SpellImpactVisual.GetCells(catalog.GetSpell("S016"), caster, target,
             [target, secondary, secondary], maze).ToHashSet();
@@ -81,6 +81,57 @@ internal static class SpellImpactTests
             "Az egycélpontos effekt nem pulzál.");
     }
 
+    public static void AreaDamageHitsAllSidesButChainsSelectTargets()
+    {
+        var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
+        var maze = new Maze(11, 11);
+        for (var y = 0; y < maze.Height; y++)
+        for (var x = 0; x < maze.Width; x++) maze.Carve(new Position(x, y));
+        var race = new RaceDefinition("R001", "Ember", PrimaryAbilities.Zero);
+        var characterClass = new CharacterClassDefinition("C006", "Mágus", PrimaryAbilities.Zero, true, 1.0);
+        LiveCharacter MakeCharacter(string name) => new(name, race, characterClass,
+            new PrimaryAbilities(5, 5, 5, 8), 200, 100, 10, 0);
+        var caster = MakeCharacter("Mágus");
+        var ally = MakeCharacter("Társ");
+        var safe = MakeCharacter("Távoli társ");
+        var enemy = new ConfiguredEnemy(new Position(5, 5), catalog.Enemies[0]);
+        maze.AddEnemy(enemy);
+        var party = new (LiveCharacter Character, Position Position)[]
+        {
+            (caster, new Position(2, 5)), (ally, new Position(5, 6)), (safe, new Position(8, 8))
+        };
+        var service = new SpellExecutionService(catalog, new Random(83));
+        var timeStop = false;
+        var startingHp = ally.CurrentVitality;
+        service.ExecuteSpell(caster, party[0].Position, catalog.GetSpell("S007"), enemy.Position,
+            false, null, false, ref timeStop, party, maze,
+            (_, victim, damage, _) => victim.ReceiveSpellDamage(damage),
+            (_, _) => false, (_, _) => "", (_, _) => "");
+        Require(ally.CurrentVitality < startingHp && safe.CurrentVitality == safe.MaximumVitality,
+            "A Tűzgolyó nem sebezte az érintett társat, vagy eltalált valakit a területen kívül.");
+        var afterFireball = ally.CurrentVitality;
+        service.ExecuteSpell(caster, party[0].Position, catalog.GetSpell("S016"), enemy.Position,
+            false, null, false, ref timeStop, party, maze,
+            (_, victim, damage, _) => victim.ReceiveSpellDamage(damage),
+            (_, _) => false, (_, _) => "", (_, _) => "");
+        Require(ally.CurrentVitality == afterFireball,
+            "A láncvillám a szelektív ugrás közben partitagot sebzett.");
+        var meteor = catalog.GetSpell("S011");
+        var cells = SpellAreaFootprint.GetCells(meteor, party[0].Position, enemy.Position, maze);
+        var dexterity = safe.EffectiveAbilities.Dexterity;
+        safe.ApplySpellEffect(new ActiveSpellEffect("S008", ActiveSpellEffectType.SpeedPenalty, 3, 2));
+        safe.ApplySpellEffect(new ActiveSpellEffect("S025", ActiveSpellEffectType.Storm, 0, 2,
+            new DiceExpression(1, 4)));
+        safe.ApplySpellEffect(new ActiveSpellEffect("S020", ActiveSpellEffectType.SkipNext, 0, 1));
+        var beforeTick = safe.CurrentVitality;
+        var tick = safe.AdvanceCombatSpellEffects(new Random(1));
+        Require(safe.EffectiveAbilities.Dexterity == dexterity - 3 &&
+                safe.CurrentVitality < beforeTick && tick.SkipAction &&
+                !safe.HasSpellEffect(ActiveSpellEffectType.SkipNext),
+            "A partitagot ért lassítás, időszakos sebzés vagy akcióvesztés nem hatott harcban.");        Require(cells.SetEquals(SpellImpactVisual.GetCells(meteor, party[0].Position, enemy.Position, [], maze)) &&
+                cells.Count < 25 && cells.Contains(enemy.Position),
+            "A Meteorzápor szétszórt becsapódása nem egyezik a látvánnyal.");
+    }
     public static void AnimationTimelineDoesNotOwnTheGameLoop()
     {
         var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));

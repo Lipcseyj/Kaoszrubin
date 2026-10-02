@@ -308,11 +308,13 @@ public sealed partial class Game
                 spellPlan.Spell.EffectiveImpactDurationMilliseconds > 0)
                 PlaySpellImpact(spellPlan.Spell, enemy.Position, spellPlan.TargetPosition,
                     spellPlan.HostileTargets.Select(GetCasterPosition)
-                        .Concat(spellPlan.AlliedTargets.Select(target => target.Position)).ToArray());
+                        .Concat(spellPlan.AlliedTargets.Select(target => target.Position))
+                        .Concat((spellPlan.FriendlyFireTargets ?? []).Select(target => target.Position)).ToArray());
             PresentBattleEntries([spellEntry]);
             if (spellPlan.HostileTargets.Count > 0) battle.RecordAttack(BattleSide.Hostile);
             foreach (var target in spellPlan.HostileTargets.Where(target => !target.IsAlive))
                 ResolveCharacterDefeat(battle, target);
+            SynchronizeBattleDefeats(battle);
             AdvanceBattleTurn(battle);
             return;
         }

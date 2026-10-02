@@ -279,7 +279,27 @@ public sealed partial class Game
             {
                 if (battle.CurrentCharacter is { } preparedCharacter &&
                     battle.ShouldAdvanceSpellEffects(CombatantId.ForCharacter(preparedCharacter.Id)))
-                    _battleSystem.BeginCharacterTurn(preparedCharacter);
+                {
+                    var spellTick = _battleSystem.BeginCharacterTurn(preparedCharacter);
+                    if (spellTick.Notes.Count > 0)
+                        PresentBattleEntries([new BattleLogEntry(
+                            $"✨ {preparedCharacter.Name}: {string.Join(", ", spellTick.Notes)}.",
+                            BattleLogKind.Information)]);
+                    if (!preparedCharacter.IsAlive)
+                    {
+                        ResolveCharacterDefeat(battle, preparedCharacter);
+                        AdvanceBattleTurn(battle);
+                        continue;
+                    }
+                    if (spellTick.SkipAction)
+                    {
+                        PresentBattleEntries([new BattleLogEntry(
+                            $"⏳ {preparedCharacter.Name} varázshatás miatt kihagyja ezt az akciót.",
+                            BattleLogKind.Information)]);
+                        AdvanceBattleTurn(battle);
+                        continue;
+                    }
+                }
                 var stagger = battle.PrepareStaggerAction(current.Id, () => _random.Next(1, 101));
                 if (stagger is not null)
                 {

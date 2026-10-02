@@ -106,10 +106,10 @@ public sealed class BattleSystem(Random random, IEnumerable<MonsterAbilityDefini
         enemy.ClearPreparedAbility();
     }
 
-    public void BeginCharacterTurn(LiveCharacter character)
+    public SpellEffectTickResult BeginCharacterTurn(LiveCharacter character)
     {
         ArgumentNullException.ThrowIfNull(character);
-        character.AdvanceSpellEffects();
+        return character.AdvanceCombatSpellEffects(_random);
     }
 
     public string FinishCharacterAction(LiveCharacter character, CharacterBattleChoices runtime)

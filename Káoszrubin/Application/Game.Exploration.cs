@@ -87,6 +87,7 @@ public sealed partial class Game
         {
             _renderer.CharacterSheet.RefreshBattleStatusRows();
             _renderer.DrawInventoryMessage(result.Message, result.Kind == BattleLogKind.Information ? ConsoleColor.Red : ConsoleColor.Magenta);
+            if (result.ConsumesTurn) SynchronizeExplorationSpellDefeats();
         }
     }
 

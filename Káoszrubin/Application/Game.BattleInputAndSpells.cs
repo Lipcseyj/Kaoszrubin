@@ -342,6 +342,16 @@ public sealed partial class Game
             result.Kind == BattleLogKind.Information ? ConsoleColor.Red : ConsoleColor.Magenta);
         RecordSessionActivity(SessionActivityKind.Spell, result.Message,
             result.Kind == BattleLogKind.Information ? ConsoleColor.Red : ConsoleColor.Magenta);
+        SynchronizeExplorationSpellDefeats();
+    }
+
+    private void SynchronizeExplorationSpellDefeats()
+    {
+        foreach (var character in _maze.PartyMembers.Where(member => !member.Character.IsAlive)
+                     .Select(member => member.Character).ToArray())
+            ResolveExplorationStatusDefeat(character, $"☠ {character.Name} elesett a varázslat hatásától.");
+        if (!PartyLeader.IsAlive && !_gameOver)
+            ResolveExplorationStatusDefeat(PartyLeader, $"☠ {PartyLeader.Name} elesett a varázslat hatásától.");
     }
 
     private bool HasUsableCombatSpell(LiveCharacter character, Position characterPosition, Enemy enemy) =>

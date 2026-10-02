@@ -6,7 +6,9 @@ using KaoszRubin.World;
 namespace KaoszRubin.Combat;
 
 public sealed record EnemySpellPlan(SpellDefinition Spell, Position TargetPosition,
-    IReadOnlyList<LiveCharacter> HostileTargets, IReadOnlyList<Enemy> AlliedTargets, int Score);
+    IReadOnlyList<LiveCharacter> HostileTargets, IReadOnlyList<Enemy> AlliedTargets, int Score,
+    IReadOnlyList<Enemy>? FriendlyFireTargets = null,
+    IReadOnlyDictionary<CharacterId, Position>? HostilePositions = null);
 
 /// <summary>Az ellenséges varázslók frakcióhelyes célpontválasztása és hatásfeloldása.</summary>
 public sealed class EnemySpellcastingService(GameDataCatalog gameData, Random random)
@@ -27,6 +29,7 @@ public sealed class EnemySpellcastingService(GameDataCatalog gameData, Random ra
             var plan = BuildPlan(caster, allies, hostiles, spell, canSee, maze);
             if (plan is null) continue;
             plan = plan with { Score = ApplyStyle(profile.Style, spell, plan.Score) };
+            if (plan.Score <= 0) continue;
             var urgent = plan.Score >= 140;
             if (!urgent && caster.CurrentMana - spell.ManaCost < reserve) continue;
             candidates.Add(plan with
@@ -120,17 +123,30 @@ public sealed class EnemySpellcastingService(GameDataCatalog gameData, Random ra
             {
                 var footprint = maze is null ? null :
                     SpellAreaFootprint.GetCells(spell, caster.Position, center, maze);
+                var areaDamage = effects.Any(effect => effect.Type == SpellEffectType.Damage);
+                var friendlyFire = areaDamage
+                    ? allies.Append(caster).Where(ally => ally.CurrentHitPoints > 0 &&
+                        (footprint?.Contains(ally.Position) ??
+                         TacticalDistance.Between(center, ally.Position) <= Math.Max(1, spell.AreaRadius)))
+                        .DistinctBy(ally => ally.Id).ToArray()
+                    : [];
                 return new
                 {
                     Position = center,
+                    FriendlyFire = friendlyFire,
                     Targets = hostiles.Where(item => footprint?.Contains(item.Position) ??
                         TacticalDistance.Between(center, item.Position) <= Math.Max(1, spell.AreaRadius))
                         .Select(item => item.Character).ToArray()
                 };
             }).Where(item => item.Targets.Length > 0)
-                .OrderByDescending(item => item.Targets.Length).FirstOrDefault();
+                .OrderByDescending(item => Score(effects, item.Targets.Length,
+                    item.Targets.Min(target => target.CurrentVitality)) -
+                    item.FriendlyFire.Length * Math.Max(30, Score(effects, 1, 100)))
+                .FirstOrDefault();
             return best is null ? null : new EnemySpellPlan(spell, best.Position, best.Targets, [],
-                Score(effects, best.Targets.Length, best.Targets.Min(target => target.CurrentVitality)));
+                Score(effects, best.Targets.Length, best.Targets.Min(target => target.CurrentVitality)) -
+                best.FriendlyFire.Length * Math.Max(30, Score(effects, 1, 100)), best.FriendlyFire,
+                hostiles.ToDictionary(item => item.Character.Id, item => item.Position));
         }
 
         var eligibleAllies = spell.TargetType == SpellTargetType.Self
@@ -184,9 +200,30 @@ public sealed class EnemySpellcastingService(GameDataCatalog gameData, Random ra
                 }
                 damage = ResolveDamage(target, effect.Resolution, damage, caster.Definition.SpellcasterProfile!.Intelligence,
                     plan.Spell.Level);
+                if (plan.Spell.Id == "S011" && damage > 0)
+                    damage = Math.Max(1, damage * SpellAreaFootprint.MeteorDamagePercent(
+                        caster.Position, plan.TargetPosition,
+                        plan.HostilePositions?.GetValueOrDefault(target.Id) ?? plan.TargetPosition) / 100);
                 target.ReceiveDamage(damage);
                 notes.Add($"{target.Name} -{damage} HP");
             }
+            if (effect.Type == SpellEffectType.Damage)
+                foreach (var ally in plan.FriendlyFireTargets ?? [])
+                {
+                    var damage = RollPower(caster, plan.Spell, effect);
+                    var saved = (effect.Resolution is SpellResolution.SaveHalf or SpellResolution.SaveNegates) &&
+                        random.Next(1, 21) + ally.EffectiveSpeed >=
+                        10 + caster.Definition.SpellcasterProfile!.Intelligence / 2 + plan.Spell.Level;
+                    if (saved && effect.Resolution == SpellResolution.SaveNegates) damage = 0;
+                    else if (saved) damage = Math.Max(1, damage / 2);
+                    if (plan.Spell.Id == "S011" && damage > 0)
+                        damage = Math.Max(1, damage * SpellAreaFootprint.MeteorDamagePercent(
+                            caster.Position, plan.TargetPosition, ally.Position) / 100);
+                    var resistance = Math.Clamp(ally.Definition.MagicResistance, 0, 100);
+                    damage = resistance >= 100 ? 0 : damage > 0 ? Math.Max(1, damage * (100 - resistance) / 100) : 0;
+                    ally.ReceiveSpellDamage(damage);
+                    if (damage > 0) notes.Add($"{ally.ShortName} baráti tűz -{damage} HP");
+                }
             return;
         }
         if (effect.Type == SpellEffectType.Execute)
@@ -223,6 +260,14 @@ public sealed class EnemySpellcastingService(GameDataCatalog gameData, Random ra
         foreach (var ally in plan.AlliedTargets)
         {
             ally.ApplySpellEffect(CreateActive(caster, plan.Spell, effect, activeType, beneficial: true));
+            applied++;
+        }
+        foreach (var ally in plan.FriendlyFireTargets ?? [])
+        {
+            if (effect.Resolution == SpellResolution.SaveNegates &&
+                random.Next(1, 21) + ally.EffectiveSpeed >=
+                10 + caster.Definition.SpellcasterProfile!.Intelligence / 2 + plan.Spell.Level) continue;
+            ally.ApplySpellEffect(CreateActive(caster, plan.Spell, effect, activeType, beneficial: false));
             applied++;
         }
         if (applied > 0) notes.Add(effect.Description);

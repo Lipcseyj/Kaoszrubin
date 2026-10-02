@@ -477,9 +477,21 @@ public sealed partial class Game
             .Sum(enemy => Math.Max(1, enemy.Definition.StrengthTier));
         var positionPenalty = NpcSpellPlanningPolicy.PositionPenalty(movementDistance,
             movementAllowance, adjacentThreat);
+        var friendlyFirePenalty = 0d;
+        if (spell.HasAreaImpact && effects.Any(effect => effect.Type == SpellEffectType.Damage))
+        {
+            var cells = SpellAreaFootprint.GetCells(spell, castingPosition, targetPosition, _maze);
+            var alliedHits = LivingPartyWithPositions().Count(member =>
+                cells.Contains(member.Character == caster ? castingPosition : member.Position));
+            var meanDamage = effects.Where(effect => effect.Type == SpellEffectType.Damage)
+                .Sum(effect => (effect.Dice is { } dice ? dice.Count * (dice.Sides + 1) / 2d : 0) +
+                    effect.Value + caster.EffectiveAbilities.Intelligence * effect.IntelligenceMultiplier +
+                    caster.Level * effect.LevelMultiplier);
+            friendlyFirePenalty = alliedHits * Math.Max(20, meanDamage) * 2;
+        }
         return new NpcOffensiveSpellCandidate(spell, castingPosition, targetPosition, primaryTarget,
             classification, targets.Count,
-            evaluation with { Utility = evaluation.Utility - positionPenalty },
+            evaluation with { Utility = evaluation.Utility - positionPenalty - friendlyFirePenalty },
             ReadyToCast: movementDistance == 0, movementDistance);
     }
 

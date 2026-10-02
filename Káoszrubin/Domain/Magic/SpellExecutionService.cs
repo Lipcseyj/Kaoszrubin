@@ -257,9 +257,17 @@ public sealed class SpellExecutionService
         var effects = _gameData.GetSpellEffects(spell.Id);
         var targets = ResolveEnemySpellTargets(spell, target, currentEnemy, casterPosition, maze).ToList();
         var characterTargets = ResolveCharacterSpellTargets(caster, spell, target, livingParty, maze).ToList();
+        var friendlyFootprint = spell.HasAreaImpact && effects.Any(effect => effect.Type == SpellEffectType.Damage)
+            ? SpellAreaFootprint.GetCells(spell, casterPosition, target, maze) : null;
+        var friendlyFireTargets = friendlyFootprint is not null
+            ? livingParty.Where(member => friendlyFootprint.Contains(member.Position))
+                .Select(member => member.Character).DistinctBy(member => member.Id).ToArray()
+            : [];
         var damage = targets.ToDictionary(enemy => enemy, _ => 0);
+        var friendlyDamage = friendlyFireTargets.ToDictionary(character => character, _ => 0);
         var initialHitPoints = targets.ToDictionary(enemy => enemy, enemy => enemy.CurrentHitPoints);
         var resolutionCache = new Dictionary<(Enemy Enemy, SpellResolution Resolution), SpellResolutionResult>();
+        var friendlySaves = new Dictionary<LiveCharacter, bool>();
         var notes = new List<string>();
         var extraActions = 0;
 
@@ -269,19 +277,32 @@ public sealed class SpellExecutionService
             {
                 case SpellEffectType.Damage:
                     foreach (var enemy in targets)
-                        damage[enemy] += ResolveSpellDamage(caster, effect, spell, enemy, resolutionCache, notes, divineJudgment);
+                        damage[enemy] += ResolveSpellDamage(caster, effect, spell, enemy, resolutionCache, notes,
+                            divineJudgment, spell.Id == "S011"
+                                ? SpellAreaFootprint.MeteorDamagePercent(casterPosition, target, enemy.Position) : 100);
+                    foreach (var character in friendlyFireTargets)
+                        friendlyDamage[character] += ResolveFriendlySpellDamage(caster, effect, spell,
+                            character, friendlySaves, divineJudgment, notes, spell.Id == "S011"
+                                ? SpellAreaFootprint.MeteorDamagePercent(casterPosition, target,
+                                    livingParty.First(member => member.Character == character).Position) : 100);
                     break;
                 case SpellEffectType.ChainDamage:
                     ApplyChainDamage(caster, effect, spell, target, currentEnemy, damage, initialHitPoints, notes, maze);
                     break;
                 case SpellEffectType.Burning:
                     ApplyEnemyTimedEffect(caster, effect, spell, targets, ActiveSpellEffectType.Burning, resolutionCache, notes, divineJudgment);
+                    ApplyFriendlyTimedEffect(caster, effect, spell, friendlyFireTargets,
+                        ActiveSpellEffectType.Burning, friendlySaves, divineJudgment, notes);
                     break;
                 case SpellEffectType.Storm:
                     ApplyEnemyTimedEffect(caster, effect, spell, targets, ActiveSpellEffectType.Storm, resolutionCache, notes, divineJudgment);
+                    ApplyFriendlyTimedEffect(caster, effect, spell, friendlyFireTargets,
+                        ActiveSpellEffectType.Storm, friendlySaves, divineJudgment, notes);
                     break;
                 case SpellEffectType.SpeedPenalty:
                     ApplyEnemyTimedEffect(caster, effect, spell, targets, ActiveSpellEffectType.SpeedPenalty, resolutionCache, notes, divineJudgment);
+                    ApplyFriendlyTimedEffect(caster, effect, spell, friendlyFireTargets,
+                        ActiveSpellEffectType.SpeedPenalty, friendlySaves, divineJudgment, notes);
                     break;
                 case SpellEffectType.SkipAlternate:
                     ApplyEnemyTimedEffect(caster, effect, spell, targets,
@@ -289,6 +310,10 @@ public sealed class SpellExecutionService
                             ? ActiveSpellEffectType.SkipNext
                             : ActiveSpellEffectType.SkipAlternate,
                         resolutionCache, notes, divineJudgment);
+                    ApplyFriendlyTimedEffect(caster, effect, spell, friendlyFireTargets,
+                        string.Equals(effect.Parameter, "Next", StringComparison.OrdinalIgnoreCase)
+                            ? ActiveSpellEffectType.SkipNext : ActiveSpellEffectType.SkipAlternate,
+                        friendlySaves, divineJudgment, notes);
                     break;
                 case SpellEffectType.Invisibility:
                     ApplyCharacterEffects(caster, characterTargets, effect, spell, ActiveSpellEffectType.Invisibility, divineJudgment);
@@ -340,7 +365,9 @@ public sealed class SpellExecutionService
                     }
                     break;
                 case SpellEffectType.RandomElement:
-                    ApplyRandomElement(caster, effect, spell, targets, damage, resolutionCache, notes);
+                    var element = ApplyRandomElement(caster, effect, spell, targets, damage, resolutionCache, notes);
+                    ApplyFriendlyRandomElement(caster, effect, spell, friendlyFireTargets,
+                        friendlyDamage, friendlySaves, element, notes);
                     break;
                 case SpellEffectType.Heal:
                     ApplyHealing(caster, effect, spell, characterTargets, divineJudgment, notes);
@@ -434,9 +461,18 @@ public sealed class SpellExecutionService
         if (chainRepeated)
         {
             foreach (var effect in effects.Where(effect => effect.Type == SpellEffectType.Damage))
+            {
                 foreach (var enemy in targets)
                     damage[enemy] += ResolveSpellDamage(caster, effect, spell, enemy,
-                        new Dictionary<(Enemy, SpellResolution), SpellResolutionResult>(), notes);
+                        new Dictionary<(Enemy, SpellResolution), SpellResolutionResult>(), notes,
+                        damagePercent: spell.Id == "S011"
+                            ? SpellAreaFootprint.MeteorDamagePercent(casterPosition, target, enemy.Position) : 100);
+                foreach (var character in friendlyFireTargets)
+                    friendlyDamage[character] += ResolveFriendlySpellDamage(caster, effect, spell,
+                        character, new Dictionary<LiveCharacter, bool>(), divineJudgment, notes,
+                        spell.Id == "S011" ? SpellAreaFootprint.MeteorDamagePercent(casterPosition, target,
+                            livingParty.First(member => member.Character == character).Position) : 100);
+            }
             foreach (var effect in effects.Where(effect => effect.Type == SpellEffectType.ChainDamage))
                 ApplyChainDamage(caster, effect, spell, target, currentEnemy, damage, initialHitPoints, notes, maze);
             notes.Add("🔁 Láncvarázs: a sebzés ingyen megismétlődött");
@@ -449,6 +485,8 @@ public sealed class SpellExecutionService
             var characterTargetSet = characterTargets.ToHashSet();
             var impactTargets = damage.Keys.Select(enemy => enemy.Position)
                 .Concat(livingParty.Where(member => characterTargetSet.Contains(member.Character))
+                    .Select(member => member.Position))
+                .Concat(livingParty.Where(member => friendlyDamage.ContainsKey(member.Character))
                     .Select(member => member.Position))
                 .Distinct().ToArray();
             onImpact?.Invoke(impactTargets);
@@ -473,6 +511,11 @@ public sealed class SpellExecutionService
                 onExplorationSpellDamage(caster, entry.Key, entry.Value, notes);
             }
         }
+        foreach (var entry in friendlyDamage.Where(entry => entry.Value > 0))
+        {
+            entry.Key.ReceiveDamage(entry.Value);
+            notes.Add($"{entry.Key.Name}: baráti tűz -{entry.Value} HP");
+        }
         if (actualDamage > 0 && caster.SpecializationId == ClassSpecializations.MageNecromancer)
         {
             var before = caster.CurrentVitality;
@@ -495,12 +538,12 @@ public sealed class SpellExecutionService
             var restored = caster.CurrentVitality - before;
             if (restored > 0) notes.Add($"⚖️ Irgalmas ítélet: ❤️ +{restored} HP");
         }
-        if (damage.Values.Any(value => value > 0)) caster.BreakInvisibility();
+        if (damage.Values.Any(value => value > 0) || friendlyDamage.Values.Any(value => value > 0)) caster.BreakInvisibility();
         if (!inCombat && onRefreshCharacterSheet is not null) onRefreshCharacterSheet(caster);
         return new SpellExecutionResult(currentDamage, extraActions,
             notes.Count == 0 ? "A varázslat nem talált érvényes célpontot." : string.Join("; ", notes.Distinct()),
             new BattleActionDetails(Guid.NewGuid(), caster.Name, spell.Name,
-                [$"✨ {spell.Name}", $"💥 Összes sebzés: {damage.Values.Sum()}",
+                [$"✨ {spell.Name}", $"💥 Összes sebzés: {damage.Values.Sum() + friendlyDamage.Values.Sum()}",
                  effects.Any(effect => effect.Resolution == SpellResolution.Attack)
                     ? $"🎲 Kritikus: 5% / cél — {(_criticalOccurred ? "KRITIKUS!" : "nem")}" :
                       "🎲 Kritikus: nem alkalmazható"],
@@ -547,7 +590,7 @@ public sealed class SpellExecutionService
 
     public int ResolveSpellDamage(LiveCharacter caster, SpellEffectDefinition effect, SpellDefinition spell,
         Enemy enemy, Dictionary<(Enemy Enemy, SpellResolution Resolution), SpellResolutionResult> cache,
-        List<string> notes, bool divineJudgment = false)
+        List<string> notes, bool divineJudgment = false, int damagePercent = 100)
     {
         var resolution = ResolveAgainstEnemy(caster, effect, spell, enemy, cache);
         if (!resolution.Applies)
@@ -577,6 +620,7 @@ public sealed class SpellExecutionService
         if (divineJudgment) { rolled *= 2; _calculation.Add("⚡ Isteni ítélet ×2"); }
         if (resolution.Critical) { rolled *= 2; _calculation.Add("🎲 KRITIKUS ×2"); }
         if (resolution.Half) { rolled = Math.Max(1, rolled / 2); _calculation.Add("🛡️ Sikeres mentő: felezés ↓, min. 1"); }
+        rolled = Math.Max(1, rolled * damagePercent / 100);
         rolled = ApplyMagicResistance(enemy, rolled, notes);
         notes.Add($"{enemy.Name}: -{rolled} HP ({resolution.Text})");
         return rolled;
@@ -762,7 +806,7 @@ public sealed class SpellExecutionService
         }
     }
 
-    public void ApplyRandomElement(LiveCharacter caster, SpellEffectDefinition effect, SpellDefinition spell,
+    public string ApplyRandomElement(LiveCharacter caster, SpellEffectDefinition effect, SpellDefinition spell,
         IEnumerable<Enemy> targets, Dictionary<Enemy, int> damage,
         Dictionary<(Enemy Enemy, SpellResolution Resolution), SpellResolutionResult> cache,
         List<string> notes)
@@ -786,6 +830,80 @@ public sealed class SpellExecutionService
                 enemy.ApplySpellEffect(new ActiveSpellEffect(spell.Id, ActiveSpellEffectType.SkipAlternate, 0, effect.Duration));
         }
         notes.Add($"🎲 véletlen elem: {element}");
+        return element;
+    }
+
+    private bool FriendlyResists(LiveCharacter caster, SpellDefinition spell, LiveCharacter target,
+        Dictionary<LiveCharacter, bool> saves)
+    {
+        if (saves.TryGetValue(target, out var saved)) return saved;
+        saved = _random.Next(1, 21) + target.EffectiveAbilities.Dexterity >=
+                10 + caster.EffectiveAbilities.Intelligence / 2 + spell.Level;
+        saves[target] = saved;
+        return saved;
+    }
+
+    private int ResolveFriendlySpellDamage(LiveCharacter caster, SpellEffectDefinition effect,
+        SpellDefinition spell, LiveCharacter target, Dictionary<LiveCharacter, bool> saves,
+        bool divineJudgment, ICollection<string> notes, int damagePercent = 100)
+    {
+        if (effect.Resolution == SpellResolution.SaveNegates && FriendlyResists(caster, spell, target, saves))
+            return 0;
+        var amount = (effect.Dice?.Roll(_random) ?? 0) + effect.Value +
+                     (int)Math.Round(caster.EffectiveAbilities.Intelligence * effect.IntelligenceMultiplier) +
+                     caster.Level * effect.LevelMultiplier;
+        if (caster.HasPerk(PerkIds.MageElementalMaster)) amount = (int)Math.Ceiling(amount * 1.25);
+        if (caster.SpecializationId == ClassSpecializations.PriestJudgment && spell.School == SpellSchool.Divine)
+            amount = (int)Math.Ceiling(amount * 1.20);
+        if (caster.SpecializationId == ClassSpecializations.MageElementalist && spell.School == SpellSchool.Arcane)
+            amount = (int)Math.Ceiling(amount * 1.20);
+        if (caster.HasClassFeatureUpgrade(ClassFeatureUpgrades.MageRagingElements) && spell.School == SpellSchool.Arcane)
+            amount = (int)Math.Ceiling(amount * 1.15);
+        if (divineJudgment) amount *= 2;
+        if (effect.Resolution == SpellResolution.SaveHalf && FriendlyResists(caster, spell, target, saves))
+            amount = Math.Max(1, amount / 2);
+        amount = Math.Max(1, amount * damagePercent / 100);
+        notes.Add($"{target.Name}: baráti tűz -{amount} HP");
+        return Math.Max(0, amount);
+    }
+
+    private void ApplyFriendlyTimedEffect(LiveCharacter caster, SpellEffectDefinition effect,
+        SpellDefinition spell, IEnumerable<LiveCharacter> targets, ActiveSpellEffectType type,
+        Dictionary<LiveCharacter, bool> saves, bool divineJudgment, ICollection<string> notes)
+    {
+        foreach (var target in targets)
+        {
+            if (effect.Resolution == SpellResolution.SaveNegates && FriendlyResists(caster, spell, target, saves) ||
+                _random.Next(100) >= effect.ChancePercent) continue;
+            target.ApplySpellEffect(new ActiveSpellEffect(spell.Id, type, effect.Value,
+                AdjustedDuration(caster, spell, effect, divineJudgment), effect.Dice,
+                (int)Math.Round(caster.EffectiveAbilities.Intelligence * effect.IntelligenceMultiplier), false,
+                caster.HasPerk(PerkIds.MageElementalMaster) && effect.Dice is not null ? 125 : 100));
+            notes.Add($"{target.Name}: {TimedEffectName(type)} ({AdjustedDuration(caster, spell, effect, divineJudgment)} kör)");
+        }
+    }
+
+    private void ApplyFriendlyRandomElement(LiveCharacter caster, SpellEffectDefinition effect,
+        SpellDefinition spell, IEnumerable<LiveCharacter> targets, Dictionary<LiveCharacter, int> damage,
+        Dictionary<LiveCharacter, bool> saves, string element, ICollection<string> notes)
+    {
+        foreach (var target in targets)
+        {
+            if (effect.Resolution == SpellResolution.SaveNegates && FriendlyResists(caster, spell, target, saves)) continue;
+            if (element.Equals("Fire", StringComparison.OrdinalIgnoreCase))
+            {
+                var amount = effect.Dice?.Roll(_random) ?? 0;
+                if (caster.HasPerk(PerkIds.MageElementalMaster)) amount = (int)Math.Ceiling(amount * 1.25);
+                damage[target] += amount;
+                notes.Add($"{target.Name}: 🔥 baráti tűz -{amount} HP");
+            }
+            else if (element.Equals("Frost", StringComparison.OrdinalIgnoreCase))
+                target.ApplySpellEffect(new ActiveSpellEffect(spell.Id, ActiveSpellEffectType.Frost,
+                    effect.Value, effect.Duration, Beneficial: false));
+            else if (_random.Next(100) < effect.ChancePercent)
+                target.ApplySpellEffect(new ActiveSpellEffect(spell.Id, ActiveSpellEffectType.SkipAlternate,
+                    0, effect.Duration, Beneficial: false));
+        }
     }
 
     private int ApplyMagicResistance(Enemy enemy, int damage, ICollection<string> notes)

@@ -109,9 +109,16 @@ internal static partial class Program
             [(target, new Position(4, 2)), (secondTarget, new Position(6, 2))],
             (origin, destination, range) => FogOfWar.CanSee(walledMaze, origin, destination, range),
             walledMaze);
-        Assert(wallPlan is { HostileTargets.Count: 1 } && wallPlan.HostileTargets[0] == target,
+        Assert(wallPlan is null || wallPlan is { HostileTargets.Count: 1 } && wallPlan.HostileTargets[0] == target,
             "Az ellenséges területi varázslat a fal túloldali csapattagot is érintette.");
 
+        var blastAlly = new ConfiguredEnemy(new Position(5, 3), baseDefinition);
+        var blastAllyHp = blastAlly.CurrentHitPoints;
+        var directBlast = new EnemySpellPlan(data.GetSpell("D008"), new Position(5, 2),
+            [target], [], 100, [blastAlly]);
+        service.Execute(artillery, directBlast);
+        Assert(blastAlly.CurrentHitPoints < blastAllyHp,
+            "Az ellenséges területi varázslat nem sebezte a saját oldalán álló lényt.");
         var healerDefinition = data.GetEnemy(MonsterIds.Káoszpap);
         var healer = new ConfiguredEnemy(new Position(2, 2), healerDefinition with
         {

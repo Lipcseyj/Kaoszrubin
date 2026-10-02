@@ -69,7 +69,9 @@ public sealed class LiveCharacter
             return enhanced with
             {
                 Health = Math.Max(1, enhanced.Health - GetActiveCurseValue(ItemCurseEffect.HealthPenalty)),
-                Intelligence = Math.Max(1, enhanced.Intelligence - GetActiveCurseValue(ItemCurseEffect.IntelligencePenalty))
+                Intelligence = Math.Max(1, enhanced.Intelligence - GetActiveCurseValue(ItemCurseEffect.IntelligencePenalty)),
+                Dexterity = enhanced.Dexterity - SpellEffectValue(ActiveSpellEffectType.SpeedPenalty) -
+                    SpellEffectValue(ActiveSpellEffectType.Frost)
             };
         }
     }
@@ -373,9 +375,18 @@ public sealed class LiveCharacter
     }
 
     public SpellEffectTickResult AdvanceExplorationSpellEffects(Random random)
+        => TickHarmfulSpellEffects(random, skipActions: false);
+
+    public SpellEffectTickResult AdvanceCombatSpellEffects(Random random)
+        => TickHarmfulSpellEffects(random, skipActions: true);
+
+    private SpellEffectTickResult TickHarmfulSpellEffects(Random random, bool skipActions)
     {
         var damage = 0;
         var notes = new List<string>();
+        var skip = skipActions && _activeSpellEffects.Any(effect =>
+            effect.Type == ActiveSpellEffectType.SkipNext ||
+            effect.Type == ActiveSpellEffectType.SkipAlternate && effect.RemainingRounds % 2 == 1);
         foreach (var effect in _activeSpellEffects)
         {
             if (effect.PeriodicDamage is not { } dice) continue;
@@ -385,7 +396,7 @@ public sealed class LiveCharacter
         }
         if (damage > 0) ReceiveDamage(damage);
         AdvanceSpellEffects();
-        return new SpellEffectTickResult(damage, false, notes);
+        return new SpellEffectTickResult(damage, skip, notes);
     }
 
     private static string ExplorationSpellEffectName(ActiveSpellEffectType type) => type switch
