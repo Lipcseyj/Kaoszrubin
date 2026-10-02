@@ -1782,11 +1782,11 @@ public sealed class CoopGuestScreen
                     position.Y < 0 || position.Y >= grid.GetLength(1)) continue;
                 var cell = grid[position.X, position.Y];
                 var colors = SpellImpactVisual.GetColors(impact.Spell, position, impact.Origin,
-                    impact.ElapsedMillisecondsAt(utcNow), impact.CasterPosition);
+                    impact.ElapsedMillisecondsAt(utcNow), impact.MeteorCenters, impact.MeteorHitCells);
                 grid[position.X, position.Y] = cell with
                 {
                     Glyph = SpellImpactVisual.GetGlyph(impact.Spell, position, impact.Origin,
-                        impact.CasterPosition, cell.Glyph),
+                        impact.MeteorCenters, cell.Glyph, impact.MeteorHitCells),
                     Color = colors.Foreground,
                     Background = colors.Background
                 };

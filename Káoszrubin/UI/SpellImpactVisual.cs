@@ -18,19 +18,23 @@ internal static class SpellImpactVisual
 
     public static (ConsoleColor Foreground, ConsoleColor Background) GetColors(
         SpellDefinition spell, Position position, Position origin, double elapsedMilliseconds,
-        Position? casterPosition = null)
+        IReadOnlyList<Position>? meteorCenters = null,
+        IReadOnlyList<Position>? meteorHitCells = null)
     {
-        if (spell.Id == "S011" && casterPosition is { } caster)
+        if (spell.Id == "S011" && meteorCenters is { Count: > 0 })
         {
-            var centers = SpellAreaFootprint.MeteorImpactCenters(caster, origin);
-            var centerIndex = -1;
-            for (var index = 0; index < centers.Count; index++)
-                if (centers[index] == position) { centerIndex = index; break; }
-            if (centerIndex >= 0)
-                return elapsedMilliseconds >= centerIndex * 450 && elapsedMilliseconds < centerIndex * 450 + 700
-                    ? (ConsoleColor.White, ConsoleColor.Red)
-                    : (ConsoleColor.Yellow, ConsoleColor.DarkRed);
-            return (ConsoleColor.DarkYellow, ConsoleColor.DarkRed);
+            if (meteorCenters.Contains(position))
+            {
+                var flashing = meteorCenters.Select((center, index) => (center, index)).Any(entry =>
+                    entry.center == position && elapsedMilliseconds >= entry.index * 450 &&
+                    elapsedMilliseconds < entry.index * 450 + 700);
+                return flashing ? (ConsoleColor.White, ConsoleColor.Red) :
+                    (ConsoleColor.Yellow, ConsoleColor.DarkRed);
+            }
+            return (meteorHitCells?.Contains(position) ??
+                    SpellAreaFootprint.MeteorDamagePercent(meteorCenters, position) > 0)
+                ? (ConsoleColor.Yellow, ConsoleColor.DarkRed)
+                : (ConsoleColor.DarkRed, ConsoleColor.Black);
         }
         var (light, dark) = spell.ImpactPalette switch
         {
@@ -55,14 +59,24 @@ internal static class SpellImpactVisual
     }
 
     public static string GetGlyph(SpellDefinition spell, Position position, Position origin,
-        Position? casterPosition, string underlying) =>
-        spell.Id == "S011" && casterPosition is { } caster &&
-        SpellAreaFootprint.MeteorImpactCenters(caster, origin).Contains(position) ? "✹" : underlying;
+        IReadOnlyList<Position>? meteorCenters, string underlying,
+        IReadOnlyList<Position>? meteorHitCells = null)
+    {
+        if (spell.Id != "S011" || meteorCenters is not { Count: > 0 }) return underlying;
+        var impacts = meteorCenters.Count(center => center == position);
+        if (impacts > 1) return impacts.ToString();
+        if (impacts == 1) return "✹";
+        if (underlying != " ") return underlying;
+        return (meteorHitCells?.Contains(position) ??
+                SpellAreaFootprint.MeteorDamagePercent(meteorCenters, position) > 0) ? "▒" : "·";
+    }
 }
 
 internal sealed record SpellImpactAnimation(SpellDefinition Spell, Position Origin,
     IReadOnlyList<Position> FixedCells, IReadOnlyList<SpellImpactTrackedTargetSnapshot> TrackedTargets,
-    DateTime StartedUtc, Position? CasterPosition = null)
+    DateTime StartedUtc, Position? CasterPosition = null,
+    IReadOnlyList<Position>? MeteorCenters = null,
+    IReadOnlyList<Position>? MeteorHitCells = null)
 {
     public double ElapsedMillisecondsAt(DateTime utcNow) =>
         Math.Max(0, (utcNow - StartedUtc).TotalMilliseconds);
@@ -119,7 +133,7 @@ internal sealed class ReplicatedSpellImpactTracker
                     impact.TrackedTargets is not { Count: > 0 }) continue;
                 _active.Add(new SpellImpactAnimation(gameData.GetSpell(impact.SpellId), impact.Origin,
                     impact.Cells.Distinct().ToArray(), impact.TrackedTargets?.Distinct().ToArray() ?? [], utcNow,
-                    impact.CasterPosition));
+                    impact.CasterPosition, impact.MeteorCenters, impact.MeteorHitCells));
             }
             RemoveExpired(utcNow);
             return _active.ToArray();

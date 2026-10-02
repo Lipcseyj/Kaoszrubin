@@ -64,8 +64,12 @@ public sealed class EnemySpellcastingService(GameDataCatalog gameData, Random ra
     }
 
     public BattleLogEntry Execute(Enemy caster, EnemySpellPlan plan, int combatFailureChance = 0,
-        Maze? maze = null)
+        Maze? maze = null) => Execute(caster, plan, out _, combatFailureChance, maze);
+
+    public BattleLogEntry Execute(Enemy caster, EnemySpellPlan plan,
+        out IReadOnlyList<Position>? meteorCenters, int combatFailureChance = 0, Maze? maze = null)
     {
+        meteorCenters = null;
         if (!caster.SpendMana(plan.Spell.ManaCost))
             return new BattleLogEntry($"{caster.Name} nem tudja befejezni a varázslatot.", BattleLogKind.Information);
         caster.StartSpellCooldown(plan.Spell.Id,
@@ -77,7 +81,26 @@ public sealed class EnemySpellcastingService(GameDataCatalog gameData, Random ra
                 $"kockázat {combatFailureChance}%, dobás {failureRoll}; -{plan.Spell.ManaCost} manna.",
                 BattleLogKind.Information);
 
+        if (plan.Spell.Id == "S011")
+        {
+            var eligibleCells = maze is not null
+                ? SpellAreaFootprint.GetCells(plan.Spell, caster.Position, plan.TargetPosition, maze)
+                : Enumerable.Range(-2, 5).SelectMany(dy => Enumerable.Range(-2, 5)
+                    .Select(dx => new Position(plan.TargetPosition.X + dx, plan.TargetPosition.Y + dy)))
+                    .ToHashSet();
+            var rolledCenters = SpellAreaFootprint.RollMeteorImpactCenters(eligibleCells, random);
+            meteorCenters = rolledCenters;
+            plan = plan with
+            {
+                HostileTargets = plan.HostileTargets.Where(target =>
+                    SpellAreaFootprint.MeteorDamagePercent(rolledCenters,
+                        plan.HostilePositions?.GetValueOrDefault(target.Id) ?? plan.TargetPosition, maze) > 0).ToArray(),
+                FriendlyFireTargets = (plan.FriendlyFireTargets ?? []).Where(target =>
+                    SpellAreaFootprint.MeteorDamagePercent(rolledCenters, target.Position, maze) > 0).ToArray()
+            };
+        }
         var notes = new List<string>();
+        if (meteorCenters is { Count: 3 }) notes.Add("három meteor becsapódik");
         foreach (var effect in gameData.GetSpellEffects(plan.Spell.Id))
         {
             if (random.Next(100) >= effect.ChancePercent) continue;
@@ -93,7 +116,7 @@ public sealed class EnemySpellcastingService(GameDataCatalog gameData, Random ra
                     10 + intelligence / 2 + plan.Spell.Level, effect.Resolution, EnemyCasterId: caster.Id));
                 notes.Add($"vihar a területen ({effect.Duration} kör)");
             }
-            else ApplyEffect(caster, plan, effect, notes);
+            else ApplyEffect(caster, plan, effect, notes, meteorCenters, maze);
         }
         var result = notes.Count == 0 ? "a célpont ellenáll" : string.Join(", ", notes);
         return new BattleLogEntry(
@@ -188,7 +211,8 @@ public sealed class EnemySpellcastingService(GameDataCatalog gameData, Random ra
                (damage >= weakestHp ? 45 : 0);
     }
 
-    private void ApplyEffect(Enemy caster, EnemySpellPlan plan, SpellEffectDefinition effect, List<string> notes)
+    private void ApplyEffect(Enemy caster, EnemySpellPlan plan, SpellEffectDefinition effect,
+        List<string> notes, IReadOnlyList<Position>? meteorCenters, Maze? maze)
     {
         if (effect.Type == SpellEffectType.Heal)
         {
@@ -215,8 +239,8 @@ public sealed class EnemySpellcastingService(GameDataCatalog gameData, Random ra
                     plan.Spell.Level);
                 if (plan.Spell.Id == "S011" && damage > 0)
                     damage = Math.Max(1, damage * SpellAreaFootprint.MeteorDamagePercent(
-                        caster.Position, plan.TargetPosition,
-                        plan.HostilePositions?.GetValueOrDefault(target.Id) ?? plan.TargetPosition) / 100);
+                        meteorCenters ?? [],
+                        plan.HostilePositions?.GetValueOrDefault(target.Id) ?? plan.TargetPosition, maze) / 100);
                 target.ReceiveDamage(damage);
                 notes.Add($"{target.Name} -{damage} HP");
             }
@@ -231,7 +255,7 @@ public sealed class EnemySpellcastingService(GameDataCatalog gameData, Random ra
                     else if (saved) damage = Math.Max(1, damage / 2);
                     if (plan.Spell.Id == "S011" && damage > 0)
                         damage = Math.Max(1, damage * SpellAreaFootprint.MeteorDamagePercent(
-                            caster.Position, plan.TargetPosition, ally.Position) / 100);
+                            meteorCenters ?? [], ally.Position, maze) / 100);
                     var resistance = Math.Clamp(ally.Definition.MagicResistance, 0, 100);
                     damage = resistance >= 100 ? 0 : damage > 0 ? Math.Max(1, damage * (100 - resistance) / 100) : 0;
                     ally.ReceiveSpellDamage(damage);

@@ -71,7 +71,9 @@ public sealed record SessionSoundSnapshot(long Sequence, SoundEffect Effect,
 public sealed record SessionSpellImpactSnapshot(long Sequence, WorldId WorldId, string SpellId,
     Position Origin, IReadOnlyList<Position> Cells,
     IReadOnlyList<SpellImpactTrackedTargetSnapshot>? TrackedTargets = null,
-    Position? CasterPosition = null);
+    Position? CasterPosition = null,
+    IReadOnlyList<Position>? MeteorCenters = null,
+    IReadOnlyList<Position>? MeteorHitCells = null);
 
 /// <summary>Egy rövid varázseffekt mozgó célpontja; pontosan az egyik azonosító értéke van kitöltve.</summary>
 public sealed record SpellImpactTrackedTargetSnapshot(CharacterId? CharacterId = null,

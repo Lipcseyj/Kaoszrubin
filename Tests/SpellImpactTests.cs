@@ -128,9 +128,11 @@ internal static class SpellImpactTests
         Require(safe.EffectiveAbilities.Dexterity == dexterity - 3 &&
                 safe.CurrentVitality < beforeTick && tick.SkipAction &&
                 !safe.HasSpellEffect(ActiveSpellEffectType.SkipNext),
-            "A partitagot ért lassítás, időszakos sebzés vagy akcióvesztés nem hatott harcban.");        Require(cells.SetEquals(SpellImpactVisual.GetCells(meteor, party[0].Position, enemy.Position, [], maze)) &&
-                cells.Count < 25 && cells.Contains(enemy.Position),
-            "A Meteorzápor szétszórt becsapódása nem egyezik a látvánnyal.");
+            "A partitagot ért lassítás, időszakos sebzés vagy akcióvesztés nem hatott harcban.");
+        Require(cells.SetEquals(SpellImpactVisual.GetCells(meteor, party[0].Position, enemy.Position, [], maze)) &&
+                cells.Count == 25 && cells.Contains(new Position(3, 3)) &&
+                cells.Contains(new Position(7, 7)),
+            "A Meteorzápor célterülete nem teljes 5×5 négyzet.");
     }
 
     public static void MeteorCentersAndPersistentStorm()
@@ -142,12 +144,61 @@ internal static class SpellImpactTests
         var casterPosition = new Position(2, 5);
         var target = new Position(5, 5);
         var meteor = catalog.GetSpell("S011");
-        var centers = SpellAreaFootprint.MeteorImpactCenters(casterPosition, target);
-        Require(centers.Count == 3 && centers.Distinct().Count() == 3 &&
-                centers.All(center => SpellImpactVisual.GetGlyph(meteor, center, target,
-                    casterPosition, " ") == "✹") &&
-                SpellImpactVisual.GetGlyph(meteor, new Position(4, 5), target, casterPosition, " ") == " ",
-            "A meteorbécsapódások középpontjai nem különülnek el a területtől.");
+        var footprint = SpellAreaFootprint.GetCells(meteor, casterPosition, target, maze);
+        Require(footprint.Count == 25 && footprint.Contains(new Position(3, 3)) &&
+                footprint.Contains(new Position(7, 7)),
+            "A meteor célterületének sarkai hiányoznak.");
+        var random = new Random(73);
+        var rolls = Enumerable.Range(0, 10).Select(_ => SpellAreaFootprint.RollMeteorImpactCenters(
+            meteor, casterPosition, target, maze, random)).ToArray();
+        Require(rolls.All(centers => centers.Count == 3 && centers.All(footprint.Contains)) &&
+                rolls.Select(centers => string.Join(";", centers)).Distinct().Count() > 1,
+            "A meteorok ugyanazokra a helyekre esnek minden varázsláskor.");
+        IReadOnlyList<Position> stacked = [target, target, target];
+        Require(SpellAreaFootprint.MeteorDamagePercent(stacked, target) == 300 &&
+                SpellAreaFootprint.MeteorDamagePercent(stacked, new Position(4, 5)) == 180 &&
+                SpellAreaFootprint.MeteorDamagePercent(stacked, new Position(3, 5)) == 0 &&
+                SpellImpactVisual.GetGlyph(meteor, target, target, stacked, " ") == "3" &&
+                SpellImpactVisual.GetGlyph(meteor, new Position(4, 5), target, stacked, " ") == "▒" &&
+                SpellImpactVisual.GetGlyph(meteor, new Position(3, 5), target, stacked, " ") == "·",
+            "A meteortalálatok nem adódnak össze, vagy a látvány eltér a találatoktól.");
+
+        IReadOnlyList<Position>? castCenters = null;
+        var meteorCaster = new LiveCharacter("Meteormágus", catalog.Races[0],
+            catalog.CharacterClasses.First(c => c.Id == CharacterClassIds.Mágus),
+            new PrimaryAbilities(5, 5, 5, 8), 100, 100, 1, 0);
+        var meteorService = new SpellExecutionService(catalog, new Random(11));
+        var meteorTimeStop = false;
+        meteorService.ExecuteSpell(meteorCaster, casterPosition, meteor, target,
+            false, null, false, ref meteorTimeStop, [(meteorCaster, casterPosition)], maze,
+            (_, victim, damage, _) => victim.ReceiveSpellDamage(damage),
+            (_, _) => false, (_, _) => "", (_, _) => "",
+            onImpact: _ => Require(castCenters is { Count: 3 },
+                "A meteor látványa a becsapódási pontok kiválasztása előtt indult."),
+            onMeteorCenters: centers => castCenters = centers);
+        Require(castCenters is { Count: 3 } && castCenters.All(footprint.Contains),
+            "A varázslás nem adta át a tényleges véletlen becsapódási pontokat.");
+        var firstCastCenters = castCenters!.ToArray();
+        castCenters = null;
+        meteorService.ExecuteSpell(meteorCaster, casterPosition, meteor, target,
+            false, null, false, ref meteorTimeStop, [(meteorCaster, casterPosition)], maze,
+            (_, victim, damage, _) => victim.ReceiveSpellDamage(damage),
+            (_, _) => false, (_, _) => "", (_, _) => "",
+            onMeteorCenters: centers => castCenters = centers);
+        Require(castCenters is { Count: 3 } && !castCenters.SequenceEqual(firstCastCenters),
+            "Két egymást követő Meteorzápor azonos becsapódási mintát kapott.");
+        var tracker = new ReplicatedSpellImpactTracker();
+        var started = new DateTime(2026, 1, 1, 12, 0, 0, DateTimeKind.Utc);
+        tracker.Observe(maze.Id, [], catalog, started);
+        var impact = new SessionSpellImpactSnapshot(1, maze.Id, meteor.Id, target,
+            footprint.ToArray(), CasterPosition: casterPosition,
+            MeteorCenters: castCenters, MeteorHitCells: footprint.Where(position =>
+                SpellAreaFootprint.MeteorDamagePercent(castCenters!, position, maze) > 0).ToArray());
+        var replicated = tracker.Observe(maze.Id, [impact], catalog, started.AddMilliseconds(20));
+        Require(replicated.Count == 1 &&
+                (replicated[0].MeteorCenters ?? []).SequenceEqual(castCenters!) &&
+                (replicated[0].MeteorHitCells ?? []).SequenceEqual(impact.MeteorHitCells ?? []),
+            "A vendég nem ugyanazokat a becsapódási pontokat és sebző mezőket látja.");
 
         var caster = new LiveCharacter("Mágus", catalog.Races[0],
             catalog.CharacterClasses.First(c => c.Id == CharacterClassIds.Mágus),

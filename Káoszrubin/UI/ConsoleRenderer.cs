@@ -3049,7 +3049,9 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
 
     public void PlaySpellImpact(Maze maze, FogOfWar fogOfWar, Position playerPosition,
         SpellDefinition spell, Position casterPosition, Position target, IReadOnlyList<Position> enemyTargets,
-        IReadOnlyList<SpellImpactTrackedTargetSnapshot>? trackedTargets = null)
+        IReadOnlyList<SpellImpactTrackedTargetSnapshot>? trackedTargets = null,
+        IReadOnlyList<Position>? meteorCenters = null,
+        IReadOnlyList<Position>? meteorHitCells = null)
     {
         if (spell.EffectiveImpactDurationMilliseconds <= 0 || Console.IsOutputRedirected) return;
         trackedTargets ??= [];
@@ -3067,7 +3069,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         }
         var origin = spell.TargetType == SpellTargetType.Direction ? casterPosition : target;
         _activeSpellImpacts.Add(new SpellImpactAnimation(spell, origin, cells, trackedTargets, DateTime.UtcNow,
-            casterPosition));
+            casterPosition, meteorCenters, meteorHitCells));
         UpdateSpellImpacts(maze, fogOfWar, playerPosition);
     }
 
@@ -3130,10 +3132,10 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
                     {
                         var visual = GetMapCellVisual(maze, fogOfWar, position, playerPosition);
                         var colors = SpellImpactVisual.GetColors(impact.Spell, position, impact.Origin, elapsed,
-                            impact.CasterPosition);
+                            impact.MeteorCenters, impact.MeteorHitCells);
                         Console.SetCursorPosition(position.X, position.Y);
                         var glyph = SpellImpactVisual.GetGlyph(impact.Spell, position, impact.Origin,
-                            impact.CasterPosition, visual.Rune.ToString());
+                            impact.MeteorCenters, visual.Rune.ToString(), impact.MeteorHitCells);
                         WriteRuneWithColor(Rune.GetRuneAt(glyph, 0), colors.Foreground, colors.Background);
                     }
                 }

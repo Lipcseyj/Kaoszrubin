@@ -13,32 +13,34 @@ public static class SpellAreaFootprint
 
         var origin = spell.TargetType == SpellTargetType.Direction ? caster : target;
         var radius = spell.TargetType == SpellTargetType.Direction ? 2 : spell.AreaRadius;
-        var reachable = GetCells(origin, radius, maze, spell.TargetType == SpellTargetType.Direction
+        return GetCells(origin, radius, maze, spell.TargetType == SpellTargetType.Direction
             ? position => SpellExecutionService.IsInSpellCone(caster, position, target)
             : null);
-        if (spell.Id != "S011") return reachable;
-
-        // Three separate impacts in the selected 5x5 zone. The stable layout lets the
-        // targeting, damage and animation use precisely the same cells.
-        return reachable.Where(position => MeteorDamagePercent(caster, target, position) > 0).ToHashSet();
     }
 
-    public static int MeteorDamagePercent(Position caster, Position target, Position position)
+    /// <summary>Három egymástól független becsapódás a látható, érvényes 5×5 mezőkön.</summary>
+    public static IReadOnlyList<Position> RollMeteorImpactCenters(SpellDefinition spell, Position caster,
+        Position target, Maze maze, Random random) => RollMeteorImpactCenters(
+        GetCells(spell, caster, target, maze), random);
+
+    public static IReadOnlyList<Position> RollMeteorImpactCenters(IEnumerable<Position> eligibleCells,
+        Random random)
     {
-        var impacts = MeteorImpactCenters(caster, target);
-        var overlaps = impacts.Count(impact => Math.Max(Math.Abs(position.X - impact.X),
-            Math.Abs(position.Y - impact.Y)) <= 1);
-        if (overlaps == 0) return 0;
-        return Math.Min(130, (impacts.Contains(position) ? 100 : 60) + (overlaps - 1) * 15);
+        var cells = eligibleCells.OrderBy(position => position.Y).ThenBy(position => position.X).ToArray();
+        if (cells.Length == 0) return [];
+        return Enumerable.Range(0, 3).Select(_ => cells[random.Next(cells.Length)]).ToArray();
     }
 
-    public static IReadOnlyList<Position> MeteorImpactCenters(Position caster, Position target)
+    /// <summary>Az egymásra eső meteorok sebzése összeadódik; a hívó az 5×5 célterületre szűr.</summary>
+    public static int MeteorDamagePercent(IReadOnlyList<Position> impacts, Position position, Maze? maze = null)
     {
-        var offsets = new (int X, int Y)[] { (-1, -1), (1, -1), (-1, 1), (1, 1) };
-        var first = (int)(Math.Abs((long)target.X * 31 + (long)target.Y * 17 + caster.X * 7 + caster.Y) % 4);
-        return new[] { target,
-            new Position(target.X + offsets[first].X, target.Y + offsets[first].Y),
-            new Position(target.X + offsets[(first + 2) % 4].X, target.Y + offsets[(first + 2) % 4].Y) };
+        return impacts.Sum(impact =>
+        {
+            var distance = Math.Max(Math.Abs(position.X - impact.X), Math.Abs(position.Y - impact.Y));
+            if (distance > 1 || maze is not null &&
+                (maze.BlocksSight(position) || !FogOfWar.CanSee(maze, impact, position, 1))) return 0;
+            return distance == 0 ? 100 : 60;
+        });
     }
 
     private static IReadOnlySet<Position> GetCells(Position origin, int radius, Maze maze,

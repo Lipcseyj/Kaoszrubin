@@ -248,19 +248,27 @@ public sealed class SpellExecutionService
         Func<Position, bool, string> onTeleportLivingParty,
         Func<Position, SpellEffectDefinition, string> onResurrectPartyMember,
         Action<LiveCharacter>? onRefreshCharacterSheet = null,
-        Action<IReadOnlyList<Position>>? onImpact = null)
+        Action<IReadOnlyList<Position>>? onImpact = null,
+        Action<IReadOnlyList<Position>>? onMeteorCenters = null)
     {
         _calculation.Clear();
         _criticalOccurred = false;
         _calculation.Add($"✨ {spell.Name}; szint {spell.Level}");
         _calculation.Add(divineJudgment ? "⚡ Isteni ítélet: ×2 hatás, ingyen" : "✨ Normál varázslat");
         var effects = _gameData.GetSpellEffects(spell.Id);
-        var targets = ResolveEnemySpellTargets(spell, target, currentEnemy, casterPosition, maze).ToList();
+        IReadOnlyList<Position> meteorCenters = spell.Id == "S011"
+            ? SpellAreaFootprint.RollMeteorImpactCenters(spell, casterPosition, target, maze, _random)
+            : [];
+        var targets = ResolveEnemySpellTargets(spell, target, currentEnemy, casterPosition, maze)
+            .Where(enemy => spell.Id != "S011" ||
+                SpellAreaFootprint.MeteorDamagePercent(meteorCenters, enemy.Position, maze) > 0).ToList();
         var characterTargets = ResolveCharacterSpellTargets(caster, spell, target, livingParty, maze).ToList();
         var friendlyFootprint = spell.HasAreaImpact && effects.Any(effect => effect.Type == SpellEffectType.Damage)
             ? SpellAreaFootprint.GetCells(spell, casterPosition, target, maze) : null;
         var friendlyFireTargets = friendlyFootprint is not null
-            ? livingParty.Where(member => friendlyFootprint.Contains(member.Position))
+            ? livingParty.Where(member => friendlyFootprint.Contains(member.Position) &&
+                    (spell.Id != "S011" ||
+                     SpellAreaFootprint.MeteorDamagePercent(meteorCenters, member.Position, maze) > 0))
                 .Select(member => member.Character).DistinctBy(member => member.Id).ToArray()
             : [];
         var damage = targets.ToDictionary(enemy => enemy, _ => 0);
@@ -279,12 +287,12 @@ public sealed class SpellExecutionService
                     foreach (var enemy in targets)
                         damage[enemy] += ResolveSpellDamage(caster, effect, spell, enemy, resolutionCache, notes,
                             divineJudgment, spell.Id == "S011"
-                                ? SpellAreaFootprint.MeteorDamagePercent(casterPosition, target, enemy.Position) : 100);
+                                ? SpellAreaFootprint.MeteorDamagePercent(meteorCenters, enemy.Position, maze) : 100);
                     foreach (var character in friendlyFireTargets)
                         friendlyDamage[character] += ResolveFriendlySpellDamage(caster, effect, spell,
                             character, friendlySaves, divineJudgment, notes, spell.Id == "S011"
-                                ? SpellAreaFootprint.MeteorDamagePercent(casterPosition, target,
-                                    livingParty.First(member => member.Character == character).Position) : 100);
+                                ? SpellAreaFootprint.MeteorDamagePercent(meteorCenters,
+                                    livingParty.First(member => member.Character == character).Position, maze) : 100);
                     break;
                 case SpellEffectType.ChainDamage:
                     ApplyChainDamage(caster, effect, spell, target, currentEnemy, damage, initialHitPoints, notes, maze);
@@ -483,12 +491,12 @@ public sealed class SpellExecutionService
                     damage[enemy] += ResolveSpellDamage(caster, effect, spell, enemy,
                         new Dictionary<(Enemy, SpellResolution), SpellResolutionResult>(), notes,
                         damagePercent: spell.Id == "S011"
-                            ? SpellAreaFootprint.MeteorDamagePercent(casterPosition, target, enemy.Position) : 100);
+                            ? SpellAreaFootprint.MeteorDamagePercent(meteorCenters, enemy.Position, maze) : 100);
                 foreach (var character in friendlyFireTargets)
                     friendlyDamage[character] += ResolveFriendlySpellDamage(caster, effect, spell,
                         character, new Dictionary<LiveCharacter, bool>(), divineJudgment, notes,
-                        spell.Id == "S011" ? SpellAreaFootprint.MeteorDamagePercent(casterPosition, target,
-                            livingParty.First(member => member.Character == character).Position) : 100);
+                        spell.Id == "S011" ? SpellAreaFootprint.MeteorDamagePercent(meteorCenters,
+                            livingParty.First(member => member.Character == character).Position, maze) : 100);
             }
             foreach (var effect in effects.Where(effect => effect.Type == SpellEffectType.ChainDamage))
                 ApplyChainDamage(caster, effect, spell, target, currentEnemy, damage, initialHitPoints, notes, maze);
@@ -506,6 +514,7 @@ public sealed class SpellExecutionService
                 .Concat(livingParty.Where(member => friendlyDamage.ContainsKey(member.Character))
                     .Select(member => member.Position))
                 .Distinct().ToArray();
+            if (spell.Id == "S011") onMeteorCenters?.Invoke(meteorCenters);
             onImpact?.Invoke(impactTargets);
         }
 

@@ -449,29 +449,38 @@ public sealed partial class Game
     private static string CastingItemUseText(MagicItemDefinition item) => SpellExecutionService.CastingItemUseText(item);
 
     private SpellExecutionResult ExecuteSpell(LiveCharacter caster, Position casterPosition, SpellDefinition spell, Position target, bool inCombat,
-        Enemy? currentEnemy, bool divineJudgment) =>
-        _spellExecutionService.ExecuteSpell(caster, casterPosition, spell, target, inCombat, currentEnemy, divineJudgment,
+        Enemy? currentEnemy, bool divineJudgment)
+    {
+        IReadOnlyList<Position>? meteorCenters = null;
+        return _spellExecutionService.ExecuteSpell(caster, casterPosition, spell, target, inCombat, currentEnemy, divineJudgment,
             ref _timeStopUsedThisBattle, LivingPartyWithPositions().ToArray(), _maze,
             ApplyExplorationSpellDamage, TeleportLeader, TeleportLivingParty, ResurrectPartyMember,
             c => _renderer.RefreshCharacterSheet(c),
-            targets => PlaySpellImpact(spell, casterPosition, target, targets));
+            targets => PlaySpellImpact(spell, casterPosition, target, targets, meteorCenters),
+            centers => meteorCenters = centers);
+    }
 
     private void PlaySpellImpact(SpellDefinition spell, Position casterPosition, Position target,
-        IReadOnlyList<Position> enemyTargets)
+        IReadOnlyList<Position> enemyTargets, IReadOnlyList<Position>? meteorCenters = null)
     {
         if (spell.EffectiveImpactDurationMilliseconds <= 0) return;
         var trackedTargets = spell.HasAreaImpact
             ? []
             : ResolveSpellImpactTrackedTargets(spell, target, enemyTargets);
+        var meteorHitCells = spell.Id == "S011" && meteorCenters is { Count: > 0 }
+            ? SpellImpactVisual.GetCells(spell, casterPosition, target, enemyTargets, _maze)
+                .Where(position => SpellAreaFootprint.MeteorDamagePercent(meteorCenters, position, _maze) > 0)
+                .ToArray()
+            : null;
         _renderer.PlaySpellImpact(_maze, _fogOfWar, _player.Position, spell, casterPosition, target, enemyTargets,
-            trackedTargets);
+            trackedTargets, meteorCenters, meteorHitCells);
         var origin = spell.TargetType == SpellTargetType.Direction ? casterPosition : target;
         var trackedPositions = ResolveSpellImpactTrackedPositions(trackedTargets).ToHashSet();
         var cells = SpellImpactVisual.GetCells(spell, casterPosition, target, enemyTargets, _maze)
             .Where(position => !trackedPositions.Contains(position) && _fogOfWar.IsVisible(position))
             .Distinct().ToArray();
         _sessionEventService.RecordSpellImpact(_maze.Id, spell.Id, origin, cells, trackedTargets,
-            casterPosition);
+            casterPosition, meteorCenters, meteorHitCells);
     }
 
     private IReadOnlyList<SpellImpactTrackedTargetSnapshot> ResolveSpellImpactTrackedTargets(
