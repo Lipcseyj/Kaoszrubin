@@ -18,7 +18,29 @@ public static class PartyFormationAssemblyPlanner
         public bool Succeeded => Failure is null;
     }
 
+    public sealed record Placement(PartyFormationSnapshot Formation, Result Plan);
+
     private sealed record Node(Position[] Positions, int Cost, Node? Previous, Step? Step);
+
+    public static Placement PlanAtLeader(Maze maze, Position leaderPosition, CharacterId leaderId,
+        PartyFormationSnapshot formation)
+    {
+        var clockwise = PartyFormationRules.Rotate(formation, clockwise: true);
+        var counterclockwise = PartyFormationRules.Rotate(formation, clockwise: false);
+        var opposite = PartyFormationRules.Rotate(clockwise, clockwise: true);
+        var first = Plan(maze, leaderPosition, leaderId,
+            PartyFormationRules.Positions(formation, leaderId, leaderPosition));
+        if (first.Succeeded) return new(formation, first);
+
+        foreach (var candidate in new[] { clockwise, counterclockwise, opposite })
+        {
+            var plan = Plan(maze, leaderPosition, leaderId,
+                PartyFormationRules.Positions(candidate, leaderId, leaderPosition));
+            if (plan.Succeeded) return new(candidate, plan);
+        }
+
+        return new(formation, first);
+    }
 
     public static Result Plan(Maze maze, Position leaderPosition, CharacterId leaderId,
         IReadOnlyDictionary<CharacterId, Position> targets)

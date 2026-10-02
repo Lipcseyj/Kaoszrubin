@@ -76,14 +76,16 @@ public sealed partial class Game
             State = PartyFormationState.Assembling,
             Layout = PartyFormationLayout.Block
         };
-        var targets = PartyFormationController.Positions(assembling, PartyLeader.Id, _player.Position);
-        var plan = PartyFormationAssemblyPlanner.Plan(_maze, _player.Position, PartyLeader.Id, targets);
+        var placement = PartyFormationAssemblyPlanner.PlanAtLeader(_maze, _player.Position,
+            PartyLeader.Id, assembling);
+        var plan = placement.Plan;
         if (!plan.Succeeded)
         {
             AnnouncePartyCommand($"Az alakzat nem tud összeállni: {plan.Failure}", ConsoleColor.DarkYellow);
             return;
         }
-        _formation = assembling;
+        _formation = placement.Formation;
+        _leaderFacing = _formation.Facing;
         _formationAssemblySteps = new Queue<PartyFormationAssemblyPlanner.Step>(plan.Steps);
         _formationAssemblyLeaderPosition = _player.Position;
         _formationAssemblyMazeRevision = _maze.NavigationRevision;
@@ -93,7 +95,10 @@ public sealed partial class Game
         _partyAttackMode = false;
         _partyScatterUntil = null;
         foreach (var member in _maze.PartyMembers) _nextPartyMoves[member] = DateTime.UtcNow;
-        AnnouncePartyCommand("ALAKZAT: a partitagok elfoglaljak a beallitott 2x2-es helyuket.", ConsoleColor.Cyan);
+        AnnouncePartyCommand(placement.Formation.Facing == assembling.Facing
+                ? "ALAKZAT: a partitagok elfoglaljak a beallitott 2x2-es helyuket."
+                : "ALAKZAT: a partitagok elfordulva foglaljak el a jarhato 2x2-es helyet.",
+            ConsoleColor.Cyan);
     }
 
     private void RotateFormation(bool clockwise)
