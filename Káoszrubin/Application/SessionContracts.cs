@@ -92,7 +92,8 @@ public enum LeaderAction
     OrderNpcThiefToDisarmTrap,
     Rest,
     ActivateExit,
-    OrderStrongestPartyMemberToSmashDoor
+    OrderStrongestPartyMemberToSmashDoor,
+    OrderNpcToOpenChest
 }
 
 public sealed record LeaderActionCommand(PlayerId SenderId, long CommandId, CharacterId CharacterId,

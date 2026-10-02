@@ -44,6 +44,7 @@ public sealed partial class Game
     private void StartBattle(LiveCharacter initiatingCharacter, Enemy initiatingEnemy, bool enemyStrikesFirst)
     {
         if (_battleStarted || !initiatingCharacter.IsAlive || initiatingEnemy.CurrentHitPoints <= 0) return;
+        InterruptNpcChestOrderForBattle();
         const int ambushInitiativeBonus = 3;
         var ambushGroupId = initiatingEnemy.IsAmbushing ? initiatingEnemy.GroupId : null;
         var ambushingEnemyIds = _maze.Enemies.Where(enemy => enemy.IsAmbushing &&

@@ -735,6 +735,48 @@ internal static partial class Program
             "A libasor nem maradt zárt, nem fűződött ki a szobából vagy nem követte a folyosó kanyarját.");
     }
 
+    static void NpcChestOrdersUseWeightedReachableOpener()
+    {
+        var maze = new Maze(9, 7);
+        for (var x = 1; x <= 6; x++) maze.Carve(new Position(x, 2));
+        maze.Carve(new Position(1, 3));
+        maze.Carve(new Position(3, 3));
+        var leaderPosition = new Position(3, 3);
+        var chest = new TreasureChest(new Position(4, 2), 25);
+        maze.AddTreasureChest(chest);
+        var first = new PartyMemberAvatar(new Position(1, 2), CreateCharacter("Ládás harcos"));
+        var second = new PartyMemberAvatar(new Position(2, 2), CreateCharacter("Ládás társ"));
+        var thief = new PartyMemberAvatar(new Position(1, 3),
+            CreateCharacter("Ládás tolvaj", characterClassId: CharacterClassIds.Tolvaj));
+        maze.AddPartyMember(first);
+        maze.AddPartyMember(second);
+        maze.AddPartyMember(thief);
+
+        var candidates = new[] { first, second, thief };
+        var random = new Random(123);
+        var thiefDraws = Enumerable.Range(0, 10_000)
+            .Count(_ => NpcChestOpeningController.ChooseOpener(candidates, random) == thief);
+        var path = NpcChestOpeningController.FindPath(maze, first.Position, chest.Position,
+            leaderPosition);
+        Assert(GameInputBindings.LeaderAction(ConsoleKey.L, false) == LeaderAction.OrderNpcToOpenChest &&
+               thiefDraws is > 4100 and < 4500 &&
+               path is { Count: 3 } && path[0] == second.Position && path[^1] == chest.Position &&
+               maze.TrySwapPartyMembers(first, second, leaderPosition) &&
+               maze.TryMovePartyMember(first, path[1], leaderPosition) &&
+               maze.TryMovePartyMember(first, path[2], leaderPosition, allowTreasureChest: true) &&
+               first.Position == chest.Position,
+            "Az NPC ládanyitó súlyozása vagy a társakon átvezető útvonala hibás.");
+
+        var blocked = new Maze(9, 7);
+        blocked.Carve(new Position(1, 2));
+        blocked.Carve(chest.Position);
+        blocked.PlaceDoor(new Position(2, 2), DoorState.Closed);
+        blocked.AddTreasureChest(new TreasureChest(chest.Position, 1));
+        Assert(NpcChestOpeningController.FindPath(blocked, new Position(1, 2), chest.Position,
+                   leaderPosition) is null,
+            "Az NPC ládanyitó zárt ajtón keresztül tervezett útvonalat.");
+    }
+
     static void FormationEscortPositionsFollowRearEdge()
     {
         var leader = CreateCharacter("Kísérővezér");

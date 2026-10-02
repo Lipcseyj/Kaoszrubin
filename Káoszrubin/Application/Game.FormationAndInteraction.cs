@@ -60,6 +60,11 @@ public sealed partial class Game
 
     private void ToggleFormation()
     {
+        if (_npcChestOrder is not null)
+        {
+            AnnouncePartyCommand("Előbb várd meg a ládanyitó társ visszatérését.", ConsoleColor.DarkYellow);
+            return;
+        }
         NormalizeFormation();
         if (_formation.State != PartyFormationState.Disbanded)
         {

@@ -571,6 +571,13 @@ public sealed partial class Game
     private bool MovePartyMembers(DateTime now)
     {
         var stateChanged = NormalizeFormation();
+        if (_reassembleAfterChestBattle)
+        {
+            _reassembleAfterChestBattle = false;
+            if (_formation.State == PartyFormationState.Disbanded) ToggleFormation();
+            return true;
+        }
+        if (_npcChestOrder is not null) return AdvanceNpcChestOrder(now) || stateChanged;
         if (_formation.State == PartyFormationState.Assembling)
         {
             return AdvanceFormationAssembly(now);
@@ -643,6 +650,13 @@ public sealed partial class Game
 
     private bool ShouldProcessPartyMembers(DateTime now)
     {
+        if (_reassembleAfterChestBattle) return true;
+        if (_npcChestOrder is { } chestOrder)
+            return !ReferenceEquals(_chestAssignmentMaze, _maze) ||
+                   _maze.GetTreasureChestAt(chestOrder.Chest.Position) != chestOrder.Chest ||
+                   !chestOrder.Opener.Character.IsAlive ||
+                   !_maze.PartyMembers.Contains(chestOrder.Opener) ||
+                   _nextPartyMoves.GetValueOrDefault(chestOrder.Opener) <= now;
         if (_formation.State == PartyFormationState.Assembling) return true;
         if (_partyScatterUntil is { } scatterUntil && now >= scatterUntil) return true;
         var isScattering = _partyScatterUntil is not null && !_partyRegrouping;
