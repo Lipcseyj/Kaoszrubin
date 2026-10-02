@@ -16,10 +16,14 @@ public sealed class DungeonTrapService
         _random = random;
     }
 
-    public static int TrapDetectionChance(LiveCharacter character, TrapDefinition definition) => Math.Clamp(
+    public static int TrapDetectionChance(LiveCharacter character, TrapDefinition definition,
+        bool illuminated = false) => Math.Clamp(
         35 + (character.EffectiveAbilities.Intelligence + character.EffectiveAbilities.Dexterity) * 3 -
         definition.DetectionDifficulty * 5 +
-        (CharacterClassRules.IsThief(character.CharacterClass.Id) ? 30 : 0), 15, 95);
+        (CharacterClassRules.IsThief(character.CharacterClass.Id) ? 30 : 0) +
+        (illuminated || LightSourceRules.HasActiveLight(character.ActiveSpellEffects)
+            ? LightSourceRules.TrapDetectionBonus : 0),
+        15, 95);
 
     public static int TrapDisarmChance(LiveCharacter character, TrapDefinition definition) => Math.Clamp(
         30 + character.EffectiveAbilities.Dexterity * 5 - definition.DisarmDifficulty * 6 +

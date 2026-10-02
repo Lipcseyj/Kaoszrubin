@@ -666,10 +666,13 @@ public sealed class SpellExecutionService
         var multiplier = divineJudgment ? 200 : 100;
         if (type == ActiveSpellEffectType.GuardianAngel && caster.HasPerk(PerkIds.PriestHealingGrace))
             multiplier = multiplier * 125 / 100;
+        var parameter = type == ActiveSpellEffectType.VisionBonus && spell.Id == LightSourceRules.LightSpellId
+            ? LightSourceRules.RandomSpellAuraColor(_random).ToString()
+            : effect.Parameter;
         character.ApplySpellEffect(new ActiveSpellEffect(spell.Id, type,
             effect.Value, AdjustedDuration(caster, spell, effect, divineJudgment), effect.Dice,
             (int)Math.Round(caster.EffectiveAbilities.Intelligence * effect.IntelligenceMultiplier), true,
-            multiplier, effect.Parameter));
+            multiplier, parameter));
     }
 
     public void ApplyCharacterEffects(LiveCharacter caster, IEnumerable<LiveCharacter> characters,

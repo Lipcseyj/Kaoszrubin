@@ -237,7 +237,7 @@ public sealed partial class Game : ISessionCommandHandler
         BattleSnapshot? battle = _activeBattle is { IsCompleted: false } activeBattle
             ? CreateBattleSnapshot(activeBattle)
             : null;
-        var illuminatedWalls = CurrentIlluminatedWallPositions();
+        var illuminatedWalls = CurrentIlluminatedWallColors();
         var snapshot = _session.CreateSnapshot(new SessionSnapshotContext(_difficultyLevel, _maze.LevelName,
             positions, battle, WorldSnapshotProjector.Create(_maze, _fogOfWar,
                 _activeBattle?.Enemies.Where(enemy => enemy.CurrentHitPoints > 0)

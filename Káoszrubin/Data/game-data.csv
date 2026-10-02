@@ -252,7 +252,7 @@ T021;Varázskönyv;A mágus ismert és memorizált varázslatait tartalmazó sze
 T022;Szent szimbólum;A pap hitét és ismert imáit összpontosító személyes szent jelkép.;1;None;0;nem;0.2
 T023;Mézsör;Édes mézes ital amely 40 vizet valamint 10 körre +2 kezdeményezést és +1 találatot ad.;100;Water;40;nem
 T024;Fűszeres bor;Melengető bor amely 40 vizet valamint 10 körre +2 kezdeményezést és +1 találatot ad.;100;Water;40;nem
-T025;Fáklya;Olajos fáklya amely tizenkét körre kettővel növeli a hordozó látótávját.;24;Vision;2;nem;0.3
+T025;Fáklya;Olajos fáklya amely tizenkét körre kettővel növeli a hordozó látótávját és 15 százalékponttal javítja a csapdafelderítést.;24;Vision;2;nem;0.3
 T026;Elesett lovag jelvénye;Megfakult rendjel Roderic egykori bajtársainak címerével.;1;None;0;nem
 T027;Az Ezüst Eskü pecsétje;Az Ezüst Eskü Rendjének ősi nagypecsétje. Egy kard előtt álló ezüst pajzs díszíti.;1;None;0;nem
 T028;Javítókészlet;Kalapácsot szegecseket bőrfoltot és fenőkövet tartalmazó készlet. Terepen egy felszerelést 50 ponttal javít de legfeljebb 75%-os állapotig.;180;RepairEquipment;50;nem;0.8
@@ -921,7 +921,7 @@ S022;Jégbilincs;2;11;Fagyos bilincsek lassítják az ellenfelet és megakasztj�
 S023;Hasadó villám;3;18;Egy villámív több egymáshoz közeli ellenfélen is végigfut.;Enemy;8;0;igen;Both;YellowBrown;1800;
 S024;Harci gyorsítás;4;25;Felgyorsítja a teljes partit és pontosabbá teszi a támadásaikat.;Party;0;0;nem;Both;Blue;0;
 S025;Lélekvihar;5;44;Sötét arkán vihar tépi az ellenfeleket és még több körön át pusztítja őket.;Area;9;3;igen;Both;Red;4200;
-S026;Fényvarázslat;1;6;Arkán fény veszi körül a mágust és messzebbre tárja fel előtte a labirintust.;Self;0;0;nem;Exploration;Blue;3000;
+S026;Fényvarázslat;1;6;Arkán fény veszi körül a mágust és messzebbre tárja fel előtte a labirintust. A fény 15 százalékponttal javítja a csapdafelderítést.;Self;0;0;nem;Exploration;Blue;3000;
 S027;Vakítás;2;11;Vakító arkán villanás homályosítja el az ellenfél látását és jelentősen rontja a támadásainak pontosságát.;Enemy;8;0;igen;Both;YellowBrown;600;
 S028;Rémkép;3;15;Rémisztő látomásokat idéz az ellenségek elméjébe amelyek megtorpannak és bizonytalanabbul támadnak.;Area;7;1;igen;Both;Blue;3400;
 S029;Sírpenge;2;11;Nekrotikus energiával itatja át egy partitag támadó fegyverét négy körre.;PartyMember;6;0;igen;Both;Shadow;3000;
@@ -989,7 +989,7 @@ FX-S003-2;S003;2;Burning;1d4;0;0;0;2;100;SaveNegates;;Sikertelen mentőnél két
 FX-S005-1;S005;1;Damage;3d6;1;1;0;0;100;Attack;;Mágikus támadással okozott tűzsebzés.
 FX-S005-2;S005;2;Burning;1d4;0;0;0;2;100;Attack;;Találatkor két körig égést okoz.
 FX-S021-1;S021;1;DefenseBonus;;0;0;3;15;100;Auto;;Tizenöt körre három pont védelmet ad.
-FX-S026-1;S026;1;VisionBonus;;0;0;2;12;100;Auto;;Tizenkét körre kettővel növeli a látótávot.
+FX-S026-1;S026;1;VisionBonus;;0;0;2;12;100;Auto;;Tizenkét körre kettővel növeli a látótávot és 15 százalékponttal javítja a csapdafelderítést.
 FX-S004-1;S004;1;Damage;5d8;2;3;0;0;100;Attack;;Nagy erejű egycélpontos villámsebzés.
 FX-S006-1;S006;1;Invisibility;;0;0;5;3;100;Auto;;Közvetlen célzás elleni védelem és plusz öt az első támadáshoz.
 FX-S013-1;S013;1;DefenseBonus;;0;0;8;5;100;Auto;;Öt körig nyolc pont mágikus védelmet ad.

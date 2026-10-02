@@ -132,7 +132,8 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
     private ConsoleColor? _currentForegroundColor;
     private ConsoleColor? _currentBackgroundColor;
     private readonly HashSet<Position> _battleFocusPositions = [];
-    private readonly HashSet<Position> _illuminatedWallPositions = [];
+    private readonly Dictionary<Position, ConsoleColor> _illuminatedWallColors = [];
+    private IReadOnlyDictionary<Position, ConsoleColor>? _lastIlluminatedWallInput;
     private WorldId? _illuminatedWorldId;
     private readonly List<SpellImpactAnimation> _activeSpellImpacts = [];
     private readonly HashSet<Position> _spellImpactDrawnCells = [];
@@ -321,7 +322,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         _spellInfoCharacter = null;
         _spellCastingOverlaySnapshot = null;
         _spellCastingOverlayBounds = null;
-        if (_illuminatedWorldId != maze.Id) _illuminatedWallPositions.Clear();
+        if (_illuminatedWorldId != maze.Id) _illuminatedWallColors.Clear();
         CharacterSheet.InvalidateForSurfaceRebuild();
         Console.Clear();
         DrawPlayfield(maze, fogOfWar);
@@ -494,21 +495,25 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
 
     /// <summary>Csak a mozgó fényburokba belépő vagy abból kilépő falakat rajzolja újra.</summary>
     public void UpdateIlluminatedWalls(Maze maze, FogOfWar fogOfWar, Position playerPosition,
-        IEnumerable<Position> illuminatedWalls)
+        IReadOnlyDictionary<Position, ConsoleColor> illuminatedWalls)
     {
+        if (_illuminatedWorldId == maze.Id && ReferenceEquals(_lastIlluminatedWallInput, illuminatedWalls))
+            return;
+        _lastIlluminatedWallInput = illuminatedWalls;
         if (_illuminatedWorldId != maze.Id)
         {
             _illuminatedWorldId = maze.Id;
-            _illuminatedWallPositions.Clear();
+            _illuminatedWallColors.Clear();
         }
-        var next = illuminatedWalls.Where(maze.IsInside)
-            .Where(position => maze.Tiles[position.X, position.Y] == maze.WallRune)
-            .ToHashSet();
-        var changed = _illuminatedWallPositions.Except(next)
-            .Concat(next.Except(_illuminatedWallPositions)).ToArray();
+        var next = illuminatedWalls.Where(entry => maze.IsInside(entry.Key))
+            .Where(entry => maze.Tiles[entry.Key.X, entry.Key.Y] == maze.WallRune)
+            .ToDictionary();
+        var changed = _illuminatedWallColors.Keys.Union(next.Keys)
+            .Where(position => !_illuminatedWallColors.TryGetValue(position, out var oldColor) ||
+                !next.TryGetValue(position, out var newColor) || oldColor != newColor).ToArray();
         if (changed.Length == 0) return;
-        _illuminatedWallPositions.Clear();
-        _illuminatedWallPositions.UnionWith(next);
+        _illuminatedWallColors.Clear();
+        foreach (var (position, color) in next) _illuminatedWallColors.Add(position, color);
         DrawMapCellsChanged(maze, fogOfWar, playerPosition, changed);
     }
 
@@ -3314,12 +3319,11 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         };
         if (maze.GetPassageAt(position) is not null) return ConsoleColor.Cyan;
         if (maze.Tiles[position.X, position.Y] == maze.WallRune &&
-            _illuminatedWallPositions.Contains(position)) return ConsoleColor.Yellow;
+            _illuminatedWallColors.TryGetValue(position, out var lightColor)) return lightColor;
         if (maze.GetTerrainStyle(position) is { } terrain) return terrain.ForegroundColor;
 
         return maze.Tiles[position.X, position.Y] switch
         {
-            var tile when tile == maze.WallRune && _illuminatedWallPositions.Contains(position) => ConsoleColor.Yellow,
             var tile when tile == maze.WallRune => maze.WallColor,
             var tile when tile == Maze.ExitMarker => ConsoleColor.Green,
             _ => ConsoleColor.Black
@@ -3339,7 +3343,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
     private ConsoleColor GetTerrainForegroundColor(Maze maze, Position position) =>
         maze.GetTerrainStyle(position)?.ForegroundColor ?? maze.Tiles[position.X, position.Y] switch
         {
-            var tile when tile == maze.WallRune && _illuminatedWallPositions.Contains(position) => ConsoleColor.Yellow,
+            var tile when tile == maze.WallRune && _illuminatedWallColors.TryGetValue(position, out var lightColor) => lightColor,
             var tile when tile == maze.WallRune => maze.WallColor,
             var tile when tile == Maze.ExitMarker => ConsoleColor.Green,
             _ => ConsoleColor.Black

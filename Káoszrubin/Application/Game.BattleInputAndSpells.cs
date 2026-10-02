@@ -709,19 +709,42 @@ public sealed partial class Game
         return revealed;
     }
 
-    private HashSet<Position> CurrentIlluminatedWallPositions()
-    {
-        const string lightSpellId = "S026";
-        var sources = LivingPartyWithPositions()
-            .Where(entry => entry.Character.IsAlive && entry.Character.ActiveSpellEffects.Any(effect =>
-                effect.Type == ActiveSpellEffectType.VisionBonus && effect.Value > 0 &&
-                effect.SourceSpellId is lightSpellId or MiscItemIds.Torch))
-            .Select(entry => (entry.Position,
-                Range: CharacterClassRules.VisionRange(entry.Character, CurrentLevelVisionModifier)))
-            .ToArray();
-        if (sources.Length == 0) return [];
+    private static readonly TimeSpan LightAreaRefreshInterval = TimeSpan.FromMilliseconds(200);
+    private Maze? _lightAreaCacheMaze;
+    private long _cachedLightMazeRevision = -1;
+    private DateTime _nextLightAreaCheckUtc;
+    private LightSourceSnapshot[] _cachedLightSources = [];
+    private Dictionary<Position, ConsoleColor> _cachedIlluminatedWallColors = [];
 
-        var result = new HashSet<Position>();
+    private readonly record struct LightSourceSnapshot(Position Position, int Range,
+        ConsoleColor Color, bool IsTorch);
+
+    private Dictionary<Position, ConsoleColor> CurrentIlluminatedWallColors()
+    {
+        var now = DateTime.UtcNow;
+        var sameMaze = ReferenceEquals(_lightAreaCacheMaze, _maze);
+        if (sameMaze && now < _nextLightAreaCheckUtc) return _cachedIlluminatedWallColors;
+        _nextLightAreaCheckUtc = now + LightAreaRefreshInterval;
+
+        var sources = LivingPartyWithPositions()
+            .Where(entry => entry.Character.IsAlive)
+            .SelectMany(entry => entry.Character.ActiveSpellEffects.Where(LightSourceRules.IsActiveLight)
+                .Select(effect => new LightSourceSnapshot(entry.Position,
+                    CharacterClassRules.VisionRange(entry.Character, CurrentLevelVisionModifier),
+                    LightSourceRules.AuraColor(effect), effect.SourceSpellId == MiscItemIds.Torch)))
+            .OrderByDescending(source => source.IsTorch)
+            .ThenBy(source => source.Position.X)
+            .ThenBy(source => source.Position.Y)
+            .ThenBy(source => source.Color)
+            .ToArray();
+
+        if (sameMaze && _cachedLightMazeRevision == _maze.NavigationRevision &&
+            _cachedLightSources.SequenceEqual(sources)) return _cachedIlluminatedWallColors;
+        _lightAreaCacheMaze = _maze;
+        _cachedLightMazeRevision = _maze.NavigationRevision;
+        _cachedLightSources = sources;
+
+        var result = new Dictionary<Position, ConsoleColor>();
         foreach (var source in sources)
         {
             var minimumX = Math.Max(0, source.Position.X - source.Range);
@@ -732,11 +755,13 @@ public sealed partial class Game
             for (var x = minimumX; x <= maximumX; x++)
             {
                 var position = new Position(x, y);
-                if (_maze.Tiles[x, y] != _maze.WallRune || result.Contains(position)) continue;
-                if (FogOfWar.CanSee(_maze, source.Position, position, source.Range)) result.Add(position);
+                if (_maze.Tiles[x, y] != _maze.WallRune || result.ContainsKey(position)) continue;
+                if (FogOfWar.CanSee(_maze, source.Position, position, source.Range))
+                    result.Add(position, source.Color);
             }
         }
-        return result;
+        _cachedIlluminatedWallColors = result;
+        return _cachedIlluminatedWallColors;
     }
 
     private MazeLevelConfiguration CurrentLevelConfiguration => _locationKind == AdventureLocationKind.Quest

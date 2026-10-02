@@ -635,7 +635,7 @@ public sealed partial class Game
                 }
 
                 _renderer.UpdateIlluminatedWalls(_maze, _fogOfWar, _player.Position,
-                    CurrentIlluminatedWallPositions());
+                    CurrentIlluminatedWallColors());
 
                 SynchronizeHostSpellSelector();
 

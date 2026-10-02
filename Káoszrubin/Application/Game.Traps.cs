@@ -33,7 +33,7 @@ public sealed partial class Game
         if (!trap.DetectionAttempted)
         {
             trap.MarkDetectionAttempted();
-            var chance = TrapDetectionChance(character, trap.Definition);
+            var chance = TrapDetectionChance(character, trap);
             if (_random.Next(100) < chance)
             {
                 trap.Detect();
@@ -47,8 +47,14 @@ public sealed partial class Game
         return true;
     }
 
-    private static int TrapDetectionChance(LiveCharacter character, TrapDefinition definition) =>
-        DungeonTrapService.TrapDetectionChance(character, definition);
+    private int TrapDetectionChance(LiveCharacter character, MazeTrap trap)
+    {
+        var illuminated = LivingPartyWithPositions().Any(entry =>
+            entry.Character.IsAlive && LightSourceRules.HasActiveLight(entry.Character.ActiveSpellEffects) &&
+            FogOfWar.CanSee(_maze, entry.Position, trap.Position,
+                CharacterClassRules.VisionRange(entry.Character, CurrentLevelVisionModifier)));
+        return DungeonTrapService.TrapDetectionChance(character, trap.Definition, illuminated);
+    }
 
     private static int TrapDisarmChance(LiveCharacter character, TrapDefinition definition) =>
         DungeonTrapService.TrapDisarmChance(character, definition);

@@ -62,10 +62,16 @@ public sealed record WorldNpcQuestData(int InstanceId, IReadOnlyList<WorldQuestS
 
 public static class WorldSnapshotProjector
 {
+    // A korábbi, szín nélküli fényforrásokat használó hívók sárga fényt kapnak.
+    public static WorldSnapshot Create(Maze maze, FogOfWar fogOfWar,
+        IReadOnlySet<Position> illuminatedWalls) =>
+        Create(maze, fogOfWar, illuminatedWalls: illuminatedWalls.ToDictionary(
+            position => position, _ => ConsoleColor.Yellow));
+
     public static WorldSnapshot Create(Maze maze, FogOfWar fogOfWar,
         IReadOnlySet<WorldEntityId>? forcedVisibleEnemies = null,
         Func<WorldNpc, WorldNpcQuestData>? projectQuests = null,
-        IReadOnlySet<Position>? illuminatedWalls = null)
+        IReadOnlyDictionary<Position, ConsoleColor>? illuminatedWalls = null)
     {
         ArgumentNullException.ThrowIfNull(maze);
         ArgumentNullException.ThrowIfNull(fogOfWar);
@@ -84,8 +90,8 @@ public static class WorldSnapshotProjector
             if (shownTrap is not null) tile = shownTrap.Symbol;
             var color = shownTrap is not null
                 ? shownTrap.State == TrapState.Detected ? ConsoleColor.Yellow : ConsoleColor.DarkGray
-                : tile == maze.WallRune && illuminatedWalls?.Contains(position) == true
-                ? ConsoleColor.Yellow
+                : tile == maze.WallRune && illuminatedWalls?.TryGetValue(position, out var lightColor) == true
+                ? lightColor
                 : maze.GetPassageAt(position) is not null ? ConsoleColor.Cyan
                 : maze.GetTerrainStyle(position) is { } terrain
                 ? terrain.ForegroundColor
