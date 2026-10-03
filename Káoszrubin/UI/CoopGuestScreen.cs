@@ -213,6 +213,15 @@ public sealed class CoopGuestScreen
                 if (IsKeyAvailable())
                 {
                     var key = Console.ReadKey(intercept: true);
+                    if (key.Key == ConsoleKey.F12)
+                    {
+                        _spellMenuBackground?.RestoreAndDispose();
+                        _spellMenuBackground = null;
+                        _spellMenuBaseMap = null;
+                        _lastFrame = null;
+                        Interlocked.Exchange(ref _redrawRequested, 1);
+                        continue;
+                    }
                     if (client.CurrentSnapshot?.Battle is { IsQuickBattle: false } detailBattle &&
                         GameInputBindings.BattleDetailsPageDirection(key) is var detailDirection && detailDirection != 0)
                     {

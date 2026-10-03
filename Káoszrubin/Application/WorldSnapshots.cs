@@ -139,6 +139,7 @@ public static class WorldSnapshotProjector
         }).ToArray();
         var chests = maze.TreasureChests.Where(chest => IsVisible(chest.Position))
             .Select(chest => new WorldChestSnapshot(chest.Id, chest.Position, chest.Symbol.Value,
+                chest.MapForegroundColor, chest.MapBackgroundColor,
                 DefinitionId: chest.Definition?.Id.Value, Name: chest.Definition?.Name,
                 IsOpened: chest.IsOpened, RemainingItemCount: chest.RemainingItems.Sum(item => item.Quantity))).ToArray();
         var corpses = maze.Corpses.Where(corpse => IsVisible(corpse.Position)).Select(corpse =>

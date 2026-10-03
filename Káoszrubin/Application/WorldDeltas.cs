@@ -46,7 +46,7 @@ public static class WorldDeltaProjector
 
         var previousCells = previous.RevealedCells.ToDictionary(cell => cell.Position);
         var changedCells = current.RevealedCells.Where(cell =>
-            !previousCells.TryGetValue(cell.Position, out var old) || old.TileCodePoint != cell.TileCodePoint).ToArray();
+            !previousCells.TryGetValue(cell.Position, out var old) || old != cell).ToArray();
         var doorChanges = Upserts(previous.Doors, current.Doors, door => door.Position).ToArray();
         var currentDoorPositions = current.Doors.Select(door => door.Position).ToHashSet();
         var removedDoors = previous.Doors.Select(door => door.Position)

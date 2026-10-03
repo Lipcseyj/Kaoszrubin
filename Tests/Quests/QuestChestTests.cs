@@ -120,6 +120,8 @@ RELIC_TEST;T001;1"),
         var fog = new FogOfWar(9, 9, 0);
         fog.Restore([chest.Position], false);
         var before = WorldSnapshotProjector.Create(maze, fog);
+        Check(before.Chests.Single() is { ForegroundColor: ConsoleColor.White,
+            BackgroundColor: ConsoleColor.DarkBlue }, "A questláda színei nem jutnak el a vendéghez.");
         var service = new QuestChestService(fixture.Manager);
         var quota = 2;
         service.Collect(chest, _ => quota-- > 0, _ => { });

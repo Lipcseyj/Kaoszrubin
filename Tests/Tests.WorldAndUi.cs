@@ -996,6 +996,20 @@ static void BattleHitHighlightsDamageAndHealth()
         var restored = JsonSerializer.Deserialize<WorldDelta>(JsonSerializer.Serialize(delta));
         Assert(restored?.ToSnapshotSequence == currentSession.SnapshotSequence && restored.EnemyUpserts.Count == 1,
             "A world delta JSON round-trip közben megváltozott.");
+
+        var lightWall = previous.RevealedCells.First(cell => cell.TileCodePoint == maze.WallRune.Value);
+        var lit = previous with { RevealedCells = previous.RevealedCells.Select(cell =>
+            cell.Position == lightWall.Position ? cell with { ForegroundColor = ConsoleColor.Magenta } : cell).ToArray() };
+        var lightingDelta = WorldDeltaProjector.Create(1, previous, 2, lit);
+        Assert(lightingDelta.RevealedOrChangedCells.Single() is { ForegroundColor: ConsoleColor.Magenta } &&
+               WorldDeltaReducer.Apply(previous, lightingDelta).RevealedCells.Single(cell =>
+                   cell.Position == lightWall.Position).ForegroundColor == ConsoleColor.Magenta,
+            "A fényburok színváltozása nem jut el a vendéghez.");
+        var fadingDelta = WorldDeltaProjector.Create(2, lit, 3, previous);
+        Assert(fadingDelta.RevealedOrChangedCells.Single().ForegroundColor == lightWall.ForegroundColor &&
+               WorldDeltaReducer.Apply(lit, fadingDelta).RevealedCells.Single(cell =>
+                   cell.Position == lightWall.Position).ForegroundColor == lightWall.ForegroundColor,
+            "A távolodó fényburok régi színe a vendég térképén marad.");
     }
 
     static void WorldDeltaRejectsDifferentWorld()
