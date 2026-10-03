@@ -13,7 +13,6 @@ internal static class CoopHostRole
         using var roleConsole = CoopRoleConsole.Initialize("host", options);
         var workspaceRoot = CoopFixtureFactory.CreateTemporaryWorkspaceRoot(options.Workspace);
         var fixture = CoopFixtureFactory.Create(workspaceRoot, options.SettingsPath);
-        fixture.HostRoster.Party.SetLeader(fixture.HostLeader);
 
         try
         {

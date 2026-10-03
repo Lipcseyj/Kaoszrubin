@@ -1,6 +1,8 @@
 using KaoszRubin.Application;
 using KaoszRubin.Data;
 using KaoszRubin.Domain.Characters;
+using KaoszRubin.Domain.Inventory;
+using KaoszRubin.Domain.Magic;
 using KaoszRubin.UI;
 
 namespace KaoszRubin.Tests.Coop;
@@ -38,15 +40,27 @@ internal static class CoopFixtureFactory
 
         var hostLeader = CreateCharacter(catalog, "Host", race, hostClass,
             new PrimaryAbilities(10, 9, 10, 8), 4, 4, ConsoleColor.Cyan);
-        var hostCompanion = CreateCharacter(catalog, "Tarsa", race, hostClass,
-            new PrimaryAbilities(9, 8, 9, 8), 3, 3, ConsoleColor.Green);
+        var thief = CreateCharacter(catalog, "Tolvaj", race,
+            catalog.CharacterClasses.First(value => value.Id == CharacterClassIds.Tolvaj),
+            new PrimaryAbilities(9, 11, 9, 8), 3, 3, ConsoleColor.Green);
+        var knight = CreateCharacter(catalog, "Lovag", race,
+            catalog.CharacterClasses.First(value => value.Id == CharacterClassIds.Lovag),
+            new PrimaryAbilities(11, 8, 10, 8), 4, 3, ConsoleColor.White);
         var guestCharacter = CreateCharacter(catalog, "Vendeg", race, guestClass,
             new PrimaryAbilities(8, 8, 9, 11), 3, 5, ConsoleColor.Yellow);
 
+        PrepareCharacter(hostLeader, catalog, 11);
+        PrepareCharacter(thief, catalog, 12);
+        PrepareCharacter(knight, catalog, 13);
+        PrepareCharacter(guestCharacter, catalog, 14);
+
         var hostRoster = new CharacterRoster();
         hostRoster.Add(hostLeader);
-        hostRoster.Add(hostCompanion);
+        hostRoster.Add(thief);
+        hostRoster.Add(knight);
         hostRoster.Select(hostLeader);
+        if (!hostRoster.Party.Add(thief) || !hostRoster.Party.Add(knight))
+            throw new InvalidOperationException("A coop tesztparti nem állítható össze.");
 
         return new CoopFixture(
             workspaceRoot,
@@ -77,5 +91,70 @@ internal static class CoopFixtureFactory
             : default;
         return LiveCharacterFactory.Create(name, race, characterClass, abilities, vitalityBonus, manaBonus,
             catalog, color, adaptableBonus);
+    }
+
+    private static void PrepareCharacter(LiveCharacter character, GameDataCatalog catalog, int seed)
+    {
+        var random = new Random(seed);
+        SpellcastingRules.GiveAutomaticStartingSpells(character, catalog, random);
+        new RandomCharacterGenerator(catalog, random).PrepareExistingCharacterForTest(character, 30);
+        if (character.Level != 30)
+            throw new InvalidOperationException($"{character.Name} nem érte el a 30. szintet.");
+
+        for (var index = 0; index < character.WeaponSlots.Count; index++)
+            Require(character.SetInventoryItem(InventorySlotKind.Weapon, index, null), character, "fegyverhely törlése");
+        Require(character.EquipArmor(null), character, "páncélhely törlése");
+        for (var index = 0; index < LiveCharacter.MaximumMagicItemCount; index++)
+            Require(character.SetInventoryItem(InventorySlotKind.MagicItem, index, null), character, "varázstárgyhely törlése");
+        for (var index = 0; index < character.Backpack.Count; index++)
+            if (!SpellcastingRules.IsSpellcastingFocus(character.Backpack[index]))
+                Require(character.SetInventoryItem(InventorySlotKind.Backpack, index, null), character, "hátizsákhely törlése");
+
+        void Equip(int slot, string id) => Require(character.EquipWeapon(slot, catalog.GetWeapon(id)), character, id);
+        void Armor(string id) => Require(character.EquipArmor(catalog.GetArmor(id)), character, id);
+        void Carry(IItemDefinition item, int count = 1)
+        {
+            for (var index = 0; index < count; index++)
+                Require(character.AddToBackpack(item), character, item.Id);
+        }
+        void Weapon(string id, int count = 1) => Carry(catalog.GetWeapon(id), count);
+        void Item(string id, int count = 1) => Carry(catalog.GetItem(id), count);
+        void Magic(string id, int count = 1) => Carry(catalog.GetMagicItem(id), count);
+        void EquipMagic(int slot, string id) => Require(character.SetInventoryItem(InventorySlotKind.MagicItem,
+            slot, catalog.GetMagicItem(id)), character, id);
+
+        switch (character.CharacterClass.Id)
+        {
+            case CharacterClassIds.Harcos:
+                Equip(0, "W017"); Armor("A003"); Equip(2, "W010");
+                Weapon("W011"); Weapon("W015"); Weapon("W040"); Weapon("W039"); Item("T029", 24);
+                EquipMagic(0, "M006"); EquipMagic(1, "M012"); Item("T018", 5);
+                break;
+            case CharacterClassIds.Lovag:
+                Equip(0, "W004"); Equip(1, "W029"); Armor("A005"); Equip(2, "W011");
+                Weapon("W009"); Weapon("W016"); Weapon("W044"); Item("T030", 24);
+                EquipMagic(0, "M001"); EquipMagic(1, "M011"); Item("T019", 5);
+                break;
+            case CharacterClassIds.Tolvaj:
+                Equip(0, "W001"); Equip(1, "W024"); Equip(2, "W002"); Armor("A002-PLUS2");
+                Weapon("W043"); Weapon("W042"); Item("T030", 24); Item("T003", 8);
+                Item("T025", 4); Weapon("W003"); Weapon("W022", 2); Item("T031", 5);
+                EquipMagic(0, "M005"); EquipMagic(1, "M013");
+                break;
+            case CharacterClassIds.Mágus:
+                Equip(0, "W018");
+                EquipMagic(0, "M023"); EquipMagic(1, "M015"); EquipMagic(2, "MW006");
+                Magic("MW007");
+                foreach (var id in new[] { "MS009", "MS011", "MS012", "PS011", "PS012" }) Magic(id, 2);
+                Item("T017", 5);
+                break;
+        }
+
+        Item("T012", 3); Item("T002", 5); Item("T001", 5);
+    }
+
+    private static void Require(bool success, LiveCharacter character, string item)
+    {
+        if (!success) throw new InvalidOperationException($"{character.Name}: {item} nem fér el vagy nem használható.");
     }
 }

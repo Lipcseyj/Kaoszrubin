@@ -5,6 +5,7 @@ internal static partial class Program
         #region test cases
         var tests = new (string Name, Action Run)[]
         {
+    ("A coop szimuláció négy 30-as szintű, teljesen felszerelt karaktert indít", CoopFixtureTests.FourLevelThirtyCharactersCarryRequestedSupplies),
     ("A questláda CSV-je célzott objective-ot és ellenőrzött tartalmat ad", QuestChestTests.CsvResolvesChestAndObjective),
     ("Csak az első ládanyitás ad progresst, a kipakolás nem", QuestChestTests.FirstOpeningCountsButEmptyingDoesNot),
     ("A teli hátizsák mellett a zsákmány a questládában marad", QuestChestTests.FullBackpackKeepsContentInChest),
