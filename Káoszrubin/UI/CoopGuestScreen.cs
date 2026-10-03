@@ -2157,16 +2157,25 @@ public sealed class CoopGuestScreen
         PlayerId? localPlayerId)
     {
         if (localPlayerId is null) return;
+        var sharedEvent = GuestSharedEventBanner(snapshot);
         var remote = (snapshot.OpenPlayerWindows ?? []).FirstOrDefault(window =>
             window.PlayerId != localPlayerId.Value);
-        if (remote is null) return;
-        var text = $" FIGYELEM: {remote.CharacterName} {PlayerWindowActivityText(remote.Kind)}; " +
-                   "a közös játék szünetel. ";
+        if (sharedEvent is null && remote is null) return;
+        var text = sharedEvent is not null
+            ? $" FIGYELEM: {sharedEvent} "
+            : $" FIGYELEM: {remote!.CharacterName} {PlayerWindowActivityText(remote.Kind)}; " +
+              "a közös játék szünetel. ";
         var width = grid.GetLength(0);
         text = BattleCommandPanel.TruncateToDisplayWidth(text, width).PadRight(width);
         for (var index = 0; index < text.Length && index < width; index++)
             grid[index, 0] = new GuestMapCell(text[index].ToString(), ConsoleColor.Yellow, ConsoleColor.DarkRed);
     }
+
+    internal static string? GuestSharedEventBanner(SessionSnapshot snapshot) =>
+        snapshot.SharedWindow is not null && !string.IsNullOrWhiteSpace(snapshot.LeaderDecisionTitle)
+            ? Game.SharedWindowBanner(snapshot.Inn is null ? GameSessionPhase.Exploration : GameSessionPhase.Inn,
+                snapshot.LeaderDecisionTitle)
+            : null;
 
     private void ApplyPendingSharedWindowStatus(GuestMapCell[,] grid, SessionSnapshot snapshot)
     {

@@ -171,6 +171,24 @@ internal static partial class Program
                !inn.Contains("AZ IDŐ ÁLL", StringComparison.Ordinal) &&
                exploration.Contains("AZ IDŐ ÁLL", StringComparison.Ordinal),
             "A közös ablak állapotszövege nem különbözteti meg a fogadót az expedíciótól.");
+        var (session, _, _) = CreateSession();
+        var baseline = session.CreateSnapshot(new SessionSnapshotContext(2, "Fogadó",
+            new Dictionary<CharacterId, Position>()));
+        var sharedWindow = new ReplicatedWindowSnapshot(Guid.NewGuid(), 1,
+            "Varázsmemorizálás — Lovag", 68, null, []);
+        var preparing = baseline with
+        {
+            Phase = GameSessionPhase.Paused,
+            Inn = new InnSnapshot(1, 0, [], [], [], [], InnName: "A Törött Kard", MazeLevel: 2),
+            SharedWindow = sharedWindow,
+            LeaderDecisionTitle = "Varázsmemorizálás — Lovag"
+        };
+        Assert(CoopGuestScreen.GuestSharedEventBanner(preparing) ==
+               "🏰 KÖZÖS FOGADÓI ESEMÉNY — Varázsmemorizálás — Lovag." &&
+               CoopGuestScreen.GuestSharedEventBanner(preparing with { SharedWindow = null }) is null &&
+               CoopGuestScreen.GuestSharedEventBanner(preparing with { Inn = null }) ==
+               "⌛ AZ IDŐ ÁLL — Varázsmemorizálás — Lovag.",
+            "A guest nem jeleníti meg a host közös memorizálási eseményének bannerét.");
     }
 
     static void InnVendorStatusIsShared()
