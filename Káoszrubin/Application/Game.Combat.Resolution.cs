@@ -964,7 +964,8 @@ public sealed partial class Game
             battle,
             enemy.Position,
             goals,
-            CombatantId.ForEnemy(enemy.Id)).ToArray();
+            CombatantId.ForEnemy(enemy.Id),
+            maxSteps: 7).ToArray();
 
         var traversed = path
             .Take(battle.CurrentMovementAllowance)
@@ -1530,7 +1531,8 @@ public sealed partial class Game
         BattleEncounter battle,
         Position origin,
         IReadOnlyCollection<Position> goals,
-        CombatantId actorId)
+        CombatantId actorId,
+        int maxSteps = int.MaxValue)
     {
         if (goals.Count == 0) return [];
 
@@ -1540,6 +1542,7 @@ public sealed partial class Game
         {
             [origin] = origin
         };
+        var depths = new Dictionary<Position, int> { [origin] = 0 };
 
         queue.Enqueue(origin);
 
@@ -1552,6 +1555,7 @@ public sealed partial class Game
         while (queue.Count > 0 && found is null)
         {
             var current = queue.Dequeue();
+            if (depths[current] >= maxSteps) continue;
 
             foreach (var direction in Directions)
             {
@@ -1563,6 +1567,7 @@ public sealed partial class Game
                     continue;
 
                 previous[next] = current;
+                depths[next] = depths[current] + 1;
 
                 // Teljes útvonal megvan.
                 if (goalSet.Contains(next))
