@@ -18,6 +18,7 @@ public static class ForestConfigurationJson
     {
         WriteIndented = true,
         PropertyNameCaseInsensitive = true,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
         Converters = { new JsonStringEnumConverter() }
     };
 
@@ -25,7 +26,7 @@ public static class ForestConfigurationJson
     {
         graph.Validate();
         return JsonSerializer.Serialize(new ForestLevelGraphDocument(
-            ForestLevelGraphDocument.CurrentSchemaVersion, null, graph), Options);
+            ForestLevelGraphDocument.CurrentSchemaVersion, null, Compact(graph)), Options);
     }
 
     public static string Serialize(int level, ExplicitForestAreaGraphConfiguration graph)
@@ -33,7 +34,7 @@ public static class ForestConfigurationJson
         if (level < 1) throw new ArgumentOutOfRangeException(nameof(level));
         graph.Validate();
         return JsonSerializer.Serialize(new ForestLevelGraphDocument(
-            ForestLevelGraphDocument.CurrentSchemaVersion, level, graph), Options);
+            ForestLevelGraphDocument.CurrentSchemaVersion, level, Compact(graph)), Options);
     }
 
     public static ForestLevelGraphDocument DeserializeDocument(string json)
@@ -49,5 +50,15 @@ public static class ForestConfigurationJson
     public static ExplicitForestAreaGraphConfiguration Deserialize(string json)
     {
         return DeserializeDocument(json).Graph;
+    }
+
+    private static ExplicitForestAreaGraphConfiguration Compact(ExplicitForestAreaGraphConfiguration graph)
+    {
+        var empty = new ForestGenerationConfigurationPatch();
+        return graph with
+        {
+            Areas = graph.Areas.Select(area => area.Overrides == empty
+                ? area with { Overrides = null } : area).ToArray()
+        };
     }
 }

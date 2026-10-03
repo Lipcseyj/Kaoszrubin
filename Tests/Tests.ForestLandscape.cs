@@ -4,29 +4,31 @@ internal static partial class Program
     {
         var path = Path.Combine(AppContext.BaseDirectory, "ForestLevelGraphs", "level-6.json");
         var original = ForestConfigurationJson.DeserializeDocument(File.ReadAllText(path)).Graph;
-        var movedAreas = original.Areas.Select(area => area.Id == "LOST_MANOR"
-            ? area with { Coordinate = new AreaCoordinate(3, 0) } : area).ToArray();
-        var moved = original with { Areas = movedAreas };
+        var coordinates = original.Areas.ToDictionary(area => area.Id, area => area.Coordinate);
+        Assert(coordinates["LOST_MANOR"] == new AreaCoordinate(3, 0) &&
+               coordinates["RAVEN_CROSSING"] == new AreaCoordinate(2, 0),
+            "A 6. pálya képernyőinek áthelyezett koordinátái megváltoztak.");
+        var oldConnections = new[]
+        {
+            new ForestAreaConnectionDefinition("WHISPERING_WOOD", "LOST_MANOR"),
+            new ForestAreaConnectionDefinition("LOST_MANOR", "BLACKWATER")
+        };
+        var stale = original with { Connections = oldConnections.Concat(original.Connections).ToArray() };
         string? error = null;
-        try { moved.Validate(); }
+        try { stale.Validate(); }
         catch (ArgumentException exception) { error = exception.Message; }
         Assert(error is not null && error.Contains("LOST_MANOR", StringComparison.Ordinal) &&
                error.Contains("WHISPERING_WOOD", StringComparison.Ordinal) &&
                error.Contains("(3,0)", StringComparison.Ordinal),
             "Az áthelyezett képernyő régi, nem szomszédos kapcsolata nem azonosítható a hibaüzenetből.");
-        var coordinates = movedAreas.ToDictionary(area => area.Id, area => area.Coordinate);
-        var adjacentConnections = original.Connections.Where(connection =>
+        var adjacentConnections = stale.Connections.Where(connection =>
             ExplicitForestAreaGraphConfiguration.AreAdjacent(coordinates[connection.FirstAreaId],
                 coordinates[connection.SecondAreaId])).ToArray();
-        Assert(adjacentConnections.Length == original.Connections.Count - 2 &&
+        Assert(adjacentConnections.Length == stale.Connections.Count - 2 &&
                ExplicitForestAreaGraphConfiguration.AreAdjacent(coordinates["LOST_MANOR"],
                    coordinates["RAVEN_CROSSING"]),
             "A LOST_MANOR áthelyezése után nem pontosan a két régi kapcsolat válik érvénytelenné.");
-        var reconnected = moved with
-        {
-            Connections = adjacentConnections.Append(new ForestAreaConnectionDefinition(
-                "RAVEN_CROSSING", "LOST_MANOR")).ToArray()
-        };
+        var reconnected = stale with { Connections = adjacentConnections };
         reconnected.Validate();
     }
 
@@ -50,6 +52,25 @@ internal static partial class Program
         Assert(restored.Areas.Select(area => area.Id).SequenceEqual(graph.Areas.Select(area => area.Id)) &&
                restored.Connections.Count == 2 && restored.Areas[1].Overrides?.BuildingCount == new IntRange(2, 2),
             "Az erdőgráf JSON round-tripja adatot veszített.");
+        var graphWithEmptyPatch = graph with
+        {
+            Areas = graph.Areas.Select((area, index) => index == 0
+                ? area with { Overrides = new ForestGenerationConfigurationPatch() } : area).ToArray()
+        };
+        var compactJson = ForestConfigurationJson.Serialize(6, graphWithEmptyPatch);
+        using (var parsed = JsonDocument.Parse(compactJson))
+        {
+            var areas = parsed.RootElement.GetProperty("Graph").GetProperty("Areas");
+            Assert(!areas[0].TryGetProperty("Overrides", out _) &&
+                   areas[1].GetProperty("Overrides").TryGetProperty("BuildingCount", out _) &&
+                   !areas[1].GetProperty("Overrides").TryGetProperty("ForestDensity", out _),
+                "Az erdőgráf mentése üres vagy null értékű felülírásokat tartalmaz.");
+        }
+        var verboseJson = JsonSerializer.Serialize(new ForestLevelGraphDocument(1, 6, graphWithEmptyPatch));
+        var migrated = ForestConfigurationJson.DeserializeDocument(verboseJson);
+        Assert(migrated.Graph.Areas[1].Overrides?.BuildingCount == new IntRange(2, 2) &&
+               ForestConfigurationJson.Serialize(6, migrated.Graph) == compactJson,
+            "A régi, null mezőket tartalmazó erdőgráf nem alakítható át veszteség nélkül.");
         var levelDocument = ForestConfigurationJson.DeserializeDocument(ForestConfigurationJson.Serialize(6, graph));
         Assert(levelDocument.Level == 6 && levelDocument.Graph.Areas.Count == graph.Areas.Count,
             "A szintszámos erdőgráf-dokumentum round-tripja hibás.");
@@ -86,6 +107,18 @@ internal static partial class Program
         var packagedFile = Path.Combine(packagedDirectory, "level-6.json");
         Assert(File.Exists(packagedFile),
             "A 6. pálya erdőgráf-JSON-ja nem került a program kimeneti mappájába.");
+        var packagedJson = File.ReadAllText(packagedFile);
+        using (var parsed = JsonDocument.Parse(packagedJson))
+        {
+            var areas = parsed.RootElement.GetProperty("Graph").GetProperty("Areas");
+            Assert(!packagedJson.Contains(": null", StringComparison.Ordinal) &&
+                   areas.EnumerateArray().Count(area => area.TryGetProperty("Overrides", out _)) == 2 &&
+                   areas.EnumerateArray().Single(area => area.GetProperty("Id").GetString() == "OLD_PINES")
+                       .GetProperty("Overrides").GetProperty("PineChance").GetDouble() == 0.72 &&
+                   areas.EnumerateArray().Single(area => area.GetProperty("Id").GetString() == "LOST_MANOR")
+                       .GetProperty("Overrides").GetProperty("LabyrinthBuildingChance").GetDouble() == 0,
+                "A csomagolt 6. pályás erdőgráf nem tömör felülírásokat vagy megváltozott értékeket tartalmaz.");
+        }
         var packagedSource = new FileForestLevelGraphSource(packagedDirectory);
         Assert(packagedSource.TryLoad(6, out var packagedDocument, out _, out var packagedWarning) &&
                packagedWarning is null && packagedDocument is { Level: 6 },

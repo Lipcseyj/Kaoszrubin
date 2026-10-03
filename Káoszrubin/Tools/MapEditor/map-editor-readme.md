@@ -70,6 +70,8 @@ template-hivatkozásokat. Az előnézet a kiválasztott pálya közös erdőkonf
 `ForestMazeGenerator` osztályával készül. A mentett `.json` fájl verziózott
 `ForestLevelGraphDocument`, amely tartalmazza a célszintet is, és amelyet a játék
 `ForestConfigurationJson.DeserializeDocument` / `Deserialize` metódusai töltenek be.
+Az `Overrides` blokk csak a tényleges helyi felülírásokat tartalmazza; ha nincs ilyen,
+a blokk hiányzik. A régi, `null` mezőket tartalmazó fájlok továbbra is betölthetők.
 
 ## Egyedi sablonok
 
