@@ -188,9 +188,9 @@ public static class FormationEditor
 
     public static string MovementProfileDescription(NpcBehavior profile) => profile switch
     {
-        NpcBehavior.Aggressive => "Ellenséget keres, de legfeljebb hat mezőre távolodik a vezértől.",
+        NpcBehavior.Aggressive => "Elöl halad; ellenségnél legfeljebb hat mezőre tör előre.",
         NpcBehavior.Defensive => "A vezér három mezős körzetében fenyegető ellenségre lép.",
-        NpcBehavior.Scout => "Legfeljebb hat mezővel előremegy, ellenségnél visszafogja magát.",
+        NpcBehavior.Scout => "Akár kilenc mezővel előremegy, ellenségtől négy mezőt tart.",
         NpcBehavior.Cautious => "Hátul követ, közeli ellenségtől távolodik.",
         NpcBehavior.Bodyguard => "A vezér közelében marad, a közeli támadót fogja fel.",
         NpcBehavior.Rearguard => "Hátul halad, a hátulról érkező ellenségre reagál.",

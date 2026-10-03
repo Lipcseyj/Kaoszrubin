@@ -214,6 +214,7 @@ internal static partial class Program
     ("A feloszlatott parti az alakzatslotok sorrendjében követ", FormationSlotsControlFreeFollowOrder),
     ("A megálló vezér körül a társak helyet hagynak", PartyMembersLeaveRoomAroundIdleLeader),
     ("A támadó profil messzebb indul ellenségre, mint a védő", PartyMovementProfilesHaveDistinctEnemyLeashes),
+    ("A támadó és a felderítő a vezér tényleges iránya elé jut", ForwardProfilesOvertakeLeaderWhenThereIsRoom),
     ("A vezér és a szomszédos partitag szabályosan helyet cserél", LeaderCanSwapWithAdjacentPartyMember),
     ("A társak megkerülik a felfedezett csapdát", PartyMembersRouteAroundDetectedTraps),
     ("A zárt alakzat a szűkületben állapotvesztés nélkül libasorra vált", LockedFormationUsesSingleFileLayout),

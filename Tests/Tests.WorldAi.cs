@@ -777,6 +777,47 @@ internal static partial class Program
             "A testőr nem fogta fel a vezér közeli támadóját, vagy a hátvéd előretört rá.");
     }
 
+    static void ForwardProfilesOvertakeLeaderWhenThereIsRoom()
+    {
+        var maze = new Maze(25, 15);
+        for (var y = 1; y < maze.Height - 1; y++)
+        for (var x = 1; x < maze.Width - 1; x++) maze.Carve(new Position(x, y));
+        var leader = new Player(new Position(8, 7), CreateCharacter("Vezér"));
+        var character = CreateCharacter("Társ");
+        var initial = new Position(6, 7);
+        var member = new PartyMemberAvatar(initial, character);
+        maze.AddPartyMember(member);
+        var trail = new[] { new Position(7, 7), leader.Position };
+
+        int Advance(NpcBehavior behavior)
+        {
+            character.SetNpcBehavior(behavior);
+            member.MoveTo(initial);
+            for (var turn = 0; turn < 16; turn++)
+            {
+                var next = PartyMovementController.ChoosePartyMemberStep(member, maze, leader,
+                    Direction.Up, trail, 0, leaderIdle: true);
+                if (next is null) break;
+                Assert(maze.TryMovePartyMember(member, next.Value, leader.Position),
+                    "A profil nem járható mezőre tervezett.");
+            }
+            return member.Position.X - leader.Position.X;
+        }
+
+        var aggressiveLead = Advance(NpcBehavior.Aggressive);
+        var scoutLead = Advance(NpcBehavior.Scout);
+        Assert(PartyMovementController.RecentTravelDirection(trail, leader.Position, Direction.Up) == Direction.Right &&
+               aggressiveLead > 0 && scoutLead > aggressiveLead,
+            "Az előremenő profilok nem jutottak a vezér korábbi lépésiránya elé, vagy a felderítő nem ment messzebb.");
+
+        var threat = CreateEnemyAt(new Position(18, 7), "E-SCOUT-THREAT");
+        maze.AddEnemy(threat);
+        var cautiousScoutLead = Advance(NpcBehavior.Scout);
+        Assert(cautiousScoutLead > aggressiveLead &&
+               PartyMovementController.Manhattan(member.Position, threat.Position) >= 4,
+            "A felderítő távoli ellenfél láttán visszahúzódott, vagy túl közel merészkedett hozzá.");
+    }
+
     static void LeaderCanSwapWithAdjacentPartyMember()
     {
         var maze = new Maze(7, 7);
