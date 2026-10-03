@@ -275,6 +275,34 @@ internal static partial class Program
             })) with { SharedWindow = sharedWindow, LevelUpPrompt = prompt };
         Assert(CoopGuestScreen.HasConcreteSnapshotOverlay(snapshot),
             "A guest az aktuális szintlépési prompt helyett a korábbi általános ablakot rajzolná ki.");
+
+        var abilityChoice = sharedWindow with
+        {
+            Revision = 3,
+            Frame = FramedWindow.LevelUpChoice.ToString(),
+            Lines = [new ReplicatedWindowLineSnapshot("Növelj meg egy képességet 1 ponttal!", ConsoleColor.Green)]
+        };
+        var hostChoosing = snapshot with
+        {
+            Phase = GameSessionPhase.Paused,
+            Inn = new InnSnapshot(1, 0, [], [], [], [], InnName: "A Törött Kard", MazeLevel: 1),
+            SharedWindow = abilityChoice,
+            LevelUpPrompt = prompt with { Kind = LevelUpPromptKind.Summary },
+            LeaderDecisionTitle = $"Szintlépés — {companion.Name}"
+        };
+        Assert(!CoopGuestScreen.HasConcreteSnapshotOverlay(hostChoosing) &&
+               CoopGuestScreen.GuestSharedEventBanner(hostChoosing) ==
+               $"🏰 KÖZÖS FOGADÓI ESEMÉNY — Szintlépés — {companion.Name}." &&
+               CoopGuestScreen.HasConcreteSnapshotOverlay(hostChoosing with { LeaderDecisionTitle = null }) &&
+               CoopGuestScreen.HasConcreteSnapshotOverlay(hostChoosing with { SharedWindow = null }),
+            "A guest nem a host aktuális képességválasztó ablakát és annak bannerét mutatja.");
+        var banner = new CoopGuestScreen.GuestMapCell[100, 1];
+        CoopGuestScreen.DrawStatusBanner(banner,
+            $" FIGYELEM: {CoopGuestScreen.GuestSharedEventBanner(hostChoosing)} ", ConsoleColor.Yellow);
+        Assert(banner.Cast<CoopGuestScreen.GuestMapCell>().Any(cell => cell.Glyph == "🏰") &&
+               banner.Cast<CoopGuestScreen.GuestMapCell>().Any(cell => cell.IsContinuation) &&
+               banner.Cast<CoopGuestScreen.GuestMapCell>().All(cell => cell.Background == ConsoleColor.DarkRed),
+            "A guest szintlépési bannerében az emoji vagy a háttér szétesik.");
     }
 
     static void NpcThiefTrapCommandAcceptsTemporaryFollowers()

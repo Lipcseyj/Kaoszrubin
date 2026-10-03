@@ -2150,8 +2150,13 @@ public sealed class CoopGuestScreen
 
     internal static bool HasConcreteSnapshotOverlay(SessionSnapshot snapshot) =>
         snapshot.Narrative is not null || snapshot.RestNotice is not null ||
-        snapshot.AdHocConversation is not null || snapshot.SpellPreparation is not null ||
-        snapshot.LevelUpPrompt is not null;
+        snapshot.AdHocConversation is not null ||
+        !HasCurrentHostSharedWindow(snapshot) &&
+        (snapshot.SpellPreparation is not null || snapshot.LevelUpPrompt is not null);
+
+    private static bool HasCurrentHostSharedWindow(SessionSnapshot snapshot) =>
+        snapshot.SharedWindow is { Lines.Count: > 0 } &&
+        !string.IsNullOrWhiteSpace(snapshot.LeaderDecisionTitle);
 
     private static void ApplyRemotePlayerWindowStatus(GuestMapCell[,] grid, SessionSnapshot snapshot,
         PlayerId? localPlayerId)
@@ -2165,16 +2170,13 @@ public sealed class CoopGuestScreen
             ? $" FIGYELEM: {sharedEvent} "
             : $" FIGYELEM: {remote!.CharacterName} {PlayerWindowActivityText(remote.Kind)}; " +
               "a közös játék szünetel. ";
-        var width = grid.GetLength(0);
-        text = BattleCommandPanel.TruncateToDisplayWidth(text, width).PadRight(width);
-        for (var index = 0; index < text.Length && index < width; index++)
-            grid[index, 0] = new GuestMapCell(text[index].ToString(), ConsoleColor.Yellow, ConsoleColor.DarkRed);
+        DrawStatusBanner(grid, text, ConsoleColor.Yellow);
     }
 
     internal static string? GuestSharedEventBanner(SessionSnapshot snapshot) =>
         snapshot.SharedWindow is not null && !string.IsNullOrWhiteSpace(snapshot.LeaderDecisionTitle)
             ? Game.SharedWindowBanner(snapshot.Inn is null ? GameSessionPhase.Exploration : GameSessionPhase.Inn,
-                snapshot.LeaderDecisionTitle)
+                snapshot.LeaderDecisionTitle!)
             : null;
 
     private void ApplyPendingSharedWindowStatus(GuestMapCell[,] grid, SessionSnapshot snapshot)
@@ -2184,10 +2186,16 @@ public sealed class CoopGuestScreen
             ? snapshot.LeaderDecisionTitle
             : SharedWindowTitle(snapshot);
         var text = $" KÖZÖS ESEMÉNY VÁR: {title}. Zárd be a saját ablakodat a megtekintéséhez. ";
+        DrawStatusBanner(grid, text, ConsoleColor.White);
+    }
+
+    internal static void DrawStatusBanner(GuestMapCell[,] grid, string text, ConsoleColor color)
+    {
         var width = grid.GetLength(0);
-        text = BattleCommandPanel.TruncateToDisplayWidth(text, width).PadRight(width);
-        for (var index = 0; index < text.Length && index < width; index++)
-            grid[index, 0] = new GuestMapCell(text[index].ToString(), ConsoleColor.White, ConsoleColor.DarkRed);
+        for (var x = 0; x < width; x++)
+            grid[x, 0] = new GuestMapCell(" ", color, ConsoleColor.DarkRed);
+        DrawOverlayText(grid, 0, 0, BattleCommandPanel.TruncateToDisplayWidth(text, width),
+            color, ConsoleColor.DarkRed);
     }
 
     private bool HasSharedWindow(SessionSnapshot snapshot) =>
@@ -2605,7 +2613,8 @@ public sealed class CoopGuestScreen
         DrawGuestOverlay(grid, lines, ConsoleColor.Magenta, 58, FramedWindow.Inn);
     }
 
-    private static void DrawOverlayText(GuestMapCell[,] grid, int x, int y, string text, ConsoleColor color)
+    private static void DrawOverlayText(GuestMapCell[,] grid, int x, int y, string text, ConsoleColor color,
+        ConsoleColor background = ConsoleColor.Black)
     {
         var elements = StringInfo.GetTextElementEnumerator(text);
         while (elements.MoveNext())
@@ -2613,9 +2622,9 @@ public sealed class CoopGuestScreen
             var element = elements.GetTextElement();
             var displayWidth = element.EnumerateRunes().Any(rune =>
                 rune.Value > char.MaxValue || rune.Value is 0xFE0F or 0x200D) ? 2 : 1;
-            Put(grid, new Position(x, y), element, color);
+            Put(grid, new Position(x, y), element, color, background);
             if (displayWidth == 2 && x + 1 < grid.GetLength(0) && y >= 0 && y < grid.GetLength(1))
-                grid[x + 1, y] = new GuestMapCell(string.Empty, color, ConsoleColor.Black, IsContinuation: true);
+                grid[x + 1, y] = new GuestMapCell(string.Empty, color, background, IsContinuation: true);
             x += displayWidth;
             if (x >= grid.GetLength(0)) break;
         }
