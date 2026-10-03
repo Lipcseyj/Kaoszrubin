@@ -56,6 +56,10 @@ internal static class ConsoleBackdropCatalog
         }
     }
 
+    internal static ConsoleBackdropSelection ForLevelCompletionSelection(int completedLevel) =>
+        new(Styles[(completedLevel * 3 + 1) % Styles.Count],
+            Colors[(completedLevel * 2 + 1) % Colors.Count]);
+
     internal static string BuildRow(ConsoleBackdropStyle style, int y, int width, int xOffset = 0)
     {
         if (width <= 0) return string.Empty;

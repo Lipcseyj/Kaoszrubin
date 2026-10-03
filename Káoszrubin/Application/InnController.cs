@@ -198,7 +198,8 @@ internal sealed class InnController
         }
     }
 
-    public DepartureChoice Run(int completedLevel, string? expeditionReason = null, bool resume = false)
+    public DepartureChoice Run(int completedLevel, string? expeditionReason = null, bool resume = false,
+        Action? onCompletionDismissed = null)
     {
         if (resume)
         {
@@ -229,6 +230,7 @@ internal sealed class InnController
         while (_readKey().Key is not (ConsoleKey.Enter or ConsoleKey.Spacebar)) { }
         _levelCompletion = null;
         _revision++;
+        onCompletionDismissed?.Invoke();
         foreach (var levelResult in completion.Results.Where(result => result.Experience.LeveledUp))
             _resolvePerkOffers(levelResult.Character, levelResult.Experience);
 

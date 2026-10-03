@@ -29,6 +29,11 @@ internal static partial class Program
         Assert(firstInnBackdrop == secondInnBackdrop &&
                ConsoleBackdropCatalog.Colors.Contains(firstInnBackdrop.Color),
             "A host és guest számára használt fogadóminta vagy háttérszín nem determinisztikus.");
+        var completionBackdrop = ConsoleBackdropCatalog.ForLevelCompletionSelection(3);
+        Assert(completionBackdrop == ConsoleBackdropCatalog.ForLevelCompletionSelection(3) &&
+               ConsoleBackdropCatalog.Styles.Contains(completionBackdrop.Style) &&
+               ConsoleBackdropCatalog.Colors.Contains(completionBackdrop.Color),
+            "A pályavégi képernyő hoston és vendégen nem ugyanazt a katalógusbeli hátteret kapja.");
 
         for (var sample = 0; sample < 100; sample++)
         {
@@ -106,6 +111,24 @@ internal static partial class Program
         var fittedHeader = BattleCommandPanel.FitToDisplayWidth(focusedWorld.Text, 27);
         Assert(BattleCommandPanel.DisplayWidth(fittedHeader) == 27,
             "Az emojikat tartalmazó karakterlapfejléc nem kijelzett szélesség szerint lett kitöltve.");
+    }
+
+    static void GuestInnBackdropFollowsCompletionAndRest()
+    {
+        var (session, _, _) = CreateSession();
+        var snapshot = session.CreateSnapshot(new SessionSnapshotContext(2, "Pályavég",
+            new Dictionary<CharacterId, Position>()));
+        var inn = new InnSnapshot(1, 0, [], [], [], [], InnName: "A Törött Kard", MazeLevel: 2);
+        var completion = new LevelCompletionSnapshot(Guid.NewGuid(), 2, 100, [], []);
+        Assert(!CoopGuestScreen.ShouldDrawInnBackdrop(snapshot with
+               { Phase = GameSessionPhase.Paused, Inn = inn with { LevelCompletion = completion } }) &&
+               CoopGuestScreen.ShouldDrawInnBackdrop(snapshot with
+               { Phase = GameSessionPhase.Paused, Inn = inn }) &&
+               CoopGuestScreen.ShouldDrawInnBackdrop(snapshot with
+               { Phase = GameSessionPhase.Inn, Inn = inn }) &&
+               !CoopGuestScreen.ShouldDrawInnBackdrop(snapshot with
+               { Phase = GameSessionPhase.Exploration, Inn = inn }),
+            "A vendég pályavégkor vagy fogadói pihenéskor rossz hátteret választ.");
     }
 
     static void GuestClockUpdatesOnlyItsOwnHeaderSegment()

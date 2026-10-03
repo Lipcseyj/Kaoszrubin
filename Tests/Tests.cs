@@ -63,6 +63,7 @@ internal static partial class Program
     ("A terminál méretőre pontosan a teljes játékképernyőt követeli meg", TerminalViewportRequiresCompleteGameScreen),
     ("A fogadói ablakok közös tartománya nem éri el az alsó logmezőt", InnSurfaceStaysAboveMessageLog),
     ("A közös háttérkatalógus stabil mintákat és kizárólag sötét színeket ad", ConsoleBackdropsAreStableAndRowBased),
+    ("A guest pályavégkor és fogadói pihenéskor helyes hátteret választ", GuestInnBackdropFollowsCompletionAndRest),
     ("A játéktér sorírója megőrzi a rúnákat és színeket, miközben futamokba kötegel", PlayfieldRenderingPreservesVisualsAndBatchesColorRuns),
     ("A karakterlap mindkét fejlécsora fókuszt jelez és megőrzi az órát", CharacterSheetFocusHeaderUsesTwoRowsAndKeepsClockLayout),
     ("A guest csak az időjelző helyét frissíti a karakterlap fejlécén", GuestClockUpdatesOnlyItsOwnHeaderSegment),

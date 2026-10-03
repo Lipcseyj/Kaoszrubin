@@ -592,10 +592,15 @@ public sealed partial class Game
         var completedLevel = _mazeLevel;
         PlaySessionSound(SoundEffect.LevelComplete);
         _renderer.PlayScreenBurnEffect();
-        _backgroundMusic.EnterInn();
-        _session.SetPhase(GameSessionPhase.Inn);
+        _session.SetPhase(GameSessionPhase.Paused);
         var expeditionReason = ReturnExpeditionReason(completedLevel);
-        var departure = _innController.Run(completedLevel, expeditionReason);
+        var departure = _innController.Run(completedLevel, expeditionReason,
+            onCompletionDismissed: () =>
+            {
+                _backgroundMusic.EnterInn();
+                _session.SetPhase(GameSessionPhase.Inn);
+                RequestCoopSnapshotPublish();
+            });
         if (departure == InnController.DepartureChoice.ReturnExpedition)
         {
             BeginReturnExpedition();

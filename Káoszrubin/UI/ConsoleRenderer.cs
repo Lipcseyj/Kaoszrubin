@@ -917,6 +917,10 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
     {
         ResetColorCache();
         Console.Clear();
+        var backdrop = ConsoleBackdropCatalog.ForLevelCompletionSelection(completion.CompletedLevel);
+        SetColors(backdrop.Color, ConsoleColor.Black);
+        for (var row = 0; row < ScreenRowCount; row++)
+            WriteAt(0, row, ConsoleBackdropCatalog.BuildRow(backdrop.Style, row, PlayfieldWidth + CharacterSheetPanel.Width));
         DrawCenteredFrame(LevelCompletionFrameWidth, BuildLevelCompletionLines(completion), FramedWindow.Inn);
     }
 

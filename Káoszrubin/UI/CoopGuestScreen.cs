@@ -1698,6 +1698,20 @@ public sealed class CoopGuestScreen
     {
         var windowWidth = SafeWindowWidth();
         var windowHeight = SafeWindowHeight();
+        if (snapshot.Inn?.LevelCompletion is { } completion)
+        {
+            spellMenuBaseMap = null;
+            var backdrop = ConsoleBackdropCatalog.ForLevelCompletionSelection(completion.CompletedLevel);
+            var completionGrid = new GuestMapCell[ConsoleRenderer.PlayfieldWidth + CharacterSheetPanel.Width, ConsoleRenderer.ScreenRowCount];
+            for (var y = 0; y < completionGrid.GetLength(1); y++)
+                for (var x = 0; x < completionGrid.GetLength(0); x++)
+                    completionGrid[x, y] = new GuestMapCell(
+                        ConsoleBackdropCatalog.Glyph(backdrop.Style, x, y).ToString(), backdrop.Color);
+            DrawGuestOverlay(completionGrid, ConsoleRenderer.BuildLevelCompletionLines(completion),
+                ConsoleColor.Magenta, ConsoleRenderer.LevelCompletionFrameWidth, FramedWindow.Inn);
+            return new GuestRenderFrame(world.WorldId, windowWidth, windowHeight,
+                completionGrid.GetLength(0), completionGrid.GetLength(1), 0, completionGrid, [], [], [], null);
+        }
         var mapWidth = Math.Min(world.Width, Math.Max(1, windowWidth - CharacterSheetPanel.Width - 2));
         var panelWidth = CharacterPanelWidthForViewport(windowWidth, mapWidth);
         var mapHeight = Math.Min(world.Height, Math.Max(1, windowHeight - MessageLineCount));
@@ -1763,11 +1777,10 @@ public sealed class CoopGuestScreen
                     Background = cell.Color
                 };
         }
-        if (snapshot.Phase == GameSessionPhase.Inn)
+        if (ShouldDrawInnBackdrop(snapshot))
         {
-            var backdrop = snapshot.Inn is { } inn
-                ? ConsoleBackdropCatalog.ForInnSelection(inn.InnName, inn.MazeLevel)
-                : new ConsoleBackdropSelection(ConsoleBackdropStyle.Maze, ConsoleColor.DarkGray);
+            var inn = snapshot.Inn!;
+            var backdrop = ConsoleBackdropCatalog.ForInnSelection(inn.InnName, inn.MazeLevel);
             for (var y = 0; y < grid.GetLength(1); y++)
                 for (var x = 0; x < grid.GetLength(0); x++)
                     grid[x, y] = new GuestMapCell(ConsoleBackdropCatalog.Glyph(backdrop.Style, x, y).ToString(),
@@ -2603,7 +2616,9 @@ public sealed class CoopGuestScreen
     {
         var fullRedraw = previous is null || previous.WorldId != frame.WorldId ||
                          previous.WindowWidth != frame.WindowWidth || previous.WindowHeight != frame.WindowHeight ||
-                         previous.MapWidth != frame.MapWidth || previous.MapHeight != frame.MapHeight;
+                         previous.MapWidth != frame.MapWidth || previous.MapHeight != frame.MapHeight ||
+                         previous.Panel.Length != frame.Panel.Length ||
+                         previous.Footers.Length != frame.Footers.Length;
         if (fullRedraw) ResetConsole();
 
         const int mapTop = 0;
@@ -2670,7 +2685,8 @@ public sealed class CoopGuestScreen
 
         // A keret alsó vonalát a panel-oszlop után rajzoljuk, különben az oldalsó " │ " elválasztó
         // felülírja a záró ┤ csatlakozást.
-        if (fullRedraw || previous!.Footers[0] != frame.Footers[0])
+        if (frame.Footers.Length > 0 &&
+            (fullRedraw || previous!.Footers.Length == 0 || previous.Footers[0] != frame.Footers[0]))
         {
             WriteAt(0, frame.MapHeight, frame.Footers[0], Math.Max(1, frame.MapWidth));
             if (frame.Footers[0].Segments is null)
@@ -2681,6 +2697,10 @@ public sealed class CoopGuestScreen
         Console.ResetColor();
         TrySetCursorPosition(0, Math.Min(frame.WindowHeight - 1, frame.MapHeight + frame.Footers.Length));
     }
+
+    internal static bool ShouldDrawInnBackdrop(SessionSnapshot snapshot) =>
+        snapshot.Inn is { LevelCompletion: null } &&
+        snapshot.Phase is (GameSessionPhase.Inn or GameSessionPhase.Paused);
 
     internal static GuestClockWrite? ClockOnlyUpdate(string previous, string current, int panelWidth)
     {
