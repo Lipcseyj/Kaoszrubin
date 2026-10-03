@@ -1035,6 +1035,31 @@ internal static partial class Program
             "A host- vagy guest-célzás nem a konkrét hatótáv-, látóvonal- vagy célpontokot jeleníti meg.");
     }
 
+    static void GuestDirectionSpellsChooseOnlyAdjacentDirections()
+    {
+        var caster = new Position(4, 4);
+        var targets = new[] { caster + Direction.Up, caster + Direction.Down,
+            caster + Direction.Left, caster + Direction.Right };
+        var spell = new BattleSpellOption("S003", "Égő kéz", 1, 8,
+            SpellTargetType.Direction, 2, 1, null, null, 0, null, targets, caster);
+        var world = new WorldSnapshot(WorldId.New(), 9, 9, null, null, [], [], [], [], [], []);
+        var cursor = CoopGuestScreen.MoveSpellTargetCursor(spell, targets[0], Direction.Right, world);
+        Assert(cursor == caster + Direction.Right &&
+               CoopGuestScreen.MoveSpellTargetCursor(spell, cursor, Direction.Right, world) == cursor &&
+               CoopGuestScreen.MoveSpellTargetCursor(spell, cursor, Direction.Down, world) == caster + Direction.Down &&
+               CoopGuestScreen.SpellTargetDescription(spell, cursor) == "jobb irány",
+            "A guest irányvarázslatának kurzora eltávolodik a varázslótól, vagy nem irányt mutat.");
+        var ordinary = spell with { TargetType = SpellTargetType.Area };
+        Assert(CoopGuestScreen.MoveSpellTargetCursor(ordinary, targets[0], Direction.Right, world) ==
+               new Position(5, 3) &&
+               CoopGuestScreen.SpellTargetDescription(ordinary, cursor) == "(5,4)",
+            "A normál mezőcélzást az irányvarázslat javítása megváltoztatta.");
+        var edgeSpell = spell with { CasterPosition = new Position(0, 0) };
+        Assert(CoopGuestScreen.MoveSpellTargetCursor(edgeSpell, new Position(0, 1), Direction.Left, world) ==
+               new Position(0, 1),
+            "A guest irányvarázslata kiléphet a térképről.");
+    }
+
     static void BattleSpellOptionsIncludeAllEnemies()
     {
         var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory,

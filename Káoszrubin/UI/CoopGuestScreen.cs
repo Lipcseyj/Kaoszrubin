@@ -1192,9 +1192,8 @@ public sealed class CoopGuestScreen
         }
         if (TryGetDirection(key, out var direction))
         {
-            var next = _spellTargetCursor!.Value + direction;
-            if (next.X >= 0 && next.Y >= 0 && next.X < snapshot.World!.Width && next.Y < snapshot.World.Height)
-                _spellTargetCursor = next;
+            _spellTargetCursor = MoveSpellTargetCursor(spell, _spellTargetCursor!.Value, direction,
+                snapshot.World);
             Interlocked.Exchange(ref _redrawRequested, 1);
             return null;
         }
@@ -1211,6 +1210,28 @@ public sealed class CoopGuestScreen
         _targetedBattleSpell = null;
         _spellTargetCursor = null;
         return command;
+    }
+
+    internal static Position MoveSpellTargetCursor(BattleSpellOption spell, Position cursor,
+        Direction direction, WorldSnapshot? world)
+    {
+        if (world is null || spell.TargetType == SpellTargetType.Direction && spell.CasterPosition is null)
+            return cursor;
+        var next = spell.TargetType == SpellTargetType.Direction
+            ? spell.CasterPosition!.Value + direction
+            : cursor + direction;
+        return next.X >= 0 && next.Y >= 0 && next.X < world.Width && next.Y < world.Height
+            ? next
+            : cursor;
+    }
+
+    internal static string SpellTargetDescription(BattleSpellOption spell, Position cursor)
+    {
+        if (spell.TargetType != SpellTargetType.Direction || spell.CasterPosition is not { } caster)
+            return $"({cursor.X},{cursor.Y})";
+        var direction = cursor.X < caster.X ? "bal" : cursor.X > caster.X ? "jobb" :
+            cursor.Y < caster.Y ? "fel" : "le";
+        return $"{direction} irány";
     }
 
     private GameCommand? BeginSpellTargeting(CoopSignalRClient client, CharacterId characterId,
@@ -2056,7 +2077,7 @@ public sealed class CoopGuestScreen
             footer[^1] = new GuestTextLine($"╳ {targeted.Name} — {ConsoleRenderer.SpellTargetName(targeted.TargetType)}, " +
                 $"táv {targeted.Range}{(targeted.AreaRadius > 0 ? $", sugár {targeted.AreaRadius}" : string.Empty)} | " +
                 (invalidReason is null
-                    ? $"({cursor.X},{cursor.Y})"
+                    ? SpellTargetDescription(targeted, cursor)
                     : $"érvénytelen cél: {invalidReason}") +
                 " | Enter: célzás, Tab: következő, Esc: mégse",
                 invalidReason is null ? ConsoleColor.Cyan : ConsoleColor.DarkYellow,
