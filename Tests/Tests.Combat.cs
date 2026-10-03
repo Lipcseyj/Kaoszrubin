@@ -423,6 +423,8 @@ internal static partial class Program
         var character = CreateCharacter("Lekötött hős");
         var enemy = CreateEnemy(20, 2);
         var preparation = system.PrepareCharacter(character);
+        Assert(preparation.Runtime.TryChooseTactic(character, BattleTactic.FighterPrecise),
+            "A harcos nyitóköri mozgástesztje nem lépett túl a taktikaválasztáson.");
         var encounter = new BattleEncounter(new Position(1, 1),
             [new BattleCharacterParticipant(character, new Position(1, 2), TacticalParticipantKind.PartyMember,
             preparation.Initiative, 3, 1, preparation.Runtime)],
@@ -430,8 +432,21 @@ internal static partial class Program
         encounter.Engage(character, enemy);
         Assert(encounter.IsEngaged(character) && encounter.IsEngaged(enemy),
             "A közelharci páros nem került lekötött állapotba.");
+        encounter.Turns.StartTurns();
+        var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
+        var coordinator = new TacticalBattleCoordinator(data, system, new Random(1702));
+        IReadOnlyList<BattleActionKind> AllowedActions() => coordinator.GetAllowedBattleActions(encounter,
+            character, enemy, character, encounter.PositionOf(character), false,
+            new Dictionary<LiveCharacter, int>());
+        Assert(!AllowedActions().Contains(BattleActionKind.Move) &&
+               !BattleCommandPanel.Format(AllowedActions(), true, character.Name).Contains("nyilak: mozgás"),
+            "A lekötött kezdeményező a nyitókörben mozgást kapott a parancssávon.");
+        encounter.Disengage(character);
+        Assert(AllowedActions().Contains(BattleActionKind.Move),
+            $"A lekötésből kiszabadult karakter nem kaphatta vissza a mozgást: {string.Join(", ", AllowedActions())}; kör={encounter.Turns.Cycle}; lekötve={encounter.IsEngaged(character)}.");
+        encounter.Engage(character, enemy);
         enemy.SetCurrentHitPoints(0);
-        Assert(!encounter.IsEngaged(character),
+        Assert(!encounter.IsEngaged(character) && AllowedActions().Contains(BattleActionKind.Move),
             "A karaktert a legyőzött ellenfél továbbra is lekötve tartja.");
     }
 

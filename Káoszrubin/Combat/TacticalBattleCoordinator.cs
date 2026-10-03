@@ -448,12 +448,13 @@ public sealed class TacticalBattleCoordinator
                 openingActions.Insert(0, BattleActionKind.PhysicalAttack);
             if (canShieldBash && !offensiveActionsBlocked)
                 openingActions.Insert(0, BattleActionKind.ShieldBash);
-            else if (battle.HasActiveFormation && character == selectedCharacter)
+            if (battle.HasActiveFormation && character == selectedCharacter)
             {
                 if (!staggered && !battle.HasStaggeredFormationMember)
                     openingActions.Insert(0, BattleActionKind.MoveFormation);
             }
-            else if (!staggered) openingActions.Insert(0, BattleActionKind.Move);
+            else if (!staggered && !battle.IsEngaged(character))
+                openingActions.Insert(0, BattleActionKind.Move);
             if (hasUsableCombatSpell && !offensiveActionsBlocked)
                 openingActions.Insert(0, BattleActionKind.CastSpell);
             if (canTurnUndead && !offensiveActionsBlocked)

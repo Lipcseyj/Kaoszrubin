@@ -863,7 +863,6 @@ public sealed partial class Game
     private void RejectBattleAction(BattleActionCommand command, string message)
     {
         _session.RejectExecutedCommand(command, message);
-        _renderer.DrawInventoryMessage(message, ConsoleColor.Red);
         if (_activeBattle is { IsCompleted: false } battle && battle.CurrentCharacter is { } character)
         {
             SetBattlePrompt(battle);
