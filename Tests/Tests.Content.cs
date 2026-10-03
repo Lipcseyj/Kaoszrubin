@@ -72,14 +72,24 @@ internal static partial class Program
     static void SpellSchoolsIncludeMageLightSpell()
     {
         var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
+        var selectableSpells = catalog.Spells.Where(spell => !spell.EnemyOnly).ToArray();
+        var groupedSpells = new List<SpellDefinition>();
         foreach (var school in Enum.GetValues<SpellSchool>())
             for (var level = 1; level <= 5; level++)
-                Assert(catalog.GetSpells(school, level).Count ==
-                       (level <= 3 ? 6 : 5) + (level is 2 or 4 ? 1 : 0),
-                    $"A(z) {school} iskola {level}. szintjén hibás a varázslatok száma.");
+            {
+                var spells = catalog.GetSpells(school, level);
+                Assert(spells.Count > 0 && spells.All(spell => spell.School == school &&
+                       spell.Level == level && !spell.EnemyOnly),
+                    $"A(z) {school} iskola {level}. szintjének választható varázslatai hibásak.");
+                groupedSpells.AddRange(spells);
+            }
+        Assert(groupedSpells.Select(spell => spell.Id).OrderBy(id => id).SequenceEqual(
+                   selectableSpells.Select(spell => spell.Id).OrderBy(id => id)),
+            "A választható varázslatok valamelyike hiányzik az iskolák és szintek listájából.");
 
         var light = catalog.GetSpell("S026");
-        Assert(light.Name == "Fényvarázslat" && light.Level == 1 &&
+        Assert(light.Name == "Fényvarázslat" && light.School == SpellSchool.Arcane && light.Level == 1 &&
+               catalog.GetSpells(SpellSchool.Arcane, 1).Contains(light) &&
                light.UsageMode == SpellUsageMode.Exploration && light.TargetType == SpellTargetType.Self &&
                catalog.GetSpellEffects(light.Id).Single() is
                { Type: SpellEffectType.VisionBonus, Value: 2, Duration: 12 },

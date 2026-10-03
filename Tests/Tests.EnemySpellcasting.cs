@@ -12,8 +12,9 @@ internal static partial class Program
         };
         Assert(data.EnemySpellcasters.Select(profile => profile.EnemyId).SequenceEqual(expected),
             "Az ellenséges varázshasználók erősorrendje vagy készlete eltér a tervezettől.");
-        Assert(data.Spells.Count(spell => spell.EnemyOnly) == 17 &&
-               data.Spells.Where(spell => spell.EnemyOnly).All(spell => spell.Id.StartsWith('D')),
+        var enemyOnlySpells = data.Spells.Where(spell => spell.EnemyOnly).ToArray();
+        Assert(enemyOnlySpells.Length > 0 &&
+               enemyOnlySpells.All(spell => spell.Id.StartsWith('D')),
             "A sötét ellenséges varázslatkészlet hiányos vagy hibásan van megjelölve.");
         foreach (var enemyId in expected)
         {

@@ -135,7 +135,7 @@ internal static partial class Program
     ("A vendég nem adhat leader-parancsot", RemotePlayerCannotIssueLeaderAction),
     ("A host és a vendég közös billentyűkiosztást használ", HostAndGuestUseSharedInputBindings),
     ("A faji tulajdonságokat az adatfájl tölti be", RaceTraitsAreLoadedFromData),
-    ("A mágus első szintjén a Fényvarázslat a hatodik varázslat", SpellSchoolsIncludeMageLightSpell),
+    ("A varázslatiskolák teljes listát adnak, és a Fényvarázslat elérhető", SpellSchoolsIncludeMageLightSpell),
     ("A buff varázslatok időtartama CSV-ből, harci körökben érkezik", SpellBuffDurationLoadsAsRounds),
     ("Az új varázslatok hatásai és célpontszabályai működnek", NewSpellEffectsAreSupported),
     ("A varázsmemória osztályonként eltérően fejlődik", SpellMemorizationCapacityUsesClassFormula),
