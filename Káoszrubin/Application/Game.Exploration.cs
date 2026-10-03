@@ -667,8 +667,19 @@ public sealed partial class Game
         if (chest is null) return;
         if (chest.Definition is not null)
         {
+            var identificationMessages = new List<string>();
             var result = new QuestChestService(_questManager).Collect(chest,
-                item => TryStoreSearchedLoot(character, item, shareLootWithParty, out _),
+                item =>
+                {
+                    if (!ItemIdentificationRules.RequiresIdentification(item))
+                        return TryStoreSearchedLoot(character, item, shareLootWithParty, out _);
+                    var identification = RollLootItemState(item);
+                    if (!TryStoreSearchedLoot(character, item, shareLootWithParty, out _, identification.State))
+                        return false;
+                    if (identification.Attempted)
+                        identificationMessages.Add($"🎁 {ItemIdentificationRules.DisplayName(item, identification.State.IsIdentified)}:{FormatMageIdentification(identification)}");
+                    return true;
+                },
                 PartyLeader.AddGold);
             ProcessQuestProgressChanges(result.Changes);
             SynchronizeInventoryQuests();
@@ -680,6 +691,11 @@ public sealed partial class Game
             _renderer.DrawMapCellsChanged(_maze, _fogOfWar, _player.Position, [position]);
             _renderer.DrawInventoryMessage(text, ConsoleColor.Yellow);
             RecordSessionActivity(SessionActivityKind.System, text, ConsoleColor.Yellow, [character.Id]);
+            foreach (var identificationMessage in identificationMessages)
+            {
+                _renderer.DrawInventoryMessage(identificationMessage, ConsoleColor.Cyan);
+                RecordSessionActivity(SessionActivityKind.System, identificationMessage, ConsoleColor.Cyan, [character.Id]);
+            }
             if (result.FirstOpening) PlaySessionSound(SoundEffect.Chest, [character.Id]);
             RequestCoopSnapshotPublish();
             return;

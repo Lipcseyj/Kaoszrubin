@@ -1532,8 +1532,10 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
             for (var row = entries - pageStart; row < InnMarketPageSize; row++)
                 updates.Add((InnMenuFirstOptionLabelLine + row, string.Empty, ConsoleColor.Gray));
         }
-        var selectedItem = mode == InnMarketMode.Buy ? stock[selectedIndex].Item : sellOffers[selectedIndex].Item;
-        updates.Add((InnMarketSelectedItemDetailLine, ClipMarketText($"ℹ️ {selectedItem.Description}", InnMarketTextWidth), ConsoleColor.DarkCyan));
+        var description = mode == InnMarketMode.Buy
+            ? stock[selectedIndex].Item.Description
+            : InnSellDescription(sellOffers[selectedIndex]);
+        updates.Add((InnMarketSelectedItemDetailLine, ClipMarketText($"ℹ️ {description}", InnMarketTextWidth), ConsoleColor.DarkCyan));
         UpdateCenteredFrameLines(InnMarketFrameWidth, InnMarketFrameLineCount, updates, FramedWindow.Inn);
     }
 
@@ -2951,9 +2953,16 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
     private string InnSellLine(InnSellOffer offer, bool selected)
     {
         var quantity = offer.Owner.GetInventoryItemQuantity(InventorySlotKind.Backpack, offer.BackpackIndex);
-        var itemName = offer.Item.Name + (quantity > 1 ? $" ×{quantity}" : string.Empty);
+        var identified = offer.Owner.IsInventoryItemIdentified(InventorySlotKind.Backpack, offer.BackpackIndex);
+        var itemName = ItemIdentificationRules.DisplayName(offer.Item, identified) +
+            (quantity > 1 ? $" ×{quantity}" : string.Empty);
         return $"{(selected ? "▶" : " ")} {ItemCategoryIcon(offer.Item)} {itemName,-22} {offer.Owner.Name,-13} ajánlat {offer.Price,5} {MoneyIcon}";
     }
+
+    private static string InnSellDescription(InnSellOffer offer) =>
+        offer.Owner.IsInventoryItemIdentified(InventorySlotKind.Backpack, offer.BackpackIndex)
+            ? offer.Item.Description
+            : $"{ItemIdentificationRules.AuraStrength(offer.Item)} mágikus aura";
 
     private static string InnRecruitLine(LiveCharacter candidate, int price, bool selected)
     {
