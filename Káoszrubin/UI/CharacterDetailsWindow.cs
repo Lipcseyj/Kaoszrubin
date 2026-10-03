@@ -41,7 +41,7 @@ public static class CharacterDetailsWindow
         AddSection(lines, "OSZTÁLYFEJLESZTÉSEK", sheet.ClassFeatureUpgradeNames ?? [], "Nincs osztályfejlesztés.");
         AddSection(lines, "FEGYVERJÁRTASSÁGOK", sheet.DetailedWeaponProficiencyNames ??
             sheet.WeaponProficiencyNames ?? [], "Nincs fegyverjártasság.");
-        AddSection(lines, "ÁLLAPOTJELZŐK", sheet.StatusIcons, "Nincs aktív állapot.");
+        AddSection(lines, "ÁLLAPOTJELZŐK", DescribeStatuses(character, data), "Nincs aktív állapot.");
         if (character.SpellInfo is { } spellInfo)
         {
             lines.Add((string.Empty, ConsoleColor.Gray));
@@ -142,6 +142,47 @@ public static class CharacterDetailsWindow
         if (items.Length == 0) lines.Add(("  — " + empty, ConsoleColor.DarkGray));
         else foreach (var item in items) AddWrapped(lines, $"  • {item}", ConsoleColor.White);
     }
+
+    private static IEnumerable<string> DescribeStatuses(SessionCharacterSnapshot character, GameDataCatalog data)
+    {
+        var icons = character.CharacterSheet?.StatusIcons ?? [];
+        var knownIcons = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var id in character.StatusIds)
+        {
+            var status = data.Statuses.FirstOrDefault(value => SameId(value.Id, id));
+            if (status is null) continue;
+            knownIcons.Add(status.Icon);
+            yield return $"{status.Icon} {status.Name} — {status.Description}";
+        }
+        foreach (var icon in icons.Distinct(StringComparer.Ordinal))
+        {
+            if (knownIcons.Contains(icon)) continue;
+            yield return $"{icon} {StatusIconExplanation(icon)}";
+        }
+    }
+
+    private static string StatusIconExplanation(string icon) => icon switch
+    {
+        "👻" => "Láthatatlanság — nehezebb észrevenni és eltalálni a karaktert.",
+        "🛡️" => "Védelmi varázshatás — növeli a védelmet.",
+        "🪨" => "Fizikai védelem — csökkenti a kapott fizikai sebzést.",
+        "🩸🚫" => "Vérzés elleni védelem — megakadályozza a vérzést.",
+        "🎯" => "Találati módosító — befolyásolja a támadások találati esélyét.",
+        "⚔️✨" => "Sebzésbónusz — növeli a fizikai sebzést.",
+        "⚡" => "Kezdeményezési bónusz — gyorsabbá teszi a harci cselekvést.",
+        "✝️🛡️" => "Gonosz elleni védelem — védelmet ad a gonosz ellen.",
+        "👼" => "Őrangyal — védő varázshatás.",
+        "⛪" => "Menedék — védő varázshatás.",
+        "🔥⚔️" => "Tűzfegyver — a fegyver tűzsebzést okoz.",
+        "☠️⚔️" => "Átformált fegyversebzés — a fegyver sebzéstípusa megváltozott.",
+        "🌑" => "Látásromlás — csökkenti a látótávolságot.",
+        "🔆" => "Látásjavulás — növeli a látótávolságot.",
+        CombatConditionPresentation.StaggerIcon =>
+            "Megingás — az akció kezdetén korlátozhatja a mozgást és a támadást.",
+        CombatConditionPresentation.BarbarianRageIcon =>
+            "Barbár düh — aktív harci düh, amely módosítja a támadást.",
+        _ => "Aktív varázs- vagy harci hatás."
+    };
 
     private static void AddWrapped(ICollection<(string Text, ConsoleColor Color)> lines, string text,
         ConsoleColor color)

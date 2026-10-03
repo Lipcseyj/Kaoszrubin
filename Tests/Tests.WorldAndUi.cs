@@ -1493,6 +1493,8 @@ static void BattleHitHighlightsDamageAndHealth()
         character.SetNpcBehavior(NpcBehavior.Defensive);
         character.SetNpcJoinOrigin(3, "A Rézcsengő");
         character.RecordMonsterKill(data.Enemies[0].Id, 2);
+        var poisoned = data.GetStatus(CharacterStatusIds.Poisoned);
+        character.AddStatus(poisoned);
         var visionItem = data.GetItem(MiscItemIds.Torch);
         character.ApplySpellEffect(new ActiveSpellEffect(visionItem.Id, ActiveSpellEffectType.VisionBonus, 2, 12));
         Assert(character.TryAdvanceWeaponProficiency(WeaponFamilies.Dagger),
@@ -1501,10 +1503,21 @@ static void BattleHitHighlightsDamageAndHealth()
         var snapshot = new SessionCharacterSnapshot(character.Id, character.Name, character.Race.Id,
             character.CharacterClass.Id, character.Level, character.CurrentVitality, character.MaximumVitality,
             character.CurrentMana, character.MaximumMana, character.FoodLevel, character.WaterLevel, character.Gold,
-            character.IsAlive, null, [], InventorySnapshotProjector.Create(character), sheet, character.Color,
+            character.IsAlive, null, [poisoned.Id], InventorySnapshotProjector.Create(character), sheet, character.Color,
             History: new CharacterHistorySnapshot([new MonsterKillSnapshot(data.Enemies[0].Id, 2)], 3,
                 "A Rézcsengő", NpcBehavior.Defensive.ToString()));
         var lines = CharacterDetailsWindow.Build(snapshot, data);
+        Assert(lines.Any(line => line.Text.Contains($"{poisoned.Icon} {poisoned.Name}", StringComparison.Ordinal) &&
+                                 line.Text.Contains(poisoned.Description[..20], StringComparison.Ordinal)) &&
+               lines.Any(line => line.Text.Contains("🔆 Látásjavulás", StringComparison.Ordinal)),
+            "A részletes karakterinfó nem magyarázza meg az állapotot vagy az aktív varázshatást.");
+        var combatLines = CharacterDetailsWindow.Build(snapshot with
+        {
+            CharacterSheet = sheet with
+            { StatusIcons = sheet.StatusIcons.Concat([CombatConditionPresentation.StaggerIcon]).ToArray() }
+        }, data);
+        Assert(combatLines.Any(line => line.Text.Contains("💫 Megingás", StringComparison.Ordinal)),
+            "A részletes karakterinfó nem magyarázza meg a harci ideiglenes állapotot.");
         Assert(GameInputBindings.InventoryAction(ConsoleKey.R) == InventoryInputAction.CharacterDetails &&
                WindowFrameConfiguration.For(FramedWindow.CharacterDetails) == WindowFrameStyle.Stone,
             "Az R billentyű vagy a stone keret nincs bekötve.");
