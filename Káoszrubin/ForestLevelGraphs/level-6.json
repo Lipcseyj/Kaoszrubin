@@ -14,77 +14,233 @@
       },
       {
         "Id": "WHISPERING_WOOD",
-        "Name": "Suttogó rengeteg",
+        "Name": "Suttog\u00F3 rengeteg",
         "Coordinate": {
           "X": 1,
           "Y": 0
         },
-        "TemplateId": "dense-cabin-forest"
+        "TemplateId": "dense-cabin-forest",
+        "Overrides": {
+          "UndergrowthChance": 0.57,
+          "DenseUndergrowthChance": 0.31,
+          "MarshCount": {
+            "Minimum": 0,
+            "Maximum": 0
+          },
+          "BuildingCount": {
+            "Minimum": 2,
+            "Maximum": 3
+          },
+          "BuildingSize": {
+            "Minimum": 3,
+            "Maximum": 4
+          },
+          "ManorBuildingChance": 0,
+          "LabyrinthBuildingChance": 0
+        }
       },
       {
         "Id": "RAVEN_CROSSING",
-        "Name": "Hollók elágazása",
+        "Name": "Holl\u00F3k el\u00E1gaz\u00E1sa",
         "Coordinate": {
           "X": 2,
           "Y": 0
         },
-        "TemplateId": "mixed-forest"
+        "TemplateId": "hunter-camp"
       },
       {
         "Id": "OLD_PINES",
-        "Name": "Az öreg fenyves",
+        "Name": "Az \u00F6reg fenyves",
         "Coordinate": {
           "X": 2,
           "Y": -1
         },
-        "TemplateId": "dense-cabin-forest",
+        "TemplateId": "old-pines",
         "Overrides": {
           "PineChance": 0.72,
-          "BuildingCount": {
+          "LakeCount": {
+            "Minimum": 3,
+            "Maximum": 4
+          },
+          "MarshChance": 0,
+          "MarshCount": {
             "Minimum": 0,
-            "Maximum": 1
-          }
+            "Maximum": 0
+          },
+          "BuildingCount": {
+            "Minimum": 3,
+            "Maximum": 4
+          },
+          "LockedBuildingDoorChance": 0.9,
+          "OpenBuildingDoorChance": 0.05
         }
       },
       {
         "Id": "LOST_MANOR",
-        "Name": "Az elveszett kúriák",
+        "Name": "Az elveszett k\u00FAri\u00E1k",
         "Coordinate": {
           "X": 3,
           "Y": 0
         },
         "TemplateId": "lakes-and-manors",
         "Overrides": {
+          "LakeCount": {
+            "Minimum": 5,
+            "Maximum": 6
+          },
+          "LakeRadius": {
+            "Minimum": 5,
+            "Maximum": 8
+          },
           "ManorBuildingChance": 1,
           "LabyrinthBuildingChance": 0
         }
       },
       {
         "Id": "BLACKWATER",
-        "Name": "Feketevíz lápja",
+        "Name": "Feketev\u00EDz l\u00E1pja",
         "Coordinate": {
           "X": 2,
           "Y": 1
         },
-        "TemplateId": "swamp"
+        "TemplateId": "swamp",
+        "Overrides": {
+          "LakeCount": {
+            "Minimum": 6,
+            "Maximum": 9
+          },
+          "LakeRadius": {
+            "Minimum": 4,
+            "Maximum": 8
+          },
+          "MarshChance": 0.9,
+          "MarshCount": {
+            "Minimum": 12,
+            "Maximum": 15
+          },
+          "MarshRadius": {
+            "Minimum": 3,
+            "Maximum": 9
+          },
+          "Palette": {
+            "Tree": {
+              "Id": "forbidden-tree",
+              "Rune": "\u2660",
+              "ForegroundColor": "DarkGreen",
+              "BackgroundColor": "Black",
+              "Walkable": false,
+              "BlocksSight": true
+            },
+            "Bush": {
+              "Id": "forest-bush",
+              "Rune": "\u2663",
+              "ForegroundColor": "Green",
+              "BackgroundColor": "Black",
+              "Walkable": true,
+              "BlocksSight": false
+            },
+            "Pine": {
+              "Id": "forest-pine",
+              "Rune": "\u25B2",
+              "ForegroundColor": "Green",
+              "BackgroundColor": "Black",
+              "Walkable": false,
+              "BlocksSight": true
+            },
+            "FlowerBush": {
+              "Id": "forbidden-flower-bush",
+              "Rune": "\u273F",
+              "ForegroundColor": "DarkMagenta",
+              "BackgroundColor": "Black",
+              "Walkable": true,
+              "BlocksSight": false
+            },
+            "Thicket": {
+              "Id": "forest-thicket",
+              "Rune": "#",
+              "ForegroundColor": "DarkGreen",
+              "BackgroundColor": "Black",
+              "Walkable": false,
+              "BlocksSight": true
+            },
+            "Undergrowth": {
+              "Id": "forest-undergrowth",
+              "Rune": "\u2591",
+              "ForegroundColor": "DarkGreen",
+              "BackgroundColor": "Black",
+              "Walkable": true,
+              "BlocksSight": false
+            },
+            "DenseUndergrowth": {
+              "Id": "forest-dense-undergrowth",
+              "Rune": "\u2592",
+              "ForegroundColor": "Green",
+              "BackgroundColor": "Black",
+              "Walkable": true,
+              "BlocksSight": false
+            },
+            "Water": {
+              "Id": "forbidden-water",
+              "Rune": "\u2248",
+              "ForegroundColor": "DarkBlue",
+              "BackgroundColor": "Black",
+              "Walkable": false,
+              "BlocksSight": false
+            },
+            "Marsh": {
+              "Id": "forbidden-marsh",
+              "Rune": "\u224B",
+              "ForegroundColor": "Black",
+              "BackgroundColor": "DarkBlue",
+              "Walkable": true,
+              "BlocksSight": false
+            },
+            "BuildingWall": {
+              "Id": "forbidden-building-wall",
+              "Rune": "\u2588",
+              "ForegroundColor": "Gray",
+              "BackgroundColor": "Black",
+              "Walkable": false,
+              "BlocksSight": true
+            }
+          }
+        }
       },
       {
         "Id": "THORN_MAZE",
-        "Name": "A tövisek útvesztője",
+        "Name": "A t\u00F6visek \u00FAtveszt\u0151je",
         "Coordinate": {
           "X": 3,
           "Y": 1
         },
-        "TemplateId": "forest-labyrinth"
+        "TemplateId": "forest-labyrinth",
+        "Overrides": {
+          "ThicketChance": 0.5
+        }
       },
       {
         "Id": "WINDLESS_GLADE",
-        "Name": "A Szélcsend tisztása",
+        "Name": "A Sz\u00E9lcsend tiszt\u00E1sa",
         "Coordinate": {
           "X": 3,
           "Y": 2
         },
-        "TemplateId": "open-groves"
+        "TemplateId": "open-groves",
+        "Overrides": {
+          "LakeCount": {
+            "Minimum": 3,
+            "Maximum": 5
+          },
+          "MarshChance": 0.05,
+          "MarshCount": {
+            "Minimum": 0,
+            "Maximum": 1
+          },
+          "MarshRadius": {
+            "Minimum": 2,
+            "Maximum": 4
+          }
+        }
       }
     ],
     "Connections": [

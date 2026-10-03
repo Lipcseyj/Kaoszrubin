@@ -41,6 +41,8 @@ public sealed class ForestTerrainPalette
     public MazeTerrainStyle BuildingWall { get; init; } =
         new("forest-building-wall", new Rune('█'), ConsoleColor.DarkYellow, ConsoleColor.Black, false, true);
 
+    [System.Text.Json.Serialization.JsonIgnore]
+    [Browsable(false)]
     public IReadOnlyList<MazeTerrainStyle> All =>
         [Tree, Bush, Pine, FlowerBush, Thicket, Undergrowth, DenseUndergrowth, Water, Marsh, BuildingWall];
 }
