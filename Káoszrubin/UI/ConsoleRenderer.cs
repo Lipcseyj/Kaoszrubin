@@ -2010,21 +2010,28 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         IReadOnlyList<SpellDefinition> choices, int learnedNumber, int learnedTotal)
     {
         var selectedIndex = 0;
+        var projected = choices.Select(spell => new LevelUpChoiceSnapshot(spell.Id,
+            $"{spell.Level}. szint — {spell.Name}", spell.Description)).ToArray();
+        var lines = MagicProgressionWindow.BuildLearning(character.Name,
+            $"{learnedNumber}/{learnedTotal}. új varázslat", projected, selectedIndex);
+        using var background = SaveCenteredFrameBackground(MagicProgressionWindow.LearningWidth, lines,
+            FramedWindow.SpellLearning);
+        DrawCenteredFrame(MagicProgressionWindow.LearningWidth, lines, FramedWindow.SpellLearning);
         while (true)
         {
-            ResetColorCache();
-            var projected = choices.Select(spell => new LevelUpChoiceSnapshot(spell.Id,
-                $"{spell.Level}. szint — {spell.Name}", spell.Description)).ToArray();
-            var lines = MagicProgressionWindow.BuildLearning(character.Name,
-                $"{learnedNumber}/{learnedTotal}. új varázslat", projected, selectedIndex);
-            using var background = SaveCenteredFrameBackground(MagicProgressionWindow.LearningWidth, lines, FramedWindow.SpellLearning);
-            DrawCenteredFrame(MagicProgressionWindow.LearningWidth, lines, FramedWindow.SpellLearning);
+            var previousIndex = selectedIndex;
             switch (Console.ReadKey(intercept: true).Key)
             {
                 case ConsoleKey.UpArrow: selectedIndex = (selectedIndex - 1 + choices.Count) % choices.Count; break;
                 case ConsoleKey.DownArrow: selectedIndex = (selectedIndex + 1) % choices.Count; break;
                 case ConsoleKey.Enter: return choices[selectedIndex];
             }
+            if (selectedIndex == previousIndex) continue;
+            lines = MagicProgressionWindow.BuildLearning(character.Name,
+                $"{learnedNumber}/{learnedTotal}. új varázslat", projected, selectedIndex);
+            UpdateMagicProgressionLines(MagicProgressionWindow.LearningWidth, lines,
+                [MagicProgressionWindow.FirstSpellLine + previousIndex,
+                 MagicProgressionWindow.FirstSpellLine + selectedIndex], FramedWindow.SpellLearning);
         }
     }
 
@@ -2034,14 +2041,16 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         if (spells.Count == 0) return [];
         var selected = character.MemorizedSpells.Select(spell => spell.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var cursor = 0;
+        var projected = SpellInfoSnapshotProjector.Create(character, _gameData).KnownSpells;
+        var lines = MagicProgressionWindow.BuildPreparation(character.Name, selected.Count,
+            character.MemorizationCapacity, projected, selected, cursor);
+        using var background = SaveCenteredFrameBackground(MagicProgressionWindow.PreparationWidth, lines,
+            FramedWindow.SpellPreparation);
+        DrawCenteredFrame(MagicProgressionWindow.PreparationWidth, lines, FramedWindow.SpellPreparation);
         while (true)
         {
-            ResetColorCache();
-            var projected = SpellInfoSnapshotProjector.Create(character, _gameData).KnownSpells;
-            var lines = MagicProgressionWindow.BuildPreparation(character.Name, selected.Count,
-                character.MemorizationCapacity, projected, selected, cursor);
-            using var background = SaveCenteredFrameBackground(MagicProgressionWindow.PreparationWidth, lines, FramedWindow.SpellPreparation);
-            DrawCenteredFrame(MagicProgressionWindow.PreparationWidth, lines, FramedWindow.SpellPreparation);
+            var previousCursor = cursor;
+            var previousCount = selected.Count;
             switch (Console.ReadKey(intercept: true).Key)
             {
                 case ConsoleKey.UpArrow: cursor = (cursor - 1 + spells.Count) % spells.Count; break;
@@ -2053,6 +2062,36 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
                 case ConsoleKey.Enter:
                     return spells.Where(spell => selected.Contains(spell.Id)).ToList();
             }
+            if (cursor == previousCursor && selected.Count == previousCount) continue;
+            lines = MagicProgressionWindow.BuildPreparation(character.Name, selected.Count,
+                character.MemorizationCapacity, projected, selected, cursor);
+            var changed = new List<int>
+            {
+                MagicProgressionWindow.FirstSpellLine + previousCursor,
+                MagicProgressionWindow.FirstSpellLine + cursor
+            };
+            if (selected.Count != previousCount) changed.Add(2);
+            UpdateMagicProgressionLines(MagicProgressionWindow.PreparationWidth, lines, changed,
+                FramedWindow.SpellPreparation);
+        }
+    }
+
+    private void UpdateMagicProgressionLines(int width,
+        IReadOnlyList<(string Text, ConsoleColor Color)> lines, IEnumerable<int> indices,
+        FramedWindow window)
+    {
+        var style = WindowFrameConfiguration.For(window);
+        var adornmentRows = WindowFrameCatalog.Adornment(style, width) is null ? 0 : 2;
+        var (left, top) = CenteredFrameOrigin(width, lines.Count + FrameBorderWidth + adornmentRows, window);
+        var frameTop = top + adornmentRows / 2;
+        var padding = WindowFrameCatalog.ContentPadding(style);
+        var contentWidth = width - padding * FrameBorderWidth;
+        foreach (var index in indices.Distinct())
+        {
+            var (text, color) = lines[index];
+            SetColors(color, ConsoleColor.Black);
+            var clipped = text.Length <= contentWidth ? text : text[..contentWidth];
+            WriteAt(left + padding, frameTop + index + 1, clipped.PadRight(contentWidth));
         }
     }
 

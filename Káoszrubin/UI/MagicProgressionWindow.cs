@@ -7,6 +7,7 @@ public static class MagicProgressionWindow
 {
     public const int LearningWidth = 88;
     public const int PreparationWidth = 92;
+    public const int FirstSpellLine = 5;
 
     public static IReadOnlyList<(string Text, ConsoleColor Color)> BuildLearning(string characterName,
         string progress, IReadOnlyList<LevelUpChoiceSnapshot> spells, int selectedIndex)

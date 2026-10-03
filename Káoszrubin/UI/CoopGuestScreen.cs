@@ -879,6 +879,7 @@ public sealed class CoopGuestScreen
         }
         if (prompt.Choices.Count == 0) return null;
         _levelUpSelection = Math.Clamp(_levelUpSelection, 0, prompt.Choices.Count - 1);
+        var previousSelection = _levelUpSelection;
         if (key is ConsoleKey.UpArrow or ConsoleKey.LeftArrow)
             _levelUpSelection = (_levelUpSelection - 1 + prompt.Choices.Count) % prompt.Choices.Count;
         else if (key is ConsoleKey.DownArrow or ConsoleKey.RightArrow)
@@ -886,7 +887,15 @@ public sealed class CoopGuestScreen
         else if (key == ConsoleKey.Enter)
             return new ResolveLevelUpPromptCommand(client.PlayerId!.Value, client.NextCommandId(), characterId,
                 prompt.PromptId, prompt.Choices[_levelUpSelection].Id);
-        Interlocked.Exchange(ref _redrawRequested, 1);
+        if (_levelUpSelection != previousSelection)
+        {
+            if (LevelUpWindow.UsesSwordFrame(prompt.Kind))
+                Interlocked.Exchange(ref _redrawRequested, 1);
+            else
+                RefreshMagicProgressionOverlay(client.CurrentSnapshot?.World?.WorldId,
+                    MagicProgressionWindow.BuildLearning(prompt.CharacterName, prompt.Message, prompt.Choices,
+                        _levelUpSelection), MagicProgressionWindow.LearningWidth, FramedWindow.SpellLearning);
+        }
         return null;
     }
 
@@ -906,6 +915,8 @@ public sealed class CoopGuestScreen
                 preparation.PromptId, []);
         if (spells.Count == 0) return null;
         _spellPreparationCursor = Math.Clamp(_spellPreparationCursor, 0, spells.Count - 1);
+        var previousCursor = _spellPreparationCursor;
+        var previousCount = _preparedSpellIds.Count;
         if (key == ConsoleKey.UpArrow)
             _spellPreparationCursor = (_spellPreparationCursor - 1 + spells.Count) % spells.Count;
         else if (key == ConsoleKey.DownArrow)
@@ -919,8 +930,27 @@ public sealed class CoopGuestScreen
         else if (key == ConsoleKey.Enter)
             return new PrepareSpellsCommand(client.PlayerId!.Value, client.NextCommandId(), characterId,
                 preparation.PromptId, _preparedSpellIds.ToArray());
-        Interlocked.Exchange(ref _redrawRequested, 1);
+        if (_spellPreparationCursor != previousCursor || _preparedSpellIds.Count != previousCount)
+            RefreshMagicProgressionOverlay(client.CurrentSnapshot?.World?.WorldId,
+                MagicProgressionWindow.BuildPreparation(preparation.CharacterName, _preparedSpellIds.Count,
+                    preparation.Capacity, spells, _preparedSpellIds, _spellPreparationCursor),
+                MagicProgressionWindow.PreparationWidth, FramedWindow.SpellPreparation);
         return null;
+    }
+
+    private void RefreshMagicProgressionOverlay(WorldId? worldId,
+        IReadOnlyList<(string Text, ConsoleColor Color)> lines, int width, FramedWindow window)
+    {
+        if (_lastFrame is null || worldId is null || _lastFrame.WorldId != worldId.Value)
+        {
+            Interlocked.Exchange(ref _redrawRequested, 1);
+            return;
+        }
+        var grid = (GuestMapCell[,])_lastFrame.Map.Clone();
+        DrawGuestOverlay(grid, lines, ConsoleColor.Magenta, width, window);
+        var frame = _lastFrame with { Map = grid };
+        RenderFrame(frame, _lastFrame);
+        _lastFrame = frame;
     }
 
     private GameCommand? HandleSpellInfoInput(CoopSignalRClient client, CharacterId characterId,
@@ -2541,7 +2571,7 @@ public sealed class CoopGuestScreen
         DrawGuestOverlay(grid, lines, ConsoleColor.Yellow, width, framedWindow);
     }
 
-    private static void DrawGuestOverlay(GuestMapCell[,] grid, IReadOnlyList<(string Text, ConsoleColor Color)> lines,
+    internal static void DrawGuestOverlay(GuestMapCell[,] grid, IReadOnlyList<(string Text, ConsoleColor Color)> lines,
         ConsoleColor borderColor, int desiredWidth, FramedWindow? framedWindow = null,
         bool preserveLastLine = false)
     {

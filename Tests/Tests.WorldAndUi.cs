@@ -240,6 +240,58 @@ internal static partial class Program
         var full = CoopGuestScreen.BuildMapWriteRuns(current, null, 0, fullRedraw: true);
         Assert(full[0].X == 0 && full[0].Text == "🛒" && full[1].X == 2 && full[1].Text == "X",
             "A sorfutam nem választotta le a terminálfüggő szélességű jelet, vagy hibásan kezelte a folytatócelláját.");
+
+        var first = new CoopGuestScreen.GuestMapCell[110, 40];
+        for (var y = 0; y < first.GetLength(1); y++)
+        for (var x = 0; x < first.GetLength(0); x++)
+            first[x, y] = new CoopGuestScreen.GuestMapCell(" ", ConsoleColor.Gray);
+        var choices = new[]
+        {
+            new LevelUpChoiceSnapshot("A", "Első varázslat", ""),
+            new LevelUpChoiceSnapshot("B", "Második varázslat", "")
+        };
+        CoopGuestScreen.DrawGuestOverlay(first,
+            MagicProgressionWindow.BuildLearning("Mágus", "1/2", choices, 0), ConsoleColor.Magenta,
+            MagicProgressionWindow.LearningWidth, FramedWindow.SpellLearning);
+        var next = (CoopGuestScreen.GuestMapCell[,])first.Clone();
+        CoopGuestScreen.DrawGuestOverlay(next,
+            MagicProgressionWindow.BuildLearning("Mágus", "1/2", choices, 1), ConsoleColor.Magenta,
+            MagicProgressionWindow.LearningWidth, FramedWindow.SpellLearning);
+        var changedRows = Enumerable.Range(0, next.GetLength(1))
+            .Where(y => CoopGuestScreen.BuildMapWriteRuns(next, first, y, fullRedraw: false).Count > 0).ToArray();
+        Assert(changedRows.Length == 2 && changedRows[1] == changedRows[0] + 1,
+            "A guest varázstanulási kurzormozgása a kijelölt sorokon kívül is újrarajzolja az ablakot.");
+
+        var spells = new[]
+        {
+            new KnownSpellSnapshot("A", "Első", 1, 2, SpellTargetType.Self, "", false, null),
+            new KnownSpellSnapshot("B", "Második", 1, 2, SpellTargetType.Self, "", false, null)
+        };
+        var preparation = new CoopGuestScreen.GuestMapCell[110, 40];
+        for (var y = 0; y < preparation.GetLength(1); y++)
+        for (var x = 0; x < preparation.GetLength(0); x++)
+            preparation[x, y] = new CoopGuestScreen.GuestMapCell(" ", ConsoleColor.Gray);
+        CoopGuestScreen.DrawGuestOverlay(preparation,
+            MagicProgressionWindow.BuildPreparation("Mágus", 0, 2, spells,
+                new HashSet<string>(), 0), ConsoleColor.Magenta,
+            MagicProgressionWindow.PreparationWidth, FramedWindow.SpellPreparation);
+        var moved = (CoopGuestScreen.GuestMapCell[,])preparation.Clone();
+        CoopGuestScreen.DrawGuestOverlay(moved,
+            MagicProgressionWindow.BuildPreparation("Mágus", 0, 2, spells,
+                new HashSet<string>(), 1), ConsoleColor.Magenta,
+            MagicProgressionWindow.PreparationWidth, FramedWindow.SpellPreparation);
+        var movementRows = Enumerable.Range(0, moved.GetLength(1))
+            .Where(y => CoopGuestScreen.BuildMapWriteRuns(moved, preparation, y, false).Count > 0).ToArray();
+        Assert(movementRows.Length == 2 && movementRows[1] == movementRows[0] + 1,
+            "A guest memorizáló kurzora két kijelölési sornál többet rajzol újra.");
+        var toggled = (CoopGuestScreen.GuestMapCell[,])moved.Clone();
+        CoopGuestScreen.DrawGuestOverlay(toggled,
+            MagicProgressionWindow.BuildPreparation("Mágus", 1, 2, spells,
+                new HashSet<string> { "B" }, 1), ConsoleColor.Magenta,
+            MagicProgressionWindow.PreparationWidth, FramedWindow.SpellPreparation);
+        Assert(Enumerable.Range(0, toggled.GetLength(1))
+                .Count(y => CoopGuestScreen.BuildMapWriteRuns(toggled, moved, y, false).Count > 0) == 2,
+            "A guest memorizálás kapcsolása a kapacitás- és tárgysoron kívül is újrarajzol.");
     }
 
     static void HostProgressionWindowsSharePlayfieldCenter()
