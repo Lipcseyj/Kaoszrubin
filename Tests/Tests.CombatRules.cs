@@ -515,6 +515,22 @@ internal static partial class Program
                    scenario.Maze.BlocksSight(new Position(corridor.X + 2, corridor.Y + offset)),
                 "A középső 2×8-as folyosó járható szélessége vagy oldalfala hibás.");
         }
+        var room = scenario.Maze.Rooms.Single();
+        Assert(room.Width == DeveloperBattleTestScenarioBuilder.StartingRoomSize &&
+               room.Height == DeveloperBattleTestScenarioBuilder.StartingRoomSize &&
+               room.Contains(scenario.LeaderPosition) &&
+               room.InteriorPositions().All(scenario.Maze.IsWalkable) &&
+               scenario.Maze.GetDoorAt(new Position(scenario.LeaderPosition.X, room.TopLeft.Y - 1))
+                   is { State: DoorState.Locked },
+            "A parti nem a kulcsra zárt 4×4-es kezdőszoba belsejében indul.");
+        for (var x = room.TopLeft.X - 1; x <= room.TopLeft.X + room.Width; x++)
+        for (var y = room.TopLeft.Y - 1; y <= room.TopLeft.Y + room.Height; y++)
+        {
+            if (x > room.TopLeft.X - 1 && x < room.TopLeft.X + room.Width &&
+                y > room.TopLeft.Y - 1 && y < room.TopLeft.Y + room.Height) continue;
+            Assert(!scenario.Maze.IsWalkable(new Position(x, y)),
+                "A kulcsra zárt kezdőszoba falán át lehet jutni.");
+        }
     }
 
     static void LoadedDeveloperBattleCreatesRecoveryLog()

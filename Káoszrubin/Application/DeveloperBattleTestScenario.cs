@@ -27,6 +27,7 @@ public sealed record DeveloperBattleTestScenario(Maze Maze, Position LeaderPosit
 /// <summary>Nyílt, ismételhető harci tesztteret épít a kézi AI- és balanszpróbákhoz.</summary>
 public static class DeveloperBattleTestScenarioBuilder
 {
+    public const int StartingRoomSize = 4;
     public const int CorridorWidth = 2;
     public const int CorridorLength = 8;
     public const int MinimumEnemyDistance = 10;
@@ -55,6 +56,7 @@ public static class DeveloperBattleTestScenarioBuilder
 
         var leaderPosition = new Position(width / 2, height - 9);
         var corridorTopLeft = BuildCentralCorridor(maze, leaderPosition);
+        BuildLockedStartingRoom(maze, leaderPosition);
         var definitions = SelectEnemyDefinitions(enemyDefinitions, options.PartyLevel);
         var enemyGroups = new List<IReadOnlyList<ConfiguredEnemy>>();
         var markers = new List<TreasureChest>();
@@ -117,6 +119,28 @@ public static class DeveloperBattleTestScenarioBuilder
             maze.SetTile(new Position(rightWallX, topLeft.Y + offset), maze.WallRune);
         }
         return topLeft;
+    }
+
+    private static void BuildLockedStartingRoom(Maze maze, Position leaderPosition)
+    {
+        var room = new Room(new Position(leaderPosition.X - 2, leaderPosition.Y - 2),
+            StartingRoomSize, StartingRoomSize);
+        var left = room.TopLeft.X - 1;
+        var right = room.TopLeft.X + room.Width;
+        var top = room.TopLeft.Y - 1;
+        var bottom = room.TopLeft.Y + room.Height;
+        for (var x = left; x <= right; x++)
+        {
+            maze.SetTile(new Position(x, top), maze.WallRune);
+            maze.SetTile(new Position(x, bottom), maze.WallRune);
+        }
+        for (var y = top + 1; y < bottom; y++)
+        {
+            maze.SetTile(new Position(left, y), maze.WallRune);
+            maze.SetTile(new Position(right, y), maze.WallRune);
+        }
+        maze.PlaceDoor(new Position(leaderPosition.X, top), DoorState.Locked);
+        maze.AddRoom(room);
     }
 
     private static IReadOnlyList<EnemyDefinition> SelectEnemyDefinitions(
