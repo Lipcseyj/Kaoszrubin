@@ -203,6 +203,7 @@ public sealed partial class Game
             TryPublishScheduledCoopSnapshot(DateTime.UtcNow);
             Thread.Sleep(20);
         }
+        _renderer.ClearRestSummaryScreen(_maze, _fogOfWar, _player.Position);
         _latestRestNotice = null;
         _restAcknowledgements.Clear();
         _session.SetPhase(previousPhase);

@@ -108,6 +108,9 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
     private int _messageLogScrollOffset;
     private BackgroundContentRestorer? _replicatedWindowBackground;
     private BackgroundContentRestorer? _innWindowBackground;
+    private BackgroundContentRestorer? _restSummaryBackground;
+    private (int Left, int Top, int Width, int Height)? _restSummaryBounds;
+    private readonly HashSet<Position> _restSummaryDirtyCells = [];
     private LiveCharacter? _innSurfaceLeader;
     private ConsoleBackdropStyle _innBackdropStyle;
     private ConsoleColor _innBackdropColor;
@@ -2892,9 +2895,42 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
 
     public void DrawRestSummaryScreen(PartyRestSnapshot rest, string footer, ConsoleColor footerColor)
     {
-        ClearInnMenuScreen();
-        DrawCenteredFrame(RestSummaryWindow.Width, RestSummaryWindow.Build(rest, footer, footerColor),
-            FramedWindow.Inn);
+        var lines = RestSummaryWindow.Build(rest, footer, footerColor);
+        if (_innSurfaceLeader is not null)
+            ClearInnMenuScreen();
+        else if (_restSummaryBackground is null)
+        {
+            var adornmentRows = WindowFrameCatalog.Adornment(
+                WindowFrameConfiguration.For(FramedWindow.Inn), RestSummaryWindow.Width) is null ? 0 : 2;
+            var height = lines.Count + FrameBorderWidth + adornmentRows;
+            var (left, top) = CenteredFrameOrigin(RestSummaryWindow.Width, height, FramedWindow.Inn);
+            _restSummaryBounds = (left, top, RestSummaryWindow.Width, height);
+            _restSummaryBackground = SaveCenteredFrameBackground(RestSummaryWindow.Width, lines,
+                FramedWindow.Inn);
+        }
+        DrawCenteredFrame(RestSummaryWindow.Width, lines, FramedWindow.Inn);
+    }
+
+    public void ClearRestSummaryScreen(Maze maze, FogOfWar fogOfWar, Position playerPosition)
+    {
+        if (_restSummaryBackground is null) return;
+        var restored = _restSummaryBackground.RestoreAndDispose();
+        _restSummaryBackground = null;
+        var bounds = _restSummaryBounds;
+        _restSummaryBounds = null;
+        if (!restored && bounds is { } region)
+            for (var y = region.Top; y < region.Top + region.Height; y++)
+            for (var x = region.Left; x < region.Left + region.Width; x++)
+            {
+                var position = new Position(x, y);
+                if (maze.IsInside(position) && position != playerPosition)
+                    DrawMapCell(maze, fogOfWar, position);
+            }
+        foreach (var position in _restSummaryDirtyCells)
+            if (maze.IsInside(position) && position != playerPosition)
+                DrawMapCell(maze, fogOfWar, position);
+        _restSummaryDirtyCells.Clear();
+        DrawPlayer(playerPosition);
     }
 
     private static int InnMarketPageStart(int entryCount, int selectedIndex)
@@ -3219,6 +3255,13 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
     /// </summary>
     private void DrawMapCell(Maze maze, FogOfWar fogOfWar, Position position)
     {
+        if (_restSummaryBounds is { } restBounds &&
+            position.X >= restBounds.Left && position.X < restBounds.Left + restBounds.Width &&
+            position.Y >= restBounds.Top && position.Y < restBounds.Top + restBounds.Height)
+        {
+            _restSummaryDirtyCells.Add(position);
+            return;
+        }
         if (IsCoveredBySpellCastingOverlay(position))
         {
             _spellCastingOverlayDirtyCells.Add(position);

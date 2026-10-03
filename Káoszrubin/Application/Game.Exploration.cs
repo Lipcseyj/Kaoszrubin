@@ -506,7 +506,9 @@ public sealed partial class Game
         _nextNeedsDrain = DateTime.UtcNow + TimeSpan.FromMinutes(1);
         InitializeEnemyMoveSchedule(DateTime.UtcNow);
         foreach (var member in _maze.PartyMembers) ScheduleNextPartyMove(member, DateTime.UtcNow);
-        _renderer.DrawInitialState(_maze, _player, _fogOfWar, _mazeLevel);
+        _renderer.DrawMapCellsChanged(_maze, _fogOfWar, _player.Position,
+            roomDoors.Select(door => door.Position));
+        _renderer.RefreshCharacterSheet(PartyLeader);
     }
 
     private void PreparePartySpells()
