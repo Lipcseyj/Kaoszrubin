@@ -281,6 +281,9 @@ public sealed class QuestHandle
     public NpcDialogueDefinition? CompletionDialogue =>
         _definition.CompletionDialogue;
 
+    public bool GiverLeavesAfterCompletion =>
+        _definition.GiverLeavesAfterCompletion;
+
     /// <summary>
     /// API: YES
     /// Leadja és sikeresen lezárja a questet a

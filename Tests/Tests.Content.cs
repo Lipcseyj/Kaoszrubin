@@ -701,28 +701,59 @@ internal static partial class Program
     static void UniqueNpcPlacementIsScopedToCurrentCampaign()
     {
         var roster = new CharacterRoster();
-        var previousCampaignNpc = CreateCharacter("Merion");
-        previousCampaignNpc.SetSourceNpcDefinitionId("NPC022");
+        var previousCampaignNpc = CreateCharacter("Roderic");
+        previousCampaignNpc.SetSourceNpcDefinitionId("NPC021");
         roster.Add(previousCampaignNpc);
         var previousCampaign = Guid.NewGuid();
         var currentCampaign = Guid.NewGuid();
         roster.BindCampaign(previousCampaignNpc, previousCampaign, 1);
 
-        Assert(!Game.HasUniqueNpcInCampaign(roster, "NPC022", currentCampaign, false),
-            "Egy korábbi kampány Merionja nem akadályozhatja az új kampány első pályáján való megjelenést.");
-        Assert(Game.HasUniqueNpcInCampaign(roster, "NPC022", previousCampaign, false),
+        Assert(!Game.HasUniqueNpcInCampaign(roster, "NPC021", currentCampaign, false),
+            "Egy korábbi kampány Rodericje nem akadályozhatja az új kampány első pályáján való megjelenést.");
+        Assert(Game.HasUniqueNpcInCampaign(roster, "NPC021", previousCampaign, false),
             "Az ugyanabban a kampányban már létrehozott egyedi NPC nem jelenhet meg újra.");
 
-        var unboundNpc = CreateCharacter("Régi Merion");
-        unboundNpc.SetSourceNpcDefinitionId("NPC022");
+        var unboundNpc = CreateCharacter("Régi Roderic");
+        unboundNpc.SetSourceNpcDefinitionId("NPC021");
         var legacyRoster = new CharacterRoster();
         legacyRoster.Add(unboundNpc);
-        Assert(!Game.HasUniqueNpcInCampaign(legacyRoster, "NPC022", currentCampaign, false) &&
-               Game.HasUniqueNpcInCampaign(legacyRoster, "NPC022", currentCampaign, true),
+        Assert(!Game.HasUniqueNpcInCampaign(legacyRoster, "NPC021", currentCampaign, false) &&
+               Game.HasUniqueNpcInCampaign(legacyRoster, "NPC021", currentCampaign, true),
             "A régi mentésből betöltött, kampányhoz nem kötött NPC-ket továbbra is fel kell ismerni.");
         legacyRoster.Party.SetLeader(unboundNpc);
-        Assert(Game.HasUniqueNpcInCampaign(legacyRoster, "NPC022", currentCampaign, false),
+        Assert(Game.HasUniqueNpcInCampaign(legacyRoster, "NPC021", currentCampaign, false),
             "A partiban lévő egyedi NPC-t nem szabad újra elhelyezni.");
+    }
+
+    static void RecurringUniqueNpcReturnsWithSameCampaignCharacter()
+    {
+        var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory,
+            CsvGameDataLoader.GameDataFileName));
+        var merion = data.GetNpc("NPC022");
+        var roderic = data.GetNpc("NPC021");
+        var roster = new CharacterRoster();
+        var previous = CreateCharacter("Régi Merion");
+        previous.SetSourceNpcDefinitionId(merion.Id);
+        roster.Add(previous);
+        roster.BindCampaign(previous, Guid.NewGuid(), 1);
+        var currentCampaign = Guid.NewGuid();
+        var returning = CreateCharacter("Új Merion");
+        returning.SetSourceNpcDefinitionId(merion.Id);
+        roster.Add(returning);
+        roster.BindCampaign(returning, currentCampaign, 1);
+
+        Assert(merion is { Unique: true, PersistentRelationship: true } &&
+               !Game.ShouldSkipUniqueNpcEncounter(roster, merion, currentCampaign, false) &&
+               ReferenceEquals(Game.FindRecurringNpcCharacter(roster, merion, currentCampaign, false), returning),
+            "Az egyedi visszatérő NPC későbbi megjelenése kimaradt vagy másik kampány karakterét használta.");
+
+        var uniqueRoster = new CharacterRoster();
+        var uniqueCharacter = CreateCharacter("Roderic");
+        uniqueCharacter.SetSourceNpcDefinitionId(roderic.Id);
+        uniqueRoster.Add(uniqueCharacter);
+        uniqueRoster.BindCampaign(uniqueCharacter, currentCampaign, 1);
+        Assert(Game.ShouldSkipUniqueNpcEncounter(uniqueRoster, roderic, currentCampaign, false),
+            "A nem visszatérő egyedi NPC ismét megjelent ugyanabban a kampányban.");
     }
 
     static void WorldNpcGenerationExcludesWhiteColor()

@@ -39,6 +39,11 @@ public sealed class NpcQuestCoordinator
     public static bool HasQuestReadyToTurnIn(IEnumerable<QuestHandle> quests) =>
         quests.Any(quest => quest.IsReadyToTurnIn);
 
+    public static bool RemoveGiverAfterCompletion(Maze maze, WorldNpc giver,
+        IEnumerable<QuestHandle> quests) =>
+        quests.Any(quest => quest.IsCompleted && quest.GiverLeavesAfterCompletion) &&
+        maze.RemoveWorldNpc(giver);
+
     /// <summary>Pontos futáskulcs szerinti projekció, a napló nem ír vissza a managerbe.</summary>
     public void SynchronizeQuestJournal(Dictionary<QuestKey, QuestJournalEntrySnapshot> journal, QuestHandle quest)
     {

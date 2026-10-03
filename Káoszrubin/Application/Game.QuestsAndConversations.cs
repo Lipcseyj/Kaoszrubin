@@ -613,6 +613,8 @@ public sealed partial class Game
                 .Where(quest => selectedQuest is null || quest.Key == selectedQuest)
                 .ToArray();
 
+        var completedQuests = new List<QuestHandle>();
+
         foreach (var quest in quests)
         {
             // --------------------------------------------------------
@@ -783,6 +785,18 @@ public sealed partial class Game
                 "küldetésének összegzését olvassa…",
                 () => QuestCompletionWindow.Show(
                     completedEntry));
+
+            completedQuests.Add(quest);
+        }
+
+        if (NpcQuestCoordinator.RemoveGiverAfterCompletion(_maze, npc, completedQuests))
+        {
+            RememberNpcRelationship(npc);
+            _renderer.DrawMapCellsChanged(_maze, _fogOfWar, _player.Position, [npc.Position]);
+            var departureMessage = $"👋 {npc.Character.Name} továbbindult a küldetés lezárása után.";
+            _renderer.DrawInventoryMessage(departureMessage, ConsoleColor.Cyan);
+            RecordSessionActivity(SessionActivityKind.System, departureMessage, ConsoleColor.Cyan);
+            RequestCoopSnapshotPublish();
         }
 
         RequestCoopSnapshotPublish();

@@ -26,7 +26,8 @@ public sealed record QuestDefinition(
     NpcDialogueDefinition? HighRelationshipDialogue = null,
     string? EncounterId = null,
     int MinimumFriendliness = 0,
-    int MaximumFriendliness = 10);
+    int MaximumFriendliness = 10,
+    bool GiverLeavesAfterCompletion = false);
 
 public enum QuestActivationKind
 {

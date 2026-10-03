@@ -11,7 +11,8 @@ internal sealed record QuestImportRow(string Id, string NpcId, QuestImportType T
     string? RequiredStoryStateId = null, string? CompletionDialogueId = null,
     string? HighRelationshipRewardItemId = null, int HighRelationshipRewardItemCount = 0,
     string? HighRelationshipDialogueId = null,
-    string? EncounterId = null, int MinimumFriendliness = 0, int MaximumFriendliness = 10) : IGameDefinition
+    string? EncounterId = null, int MinimumFriendliness = 0, int MaximumFriendliness = 10,
+    bool GiverLeavesAfterCompletion = false) : IGameDefinition
 {
     public string Name => Title;
 }

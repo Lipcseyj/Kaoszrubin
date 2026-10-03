@@ -46,7 +46,9 @@ internal static class QuestCatalogImportTests
                 quest.FixedRewardItemCount == (Cell(9) == "" ? 0 : int.Parse(Cell(9))) &&
                 quest.RandomRewardCount == (Cell(10) == "" ? 1 : int.Parse(Cell(10))) &&
                 quest.CompletionDialogue?.Id == (Cell(12) == "" ? null : Cell(12)) &&
-                quest.CompletionDialogue?.NpcId == row[1],
+                quest.CompletionDialogue?.NpcId == row[1] &&
+                quest.GiverLeavesAfterCompletion ==
+                    (Cell(19).Equals("igen", StringComparison.OrdinalIgnoreCase)),
                 $"Eltérő jutalom: {row[0]}.");
             Require(quest.HighRelationshipRewardItem?.Id == (Cell(13) == "" ? null : Cell(13)) &&
                 quest.HighRelationshipRewardItemCount == (Cell(14) == "" ? 0 : int.Parse(Cell(14))) &&
@@ -70,6 +72,9 @@ internal static class QuestCatalogImportTests
             };
             Require(objectiveMatches, $"Eltérő objective vagy feloldott célpont: {row[0]}.");
         }
+        Require(data.GetNpc("NPC022") is { Unique: true, PersistentRelationship: true, Recruitable: true } &&
+                data.Quests.Get(QuestId.AureliosEmissaryChest).GiverLeavesAfterCompletion,
+            "Merion egyedi visszatérése vagy a küldetés utáni távozása nincs beállítva.");
         Require(typeof(GameDataCatalog).GetProperty("NpcQuests") is null &&
             !typeof(GameDataCatalog).Assembly.GetExportedTypes().Any(type =>
                 type.Name is "NpcQuestDefinition" or "QuestImportRow" or "QuestImportType" or "QuestCatalogBuilder"),

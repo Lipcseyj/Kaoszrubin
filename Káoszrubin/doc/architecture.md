@@ -1198,6 +1198,11 @@ egyidejű általános és típusspecifikus küldetés egymástól függetlenül 
 csapdaazonosítót hibaként jelzi. A questhaladás továbbra is csak darabszámot ment; a cél típusa a
 CSV-definícióból töltődik vissza, ezért a mentési formátum nem változott.
 
+Az NPC lehet egyszerre egyedi és visszatérő viszonyú: az első találkozás saját karakterlapot kap,
+a későbbi pályán pedig ugyanaz a kampányhoz kötött karakter térhet vissza. A `#NPC küldetések`
+`MegbízóTávozikLeadásUtán` mezője `igen` értékkel a jutalomösszegzés után eltávolítja a megbízót
+az aktuális pályáról, miközben a karaktere és a viszonya megmarad. Az NPCQ042 ezt használja Merionnál.
+
 ## Partiparancsok
 
 A leader felfedezés közben három, egymást kizáró tartós NPC-parancsot adhat: `H` Megállj,

@@ -13,6 +13,27 @@ namespace KaoszRubin.Tests.Quests;
 
 internal static class QuestJournalTests
 {
+    public static void MerionLeavesOnlyAfterQuestCompletion()
+    {
+        var data = LoadData();
+        var definition = data.Quests.Get(QuestId.AureliosEmissaryChest);
+        var fixture = new QuestTestFixture(definition);
+        var (maze, _, _) = World();
+        var npc = Add(maze, fixture.SelectedCharacter, "NPC022", 2);
+        var quest = fixture.Manager.Activate(definition.Id);
+        Require(!NpcQuestCoordinator.RemoveGiverAfterCompletion(maze, npc, [quest]) &&
+                maze.GetWorldNpcAt(npc.Position) == npc,
+            "Merion a küldetés teljesítése előtt eltűnt.");
+
+        fixture.Manager.RestoreState([new(definition.Id, default, QuestState.Completed,
+            definition.Objective.RequiredCount, 1)]);
+        quest = fixture.Manager.GetQuest(definition.Id);
+        Require(NpcQuestCoordinator.RemoveGiverAfterCompletion(maze, npc, [quest]) &&
+                maze.GetWorldNpcAt(npc.Position) is null &&
+                ReferenceEquals(npc.Character, fixture.SelectedCharacter),
+            "Merion a lezárás után a pályán maradt, vagy elveszett a visszatéréshez szükséges karaktere.");
+    }
+
     public static void ReadyRatHunterQuestSkipsEncounterDialogue()
     {
         var data = LoadData();

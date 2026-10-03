@@ -727,7 +727,7 @@ public static class CsvGameDataLoader
                     EmptyAsNull(Cell(cells, 13)), Math.Max(0, Integer(cells, 14) ?? 0),
                     EmptyAsNull(Cell(cells, 15)), EmptyAsNull(Cell(cells, 16)),
                     Math.Clamp(Integer(cells, 17) ?? 0, 0, 10),
-                    Math.Clamp(Integer(cells, 18) ?? 10, 0, 10)));
+                    Math.Clamp(Integer(cells, 18) ?? 10, 0, 10), IsYes(cells, 19)));
                 break;
             case DataSection.NpcStoryChoices:
                 npcStoryChoices.Add(new NpcStoryChoiceDefinition(id, Cell(cells, 1), Cell(cells, 2),
@@ -1038,8 +1038,6 @@ public static class CsvGameDataLoader
         var raceIds = races.Select(race => race.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
         foreach (var npc in npcs)
         {
-            if (npc.Unique && npc.PersistentRelationship)
-                throw new InvalidDataException($"A(z) '{npc.Id}' NPC nem lehet egyszerre egyedi és visszatérő viszonyú.");
             if (!classIds.Contains(npc.CharacterClassId))
                 throw new InvalidDataException($"A(z) '{npc.Id}' NPC ismeretlen kasztra hivatkozik: '{npc.CharacterClassId}'.");
             if (npc.RaceId is { } raceId && !raceIds.Contains(raceId))

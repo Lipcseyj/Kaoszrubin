@@ -131,9 +131,9 @@ public static class AsciiPortraits
                """
                    ______
                   / ò  ó \
-                 |  _▲_  |
-                 | /↑ ↑\ |
-                 \_|██|_/
+                 |  _°°_ |
+                 |░/↑ ↑\░|
+                 \_|░░░|_/
                """),
 
            // E008 - Hobgoblin
@@ -649,11 +649,11 @@ public static class AsciiPortraits
            // E066 - Csontváz őr
            [MonsterIds.CsontvázŐr] = Portrait(
                """
-                     /▲\    |
-                    [◉ ◉]   |
-                   | ▽▽▽ |  |
-                  /|_||||_|\|
-                    /|  |\  †
+                    /▲\   |
+                   [◉ ◉]  |
+                  | ▽▽▽ | |
+                 /|_|||_|\|
+                   /| |\  †
                """),
 
            // E067 - Páncélozott zombi
@@ -672,7 +672,7 @@ public static class AsciiPortraits
                    __/\____
                   / ◉    ◉ \
                  |    ___   |
-                /|  _/▽▽\_ |\
+                /|  _/▽▽\_  |\
                   \_/|██|\_/
                """),
 

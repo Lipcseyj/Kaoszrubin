@@ -76,7 +76,8 @@ internal sealed class QuestCatalogBuilder
             HighRelationshipDialogue: ResolveDialogue(source.HighRelationshipDialogueId),
             EncounterId: source.EncounterId,
             MinimumFriendliness: source.MinimumFriendliness,
-            MaximumFriendliness: source.MaximumFriendliness);
+            MaximumFriendliness: source.MaximumFriendliness,
+            GiverLeavesAfterCompletion: source.GiverLeavesAfterCompletion);
     }
 
     private NpcDialogueDefinition? ResolveCompletionDialogue(QuestImportRow source) =>

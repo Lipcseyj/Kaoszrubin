@@ -1456,7 +1456,7 @@ NPC018;Káoszzarándok;C005;Neutral;Guarded;nem;nem
 NPC019;Óriásvadász;C001;Neutral;Aggressive;nem;nem
 NPC020;Elira Ezüstág;C004;Neutral;Guarded;igen;igen;R003;ELIRA_RESCUE
 NPC021;Sir Roderic;C003;Neutral;Guarded;igen;igen;R001;RODERIC_OATH
-NPC022;Merion;C006;Friendly;Friendly;igen;igen;R001;;nem
+NPC022;Merion;C006;Friendly;Friendly;igen;igen;R001;;igen
 NPC023;Vildar;C001;Friendly;Friendly;nem;igen;R001
 
 #Egyedi NPC karakterlap
@@ -1533,7 +1533,7 @@ GOBLIN_CHEST;W045;1
 GOBLIN_CHEST;A010;1
 
 #NPC küldetések
-Id;NpcId;Típus;CélId;Darabszám;XP;Cím;Leírás;FixJutalomId;FixJutalomDarab;VéletlenJutalomDarab;SzükségesTörténetÁllapot;LezáróPárbeszédId;MagasViszonyJutalomId;MagasViszonyJutalomDarab;MagasViszonyPárbeszédId;TalálkozásId;MinimumViszony;MaximumViszony
+Id;NpcId;Típus;CélId;Darabszám;XP;Cím;Leírás;FixJutalomId;FixJutalomDarab;VéletlenJutalomDarab;SzükségesTörténetÁllapot;LezáróPárbeszédId;MagasViszonyJutalomId;MagasViszonyJutalomDarab;MagasViszonyPárbeszédId;TalálkozásId;MinimumViszony;MaximumViszony;MegbízóTávozikLeadásUtán
 NPCQ001;NPC001;Collect;T011;3;810;Gyógyító készlet;Gyűjts össze három kis gyógyitalt a füvesasszonynak.;T018;2;0;;NPCD072;T011;2;NPCD120
 NPCQ002;NPC002;Kill;E003;4;1170;Goblinvadászat;Ölj meg egy goblin vajákost a szörnyvadász megbízásából.;;;;;NPCD073;T019;2;NPCD123;NPCE002;;
 NPCQ003;NPC003;Collect;T001;5;1440;Útravaló a mélybe;Szerezz öt útravalót a kincskereső következő útjához.;T030;30;;;NPCD074;;;;;;
@@ -1567,7 +1567,7 @@ NPCQ030;NPC017;Kill;E023;4;8280;A pokol lovagjai;Győzz le négy démonlovagot �
 NPCQ031;NPC018;Explore;EXIT;1;9900;A lehetetlen ösvény;Fedezd fel a kijáratot a káosz szívében és térj vissza.;;;3;;NPCD102
 NPCQ032;NPC018;OpenChest;ANY;3;9450;A Rubin visszhangjai;Nyiss ki három ládát amelyekben a Káoszrubin energiája visszhangzik.;;;3;;NPCD103
 NPCQ033;NPC019;Kill;E012;3;3690;Nagyvad;Győzz le három ogrét az óriásvadász megbízásából.;;;;;NPCD104
-NPCQ042;NPC022;OpenQuestChest;AURELIOS_HELP;1;900;Uralkodód ezt a segítséget küldi;Találd meg Aurelios máguskirály küldöttének ládáját.;MW001;1;0;;NPCD071
+NPCQ042;NPC022;OpenQuestChest;AURELIOS_HELP;1;900;Uralkodód ezt a segítséget küldi;Találd meg Aurelios máguskirály küldöttének ládáját.;MW001;1;0;;NPCD071;;;;;;;igen
 NPCQ043;NPC023;Kill;E062;1;1800;Szemet szemért;Öld meg a goblin főnököt Vildar megbízásából.;T019;3;3;;NPCD114
 NPCQ044;NPC001;Collect;T031;2;1110;Húsleves;Gyűjts össze két adag nyers húst a füvesasszonynak.;T020;2;0;;NPCD116;T017;2;NPCD122;NPCE033;6;
 NPCQ045;NPC002;Kill;E007;5;2520;Az ork portyázók nyomában;Győzz le öt orkot a szörnyvadász megbízásából.;;;;;NPCD119;T019;3;NPCD125;NPCE034;6
@@ -2588,7 +2588,7 @@ ES027;Blub... te szilárd vagy. Ezen segíthetek.;Ne lépj belém! Vagy lépj. N
 ES028;Az erszényt vagy az életedet! Igazából jöhet mindkettő.;Semmi személyes, barátom. Csak kell a pénzed.;Szép felszerelés. Kár lenne, ha gazdát cserélne.
 ES029;Ssssz... meleg hús közeledik.;Ne aggódj, csak egy kicsit harapok.;Ez az én kövem. Keress magadnak másikat!
 ES030;Cinc... közelebb! Hadd köhögjek rád.;Nem én vagyok beteg. Mindenki más túl egészséges.;Egy harapás, és máris lesz bennünk valami közös.
-ES031;Te túl kicsi vagy ekkora fegyverhez.;Bugbear nem beszél sokat. Bugbear üt.;Ha sikítasz, legalább tudom, hogy eltaláltalak.
+ES031;Te túl kicsi vagy ekkora fegyverhez.;Ork nem beszél sokat. Ork üt.;Ha sikítasz, legalább tudom, hogy eltaláltalak.
 ES032;Micsoda csinos arc! Kár lenne összekarmolni.;Gyere csak közelebb, szépségem!;Sikíts hangosabban! Szeretem, ha visszhangzik.
 ES033;Hús... friss hús...;Ne félj! A halottakat már nem eszem meg. Többnyire.;Éhes vagyok, te pedig feltűnően ehető.
 ES034;Ne nézz sokáig a szemembe! Még gyakorlok.;Ha nagy leszek, mindenki kővé változik!;Ssssz... anya azt mondta, idegeneket szabad megharapni.

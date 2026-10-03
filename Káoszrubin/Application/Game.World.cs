@@ -1528,16 +1528,14 @@ public sealed partial class Game
             _maze = targetArea.Maze;
             _fogOfWar = targetArea.FogOfWar;
             var definition = _gameData.GetNpc(encounter.NpcId);
-            if (definition.Unique && HasUniqueNpcInCampaign(CharacterRoster, definition.Id,
+            if (ShouldSkipUniqueNpcEncounter(CharacterRoster, definition,
                     _campaignId, _loadedState is not null))
             { 
                 Log.Info($"A(z) '{definition.Id}' egyedi NPC már szerepel az aktuális kampányban, ezért nem kerül ismét elhelyezésre.");
                 continue; 
             }
-            var recurringCharacter = definition.PersistentRelationship
-                ? CharacterRoster.Characters.FirstOrDefault(character =>
-                    string.Equals(character.SourceNpcDefinitionId, definition.Id, StringComparison.OrdinalIgnoreCase))
-                : null;
+            var recurringCharacter = FindRecurringNpcCharacter(CharacterRoster, definition,
+                _campaignId, _loadedState is not null);
             if (recurringCharacter is not null &&
                 (!recurringCharacter.IsAlive || CharacterRoster.Party.Members.Contains(recurringCharacter)))
                 continue;
@@ -1633,6 +1631,20 @@ public sealed partial class Game
             (roster.Party.Members.Contains(character) ||
              roster.CampaignOf(character) is { } binding && binding.CampaignId == campaignId ||
              includeUnboundCharactersFromLoadedSave && roster.CampaignOf(character) is null));
+
+    internal static bool ShouldSkipUniqueNpcEncounter(CharacterRoster roster, NpcDefinition definition,
+        Guid campaignId, bool includeUnboundCharactersFromLoadedSave) =>
+        definition.Unique && !definition.PersistentRelationship &&
+        HasUniqueNpcInCampaign(roster, definition.Id, campaignId, includeUnboundCharactersFromLoadedSave);
+
+    internal static LiveCharacter? FindRecurringNpcCharacter(CharacterRoster roster, NpcDefinition definition,
+        Guid campaignId, bool includeUnboundCharactersFromLoadedSave) =>
+        definition.PersistentRelationship
+            ? roster.Characters.FirstOrDefault(character =>
+                string.Equals(character.SourceNpcDefinitionId, definition.Id, StringComparison.OrdinalIgnoreCase) &&
+                (!definition.Unique || roster.CampaignOf(character)?.CampaignId == campaignId ||
+                 includeUnboundCharactersFromLoadedSave && roster.CampaignOf(character) is null))
+            : null;
 
     private void PlaceQuestRoomEnemies(MazeLevelConfiguration configuration)
     {
