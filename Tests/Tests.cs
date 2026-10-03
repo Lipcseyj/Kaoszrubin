@@ -301,6 +301,7 @@ internal static partial class Program
     ("Az erdősűrűség a borítást, a ligetméret a foltok léptékét szabályozza", ForestDensityControlsCoverageAndGroveScale),
     ("Az erdei épületek kunyhó-, kúria- és labirintusalaprajzot is készítenek", ForestBuildingsSupportMultipleLayoutTypes),
     ("Az explicit erdőgráf template-jei, JSON-ja és felfedezett térképe megőrzik a szerkezetet", ForestAreaConfigurationAndMapRoundTrip),
+    ("Az áthelyezett LOST_MANOR régi kapcsolatai törölhetők és a RAVEN_CROSSING-hoz köthető", ForestGraphMoveKeepsOnlyAdjacentConnections),
     ("Az erdei tájegységek és a tisztásszéli bokrok összefüggő csoportokat alkotnak", ForestBiomesAndShrubsFormCoherentGroups),
     ("Az önálló mocsarak, kanyargó ösvények és kerülőutak konfigurálhatók", ForestIndependentMarshesAndWindingTrailsWork),
     ("Az erdős táj hibás konfigurációját a generátor elutasítja", ForestLandscapeRejectsInvalidConfiguration),

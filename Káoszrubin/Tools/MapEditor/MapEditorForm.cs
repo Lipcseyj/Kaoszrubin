@@ -840,6 +840,7 @@ internal static class TerminalMazePreview
             Overrides = patch
         };
         var oldId = _selected.Id;
+        var coordinateChanged = _selected.Coordinate != replacement.Coordinate;
         _areas[index] = replacement;
         for (var connectionIndex = 0; connectionIndex < _connections.Count; connectionIndex++)
         {
@@ -850,10 +851,26 @@ internal static class TerminalMazePreview
                 SecondAreaId = connection.SecondAreaId == oldId ? replacement.Id : connection.SecondAreaId
             };
         }
+        var removedConnections = coordinateChanged
+            ? _connections.RemoveAll(connection =>
+            {
+                if (connection.FirstAreaId != replacement.Id && connection.SecondAreaId != replacement.Id)
+                    return false;
+                var first = _areas.First(area => area.Id == connection.FirstAreaId);
+                var second = _areas.First(area => area.Id == connection.SecondAreaId);
+                return !ExplicitForestAreaGraphConfiguration.AreAdjacent(first.Coordinate, second.Coordinate);
+            })
+            : 0;
         var entrance = _entrance.SelectedItem?.ToString() == oldId ? replacement.Id : _entrance.SelectedItem?.ToString();
         var exit = _exit.SelectedItem?.ToString() == oldId ? replacement.Id : _exit.SelectedItem?.ToString();
+        var from = _connectionFrom.SelectedItem?.ToString() == oldId
+            ? replacement.Id : _connectionFrom.SelectedItem?.ToString();
+        var to = _connectionTo.SelectedItem?.ToString() == oldId
+            ? replacement.Id : _connectionTo.SelectedItem?.ToString();
         _selected = replacement;
-        RefreshGraph(entrance, exit);
+        RefreshGraph(entrance, exit, from, to);
+        if (removedConnections > 0)
+            UpdateStatus($"{replacement.Id} áthelyezve: {removedConnections} már nem szomszédos kapcsolat törölve.");
     }
 
     private void MoveArea(ForestAreaDefinition area, AreaCoordinate coordinate)
@@ -914,6 +931,7 @@ internal static class TerminalMazePreview
 
     private void AddConnection(object? _, EventArgs __)
     {
+        ApplySelected();
         var first = _connectionFrom.SelectedItem?.ToString(); var second = _connectionTo.SelectedItem?.ToString();
         if (first is null || second is null || first == second) return;
         if (!_connections.Any(connection => connection.FirstAreaId == first && connection.SecondAreaId == second ||
@@ -924,22 +942,27 @@ internal static class TerminalMazePreview
 
     private void RemoveConnection(object? _, EventArgs __)
     {
+        ApplySelected();
         var first = _connectionFrom.SelectedItem?.ToString(); var second = _connectionTo.SelectedItem?.ToString();
         _connections.RemoveAll(connection => connection.FirstAreaId == first && connection.SecondAreaId == second ||
                                              connection.FirstAreaId == second && connection.SecondAreaId == first);
         RefreshGraph();
     }
 
-    private void RefreshGraph(string? entrance = null, string? exit = null)
+    private void RefreshGraph(string? entrance = null, string? exit = null,
+        string? connectionFrom = null, string? connectionTo = null)
     {
         entrance ??= _entrance.SelectedItem?.ToString(); exit ??= _exit.SelectedItem?.ToString();
+        connectionFrom ??= _connectionFrom.SelectedItem?.ToString();
+        connectionTo ??= _connectionTo.SelectedItem?.ToString();
         foreach (var combo in new[] { _connectionFrom, _connectionTo, _entrance, _exit })
         {
             combo.Items.Clear(); combo.Items.AddRange(_areas.Select(area => area.Id).ToArray());
         }
         SelectCombo(_entrance, entrance ?? _areas.FirstOrDefault()?.Id);
         SelectCombo(_exit, exit ?? _areas.LastOrDefault()?.Id);
-        if (_areas.Count > 0) { _connectionFrom.SelectedIndex = 0; _connectionTo.SelectedIndex = Math.Min(1, _areas.Count - 1); }
+        SelectCombo(_connectionFrom, connectionFrom ?? _areas.FirstOrDefault()?.Id);
+        SelectCombo(_connectionTo, connectionTo ?? _areas.Skip(1).FirstOrDefault()?.Id);
         _canvas.Areas = _areas; _canvas.Connections = _connections; _canvas.SelectedArea = _selected; _canvas.Invalidate();
     }
 

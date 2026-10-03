@@ -112,8 +112,12 @@ public sealed record ExplicitForestAreaGraphConfiguration(
                 ? (connection.FirstAreaId, connection.SecondAreaId)
                 : (connection.SecondAreaId, connection.FirstAreaId);
             if (!edges.Add(normalized)) throw new ArgumentException("Az erdőgráf ismételt kapcsolatot tartalmaz.");
-            _ = Direction(Areas.First(area => area.Id == connection.FirstAreaId).Coordinate,
-                Areas.First(area => area.Id == connection.SecondAreaId).Coordinate);
+            var first = Areas.First(area => area.Id == connection.FirstAreaId);
+            var second = Areas.First(area => area.Id == connection.SecondAreaId);
+            if (!AreAdjacent(first.Coordinate, second.Coordinate))
+                throw new ArgumentException($"Nem szomszédos erdőképernyők: {first.Id} " +
+                    $"({first.Coordinate.X},{first.Coordinate.Y}) és {second.Id} " +
+                    $"({second.Coordinate.X},{second.Coordinate.Y}).");
         }
         var adjacency = Areas.ToDictionary(area => area.Id, _ => new List<string>(), StringComparer.Ordinal);
         foreach (var connection in Connections)
@@ -140,6 +144,9 @@ public sealed record ExplicitForestAreaGraphConfiguration(
             (-1, 0) => MazeEdge.Left,
             _ => throw new ArgumentException("Csak közvetlenül szomszédos erdőképernyők köthetők össze.")
         };
+
+    public static bool AreAdjacent(AreaCoordinate first, AreaCoordinate second) =>
+        Math.Abs((long)first.X - second.X) + Math.Abs((long)first.Y - second.Y) == 1;
 
     private static MazeEdge Opposite(MazeEdge edge) => edge switch
     {

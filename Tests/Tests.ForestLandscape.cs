@@ -1,5 +1,35 @@
 internal static partial class Program
 {
+    static void ForestGraphMoveKeepsOnlyAdjacentConnections()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "ForestLevelGraphs", "level-6.json");
+        var original = ForestConfigurationJson.DeserializeDocument(File.ReadAllText(path)).Graph;
+        var movedAreas = original.Areas.Select(area => area.Id == "LOST_MANOR"
+            ? area with { Coordinate = new AreaCoordinate(3, 0) } : area).ToArray();
+        var moved = original with { Areas = movedAreas };
+        string? error = null;
+        try { moved.Validate(); }
+        catch (ArgumentException exception) { error = exception.Message; }
+        Assert(error is not null && error.Contains("LOST_MANOR", StringComparison.Ordinal) &&
+               error.Contains("WHISPERING_WOOD", StringComparison.Ordinal) &&
+               error.Contains("(3,0)", StringComparison.Ordinal),
+            "Az áthelyezett képernyő régi, nem szomszédos kapcsolata nem azonosítható a hibaüzenetből.");
+        var coordinates = movedAreas.ToDictionary(area => area.Id, area => area.Coordinate);
+        var adjacentConnections = original.Connections.Where(connection =>
+            ExplicitForestAreaGraphConfiguration.AreAdjacent(coordinates[connection.FirstAreaId],
+                coordinates[connection.SecondAreaId])).ToArray();
+        Assert(adjacentConnections.Length == original.Connections.Count - 2 &&
+               ExplicitForestAreaGraphConfiguration.AreAdjacent(coordinates["LOST_MANOR"],
+                   coordinates["RAVEN_CROSSING"]),
+            "A LOST_MANOR áthelyezése után nem pontosan a két régi kapcsolat válik érvénytelenné.");
+        var reconnected = moved with
+        {
+            Connections = adjacentConnections.Append(new ForestAreaConnectionDefinition(
+                "RAVEN_CROSSING", "LOST_MANOR")).ToArray()
+        };
+        reconnected.Validate();
+    }
+
     static void ForestAreaConfigurationAndMapRoundTrip()
     {
         var graph = new ExplicitForestAreaGraphConfiguration(

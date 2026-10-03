@@ -68,13 +68,50 @@
           "Y": 0
         },
         "TemplateId": "mixed-forest",
-        "Overrides": null
+        "Overrides": {
+          "ForestDensity": null,
+          "GroveSize": null,
+          "BiomeSize": null,
+          "PineChance": null,
+          "BushChance": null,
+          "FlowerBushChance": null,
+          "BushGroupSize": null,
+          "ForestEdgeWidth": null,
+          "ThicketChance": null,
+          "UndergrowthChance": null,
+          "DenseUndergrowthChance": null,
+          "LakeCount": null,
+          "LakeRadius": null,
+          "MarshChance": null,
+          "MarshCount": null,
+          "MarshRadius": null,
+          "TrailWidth": null,
+          "TrailWinding": null,
+          "ExtraTrailChance": null,
+          "BuildingCount": null,
+          "BuildingSize": null,
+          "BuildingPartitionChance": null,
+          "ManorBuildingChance": null,
+          "LabyrinthBuildingChance": null,
+          "ManorBuildingWidth": null,
+          "ManorBuildingHeight": null,
+          "ManorRoomCount": null,
+          "BuildingMinimumRoomSize": null,
+          "LabyrinthBuildingWidth": null,
+          "LabyrinthBuildingHeight": null,
+          "BuildingExtraConnectionChance": null,
+          "BuildingSecondEntranceChance": null,
+          "LockedBuildingDoorChance": null,
+          "OpenBuildingDoorChance": null,
+          "Palette": null,
+          "BuildingStyles": null
+        }
       },
       {
         "Id": "OLD_PINES",
         "Name": "Az \u00F6reg fenyves",
         "Coordinate": {
-          "X": 1,
+          "X": 2,
           "Y": -1
         },
         "TemplateId": "dense-cabin-forest",
@@ -124,8 +161,8 @@
         "Id": "LOST_MANOR",
         "Name": "Az elveszett k\u00FAri\u00E1k",
         "Coordinate": {
-          "X": 1,
-          "Y": 1
+          "X": 3,
+          "Y": 0
         },
         "TemplateId": "lakes-and-manors",
         "Overrides": {
@@ -208,19 +245,7 @@
         "SecondAreaId": "RAVEN_CROSSING"
       },
       {
-        "FirstAreaId": "WHISPERING_WOOD",
-        "SecondAreaId": "OLD_PINES"
-      },
-      {
-        "FirstAreaId": "WHISPERING_WOOD",
-        "SecondAreaId": "LOST_MANOR"
-      },
-      {
         "FirstAreaId": "RAVEN_CROSSING",
-        "SecondAreaId": "BLACKWATER"
-      },
-      {
-        "FirstAreaId": "LOST_MANOR",
         "SecondAreaId": "BLACKWATER"
       },
       {
@@ -230,6 +255,14 @@
       {
         "FirstAreaId": "THORN_MAZE",
         "SecondAreaId": "WINDLESS_GLADE"
+      },
+      {
+        "FirstAreaId": "RAVEN_CROSSING",
+        "SecondAreaId": "LOST_MANOR"
+      },
+      {
+        "FirstAreaId": "RAVEN_CROSSING",
+        "SecondAreaId": "OLD_PINES"
       }
     ],
     "EntranceAreaId": "MOSS_GATE",
