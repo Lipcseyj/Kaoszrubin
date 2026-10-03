@@ -288,6 +288,7 @@ public sealed partial class Game : ISessionCommandHandler
             ExplorationClockIndicator = BuildExplorationClockIndicator(DateTime.UtcNow,
                 IsExplorationClockAdvancing),
             SpellImpacts = _sessionEventService.SpellImpacts,
+            Projectiles = _sessionEventService.Projectiles,
             DungeonMap = _dungeonLevel.CreateDiscoveredMap(),
             Party = snapshot.Party.Select(character => character with
             {

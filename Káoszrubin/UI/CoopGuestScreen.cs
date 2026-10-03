@@ -58,6 +58,7 @@ public sealed class CoopGuestScreen
     private long _lastSessionSoundSequence;
     private bool _sessionSoundsInitialized;
     private readonly ReplicatedSpellImpactTracker _spellImpacts = new();
+    private readonly ReplicatedProjectileTracker _projectiles = new();
     private int _deathStateSynchronized;
     private Guid? _acknowledgedNarrativeId;
     private Guid? _acknowledgedLevelImageId;
@@ -114,7 +115,10 @@ public sealed class CoopGuestScreen
         {
             _battleCommandGate.CompleteAfterSnapshot(snapshot.SnapshotSequence);
             if (snapshot.World is { } world)
+            {
                 _spellImpacts.Observe(world.WorldId, snapshot.SpellImpacts, _gameData, DateTime.UtcNow);
+                _projectiles.Observe(world.WorldId, snapshot.Projectiles, DateTime.UtcNow);
+            }
             Interlocked.Exchange(ref _redrawRequested, 1);
         };
         client.ConnectionStateChanged += _ => Interlocked.Exchange(ref _redrawRequested, 1);
@@ -1554,6 +1558,7 @@ public sealed class CoopGuestScreen
         }
         var now = DateTime.UtcNow;
         var activeSpellImpacts = _spellImpacts.ActiveAt(now);
+        var activeProjectiles = _projectiles.ActiveAt(now);
 
         var own = snapshot.Party.FirstOrDefault(character => character.CharacterId == selected.CharacterId);
         var ownsCharacter = snapshot.CharacterControls.Any(control =>
@@ -1568,7 +1573,7 @@ public sealed class CoopGuestScreen
             return;
         }
 
-        var frame = BuildFrame(client, selected, snapshot, world, activeSpellImpacts, now,
+        var frame = BuildFrame(client, selected, snapshot, world, activeSpellImpacts, activeProjectiles, now,
             out var spellMenuBaseMap);
         if (_battleSpellMenuOpen && spellMenuBaseMap is not null)
         {
@@ -1606,7 +1611,8 @@ public sealed class CoopGuestScreen
             RenderFrame(frame, _lastFrame);
         }
         _lastFrame = frame;
-        if (activeSpellImpacts.Count > 0) Interlocked.Exchange(ref _redrawRequested, 1);
+        if (activeSpellImpacts.Count > 0 || activeProjectiles.Count > 0)
+            Interlocked.Exchange(ref _redrawRequested, 1);
     }
 
     private void SynchronizeBackgroundMusic(SessionSnapshot snapshot)
@@ -1687,6 +1693,7 @@ public sealed class CoopGuestScreen
 
     private GuestRenderFrame BuildFrame(CoopSignalRClient client, CoopCharacterOption selected,
         SessionSnapshot snapshot, WorldSnapshot world, IReadOnlyList<SpellImpactAnimation> activeSpellImpacts,
+        IReadOnlyList<(Position Position, string Glyph)> activeProjectiles,
         DateTime utcNow, out GuestMapCell[,]? spellMenuBaseMap)
     {
         var windowWidth = SafeWindowWidth();
@@ -1808,6 +1815,8 @@ public sealed class CoopGuestScreen
                     Background = colors.Background
                 };
             }
+        foreach (var (position, glyph) in activeProjectiles)
+            Put(grid, position, glyph, ConsoleColor.Yellow, ConsoleColor.Black);
         if (_doorTargetAction is not null && _doorTargetCandidates.Count > 0)
         {
             _doorTargetSelection = Math.Clamp(_doorTargetSelection, 0, _doorTargetCandidates.Count - 1);

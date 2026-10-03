@@ -879,6 +879,8 @@ static void ResolveSkipsActionAfterSupportVictory()
             Sounds = [new SessionSoundSnapshot(1, SoundEffect.OffensiveSpell, [companion.Id])],
             SpellImpacts = [new SessionSpellImpactSnapshot(1, WorldId.New(), "S001",
                 new Position(4, 3), [new Position(4, 3), new Position(5, 3)])],
+            Projectiles = [new SessionProjectileSnapshot(1, WorldId.New(), Direction.Right,
+                [new Position(2, 3), new Position(3, 3)])],
             LevelImage = new LevelImageSnapshot(Guid.NewGuid(), "Tesztlabirintus", "teszt.png",
                 [session.HostPlayerId]),
             InnDeparture = new InnDepartureSnapshot("A csapat elhagyja a fogadót."),
@@ -911,6 +913,7 @@ static void ResolveSkipsActionAfterSupportVictory()
         Assert(restored is not null && restored.ProtocolVersion == SessionProtocol.Version &&
                restored.Phase == GameSessionPhase.Exploration && restored.Party.Count == 2 &&
                restored.Activities is [{ Kind: SessionActivityKind.Spell }] &&
+               restored.Projectiles is [{ Direction: Direction.Right, Path.Count: 2 }] &&
                restored.LevelImage is { FileName: "teszt.png", AcknowledgedPlayerIds.Count: 1 } &&
                restored.InnDeparture is { Message: "A csapat elhagyja a fogadót." } &&
                restored.AdHocConversation is { CharacterName: "Elira", Choices.Count: 2 } &&
@@ -993,6 +996,37 @@ static void ResolveSkipsActionAfterSupportVictory()
         var ranged = ExplorationRangedAttackRules.Trace(maze, new Position(2, 2), Direction.Right, 3);
         Assert(ranged.SequenceEqual([new Position(3, 2), new Position(4, 2), new Position(5, 2)]),
             "A lövedék nem pontosan a fegyver maximális hatótávjáig haladt.");
+    }
+
+    static void GuestExplorationProjectilesAnimateOnce()
+    {
+        var tracker = new ReplicatedProjectileTracker();
+        var world = WorldId.New();
+        var otherWorld = WorldId.New();
+        var start = new DateTime(2026, 1, 1, 12, 0, 0, DateTimeKind.Utc);
+        var old = new SessionProjectileSnapshot(1, world, Direction.Left, [new Position(1, 1)]);
+        tracker.Observe(world, [old], start);
+        Assert(tracker.ActiveAt(start).Count == 0,
+            "A guest belépéskor újrajátszotta a korábbi lövést.");
+        var hostShot = new SessionProjectileSnapshot(2, world, Direction.Right,
+            [new Position(2, 1), new Position(3, 1), new Position(4, 1)]);
+        var guestShot = new SessionProjectileSnapshot(3, world, Direction.Up,
+            [new Position(4, 3), new Position(4, 2)]);
+        tracker.Observe(world, [old, hostShot, guestShot], start.AddMilliseconds(10));
+        var first = tracker.ActiveAt(start.AddMilliseconds(10));
+        Assert(first.Count == 2 && first.Contains((new Position(2, 1), "→")) &&
+               first.Contains((new Position(4, 3), "↑")),
+            "A host és a guest lövedéke nem jelent meg együtt a vendégoldali idővonalon.");
+        tracker.Observe(world, [old, hostShot, guestShot], start.AddMilliseconds(40));
+        var later = tracker.ActiveAt(start.AddMilliseconds(46));
+        Assert(later.Count == 2 && later.Contains((new Position(3, 1), "→")) &&
+               later.Contains((new Position(4, 2), "↑")),
+            "A lövedék nem halad végig a replikált útvonalon, vagy ismételten elindult.");
+        Assert(tracker.ActiveAt(start.AddMilliseconds(130)).Count == 0,
+            "A lövedék a rövid animáció után is a térképen maradt.");
+        tracker.Observe(otherWorld, [hostShot], start.AddMilliseconds(140));
+        Assert(tracker.ActiveAt(start.AddMilliseconds(140)).Count == 0,
+            "A régi világ lövedéke átkerült az új pályára.");
     }
 
     static void RemotePlayerCanShootDuringExploration()

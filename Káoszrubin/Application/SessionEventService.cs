@@ -12,9 +12,11 @@ public sealed class SessionEventService
     private readonly Queue<SessionActivitySnapshot> _sessionActivities = new();
     private readonly Queue<SessionSoundSnapshot> _sessionSounds = new();
     private readonly Queue<SessionSpellImpactSnapshot> _spellImpacts = new();
+    private readonly Queue<SessionProjectileSnapshot> _projectiles = new();
     private long _sessionActivitySequence;
     private long _sessionSoundSequence;
     private long _spellImpactSequence;
+    private long _projectileSequence;
 
     public SessionEventService(ConsoleRenderer renderer, SoundEffects soundEffects, Random random)
     {
@@ -26,6 +28,7 @@ public sealed class SessionEventService
     public IReadOnlyList<SessionActivitySnapshot> Activities => _sessionActivities.ToArray();
     public IReadOnlyList<SessionSoundSnapshot> Sounds => _sessionSounds.ToArray();
     public IReadOnlyList<SessionSpellImpactSnapshot> SpellImpacts => _spellImpacts.ToArray();
+    public IReadOnlyList<SessionProjectileSnapshot> Projectiles => _projectiles.ToArray();
 
     public void LogPartyComment(LiveCharacter speaker, string comment, string? level = null)
     {
@@ -112,6 +115,14 @@ public sealed class SessionEventService
             cells.Distinct().ToArray(), trackedTargets?.Distinct().ToArray(), casterPosition,
             meteorCenters?.ToArray(), meteorHitCells?.ToArray()));
         while (_spellImpacts.Count > 24) _spellImpacts.Dequeue();
+    }
+
+    public void RecordProjectile(WorldId worldId, Direction direction, IReadOnlyList<Position> visiblePath)
+    {
+        if (visiblePath.Count == 0) return;
+        _projectiles.Enqueue(new SessionProjectileSnapshot(++_projectileSequence, worldId, direction,
+            visiblePath.ToArray()));
+        while (_projectiles.Count > 24) _projectiles.Dequeue();
     }
 
     public static ConsoleColor BattleEntryColor(BattleLogKind kind) => kind switch

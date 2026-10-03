@@ -80,6 +80,9 @@ public sealed partial class Game
 
         _renderer.AnimateExplorationProjectile(_maze, _fogOfWar, _player.Position, flightPath,
             command.Direction);
+        _sessionEventService.RecordProjectile(_maze.Id, command.Direction,
+            flightPath.Where(position => _fogOfWar.IsCurrentlyVisible(position,
+                includeDeveloperReveal: false)).ToArray());
         var distance = flightPath.Count;
         if (enemyTarget is not null)
         {

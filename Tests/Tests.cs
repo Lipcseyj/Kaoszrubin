@@ -106,6 +106,7 @@ internal static partial class Program
     ("A kijelölt lövős szörnyek távolsági fegyvert és távoli célpontot használnak", RangedMonstersUseRangedWeaponsAndTargets),
     ("A host mozgási parancsa átmegy", HostMovementIsAccepted),
     ("A felfedezési lövedék a hatótávig halad és a fal előtt megáll", ExplorationProjectileStopsAtWallsAndRange),
+    ("A host és guest lövedéke egyszer végighalad a vendég térképén", GuestExplorationProjectilesAnimateOnce),
     ("A vendég felfedezés közben saját karakterével lőhet", RemotePlayerCanShootDuringExploration),
     ("A korábbi gyorsharc nem nyeli el a felfedezési támadás naplóját", ExplorationAttackLogSurvivesQuickBattleState),
     ("Az íjak és íjpuskák eltérő, öröklődő lövési késleltetést kapnak", RangedWeaponsHaveConfiguredShotDelays),

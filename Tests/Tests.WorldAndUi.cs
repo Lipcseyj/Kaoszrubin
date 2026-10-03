@@ -1087,17 +1087,21 @@ static void BattleHitHighlightsDamageAndHealth()
             World: WorldSnapshotProjector.Create(maze, fog))) with
         {
             SpellImpacts = [new SessionSpellImpactSnapshot(1, maze.Id, "S001",
-                enemy.Position, [enemy.Position])]
+                enemy.Position, [enemy.Position])],
+            Projectiles = [new SessionProjectileSnapshot(1, maze.Id, Direction.Right,
+                [new Position(2, 2), enemy.Position])]
         };
         var delta = publisher.CreateFrame(playerId, second);
         Assert(delta.Kind == SessionReplicationFrameKind.Delta && delta.Session.World is null &&
                delta.BaseSnapshotSequence == first.SnapshotSequence &&
                delta.WorldDelta?.EnemyUpserts.Single().EntityId == enemy.Id &&
-               delta.Session.SpellImpacts is [{ SpellId: "S001" }],
+               delta.Session.SpellImpacts is [{ SpellId: "S001" }] &&
+               delta.Session.Projectiles is [{ Direction: Direction.Right, Path.Count: 2 }],
             "A nyugtázott baseline után nem megfelelő world delta készült.");
         var restored = JsonSerializer.Deserialize<SessionReplicationFrame>(JsonSerializer.Serialize(delta));
         Assert(restored?.WorldDelta?.ToSnapshotSequence == second.SnapshotSequence &&
-               restored.Session.SpellImpacts is [{ WorldId: var impactWorld }] && impactWorld == maze.Id,
+               restored.Session.SpellImpacts is [{ WorldId: var impactWorld }] && impactWorld == maze.Id &&
+               restored.Session.Projectiles is [{ WorldId: var projectileWorld }] && projectileWorld == maze.Id,
             "A replikációs frame JSON round-trip közben megváltozott.");
     }
 
