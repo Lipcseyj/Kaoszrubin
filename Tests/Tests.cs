@@ -208,6 +208,7 @@ internal static partial class Program
     ("A 2x2-es alakzat minden irányban a vezér slotjához igazodik", PartyFormationPositionsFollowFacing),
     ("A zárt 2x2-es alakzat a saját mezőin fordul meg", PartyFormationTurnsInPlace),
     ("A feloszlatott parti az alakzatslotok sorrendjében követ", FormationSlotsControlFreeFollowOrder),
+    ("A társak megkerülik a felfedezett csapdát", PartyMembersRouteAroundDetectedTraps),
     ("A zárt alakzat a szűkületben állapotvesztés nélkül libasorra vált", LockedFormationUsesSingleFileLayout),
     ("Az NPC ládanyitó súlyozva sorsol és járható úton lép a ládára", NpcChestOrdersUseWeightedReachableOpener),
     ("A követő kísérőhelyei az alakzat hátsó éle mögött vannak", FormationEscortPositionsFollowRearEdge),

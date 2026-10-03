@@ -104,7 +104,7 @@ public sealed class PartyMovementController
 
     private static bool CanPartyPlanThrough(PartyMemberAvatar member, Position position, Maze maze, Player player)
     {
-        if (!maze.IsWalkable(position) || position == player.Position) return false;
+        if (!maze.IsWalkable(position) || position == player.Position || HasBlockingTrap(maze, position)) return false;
         var occupant = maze.GetObjectAt(position);
         return occupant is null or GroundItemPile or Corpse or PartyMemberAvatar || occupant == member ||
                Maze.IsPassableNeutralNpc(occupant);
@@ -202,14 +202,14 @@ public sealed class PartyMovementController
 
     private static bool IsFreeNeighbor(Maze maze, Player player, Position position)
     {
-        if (!maze.IsWalkable(position) || position == player.Position) return false;
+        if (!maze.IsWalkable(position) || position == player.Position || HasBlockingTrap(maze, position)) return false;
         var occupant = maze.GetObjectAt(position);
         return occupant is null or GroundItemPile or Corpse || Maze.IsPassableNeutralNpc(occupant);
     }
 
     public static bool CanPartyTraverse(PartyMemberAvatar member, Position position, Maze maze, Player player)
     {
-        if (!maze.IsWalkable(position) || position == player.Position) return false;
+        if (!maze.IsWalkable(position) || position == player.Position || HasBlockingTrap(maze, position)) return false;
         var occupant = maze.GetObjectAt(position);
         return occupant is null or GroundItemPile or Corpse || occupant == member ||
                Maze.IsPassableNeutralNpc(occupant);
@@ -262,7 +262,8 @@ public sealed class PartyMovementController
         Maze maze,
         Player player)
     {
-        if (!maze.IsWalkable(position) || position == player.Position || maze.GetEnemyAt(position) is not null)
+        if (!maze.IsWalkable(position) || position == player.Position || HasBlockingTrap(maze, position) ||
+            maze.GetEnemyAt(position) is not null)
             return false;
         var occupant = maze.GetObjectAt(position);
         if (occupant is null or GroundItemPile or Corpse || occupant == member || Maze.IsPassableNeutralNpc(occupant))
@@ -274,6 +275,9 @@ public sealed class PartyMovementController
 
     public static int Manhattan(Position first, Position second) =>
         Math.Abs(first.X - second.X) + Math.Abs(first.Y - second.Y);
+
+    private static bool HasBlockingTrap(Maze maze, Position position) =>
+        maze.GetTrapAt(position) is { IsActive: true, State: TrapState.Detected };
 
     public static (int X, int Y) DirectionOffset(Direction direction) => direction switch
     {

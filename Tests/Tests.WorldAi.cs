@@ -713,6 +713,34 @@ internal static partial class Program
             "A követő megpróbált a közvetlenül előtte álló csapattárs foglalt mezőjére lépni.");
     }
 
+    static void PartyMembersRouteAroundDetectedTraps()
+    {
+        var maze = new Maze(7, 7);
+        var start = new Position(2, 3);
+        var trapPosition = new Position(3, 3);
+        var target = new Position(4, 3);
+        foreach (var position in new[] { start, trapPosition, target,
+                     new Position(2, 2), new Position(3, 2), new Position(4, 2), new Position(5, 3) })
+            maze.Carve(position);
+        var leader = new Player(new Position(5, 3), CreateCharacter("Vezér"));
+        var member = new PartyMemberAvatar(start, CreateCharacter("Társ"));
+        var trap = new MazeTrap(trapPosition,
+            new TrapDefinition("TR-ROUTE", "Tesztcsapda", new Rune('⌄'), TrapEffect.Damage,
+                1, 7, 7, 3, 7, 0, 25, 75, "Teszt."));
+        maze.AddTrap(trap);
+        trap.Detect();
+
+        Assert(PartyMovementController.FindNextStep(member, [target], maze, leader) == new Position(2, 2) &&
+               PartyMovementController.FollowLeaderTrail(member, 1, maze, leader,
+                   [target, leader.Position]) == new Position(2, 2) &&
+               !PartyMovementController.CanPartyTraverse(member, trapPosition, maze, leader),
+            "A társ a felfedezett csapdán át tervezett, pedig volt járható kerülő.");
+
+        trap.Disarm();
+        Assert(PartyMovementController.FindNextStep(member, [target], maze, leader) == trapPosition,
+            "A társ a hatástalanított csapdát sem használta járható útvonalként.");
+    }
+
     static void LockedFormationUsesSingleFileLayout()
     {
         var leader = CreateCharacter("Libasorvezér");
