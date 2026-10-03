@@ -1603,6 +1603,21 @@ static void BattleHitHighlightsDamageAndHealth()
             "Az érvényes pickup command alakját elutasította a session.");
     }
 
+    static void CharacterSheetPerksUseBothRowsBeforeShortening()
+    {
+        var names = new[] { "Manaerő", "Mágiaőr", "Lánctűz", "Illúziók" };
+        var rows = CharacterSheetPanel.BuildPerkRows(names, CharacterSheetPanel.Width);
+        Assert(rows.Count == 2 && rows[0].StartsWith("Teh: ", StringComparison.Ordinal) &&
+               names.All(name => rows.Any(row => row.Contains(name, StringComparison.Ordinal))) &&
+               rows.All(row => BattleCommandPanel.DisplayWidth(row) <= CharacterSheetPanel.Width),
+            "A karakterlap tehetségei két sorban sem kapják meg a teljes nevüket.");
+        var crowded = CharacterSheetPanel.BuildPerkRows(
+            ["Hosszú tehetségnév egy", "Hosszú tehetségnév kettő", "Hosszú tehetségnév három"],
+            CharacterSheetPanel.Width);
+        Assert(crowded.Count == 2 && crowded.All(row => BattleCommandPanel.DisplayWidth(row) <= CharacterSheetPanel.Width),
+            "A túl hosszú tehetségnevek túlfutnak a karakterlapon.");
+    }
+
     static void GuestDropResolvesEveryInventoryCategory()
     {
         var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory,

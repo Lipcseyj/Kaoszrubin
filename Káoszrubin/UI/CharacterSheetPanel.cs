@@ -289,8 +289,9 @@ public static class CharacterSheetPanel
         var proficiencies = details.WeaponProficiencyNames ?? [];
         lines.Add(new(10, proficiencies.Count > 0 ? $"Fegyver: {string.Join(' ', proficiencies)}" : "Fegyver: —",
             proficiencies.Count > 0 ? ConsoleColor.Yellow : ConsoleColor.DarkGray));
-        lines.Add(new(11, CompactRows("Teh", details.PerkNames, 1, effectiveWidth)[0], ConsoleColor.Magenta));
-        lines.Add(new(12, BlankLineForWidth(effectiveWidth), ConsoleColor.Black));
+        var perkRows = BuildPerkRows(details.PerkNames, effectiveWidth);
+        lines.Add(new(11, perkRows[0], ConsoleColor.Magenta));
+        lines.Add(new(12, perkRows[1], perkRows[1].Length == 0 ? ConsoleColor.Black : ConsoleColor.Magenta));
         lines.Add(new(13, "OSZTÁLYFEJLESZTÉSEK", ConsoleColor.DarkCyan));
         var upgrades = details.ClassFeatureUpgradeNames ?? [];
         lines.Add(new(14, upgrades.Count > 0 ? Shorten($"L10: {upgrades[0]}", effectiveWidth) : "L10: —", upgrades.Count > 0 ? ConsoleColor.Cyan : ConsoleColor.DarkGray));
@@ -435,31 +436,42 @@ public static class CharacterSheetPanel
         string.Concat(Enumerable.Repeat(icon, level / ResourceIconStep));
 
     /// <summary>
-    /// Több rövid szövegértéket (pl. perk nevek) tömörít fix számú sorba úgy,
-    /// hogy soronként egyenletesen ossza el őket, és a panel szélességébe
-    /// nem férő neveket levágja. Üres bemenetnél "nincs" jelzést ad.
+    /// A teljes tehetségneveket két sorba osztja, ha van olyan töréspont, ahol mind elférnek.
+    /// Csak akkor rövidít, ha a teljes nevek egyik két soros elrendezésben sem férnek el.
     /// </summary>
-    private static IReadOnlyList<string> CompactRows(string prefix, IEnumerable<string> values, int rowCount, int width)
+    internal static IReadOnlyList<string> BuildPerkRows(IEnumerable<string> values, int width)
     {
         var names = values.ToList();
-        if (names.Count == 0) return [$"{prefix}: nincs", .. Enumerable.Repeat(string.Empty, rowCount - 1)];
-        var rows = new List<string>(rowCount);
-        var namesPerRow = (int)Math.Ceiling(names.Count / (double)rowCount);
-        for (var row = 0; row < rowCount; row++)
+        var effectiveWidth = Math.Max(Width, width);
+        if (names.Count == 0) return ["Teh: nincs", BlankLineForWidth(effectiveWidth)];
+        string First(int count) => "Teh: " + string.Join(", ", names.Take(count));
+        string Second(int count) => string.Join(", ", names.Skip(count));
+        var fullRows = Enumerable.Range(1, names.Count)
+            .Select(count => (First: First(count), Second: Second(count)))
+            .Where(rows => BattleCommandPanel.DisplayWidth(rows.First) <= effectiveWidth &&
+                           BattleCommandPanel.DisplayWidth(rows.Second) <= effectiveWidth)
+            .OrderBy(rows => Math.Max(BattleCommandPanel.DisplayWidth(rows.First),
+                BattleCommandPanel.DisplayWidth(rows.Second)))
+            .FirstOrDefault();
+        if (fullRows.First is not null)
+            return [fullRows.First, fullRows.Second.Length == 0 ? BlankLineForWidth(effectiveWidth) : fullRows.Second];
+
+        var namesPerRow = (int)Math.Ceiling(names.Count / 2d);
+        var result = new string[2];
+        for (var row = 0; row < 2; row++)
         {
             var rowNames = names.Skip(row * namesPerRow).Take(namesPerRow).ToList();
             if (rowNames.Count == 0)
             {
-                rows.Add(string.Empty);
+                result[row] = BlankLineForWidth(effectiveWidth);
                 continue;
             }
-            var rowPrefix = row == 0 ? $"{prefix}: " : new string(' ', prefix.Length + 2);
+            var rowPrefix = row == 0 ? "Teh: " : string.Empty;
             var separatorWidth = (rowNames.Count - 1) * 2;
-            var effectiveWidth = Math.Max(Width, width);
             var availablePerName = Math.Max(1, (effectiveWidth - rowPrefix.Length - separatorWidth) / rowNames.Count);
-            rows.Add(rowPrefix + string.Join(", ", rowNames.Select(name =>
-                name.Length <= availablePerName ? name : name[..availablePerName])));
+            result[row] = rowPrefix + string.Join(", ", rowNames.Select(name =>
+                name.Length <= availablePerName ? name : name[..availablePerName]));
         }
-        return rows;
+        return result;
     }
 }

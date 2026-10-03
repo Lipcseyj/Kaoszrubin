@@ -352,6 +352,7 @@ internal static partial class Program
     ("Az átkozott tárgy aktiválódik, megköt és alkalmazza az adatvezérelt hátrányokat", CursedItemsActivateBindAndApplyEffects),
     ("Az Átoktörés és a Vándormágus végleg megtisztítja és feloldja a tárgyat", ItemCursePurificationIsPermanent),
     ("A host és a vendég ugyanazt a karakterlap-layoutot használja", CharacterSheetLayoutIsShared),
+    ("A karakterlap két sorba kiírja a teljes tehetségneveket", CharacterSheetPerksUseBothRowsBeforeShortening),
     ("A részletes karakterlap közösen mutatja a látásmódosítókat és ölési statisztikát", CharacterDetailsAreShared),
     ("A karakterlap külön színezi az alacsony HP-t és a mannát", CharacterSheetColorsHealthAndManaSeparately),
     ("A host és a vendég közös varázslat-UI modelleket használ", SpellUiModelsAreShared),
