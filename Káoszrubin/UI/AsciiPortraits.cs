@@ -131,7 +131,7 @@ public static class AsciiPortraits
                """
                    ______
                   / ò  ó \
-                 |  _°°_ |
+                ó|  _°°_ |ò
                  |░/↑ ↑\░|
                  \_|░░░|_/
                """),
@@ -1014,6 +1014,114 @@ public static class AsciiPortraits
                \  \___/  /
                 /_/   \_\
             """),
+           // E106 - Óriáspióca
+           [MonsterIds.Óriáspióca] = Portrait(
+               """
+                    .-~~-.
+                 __/ ◉  ◉\__
+                /  \  ▲  /  \
+                \___\___/___/
+                    /___\
+               """),
+
+           // E107 - Mérges varangy
+           [MonsterIds.MérgesVarangy] = Portrait(
+               """
+                    _@~~@_
+                  _/ ◉  ◉ \_
+                 /  \  ▲  /  \
+                 \__/\___/\__/
+                    /_/ \_\
+               """),
+
+           // E108 - Mocsári vipera
+           [MonsterIds.MocsáriVipera] = Portrait(
+               """
+                    /^\/\__
+                  _/ ◉  ◉  \_
+                 /   \ ▲ /   \
+                 \___/▽▽\___/
+                     /_/
+               """),
+
+           // E109 - Mocsári krokodil
+           [MonsterIds.MocsáriKrokodil] = Portrait(
+               """
+                       __
+                  ____/◉ \___
+                 /▲ _       _\____
+                 ▽▽▽▽\_===__/_____>
+                    /_/   \_\
+               """),
+
+           // E110 - Gyíkember portyázó
+           [MonsterIds.GyíkemberPortyázó] = Portrait(
+               """
+                    /^___/^
+                   / ◉   ◉ \
+                  <   _▲_   >
+                   \__|=|_/
+                     /|  |\
+               """),
+
+           // E111 - Lápi lidérc
+           [MonsterIds.LápiLidérc] = Portrait(
+               """
+                    .~~~~~.
+                   / ◉  ◉ \
+                  |   ▽▽   |
+                   \__|||__/
+                   ~~/   \~~
+               """),
+
+           // E112 - Óriáskrokodil
+           [MonsterIds.Óriáskrokodil] = Portrait(
+               """
+                       ___
+                 _____/◉░░\____
+                /____░░░░░░░░___\__
+               ▽▽▽▽▽▽ \_====_/_____>
+                   /_/    \_\
+               """),
+
+           // E113 - Mocsári ogre
+           [MonsterIds.MocsáriOgre] = Portrait(
+               """
+                    _______
+                   /░◉░ ░◉░\
+                  |░ __▲__ ░|
+                  | ░/▽▽▽\░ |
+                  /|_/░░░\_|\ 
+               """),
+           // E101 - Goblin íjász
+           [MonsterIds.GoblinÍjász] = Portrait(
+               """
+                  /\       /\
+                 <  \_____/  >
+                  \ ò   ó  /
+                   \_▽▽▽__/ )-->
+                    /|  |\/
+               """),
+
+           // E102 - Csontváz íjász
+           [MonsterIds.CsontvázÍjász] = Portrait(
+               """
+                   .----.   /
+                  / ◉  ◉ \ /
+                 |  ▽▽▽▽  |)==>
+                  \_||||_/ \
+                  /|    |\
+               """),
+
+           // E103 - Ork íjász
+           [MonsterIds.OrkÍjász] = Portrait(
+               """
+                   ______   /
+                  / •  • \ /
+                 ó  _°°_ |)==>
+                 |░/↑ ↑\░| \
+                 \_|░░░|_/
+               """),
        };
 
     private static readonly AsciiPortrait Unknown = Portrait(

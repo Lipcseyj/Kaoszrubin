@@ -108,6 +108,7 @@ internal static partial class Program
     ("A CSV új fegyverei adatvezéreltek és örökítik a harci tulajdonságokat", WeaponCsvPropertiesAreInherited),
     ("Az ellenséges mágikus fegyverek ritka CSV-esélyekkel skálázódnak és menthetők", EnemyMagicWeaponsScaleFromCsvAndPersist),
     ("A kijelölt lövős szörnyek távolsági fegyvert és távoli célpontot használnak", RangedMonstersUseRangedWeaponsAndTargets),
+    ("Az ellenséges íjász csak közeli veszélyben és közelharci fedezettel hátrál", EnemyArchersRetreatOnlyBehindMeleeCover),
     ("A host mozgási parancsa átmegy", HostMovementIsAccepted),
     ("A felfedezési lövedék a hatótávig halad és a fal előtt megáll", ExplorationProjectileStopsAtWallsAndRange),
     ("A host és guest lövedéke egyszer végighalad a vendég térképén", GuestExplorationProjectilesAnimateOnce),

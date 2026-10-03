@@ -101,6 +101,14 @@ public static class MonsterIds
     public const string OrkÍjász = "E103";
     public const string Vadkan = "E104";
     public const string HegyiHiúz = "E105";
+    public const string Óriáspióca = "E106";
+    public const string MérgesVarangy = "E107";
+    public const string MocsáriVipera = "E108";
+    public const string MocsáriKrokodil = "E109";
+    public const string GyíkemberPortyázó = "E110";
+    public const string LápiLidérc = "E111";
+    public const string Óriáskrokodil = "E112";
+    public const string MocsáriOgre = "E113";
 
     public static IReadOnlySet<string> Bosses { get; } = new HashSet<string>(
     [

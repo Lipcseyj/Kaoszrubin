@@ -1492,6 +1492,65 @@ internal static partial class Program
             "Az ellenség mágikus fegyvere nem ad találati és kritikus bónuszt.");
     }
 
+    static void EnemyArchersRetreatOnlyBehindMeleeCover()
+    {
+        var weapon = new WeaponDefinition("TEST-BOW", "Tesztíj", null, null, 0, true,
+            new HashSet<string>(), "", 0, AttackMode: WeaponAttackMode.Projectile,
+            MinimumRange: 1, MaximumRange: 4);
+        var sword = new WeaponDefinition("TEST-SWORD", "Tesztkard", null, null, 0, false,
+            new HashSet<string>(), "", 0);
+        var archerDefinition = new EnemyDefinition("E-TEST-ARCHER", "Tesztíjász", "i", 3, 20,
+            0, 4, 1, 1, [], Weapons: [weapon]);
+        var meleeDefinition = new EnemyDefinition("E-TEST-MELEE", "Tesztközelharcos", "h", 3, 20,
+            0, 4, 1, 1, [], Weapons: [sword]);
+        var archer = new ConfiguredEnemy(new Position(4, 3), archerDefinition);
+        var frontline = new ConfiguredEnemy(new Position(6, 3), meleeDefinition);
+        var target = CreateCharacter("Célpont");
+        var runtime = CreateBattleSystem(9301).PrepareCharacter(target).Runtime;
+        var battle = new BattleEncounter(new Position(3, 3),
+            [new BattleCharacterParticipant(target, new Position(3, 3),
+                TacticalParticipantKind.PartyMember, 5, 3, 1, runtime)],
+            [new BattleEnemyParticipant(archer, 5, 3, 1),
+             new BattleEnemyParticipant(frontline, 5, 3, 1)], target.Id, archer.Id);
+
+        Assert(frontline.AttackWeapons.Count > 0 && frontline.AttackWeapons.All(candidate => !candidate.IsRanged) &&
+               EnemyRangedPositionPolicy.ShouldReposition(battle, archer, weapon, true, false) &&
+               !EnemyRangedPositionPolicy.ShouldReposition(battle, archer, weapon, false, false) &&
+               !EnemyRangedPositionPolicy.ShouldReposition(battle, archer, weapon, true, true),
+            "Az íjász nem csak közvetlen fenyegetésben, mozgásra képesen keresett új lőállást.");
+        battle.Engage(target, archer);
+        Assert(!EnemyRangedPositionPolicy.ShouldReposition(battle, archer, weapon, true, false),
+            "A közelharcban lekötött íjász hátrált.");
+        battle.Disengage(target);
+        frontline.SetCurrentHitPoints(0);
+        Assert(!EnemyRangedPositionPolicy.ShouldReposition(battle, archer, weapon, true, false),
+            "Az utolsóként maradt íjász tovább hátrált.");
+
+        var secondArcher = new ConfiguredEnemy(new Position(6, 3), archerDefinition);
+        var rangedOnly = new BattleEncounter(new Position(3, 3),
+            [new BattleCharacterParticipant(target, new Position(3, 3),
+                TacticalParticipantKind.PartyMember, 5, 3, 1, runtime)],
+            [new BattleEnemyParticipant(archer, 5, 3, 1),
+             new BattleEnemyParticipant(secondArcher, 5, 3, 1)], target.Id, archer.Id);
+        Assert(!EnemyRangedPositionPolicy.ShouldReposition(rangedOnly, archer, weapon, true, false),
+            "A kizárólag íjászokból álló ellenségcsoport tovább hátrált.");
+
+        var longBow = weapon with { Id = "TEST-LONGBOW", MinimumRange = 2, MaximumRange = 6 };
+        var longBowman = new ConfiguredEnemy(new Position(4, 3),
+            archerDefinition with { Weapons = [longBow] });
+        var finalDuel = new BattleEncounter(new Position(3, 3),
+            [new BattleCharacterParticipant(target, new Position(3, 3),
+                TacticalParticipantKind.PartyMember, 5, 3, 1, runtime)],
+            [new BattleEnemyParticipant(longBowman, 5, 3, 1)], target.Id, longBowman.Id);
+        Assert(longBow.MinimumRange > 1 &&
+               TacticalBattleCoordinator.EnemyAttackTargets(finalDuel, longBowman, longBow,
+                   _ => new Position(3, 3)).Count == 0 &&
+               EnemyRangedPositionPolicy.AllowsCloseRangedShot(finalDuel, longBowman) &&
+               TacticalBattleCoordinator.EnemyAttackTargets(finalDuel, longBowman, longBow,
+                   _ => new Position(3, 3), allowBelowMinimumRange: true).Single() == target,
+            "A minimális lőtávú utolsó íjász közelről sem tudott célpontot választani.");
+    }
+
     static void RangedMonstersUseRangedWeaponsAndTargets()
     {
         var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory,

@@ -10,11 +10,14 @@
           "X": 0,
           "Y": 0
         },
-        "TemplateId": "mixed-forest"
+        "TemplateId": "mixed-forest",
+        "Overrides": {
+          "OpenBuildingDoorChance": 0.05
+        }
       },
       {
         "Id": "WHISPERING_WOOD",
-        "Name": "Suttogó rengeteg",
+        "Name": "Suttog\u00F3 rengeteg",
         "Coordinate": {
           "X": 1,
           "Y": 0
@@ -23,7 +26,7 @@
       },
       {
         "Id": "RAVEN_CROSSING",
-        "Name": "Hollók elágazása",
+        "Name": "Holl\u00F3k el\u00E1gaz\u00E1sa",
         "Coordinate": {
           "X": 2,
           "Y": 0
@@ -32,54 +35,84 @@
       },
       {
         "Id": "OLD_PINES",
-        "Name": "Az öreg fenyves",
+        "Name": "Az \u00F6reg fenyves",
         "Coordinate": {
           "X": 2,
           "Y": -1
         },
-        "TemplateId": "dense-cabin-forest",
+        "TemplateId": "old-pines",
         "Overrides": {
           "PineChance": 0.72,
-          "BuildingCount": {
-            "Minimum": 0,
+          "MarshChance": 0.1,
+          "MarshCount": {
+            "Minimum": 1,
             "Maximum": 1
-          }
+          },
+          "LockedBuildingDoorChance": 1
         }
       },
       {
         "Id": "LOST_MANOR",
-        "Name": "Az elveszett kúriák",
+        "Name": "Az elveszett k\u00FAri\u00E1k",
         "Coordinate": {
           "X": 3,
           "Y": 0
         },
         "TemplateId": "lakes-and-manors",
         "Overrides": {
+          "BuildingCount": {
+            "Minimum": 3,
+            "Maximum": 6
+          },
           "ManorBuildingChance": 1,
           "LabyrinthBuildingChance": 0
         }
       },
       {
         "Id": "BLACKWATER",
-        "Name": "Feketevíz lápja",
+        "Name": "Feketev\u00EDz l\u00E1pja",
         "Coordinate": {
           "X": 2,
           "Y": 1
         },
-        "TemplateId": "swamp"
+        "TemplateId": "huge-swamp",
+        "Overrides": {
+          "MarshCount": {
+            "Minimum": 12,
+            "Maximum": 20
+          },
+          "MarshRadius": {
+            "Minimum": 5,
+            "Maximum": 10
+          }
+        }
       },
       {
         "Id": "THORN_MAZE",
-        "Name": "A tövisek útvesztője",
+        "Name": "A t\u00F6visek \u00FAtveszt\u0151je",
         "Coordinate": {
           "X": 3,
           "Y": 1
         },
-        "TemplateId": "forest-labyrinth"
+        "TemplateId": "forest-labyrinth",
+        "Overrides": {
+          "MarshChance": 0.2,
+          "MarshCount": {
+            "Minimum": 1,
+            "Maximum": 1
+          },
+          "ExtraTrailChance": 0.4,
+          "BuildingCount": {
+            "Minimum": 4,
+            "Maximum": 6
+          },
+          "LockedBuildingDoorChance": 0.98,
+          "OpenBuildingDoorChance": 0.01
+        }
       },
       {
         "Id": "WINDLESS_GLADE",
-        "Name": "A Szélcsend tisztása",
+        "Name": "A Sz\u00E9lcsend tiszt\u00E1sa",
         "Coordinate": {
           "X": 3,
           "Y": 2

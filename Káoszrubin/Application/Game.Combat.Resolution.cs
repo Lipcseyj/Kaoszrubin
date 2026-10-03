@@ -234,6 +234,7 @@ public sealed partial class Game
             .OrderBy(character => TacticalDistance.Between(enemy.Position, GetCasterPosition(character))).ToArray();
         var closestDistance = livingTargets.Length == 0 ? int.MaxValue :
             TacticalDistance.Between(enemy.Position, GetCasterPosition(livingTargets[0]));
+        var allowCloseRangedShot = EnemyRangedPositionPolicy.AllowsCloseRangedShot(battle, enemy);
         var preparedAbility = _battleSystem.PreparedEnemyAbility(enemy);
         if (preparedAbility is not null && !enemy.IsPreparedAbilityReady(preparedAbility.Id))
         {
@@ -276,9 +277,9 @@ public sealed partial class Game
             : [];
         var selectedWeapon = _battleSystem.SelectEnemyAttackWeapon(enemy, weapon =>
             TacticalBattleCoordinator.EnemyAttackTargets(battle, enemy, weapon, GetCasterPosition,
-                HasBattleLineOfSight).Count, closestDistance);
+                HasBattleLineOfSight, allowCloseRangedShot).Count, closestDistance);
         var weaponTargets = TacticalBattleCoordinator.EnemyAttackTargets(battle, enemy, selectedWeapon,
-            GetCasterPosition, HasBattleLineOfSight);
+            GetCasterPosition, HasBattleLineOfSight, allowCloseRangedShot);
 
         if (preparedAbility is null && enemy.PreparedWeaponId is null)
         {
@@ -492,14 +493,16 @@ public sealed partial class Game
 
         var attackWeapon = selectedWeapon ?? _battleSystem.SelectEnemyAttackWeapon(enemy, weapon =>
             TacticalBattleCoordinator.EnemyAttackTargets(battle, enemy, weapon, GetCasterPosition,
-                HasBattleLineOfSight).Count, closestDistance);
-        if (attackWeapon?.IsRanged == true && !battle.IsEngaged(enemy) &&
-            !battle.IsMovementBlocked(CombatantId.ForEnemy(enemy.Id)) &&
-            closestDistance < PreferredEnemyRangedDistance(attackWeapon) &&
-            TryMoveEnemyToPreferredRangedPosition(battle, enemy, attackWeapon, livingTargets))
+                HasBattleLineOfSight, allowCloseRangedShot).Count, closestDistance);
+        if (attackWeapon is { IsRanged: true } rangedWeapon &&
+            EnemyRangedPositionPolicy.ShouldReposition(battle, enemy, rangedWeapon,
+                livingTargets.Any(target => TacticalDistance.IsMeleeAdjacent(enemy.Position,
+                    GetCasterPosition(target))) || closestDistance < rangedWeapon.MinimumRange,
+                battle.IsMovementBlocked(CombatantId.ForEnemy(enemy.Id))) &&
+            TryMoveEnemyToPreferredRangedPosition(battle, enemy, rangedWeapon, livingTargets))
             return;
         var targets = TacticalBattleCoordinator.EnemyAttackTargets(battle, enemy, attackWeapon,
-            GetCasterPosition, HasBattleLineOfSight);
+            GetCasterPosition, HasBattleLineOfSight, allowCloseRangedShot);
         if (targets.Count == 0)
         {
             var target = EnemyTargets(battle, enemy)
@@ -1017,7 +1020,7 @@ public sealed partial class Game
     }
 
     private static int PreferredEnemyRangedDistance(WeaponDefinition weapon) =>
-        Math.Clamp(weapon.MaximumRange - 1, 2, weapon.MaximumRange);
+        Math.Clamp(weapon.MaximumRange - 1, 2, 3);
 
     private bool EnemyAbilityCanTarget(Enemy enemy, LiveCharacter target, MonsterAbilityDefinition ability)
     {
@@ -1065,7 +1068,8 @@ public sealed partial class Game
     }
 
     private static int EnemyRangedHitModifier(WeaponDefinition? weapon, int distance) =>
-        weapon is { IsRanged: true } && distance <= 1 ? RangedWeaponRules.CloseRangeHitPenalty : 0;
+        weapon is { IsRanged: true } && distance <= Math.Max(1, weapon.MinimumRange - 1)
+            ? RangedWeaponRules.CloseRangeHitPenalty : 0;
 
     private bool TryMoveEnemyToPreferredRangedPosition(BattleEncounter battle, Enemy enemy,
         WeaponDefinition weapon, IReadOnlyList<LiveCharacter> targets)

@@ -702,6 +702,14 @@ E099;Káosz főpap;҂;14;400;10;6;5000;5;MA013;;8;1;2;nem;W021|W013;nem;2;2;0;3;
 E100;Feketemágus;Ӻ;13;1000;11;8;10000;5;MA013;;8;3;0;nem;W021|W020;nem;-2;2;-2;4;3;6;7;8;;20
 E104;Vadkan;v;5;70;2;6;320;1;MA005|MA007;;4;1;3;igen;WN011;nem;0;0;1;0;0;0;0;6;;0
 E105;Hegyi hiúz;ƛ;4;50;1;9;320;1;MA006|MA004;;6;3;2;igen;WN002|WN007;igen;0;0;0;0;0;0;0;8;;0
+E106;Óriáspióca;ɭ;3;45;0;4;220;1;MA003;;3;3;0;nem;WN001;nem;0;0;0;-2;2;0;0;7;;0
+E107;Mérges varangy;ʚ;4;65;2;4;280;1;MA002|MA007;;4;2;2;igen;WN018;nem;0;1;1;-2;3;0;0;5;;5
+E108;Mocsári vipera;ʃ;4;50;1;8;300;1;MA002|MA006;;5;3;1;igen;WN018;nem;0;1;0;-1;3;0;0;8;;5
+E109;Mocsári krokodil;Ͻ;9;220;5;5;800;2;MA005|MA007;;5;3;1;igen;WN011|WN012;nem;2;1;0;0;2;0;0;8;;5
+E110;Gyíkember portyázó;ɀ;8;180;4;6;750;2;MA006;;6;2;2;igen;W002|W006|W010;igen;1;1;0;0;2;0;0;6;W025;10
+E111;Lápi lidérc;ʑ;10;260;4;7;950;2;MA006|MA013;Undead;7;4;0;nem;WN002;nem;2;2;-2;0;1;4;1;8;;25
+E112;Óriáskrokodil;Ͼ;14;620;8;5;1900;3;MA005|MA007;;6;2;3;igen;WN011|WN012;nem;3;2;1;0;3;0;0;9;;10
+E113;Mocsári ogre;Ǫ;13;420;6;3;1300;3;MA005|MA007;;5;1;4;igen;W019|W017;igen;1;1;1;0;1;0;0;5;;5
 
 #Ellenséges varázshasználók
 EllenségId;VarázslatIds;MaxManna;Intelligencia;Mannatartalék%;VarázslásiEsély%;Profil;VarázslatLehűlés
@@ -870,6 +878,10 @@ E100;100;igen;nem;igen;Varázs;Legendás;12;40000
 E101;40;igen;igen;nem;Sima;Sima;0;100
 E102;15;igen;igen;nem;Sima;Sima;0;250
 E103;45;igen;igen;nem;Sima;Sima;0;250
+E110;55;igen;igen;igen;Sima;Sima;0;300
+E111;60;nem;nem;igen;Varázs;Varázs;2;2000
+E112;35;nem;igen;igen;Sima;Varázs;2;2500
+E113;50;igen;igen;igen;Sima;Sima;0;500
 
 #Csapdák
 Id;Név;Jel;Hatás;MinimumSzint;ÉszlelésiNehézség;HatástalanításiNehézség;MinimumSebzés;MaximumSebzés;Állapotesély;ÉszlelésiXP;HatástalanításiXP;Leírás;VarázslatId
@@ -2653,3 +2665,11 @@ ES099;A Káosz előtt király és koldus egyaránt térdre hull.;Én vagyok az a
 ES100;A fény csak addig létezik, amíg én el nem oltom.;Annyi lelket láttam elbukni, hogy a tietek már fel sem tűnik.;Ne féljetek a haláltól. Van annál sokkal rosszabb is.
 ES104;Röf! Takarodjatok az utamból!;Egyetlen roham, és repültök!;Az agyaram már élesebb, mint tegnap!
 ES105;Nem hallottatok közeledni, igaz?;Egyetlen rossz lépés, és már a torkotokon vagyok.;A hegyekben mindig a gyorsabb marad életben.
+ES106;Csak egy kortyot kérek... az összes véretekkel együtt.;Rátapadok, és addig nem engedlek el, míg ki nem száradsz.;A mocsár legjobb része az, amikor a zsákmány nem tud kiszabadulni.
+ES107;Brekk... közelebb, hadd köpjek rátok valami csúnyát.;A bőröm nyálkás, a mérgem még annál is kellemetlenebb.;Ne bámulj így! Te sem lennél szebb egy mocsárban élve.
+ES108;Sziszegve jövök, és marva távozom.;Egyetlen harapás, és már a méreg dolgozik helyettem.;Lépjetek csak közelebb a nádhoz... ott szeretek várni.
+ES109;A víz alatt is látlak benneteket.;Mire észrevennétek, már a lábatok van a számban.;A mocsár nem nyel el mindenkit. Néhányat én eszem meg előbb.
+ES110;A sekély víz a mi földünk, idegen.;Nálunk a vendéget vagy kifosztják, vagy megeszik.;A törzs örülni fog a felszereléseteknek.
+ES111;Eltévedtetek... most már örökre.;A ködben minden lépés közelebb visz hozzám.;Sokan hallották a hangomat. Kevesen látták, mi beszélt.
+ES112;Egy harapásommal csónakot is kettétörnék.;A sekély vízben nincs hová futnotok.;Minél nagyobb a zsákmány, annál tovább tart az élvezet.
+ES113;Sárból jöttem, és oda is döngöllek vissza.;A mocsár etet engem, ti pedig jól laktok majd bennem... mármint én bennetek.;Nem kell gyorsnak lennem, ha ekkorát ütök.

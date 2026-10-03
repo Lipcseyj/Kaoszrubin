@@ -228,7 +228,8 @@ public sealed class TacticalBattleCoordinator
 
     public static IReadOnlyList<LiveCharacter> EnemyAttackTargets(BattleEncounter battle, Enemy enemy,
         WeaponDefinition? weapon, Func<LiveCharacter, Position> getCharacterPosition,
-        Func<Position, Position, int, bool>? canSee = null)
+        Func<Position, Position, int, bool>? canSee = null,
+        bool allowBelowMinimumRange = false)
     {
         var maximumTargets = Math.Clamp(weapon?.MaximumTargets ?? 1, 1, 4);
         var pattern = AttackPattern(weapon);
@@ -245,7 +246,8 @@ public sealed class TacticalBattleCoordinator
                 return weapon?.CanAttackFromRear == true && distance <= 2 &&
                        (canSee is null || canSee(enemy.Position, position, 2));
             }
-            return RangedWeaponRules.CanReach(weapon, distance) &&
+            return (RangedWeaponRules.CanReach(weapon, distance) ||
+                    allowBelowMinimumRange && distance >= 1 && distance < weapon.MinimumRange) &&
                    (canSee is null || canSee(enemy.Position, position, weapon.MaximumRange));
         }
 
