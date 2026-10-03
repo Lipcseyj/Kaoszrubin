@@ -4,7 +4,7 @@ internal static partial class Program
     {
         var region = InnSurfaceRegion.ForViewport(200, 52);
         var (left, top) = region.Center(ConsoleRenderer.InnMarketFrameWidth, 35);
-        Assert(region.Left == 2 && region.Top == 1 && region.Width == 168 && region.Height == 43 &&
+        Assert(region.Left == 0 && region.Top == 0 && region.Width == 170 && region.Height == 44 &&
                left >= region.Left && left + ConsoleRenderer.InnMarketFrameWidth <= region.Left + region.Width &&
                top >= region.Top && top + 35 <= region.Top + region.Height &&
                region.Top + region.Height <= ConsoleRenderer.PlayfieldHeight,

@@ -287,7 +287,7 @@ public static class CharacterSheetPanel
             details.StatusIcons.Count == 0 ? ConsoleColor.DarkGray : ConsoleColor.Magenta));
         lines.Add(new(9, $"Arany: {character.Gold} {ConsoleRenderer.MoneyIcon}", ConsoleColor.Yellow));
         var proficiencies = details.WeaponProficiencyNames ?? [];
-        lines.Add(new(10, proficiencies.Count > 0 ? $"Fegyver: {string.Join(' ', proficiencies)}" : "Fegyver: —",
+        lines.Add(new(10, proficiencies.Count > 0 ? $"Jártasság: {string.Join(' ', proficiencies)}" : "Jártasság: —",
             proficiencies.Count > 0 ? ConsoleColor.Yellow : ConsoleColor.DarkGray));
         var perkRows = BuildPerkRows(details.PerkNames, effectiveWidth);
         lines.Add(new(11, perkRows[0], ConsoleColor.Magenta));

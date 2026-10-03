@@ -7,8 +7,8 @@ internal readonly record struct InnSurfaceRegion(int Left, int Top, int Width, i
 
     internal static InnSurfaceRegion ForViewport(int windowWidth, int windowHeight)
     {
-        var left = Math.Min(2, Math.Max(0, windowWidth - 1));
-        const int top = 1;
+        const int left = 0;
+        const int top = 0;
         var right = Math.Max(left + 1, Math.Min(PreferredRightExclusive, Math.Max(1, windowWidth - 1)));
         var bottom = Math.Max(top + 1, Math.Min(PreferredBottomExclusive, Math.Max(2, windowHeight - 1)));
         return new InnSurfaceRegion(left, top, right - left, bottom - top);
