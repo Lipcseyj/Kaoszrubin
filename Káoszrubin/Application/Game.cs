@@ -143,6 +143,7 @@ public sealed partial class Game : ISessionCommandHandler
     private readonly Dictionary<CharacterId, DateTime> _nextExplorationShotUtc = [];
     private readonly Dictionary<CharacterId, DateTime> _nextExplorationShotNoticeUtc = [];
     private readonly List<Position> _leaderTrail = [];
+    private DateTime _lastLeaderMoveUtc = DateTime.UtcNow;
     private bool _partyHoldingPosition;
     private bool _partyRegrouping;
     private bool _partyAttackMode;

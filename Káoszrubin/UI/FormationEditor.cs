@@ -5,17 +5,23 @@ namespace KaoszRubin.UI;
 public static class FormationEditor
 {
     private const int WindowWidth = 104;
-    private const int WindowHeight = 18;
+    private const int WindowHeight = 22;
+
+    private static readonly NpcBehavior[] MovementProfiles = Enum.GetValues<NpcBehavior>();
 
     public sealed record Result(IReadOnlyList<CharacterId?> Slots,
-        IReadOnlyDictionary<CharacterId, NpcSpellcasterTactics> SpellcasterTactics);
+        IReadOnlyDictionary<CharacterId, NpcSpellcasterTactics> SpellcasterTactics,
+        IReadOnlyDictionary<CharacterId, NpcBehavior> MovementProfiles);
 
     public static Result Edit(IReadOnlyList<LiveCharacter> party, PartyFormationSnapshot formation,
         IReadOnlyDictionary<CharacterId, NpcSpellcasterTactics> currentTactics,
+        IReadOnlySet<CharacterId> npcControlledCharacters,
         Action<int, IReadOnlyList<(string Text, ConsoleColor Color)>, FramedWindow?>? presentationChanged = null)
     {
         var slots = formation.Slots.ToArray();
         var tactics = currentTactics.ToDictionary(pair => pair.Key, pair => pair.Value);
+        var movementProfiles = party.Where(member => npcControlledCharacters.Contains(member.Id))
+            .ToDictionary(member => member.Id, member => member.NpcBehavior ?? NpcBehavior.Defensive);
         var cursor = 0;
         int? pickedUp = null;
         var width = Math.Min(WindowWidth, Console.WindowWidth);
@@ -26,11 +32,18 @@ public static class FormationEditor
         while (true)
         {
             presentationChanged?.Invoke(width,
-                BuildFormationPresentation(party, slots, cursor, pickedUp, tactics),
+                BuildFormationPresentation(party, slots, cursor, pickedUp, tactics, movementProfiles),
                 FramedWindow.FormationEditor);
-            Draw(party, slots, cursor, pickedUp, tactics, left, top, width, height);
+            Draw(party, slots, cursor, pickedUp, tactics, movementProfiles, left, top, width, height);
             var key = Console.ReadKey(intercept: true).Key;
-            if (key == ConsoleKey.Escape) return new Result(slots, tactics);
+            if (key == ConsoleKey.Escape) return new Result(slots, tactics, movementProfiles);
+            if (key == ConsoleKey.P && slots[cursor] is { } profileId &&
+                movementProfiles.TryGetValue(profileId, out var currentProfile))
+            {
+                movementProfiles[profileId] = MovementProfiles[
+                    (Array.IndexOf(MovementProfiles, currentProfile) + 1) % MovementProfiles.Length];
+                continue;
+            }
             if (key == ConsoleKey.T && slots[cursor] is { } tacticsId &&
                 party.FirstOrDefault(member => member.Id == tacticsId) is { IsSpellcaster: true } spellcaster)
             {
@@ -63,7 +76,8 @@ public static class FormationEditor
 
     private static IReadOnlyList<(string Text, ConsoleColor Color)> BuildFormationPresentation(
         IReadOnlyList<LiveCharacter> party, IReadOnlyList<CharacterId?> slots, int cursor, int? pickedUp,
-        IReadOnlyDictionary<CharacterId, NpcSpellcasterTactics> tactics)
+        IReadOnlyDictionary<CharacterId, NpcSpellcasterTactics> tactics,
+        IReadOnlyDictionary<CharacterId, NpcBehavior> movementProfiles)
     {
         var lines = new List<(string Text, ConsoleColor Color)>
         {
@@ -82,6 +96,12 @@ public static class FormationEditor
             lines.Add(($"{marker} {positionNames[index],-12}: {character?.Name ?? "— üres —"}",
                 index == cursor ? ConsoleColor.Yellow : character?.Color ?? ConsoleColor.DarkGray));
         }
+        if (slots[cursor] is { } profileId && movementProfiles.TryGetValue(profileId, out var profile))
+        {
+            lines.Add((string.Empty, ConsoleColor.Gray));
+            lines.Add(($"P: mozgásprofil — {MovementProfileName(profile)}", ConsoleColor.Cyan));
+            lines.Add((MovementProfileDescription(profile), ConsoleColor.Gray));
+        }
         if (slots[cursor] is { } selectedId &&
             party.FirstOrDefault(member => member.Id == selectedId) is { IsSpellcaster: true } spellcaster)
         {
@@ -98,6 +118,7 @@ public static class FormationEditor
 
     private static void Draw(IReadOnlyList<LiveCharacter> party, IReadOnlyList<CharacterId?> slots,
         int cursor, int? pickedUp, IReadOnlyDictionary<CharacterId, NpcSpellcasterTactics> tactics,
+        IReadOnlyDictionary<CharacterId, NpcBehavior> movementProfiles,
         int left, int top, int width, int height)
     {
         DrawEmptyWindow(left, top, width, height);
@@ -106,7 +127,7 @@ public static class FormationEditor
         WriteCentered(left, top + 3, width,
             "Nyilak: helyválasztás   Enter/Space: felemelés és csere", ConsoleColor.Gray);
         WriteCentered(left, top + 4, width,
-            "T: varázshasználó taktikája   Esc: mentés és vissza", ConsoleColor.DarkYellow);
+            "P: mozgásprofil   T: varázstaktika   Esc: mentés és vissza", ConsoleColor.DarkYellow);
         WriteCentered(left, top + 6, width, "HALADÁSI IRÁNY", ConsoleColor.Cyan);
         WriteCentered(left, top + 7, width, "▲", ConsoleColor.Cyan);
 
@@ -129,6 +150,11 @@ public static class FormationEditor
                     character?.Color ?? ConsoleColor.DarkGray);
             }
         }
+        if (slots[cursor] is { } profileId && movementProfiles.TryGetValue(profileId, out var profile))
+        {
+            WriteCentered(left, top + 15, width, $"Mozgásprofil: {MovementProfileName(profile)}", ConsoleColor.Cyan);
+            WriteCentered(left, top + 16, width, MovementProfileDescription(profile), ConsoleColor.DarkCyan);
+        }
         if (slots[cursor] is { } selectedId &&
             party.FirstOrDefault(member => member.Id == selectedId) is { IsSpellcaster: true })
         {
@@ -137,17 +163,39 @@ public static class FormationEditor
                 NpcSpellcasterTactics.DefaultFor(character.CharacterClass.Id));
             var detail = $"Varázstaktika: {value.OffensiveSpellsPerBattle}/csata, erő {value.MinimumEnemyStrength}–{value.FullOffenseEnemyStrength}, " +
                 (value.ManaFallback == SpellcasterManaFallback.Retreat ? "hátravonulás" : (value.ManaFallback == SpellcasterManaFallback.SelfBuffAndMelee ? "önbuff + közelharc" : "közelharc"));
-            WriteCentered(left, top + 14, width, detail, ConsoleColor.Cyan);
+            WriteCentered(left, top + 18, width, detail, ConsoleColor.Cyan);
             var unholy = value.UnholyProfile ?? NpcSpellcasterTactics.DefaultFor(
                 character.CharacterClass.Id).UnholyProfile;
             if (character.CharacterClass.Id == CharacterClassIds.Pap && unholy is not null)
-                WriteCentered(left, top + 15, width,
+                WriteCentered(left, top + 19, width,
                     $"Élőholt/démon: {unholy.OffensiveSpellsPerBattle}/csata, erő " +
                     $"{unholy.MinimumEnemyStrength}–{unholy.FullOffenseEnemyStrength}, önbuff + közelharc",
                     ConsoleColor.DarkCyan);
         }
         Console.ResetColor();
     }
+
+    public static string MovementProfileName(NpcBehavior profile) => profile switch
+    {
+        NpcBehavior.Aggressive => "Agresszív",
+        NpcBehavior.Defensive => "Defenzív",
+        NpcBehavior.Scout => "Felderítő",
+        NpcBehavior.Cautious => "Óvatos",
+        NpcBehavior.Bodyguard => "Testőr",
+        NpcBehavior.Rearguard => "Hátvéd",
+        _ => profile.ToString()
+    };
+
+    public static string MovementProfileDescription(NpcBehavior profile) => profile switch
+    {
+        NpcBehavior.Aggressive => "Ellenséget keres, de legfeljebb hat mezőre távolodik a vezértől.",
+        NpcBehavior.Defensive => "A vezér három mezős körzetében fenyegető ellenségre lép.",
+        NpcBehavior.Scout => "Legfeljebb hat mezővel előremegy, ellenségnél visszafogja magát.",
+        NpcBehavior.Cautious => "Hátul követ, közeli ellenségtől távolodik.",
+        NpcBehavior.Bodyguard => "A vezér közelében marad, a közeli támadót fogja fel.",
+        NpcBehavior.Rearguard => "Hátul halad, a hátulról érkező ellenségre reagál.",
+        _ => string.Empty
+    };
 
     private static void DrawEmptyWindow(int left, int top, int width, int height)
     {

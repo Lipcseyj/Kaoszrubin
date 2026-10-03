@@ -440,6 +440,23 @@ public sealed class Maze
         return true;
     }
 
+    public bool TrySwapLeaderAndPartyMember(Player leader, PartyMemberAvatar member)
+    {
+        if (!_partyMembers.Contains(member) ||
+            Math.Abs(leader.Position.X - member.Position.X) +
+            Math.Abs(leader.Position.Y - member.Position.Y) != 1 ||
+            !IsWalkable(leader.Position) || !IsWalkable(member.Position) ||
+            GetPartyMemberAt(member.Position) != member || GetPartyMemberAt(leader.Position) is not null)
+            return false;
+        var occupant = GetObjectAt(leader.Position);
+        if (occupant is not null and not (GroundItemPile or Corpse) && !IsPassableNeutralNpc(occupant))
+            return false;
+        var leaderPosition = leader.Position;
+        leader.TeleportTo(member.Position);
+        member.MoveTo(leaderPosition);
+        return true;
+    }
+
     public static bool IsPassableNeutralNpc(WorldObject? occupant) =>
         occupant is WorldNpc { Disposition: NpcDisposition.Neutral };
 

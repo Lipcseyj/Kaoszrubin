@@ -6,5 +6,7 @@ public enum NpcBehavior
     Defensive,
     Aggressive,
     Scout,
-    Cautious
+    Cautious,
+    Bodyguard,
+    Rearguard
 }

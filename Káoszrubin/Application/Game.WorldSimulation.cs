@@ -836,7 +836,8 @@ public sealed partial class Game
         if (Manhattan(member.Position, _player.Position) <= 1) return false;
         var next = FindNextStep(member, FreeNeighborsOf(_player.Position))
                    ?? FollowLeaderTrail(member, minimumLag: 1);
-        if (next is null) return false;
+        if (next is null || !PartyMovementController.PreservesLeaderExit(member, next.Value, _maze, _player))
+            return false;
         var previous = member.Position;
         if (!CanEnterTrap(member.Character, next.Value) ||
             !_maze.TryMovePartyMember(member, next.Value, _player.Position)) return false;
@@ -933,20 +934,19 @@ public sealed partial class Game
 
     private Position? ChoosePartyMemberStep(PartyMemberAvatar member)
     {
-        var effectiveMember = _partyAttackMode && member.Character.NpcBehavior != NpcBehavior.Aggressive
-            ? new PartyMemberAvatar(member.Position, member.Character, member.TemporaryFollower)
-            : member;
         if (_partyAttackMode && member.Character.NpcBehavior != NpcBehavior.Aggressive)
         {
             var original = member.Character.NpcBehavior;
             member.Character.SetNpcBehavior(NpcBehavior.Aggressive);
             var step = PartyMovementController.ChoosePartyMemberStep(member, _maze, _player, _leaderFacing,
-                _leaderTrail, CurrentLevelVisionModifier, FreeMovementFollowIndex(member));
+                _leaderTrail, CurrentLevelVisionModifier, FreeMovementFollowIndex(member),
+                DateTime.UtcNow - _lastLeaderMoveUtc >= TimeSpan.FromSeconds(2));
             member.Character.SetNpcBehavior(original);
             return step;
         }
         return PartyMovementController.ChoosePartyMemberStep(member, _maze, _player, _leaderFacing,
-            _leaderTrail, CurrentLevelVisionModifier, FreeMovementFollowIndex(member));
+            _leaderTrail, CurrentLevelVisionModifier, FreeMovementFollowIndex(member),
+            DateTime.UtcNow - _lastLeaderMoveUtc >= TimeSpan.FromSeconds(2));
     }
 
     private Position? FollowLeaderTrail(PartyMemberAvatar member, int minimumLag) =>

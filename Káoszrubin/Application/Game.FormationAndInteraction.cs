@@ -31,11 +31,15 @@ public sealed partial class Game
             "Várunk a vezető alakzati döntéseire…",
             () => FormationEditor.Edit(
                 CharacterRoster.Party.Members.Where(member => member.IsAlive).ToArray(),
-                _formation, _npcSpellcasterTactics, CaptureSharedWindowPresentation));
+                _formation, _npcSpellcasterTactics,
+                CharacterRoster.Party.Members.Where(member => !_session.IsHumanControlled(member.Id))
+                    .Select(member => member.Id).ToHashSet(), CaptureSharedWindowPresentation));
         _formation = PartyFormationRules.WithSlots(_formation, result.Slots);
         _formationAssemblySteps = null;
         _npcSpellcasterTactics.Clear();
         foreach (var pair in result.SpellcasterTactics) _npcSpellcasterTactics[pair.Key] = pair.Value.Normalize();
+        foreach (var pair in result.MovementProfiles)
+            CharacterRoster.Party.Members.First(member => member.Id == pair.Key).SetNpcBehavior(pair.Value);
         _renderer.CharacterSheet.SetFormationStatus(_formation);
         _session.SetFormationMovementLocked(false);
         AnnouncePartyCommand("Az alakzat sorrendje elmentve. A terkepen A-val rendelheted el az osszeallast.",
@@ -243,6 +247,7 @@ public sealed partial class Game
 
     private void CompleteFormationTravelMove(Direction direction, bool preserveFormationFacing)
     {
+        _lastLeaderMoveUtc = DateTime.UtcNow;
         if (!preserveFormationFacing) _leaderFacing = direction;
         if (_leaderTrail[^1] != _player.Position) _leaderTrail.Add(_player.Position);
         if (_leaderTrail.Count > 256) _leaderTrail.RemoveRange(0, _leaderTrail.Count - 256);

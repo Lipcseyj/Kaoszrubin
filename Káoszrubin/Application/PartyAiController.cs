@@ -18,7 +18,8 @@ public sealed class PartyAiController
     }
 
     public bool CanActivelyAttack(bool partyAttackMode, PartyMemberAvatar member) =>
-        partyAttackMode || member.Character.NpcBehavior is NpcBehavior.Defensive or NpcBehavior.Aggressive;
+        partyAttackMode || member.Character.NpcBehavior is NpcBehavior.Defensive or NpcBehavior.Aggressive
+            or NpcBehavior.Bodyguard or NpcBehavior.Rearguard;
 
     public bool TryResolveAdjacentNpcBattle(Maze maze, PartyMemberAvatar member, Action<PartyMemberAvatar, Enemy> startBattle)
     {

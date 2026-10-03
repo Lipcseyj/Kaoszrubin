@@ -508,6 +508,8 @@ public sealed partial class Game
         NpcBehavior.Aggressive => "Aggresszív",
         NpcBehavior.Scout => "Felderítő",
         NpcBehavior.Cautious => "Óvatos",
+        NpcBehavior.Bodyguard => "Testőr",
+        NpcBehavior.Rearguard => "Hátvéd",
         _ => "inaktív"
     };
 

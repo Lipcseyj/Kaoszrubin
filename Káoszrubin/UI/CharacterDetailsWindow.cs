@@ -1,5 +1,6 @@
 using KaoszRubin.Application;
 using KaoszRubin.Data;
+using KaoszRubin.Domain.Characters;
 using KaoszRubin.Domain.Inventory;
 
 namespace KaoszRubin.UI;
@@ -80,7 +81,8 @@ public static class CharacterDetailsWindow
             lines.Add(("NPC ELŐÉLET", ConsoleColor.Cyan));
             lines.Add(($"  Csatlakozás: {level}. szint — {character.History.NpcJoinedLocation}", ConsoleColor.Yellow));
             if (!string.IsNullOrWhiteSpace(character.History.NpcBehavior))
-                lines.Add(($"  Viselkedés: {character.History.NpcBehavior}", ConsoleColor.White));
+                lines.Add(($"  Viselkedés: {(Enum.TryParse<NpcBehavior>(character.History.NpcBehavior, out var behavior)
+                    ? FormationEditor.MovementProfileName(behavior) : character.History.NpcBehavior)}", ConsoleColor.White));
         }
 
         lines.Add((string.Empty, ConsoleColor.Gray));

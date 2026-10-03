@@ -14,7 +14,8 @@ public sealed class PartyMovementController
         Direction leaderFacing,
         IReadOnlyList<Position> leaderTrail,
         int currentLevelVisionModifier,
-        int followOrder = 0)
+        int followOrder = 0,
+        bool leaderIdle = false)
     {
         var behavior = member.Character.NpcBehavior ?? NpcBehavior.Defensive;
         var visibleEnemy = maze.Enemies
@@ -23,34 +24,98 @@ public sealed class PartyMovementController
             .OrderBy(enemy => Manhattan(member.Position, enemy.Position))
             .FirstOrDefault();
 
+        // Megállás után a régi nyomvonal ne húzza vissza a társakat a vezér mellé.
+        var enemyNeedsResponse = visibleEnemy is not null && (behavior switch
+        {
+            NpcBehavior.Aggressive => true,
+            NpcBehavior.Rearguard => !IsAheadOfLeader(visibleEnemy.Position, player.Position, leaderFacing) &&
+                Manhattan(visibleEnemy.Position, player.Position) <= 5,
+            NpcBehavior.Cautious or NpcBehavior.Scout =>
+                Manhattan(visibleEnemy.Position, member.Position) <= 3,
+            _ => Manhattan(visibleEnemy.Position, player.Position) <= 3
+        });
+        if (leaderIdle && !enemyNeedsResponse && Manhattan(member.Position, player.Position) <= 3)
+            return Manhattan(member.Position, player.Position) == 1
+                ? ChooseStepAwayFromLeader(member, maze, player, leaderFacing)
+                : null;
+
+        Position? step = null;
         if (behavior == NpcBehavior.Aggressive && visibleEnemy is not null)
         {
             if (Manhattan(member.Position, visibleEnemy.Position) == 1) return null;
-            return FindNextStep(member, FreeNeighborsOf(maze, player, visibleEnemy.Position), maze, player);
+            step = FindNextStep(member, FreeNeighborsOf(maze, player, visibleEnemy.Position)
+                .Where(position => Manhattan(position, player.Position) <= 6), maze, player);
         }
-
-        if (behavior == NpcBehavior.Defensive && visibleEnemy is not null)
+        if (behavior == NpcBehavior.Defensive && visibleEnemy is not null &&
+            Manhattan(visibleEnemy.Position, player.Position) <= 3)
         {
             if (Manhattan(member.Position, visibleEnemy.Position) == 1) return null;
-            return FindNextStep(member, FreeNeighborsOf(maze, player, visibleEnemy.Position), maze, player);
+            step = FindNextStep(member, FreeNeighborsOf(maze, player, visibleEnemy.Position)
+                .Where(position => Manhattan(position, player.Position) <= 3), maze, player);
         }
-
-        if (behavior == NpcBehavior.Scout)
+        if (behavior == NpcBehavior.Bodyguard && visibleEnemy is not null &&
+            Manhattan(visibleEnemy.Position, player.Position) <= 2)
         {
-            if (visibleEnemy is not null)
-                return FollowLeaderTrail(member, minimumLag: 2, maze, player, leaderTrail, followOrder);
-            return ChooseForwardStep(member, maximumLeaderDistance: 10, maximumSearchDistance: 10, avoidNarrowFront: false, maze, player, leaderFacing)
-                ?? FollowLeaderTrail(member, minimumLag: 2, maze, player, leaderTrail, followOrder);
+            if (Manhattan(member.Position, visibleEnemy.Position) == 1) return null;
+            step = FindNextStep(member, FreeNeighborsOf(maze, player, visibleEnemy.Position)
+                .Where(position => Manhattan(position, player.Position) <= 2), maze, player);
         }
+        if (step is null && behavior == NpcBehavior.Rearguard && visibleEnemy is not null &&
+            !IsAheadOfLeader(visibleEnemy.Position, player.Position, leaderFacing) &&
+            Manhattan(visibleEnemy.Position, player.Position) <= 5)
+            step = FindNextStep(member, FreeNeighborsOf(maze, player, visibleEnemy.Position)
+                .Where(position => Manhattan(position, player.Position) <= 5), maze, player);
+        if (step is null && behavior is (NpcBehavior.Cautious or NpcBehavior.Scout) && visibleEnemy is not null &&
+            Manhattan(member.Position, visibleEnemy.Position) <= 3)
+            return Directions.Select(direction => member.Position + direction)
+                .Where(position => CanPartyTraverse(member, position, maze, player))
+                .Where(position => Manhattan(position, visibleEnemy.Position) > Manhattan(member.Position, visibleEnemy.Position))
+                .Where(position => PreservesLeaderExit(member, position, maze, player))
+                .OrderBy(position => Manhattan(position, player.Position))
+                .Select(position => (Position?)position)
+                .FirstOrDefault();
+        if (step is null && behavior == NpcBehavior.Scout && visibleEnemy is null)
+            step = ChooseForwardStep(member, maximumLeaderDistance: 6, maximumSearchDistance: 8,
+                avoidNarrowFront: true, maze, player, leaderFacing);
+        if (step is null && behavior == NpcBehavior.Aggressive && visibleEnemy is null)
+            step = ChooseForwardStep(member, maximumLeaderDistance: 3, maximumSearchDistance: 4,
+                avoidNarrowFront: true, maze, player, leaderFacing);
+        step ??= FollowLeaderTrail(member, behavior switch
+        {
+            NpcBehavior.Bodyguard => 1,
+            NpcBehavior.Cautious or NpcBehavior.Rearguard => 3,
+            _ => 2
+        }, maze, player, leaderTrail, followOrder);
+        if (step is { } destination && !PreservesLeaderExit(member, destination, maze, player)) return null;
+        return step;
+    }
 
-        if (behavior == NpcBehavior.Cautious)
-            return FollowLeaderTrail(member, minimumLag: 2, maze, player, leaderTrail, followOrder);
+    public static Position? ChooseStepAwayFromLeader(PartyMemberAvatar member, Maze maze, Player player,
+        Direction leaderFacing)
+    {
+        var forward = DirectionOffset(leaderFacing);
+        return Directions.Select(direction => member.Position + direction)
+            .Where(position => CanPartyTraverse(member, position, maze, player) &&
+                               Manhattan(position, player.Position) > Manhattan(member.Position, player.Position))
+            .Where(position => PreservesLeaderExit(member, position, maze, player))
+            .OrderBy(position => (position.X - player.Position.X) * forward.X +
+                                 (position.Y - player.Position.Y) * forward.Y)
+            .Select(position => (Position?)position)
+            .FirstOrDefault();
+    }
 
-        if (behavior == NpcBehavior.Aggressive)
-            return ChooseForwardStep(member, maximumLeaderDistance: 3, maximumSearchDistance: 4, avoidNarrowFront: true, maze, player, leaderFacing)
-                ?? FollowLeaderTrail(member, minimumLag: 2, maze, player, leaderTrail, followOrder);
-
-        return FollowLeaderTrail(member, minimumLag: 2, maze, player, leaderTrail, followOrder);
+    public static bool PreservesLeaderExit(PartyMemberAvatar member, Position destination, Maze maze, Player player)
+    {
+        if (Manhattan(destination, player.Position) != 1) return true;
+        return Directions.Any(direction =>
+        {
+            var neighbor = player.Position + direction;
+            if (neighbor == destination || !maze.IsWalkable(neighbor) || HasBlockingTrap(maze, neighbor) ||
+                maze.GetEnemyAt(neighbor) is not null) return false;
+            if (neighbor == member.Position) return true;
+            var occupant = maze.GetObjectAt(neighbor);
+            return occupant is null or GroundItemPile or Corpse || Maze.IsPassableNeutralNpc(occupant);
+        });
     }
 
     public static Position? FollowLeaderTrail(

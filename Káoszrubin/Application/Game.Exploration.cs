@@ -587,8 +587,11 @@ public sealed partial class Game
         var previousPosition = _player.Position;
         var targetPosition = previousPosition + direction;
 
-        // A társak és a követők továbbra sem átjárhatók, de az ütközés nem indít párbeszédet.
-        if (_maze.GetObjectAt(targetPosition) is PartyMemberAvatar) return;
+        if (_maze.GetObjectAt(targetPosition) is PartyMemberAvatar adjacentMember)
+        {
+            if (preserveFormationFacing) SwapLeaderWithPartyMember(adjacentMember);
+            return;
+        }
         if (_maze.GetEnemyAt(targetPosition) is { } encounteredEnemy)
         {
             StartBattle(encounteredEnemy);
@@ -617,6 +620,7 @@ public sealed partial class Game
         }
         RegisterTerrainExplorationStep(PartyLeader, _player.Position);
         ScheduleNextControlledMove(PartyLeader, _player.Position);
+        _lastLeaderMoveUtc = DateTime.UtcNow;
         _leaderFacing = direction;
         if (_leaderTrail[^1] != _player.Position) _leaderTrail.Add(_player.Position);
         if (_leaderTrail.Count > 256) _leaderTrail.RemoveRange(0, _leaderTrail.Count - 256);
@@ -633,6 +637,38 @@ public sealed partial class Game
         TriggerTrapAt(PartyLeader, _player.Position);
         var enemy = _maze.GetEnemyAt(_player.Position);
         if (enemy is not null) StartBattle(enemy);
+    }
+
+    private void SwapLeaderWithPartyMember(PartyMemberAvatar member)
+    {
+        if (!member.Character.IsAlive || !CanEnterTrap(PartyLeader, member.Position) ||
+            !CanEnterTrap(member.Character, _player.Position)) return;
+        var previousLeaderPosition = _player.Position;
+        var previousMemberPosition = member.Position;
+        if (!_maze.TrySwapLeaderAndPartyMember(_player, member)) return;
+        _lastLeaderMoveUtc = DateTime.UtcNow;
+        ScheduleNextControlledMove(PartyLeader, _player.Position);
+        if (_session.IsHumanControlled(member.Character.Id))
+            ScheduleNextControlledMove(member.Character, member.Position);
+        else ScheduleNextPartyMove(member, _lastLeaderMoveUtc);
+        if (_leaderTrail[^1] != _player.Position) _leaderTrail.Add(_player.Position);
+        if (_leaderTrail.Count > 256) _leaderTrail.RemoveRange(0, _leaderTrail.Count - 256);
+        RegisterTerrainExplorationStep(PartyLeader, _player.Position);
+        RegisterTerrainExplorationStep(member.Character, member.Position);
+        var leaderRevealed = RevealFor(PartyLeader, _player.Position, advanceEnemyMemory: true);
+        var memberRevealed = RevealFor(member.Character, member.Position, advanceEnemyMemory: true);
+        var reachedExit = _player.Position == _maze.Exit && previousLeaderPosition != _maze.Exit &&
+                          _dungeonLevel.ActiveArea == _dungeonLevel.ExitArea;
+        _renderer.DrawFormationMovement(_maze, _fogOfWar,
+            [previousLeaderPosition, previousMemberPosition], [_player.Position, member.Position],
+            leaderRevealed.Concat(memberRevealed).Distinct().ToArray(), _player.Position, reachedExit);
+        if (_maze.GetPassageAt(_player.Position) is not null)
+            _renderer.DrawInventoryMessage("⇄ Átjáró a szint másik területére. Enter: átkelés.", ConsoleColor.Cyan);
+        CheckBossDiscoveryAt(leaderRevealed, PartyLeader);
+        CheckBossDiscoveryAt(memberRevealed, member.Character);
+        PlayCharacterStepSound(PartyLeader);
+        TriggerTrapAt(PartyLeader, _player.Position);
+        TriggerTrapAt(member.Character, member.Position);
     }
 
     private void MoveRemotePartyMember(MoveCharacterCommand command)

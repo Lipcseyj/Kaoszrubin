@@ -713,6 +713,91 @@ internal static partial class Program
             "A követő megpróbált a közvetlenül előtte álló csapattárs foglalt mezőjére lépni.");
     }
 
+    static void PartyMembersLeaveRoomAroundIdleLeader()
+    {
+        var maze = new Maze(9, 9);
+        for (var y = 2; y <= 6; y++)
+        for (var x = 2; x <= 6; x++) maze.Carve(new Position(x, y));
+        var leader = new Player(new Position(4, 4), CreateCharacter("Vezér"));
+        var companion = new PartyMemberAvatar(new Position(4, 5), CreateCharacter("Társ"));
+        maze.AddPartyMember(companion);
+        var trail = new[] { new Position(4, 6), companion.Position, leader.Position };
+
+        var retreat = PartyMovementController.ChoosePartyMemberStep(companion, maze, leader,
+            Direction.Up, trail, 0, leaderIdle: true);
+        Assert(retreat is { } next && PartyMovementController.Manhattan(next, leader.Position) == 2,
+            "A megállt vezér mellett álló társ nem húzódott arrébb.");
+        companion.MoveTo(retreat!.Value);
+        Assert(PartyMovementController.ChoosePartyMemberStep(companion, maze, leader,
+                   Direction.Up, trail, 0, leaderIdle: true) is null,
+            "A társ nyugalomban visszalépett a vezér mellé vagy tovább bolyongott.");
+
+        var narrow = new Maze(9, 9);
+        narrow.Carve(leader.Position);
+        narrow.Carve(new Position(3, 4));
+        narrow.Carve(new Position(3, 5));
+        var approacher = new PartyMemberAvatar(new Position(3, 5), CreateCharacter("Másik társ"));
+        narrow.AddPartyMember(approacher);
+        Assert(!PartyMovementController.PreservesLeaderExit(approacher, new Position(3, 4),
+                   narrow, leader),
+            "A társ elfoglalhatta a vezér utolsó szabad kijáratát.");
+    }
+
+    static void PartyMovementProfilesHaveDistinctEnemyLeashes()
+    {
+        var maze = new Maze(13, 9);
+        for (var y = 1; y < 8; y++)
+        for (var x = 1; x < 12; x++) maze.Carve(new Position(x, y));
+        var leader = new Player(new Position(4, 4), CreateCharacter("Vezér"));
+        var character = CreateCharacter("Társ");
+        var companion = new PartyMemberAvatar(new Position(3, 4), character);
+        maze.AddPartyMember(companion);
+        var enemy = CreateEnemyAt(new Position(8, 4), "E-PROFILE");
+        maze.AddEnemy(enemy);
+        var trail = new[] { companion.Position, leader.Position };
+
+        character.SetNpcBehavior(NpcBehavior.Defensive);
+        var defensive = PartyMovementController.ChoosePartyMemberStep(companion, maze, leader,
+            Direction.Right, trail, 0);
+        character.SetNpcBehavior(NpcBehavior.Aggressive);
+        var aggressive = PartyMovementController.ChoosePartyMemberStep(companion, maze, leader,
+            Direction.Right, trail, 0);
+
+        Assert(defensive is null && aggressive is not null,
+            "A támadó és a védő társ ugyanúgy reagált a vezértől távolabb álló ellenségre.");
+
+        enemy.MoveTo(new Position(6, 4));
+        character.SetNpcBehavior(NpcBehavior.Bodyguard);
+        var bodyguard = PartyMovementController.ChoosePartyMemberStep(companion, maze, leader,
+            Direction.Right, trail, 0);
+        character.SetNpcBehavior(NpcBehavior.Rearguard);
+        var rearguard = PartyMovementController.ChoosePartyMemberStep(companion, maze, leader,
+            Direction.Right, trail, 0);
+        Assert(bodyguard is not null && rearguard is null,
+            "A testőr nem fogta fel a vezér közeli támadóját, vagy a hátvéd előretört rá.");
+    }
+
+    static void LeaderCanSwapWithAdjacentPartyMember()
+    {
+        var maze = new Maze(7, 7);
+        var leaderPosition = new Position(3, 3);
+        var memberPosition = new Position(4, 3);
+        maze.Carve(leaderPosition);
+        maze.Carve(memberPosition);
+        var leader = new Player(leaderPosition, CreateCharacter("Vezér"));
+        var member = new PartyMemberAvatar(memberPosition, CreateCharacter("Társ"));
+        maze.AddPartyMember(member);
+
+        Assert(maze.TrySwapLeaderAndPartyMember(leader, member) &&
+               leader.Position == memberPosition && member.Position == leaderPosition &&
+               maze.GetPartyMemberAt(leaderPosition) == member &&
+               maze.GetPartyMemberAt(memberPosition) is null,
+            "A helycsere után a karakterpozíciók vagy a térképi nyilvántartás eltérnek.");
+        Assert(maze.TrySwapLeaderAndPartyMember(leader, member) &&
+               leader.Position == leaderPosition && member.Position == memberPosition,
+            "A visszafelé végzett helycsere meghiúsult.");
+    }
+
     static void PartyMembersRouteAroundDetectedTraps()
     {
         var maze = new Maze(7, 7);
