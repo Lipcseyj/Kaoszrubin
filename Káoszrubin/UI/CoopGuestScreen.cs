@@ -100,6 +100,9 @@ public sealed class CoopGuestScreen
         ConfigureBackgroundMusicReporting();
     }
 
+    internal static bool IsCharacterBoundInventoryItem(GameDataCatalog gameData, string definitionId) =>
+        CharacterBoundItemRules.IsBound(gameData.GetItemDefinition(definitionId));
+
     public async Task RunAsync(string hostUrl, string displayName, LiveCharacter localCharacter,
         string characterData, Action<CharacterStateSync>? persistCharacterState = null,
         CancellationToken cancellationToken = default)
@@ -1426,7 +1429,7 @@ public sealed class CoopGuestScreen
                 else if (SpellcastingRules.IsSpellcastingFocusId(dropSlot.Item.DefinitionId))
                     SetMessage($"A(z) {dropSlot.Item.Name} a karakterhez kötött varázsfókusz, ezért nem dobható el.",
                         ConsoleColor.Red);
-                else if (CharacterBoundItemRules.IsBound(_gameData.GetItem(dropSlot.Item.DefinitionId)))
+                else if (IsCharacterBoundInventoryItem(_gameData, dropSlot.Item.DefinitionId))
                     SetMessage($"A(z) {dropSlot.Item.Name} családi ereklye, ezért nem dobható el.", ConsoleColor.Red);
                 else
                     command = new DropInventoryItemCommand(client.PlayerId!.Value, client.NextCommandId(),
@@ -2607,6 +2610,15 @@ public sealed class CoopGuestScreen
                 WriteAt(frame.MapWidth, row, new GuestTextLine("│ ", ConsoleColor.DarkCyan, ConsoleColor.Black), 2);
             if (fullRedraw || previous!.Panel[row] != frame.Panel[row])
             {
+                if (!fullRedraw && row == 0 &&
+                    previous!.Panel[row] with { Text = frame.Panel[row].Text } == frame.Panel[row] &&
+                    ClockOnlyUpdate(previous.Panel[row].Text, frame.Panel[row].Text, frame.PanelWidth)
+                        is { } clockUpdate)
+                {
+                    WriteClockAt(frame.MapWidth + 2 + clockUpdate.Column, row, frame.Panel[row],
+                        clockUpdate.Text);
+                    continue;
+                }
                 if (frame.Panel[row].ExtendsToDivider)
                     WriteAt(frame.MapWidth, row, frame.Panel[row], BattleDetailsPanel.ExtendedWidthFor(frame.PanelWidth));
                 else
@@ -2659,6 +2671,31 @@ public sealed class CoopGuestScreen
 
         Console.ResetColor();
         TrySetCursorPosition(0, Math.Min(frame.WindowHeight - 1, frame.MapHeight + frame.Footers.Length));
+    }
+
+    internal static GuestClockWrite? ClockOnlyUpdate(string previous, string current, int panelWidth)
+    {
+        const int clockSegmentWidth = 4;
+        static string? Indicator(string text) => new[] { "⌛⏸", "⌛", "⏳" }
+            .FirstOrDefault(value => text.EndsWith(value, StringComparison.Ordinal));
+        var oldIndicator = Indicator(previous);
+        var newIndicator = Indicator(current);
+        if (oldIndicator is null || newIndicator is null || oldIndicator == newIndicator) return null;
+        var oldPrefix = previous[..^oldIndicator.Length];
+        var newPrefix = current[..^newIndicator.Length];
+        if (oldPrefix != newPrefix) return null;
+        var column = BattleCommandPanel.DisplayWidth(newPrefix);
+        var indicatorWidth = BattleCommandPanel.DisplayWidth(newIndicator);
+        if (column + clockSegmentWidth > panelWidth || indicatorWidth > clockSegmentWidth) return null;
+        return new GuestClockWrite(column, newIndicator + new string(' ', clockSegmentWidth - indicatorWidth));
+    }
+
+    private static void WriteClockAt(int x, int y, GuestTextLine line, string text)
+    {
+        if (!TrySetCursorPosition(x, y)) return;
+        Console.ForegroundColor = line.Foreground;
+        Console.BackgroundColor = line.Background;
+        Console.Write(text);
     }
 
     internal static IReadOnlyList<GuestMapWriteRun> BuildMapWriteRuns(GuestMapCell[,] map,
@@ -3086,6 +3123,7 @@ public sealed class CoopGuestScreen
         ConsoleColor Background = ConsoleColor.Black, bool IsContinuation = false);
     internal readonly record struct GuestMapWriteRun(int X, string Text, ConsoleColor Color,
         ConsoleColor Background);
+    internal readonly record struct GuestClockWrite(int Column, string Text);
     private readonly record struct GuestTextLine(string Text, ConsoleColor Foreground, ConsoleColor Background,
         string ColoredSuffix = "", ConsoleColor ColoredSuffixColor = ConsoleColor.White,
         IReadOnlyList<TextSegment>? Segments = null, bool ExtendsToDivider = false,

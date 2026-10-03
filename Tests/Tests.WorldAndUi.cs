@@ -108,6 +108,38 @@ internal static partial class Program
             "Az emojikat tartalmazó karakterlapfejléc nem kijelzett szélesség szerint lett kitöltve.");
     }
 
+    static void GuestClockUpdatesOnlyItsOwnHeaderSegment()
+    {
+        const int width = 27;
+        string Header(int level, string clock, bool focused = false) => CharacterSheetPanel.WithFocusMarker(
+            CharacterSheetPanel.BuildWorldHeaderLine(level, 7, 12, clock, width - 1), focused, width).Text;
+
+        var running = Header(12, "⌛");
+        var turned = Header(12, "⏳");
+        var paused = Header(12, "⌛⏸");
+        var turn = CoopGuestScreen.ClockOnlyUpdate(running, turned, width);
+        var pause = CoopGuestScreen.ClockOnlyUpdate(turned, paused, width);
+        var resume = CoopGuestScreen.ClockOnlyUpdate(paused, running, width);
+        Assert(turn is not null && pause is not null && resume is not null,
+            "A guest nem ismerte fel az időjelző változását.");
+        var turnWrite = turn!.Value;
+        var pauseWrite = pause!.Value;
+        var resumeWrite = resume!.Value;
+        Assert(turnWrite.Text.StartsWith("⏳", StringComparison.Ordinal) &&
+               pauseWrite.Text.StartsWith("⌛⏸", StringComparison.Ordinal) &&
+               resumeWrite.Text.StartsWith("⌛", StringComparison.Ordinal) &&
+               BattleCommandPanel.DisplayWidth(turnWrite.Text) == 4 &&
+               BattleCommandPanel.DisplayWidth(pauseWrite.Text) == 4 &&
+               BattleCommandPanel.DisplayWidth(resumeWrite.Text) == 4 &&
+               turnWrite.Column == pauseWrite.Column && pauseWrite.Column == resumeWrite.Column &&
+               turnWrite.Column > 0 && turnWrite.Column + 4 <= width,
+            "A guest nem az óra állandó szélességű részét frissíti.");
+        Assert(CoopGuestScreen.ClockOnlyUpdate(running, Header(13, "⏳"), width) is null &&
+               CoopGuestScreen.ClockOnlyUpdate(running, Header(12, "⏳", focused: true), width) is null &&
+               CoopGuestScreen.ClockOnlyUpdate(running, turned, turnWrite.Column + 3) is null,
+            "A guest részleges órafrissítést használna megváltozott vagy túl keskeny fejlécnél.");
+    }
+
     static void InnSharedWindowUsesContextualBanner()
     {
         var inn = Game.SharedWindowBanner(GameSessionPhase.Inn, "Lakomázás");
@@ -1569,6 +1601,19 @@ static void BattleHitHighlightsDamageAndHealth()
             WorldEntityId.New(), 1, 0, 1));
         Assert(session.TryReadCommand(out var pickup) && pickup is PickUpGroundItemCommand,
             "Az érvényes pickup command alakját elutasította a session.");
+    }
+
+    static void GuestDropResolvesEveryInventoryCategory()
+    {
+        var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory,
+            CsvGameDataLoader.GameDataFileName));
+        foreach (var definition in data.Items.Cast<IItemDefinition>()
+                     .Concat(data.Weapons).Concat(data.Armors).Concat(data.MagicItems))
+            Assert(CoopGuestScreen.IsCharacterBoundInventoryItem(data, definition.Id) ==
+                   CharacterBoundItemRules.IsBound(definition),
+                $"A guest ledobás előtti ellenőrzése nem oldja fel ezt a tárgyat: {definition.Id}.");
+        Assert(!CoopGuestScreen.IsCharacterBoundInventoryItem(data, "M023"),
+            "Az M023 varázsgyűrű ledobás előtti ellenőrzése hibás.");
     }
 
     static void NonConsumableUseIsRejected()

@@ -314,7 +314,7 @@ public static class CharacterSheetPanel
         var compact = $"Lab: {mazeLevel}  🔑 {goldenKeyCount}/{bossCount}{suffix}";
         var widestFull = $"Labirintus: {mazeLevel}  🔑 {goldenKeyCount}/{bossCount}  {widestClockIndicator}";
         return new CharacterSheetPanelLine(0,
-            BattleCommandPanel.DisplayWidth(widestFull) <= Math.Max(Width, width) ? full : compact,
+            BattleCommandPanel.DisplayWidth(widestFull) <= Math.Max(1, width) ? full : compact,
             ConsoleColor.Green);
     }
 
