@@ -741,6 +741,35 @@ internal static partial class Program
             "A társ a hatástalanított csapdát sem használta járható útvonalként.");
     }
 
+    static void ExploredDoorGapDoesNotLeaveBlackMapHole()
+    {
+        var maze = new Maze(9, 7);
+        for (var x = 2; x <= 6; x++) maze.Carve(new Position(x, 2));
+        for (var x = 3; x <= 5; x++) maze.Carve(new Position(x, 4));
+        var doorPosition = new Position(4, 2);
+        maze.PlaceDoor(doorPosition, DoorState.Smashed);
+
+        var fog = new FogOfWar(maze.Width, maze.Height, 0);
+        fog.Restore([new Position(3, 2), new Position(3, 4), new Position(5, 4)], false);
+        var changed = fog.RevealFrom(maze, new Position(5, 2));
+        Assert(fog.IsRevealed(doorPosition) && changed.Contains(doorPosition) &&
+               !fog.IsRevealed(new Position(4, 4)),
+            "A két oldalról ismert, bezúzott ajtó helye fekete lyuk maradt a térképen.");
+
+        var partyFog = new FogOfWar(maze.Width, maze.Height, 0);
+        partyFog.Restore([new Position(3, 2)], false);
+        var partyChanges = partyFog.UpdatePartyVisibility(maze,
+            [(new Position(5, 2), 0)], advanceEnemyMemory: false);
+        Assert(partyFog.IsRevealed(doorPosition) && partyChanges.Contains(doorPosition),
+            "A normál partifelfedezés nem töltötte ki az ajtó melletti helyi rést.");
+
+        var unexploredFog = new FogOfWar(maze.Width, maze.Height, 0);
+        unexploredFog.Restore([new Position(3, 2)], false);
+        unexploredFog.RevealFrom(maze, new Position(2, 2));
+        Assert(!unexploredFog.IsRevealed(doorPosition) && !unexploredFog.IsRevealed(new Position(5, 2)),
+            "Az ajtó rése mögötti ismeretlen terület idő előtt felfedődött.");
+    }
+
     static void LockedFormationUsesSingleFileLayout()
     {
         var leader = CreateCharacter("Libasorvezér");

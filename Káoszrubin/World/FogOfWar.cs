@@ -117,6 +117,7 @@ public sealed class FogOfWar
         }
         var connectedTerrainReveals = new List<Position>();
         RevealConnectedTerrain(maze, newlyRevealed, connectedTerrainReveals);
+        BridgeShortFogGaps(maze, newlyRevealed);
         _currentlyVisiblePositions = currentVisiblePositions;
 
         if (advanceEnemyMemory)
@@ -149,6 +150,7 @@ public sealed class FogOfWar
         changed.AddRange(previousMemoryPositions.Where(position => !currentMemoryPositions.Contains(position)));
         changed.AddRange(currentMemoryPositions.Where(position => !previousMemoryPositions.Contains(position)));
         changed.AddRange(connectedTerrainReveals);
+        changed.AddRange(newlyRevealed);
         return changed.Distinct().ToArray();
     }
 
@@ -320,12 +322,14 @@ public sealed class FogOfWar
     /// </summary>
     private void BridgeShortFogGaps(Maze maze, ICollection<Position> newlyRevealed)
     {
+        if (newlyRevealed.Count == 0) return;
+        var directReveals = newlyRevealed.ToHashSet();
         var bridgedPositions = new HashSet<Position>();
-        for (var y = 0; y < maze.Height; y++)
-            FindBridgedGaps(maze, maze.Width, x => new Position(x, y), bridgedPositions);
+        foreach (var y in directReveals.Select(position => position.Y).Distinct())
+            FindBridgedGaps(maze.Width, x => new Position(x, y), directReveals, bridgedPositions);
 
-        for (var x = 0; x < maze.Width; x++)
-            FindBridgedGaps(maze, maze.Height, y => new Position(x, y), bridgedPositions);
+        foreach (var x in directReveals.Select(position => position.X).Distinct())
+            FindBridgedGaps(maze.Height, y => new Position(x, y), directReveals, bridgedPositions);
 
         foreach (var position in bridgedPositions)
         {
@@ -335,7 +339,8 @@ public sealed class FogOfWar
         }
     }
 
-    private void FindBridgedGaps(Maze maze, int lineLength, Func<int, Position> positionAt, ISet<Position> bridgedPositions)
+    private void FindBridgedGaps(int lineLength, Func<int, Position> positionAt,
+        IReadOnlySet<Position> directReveals, ISet<Position> bridgedPositions)
     {
         var index = 0;
         while (index < lineLength)
@@ -350,8 +355,9 @@ public sealed class FogOfWar
             while (index < lineLength && !IsVisible(positionAt(index))) index++;
             var gapLength = index - start;
             var hasExploredEnds = start > 0 && index < lineLength && IsRevealed(positionAt(start - 1)) && IsRevealed(positionAt(index));
-            var containsDoor = Enumerable.Range(start, gapLength).Any(gapIndex => maze.GetDoorAt(positionAt(gapIndex)) is not null);
-            if (!hasExploredEnds || gapLength > MaximumBridgedFogGapLength || containsDoor) continue;
+            if (!hasExploredEnds || gapLength > MaximumBridgedFogGapLength ||
+                !directReveals.Contains(positionAt(start - 1)) && !directReveals.Contains(positionAt(index)))
+                continue;
 
             for (var gapIndex = start; gapIndex < index; gapIndex++)
                 bridgedPositions.Add(positionAt(gapIndex));

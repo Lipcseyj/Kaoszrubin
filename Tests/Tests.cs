@@ -312,6 +312,7 @@ internal static partial class Program
     ("A karakter kasztja, faja és átmeneti hatásai módosítják a látótávot", CharacterVisionRangeUsesClassRaceAndEffects),
     ("A szörnyek látótávja CSV-ből érkezik", EnemyVisionRangesLoadFromCsv),
     ("A felfedés változó látótávot és látóvonalat használ", FogRevealUsesVariableRangeAndLineOfSight),
+    ("A két oldalról ismert ajtó nem hagy fekete lyukat a térképen", ExploredDoorGapDoesNotLeaveBlackMapHole),
     ("Az erdőszegély mögött kirajzolódik a lombkorona, de nem válik láthatóvá", ForestCanopyRevealOnlyExpandsExploredMap),
     ("A szörnyek ébersége, felderítése és alvásképessége adatvezérelt", EnemyAwarenessAndSearchAreDataDriven),
     ("A falka közös keresési pont körül felderítőkre és biztosítókra oszlik", EnemyPackSearchStaysCoordinated),

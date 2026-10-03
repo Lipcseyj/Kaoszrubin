@@ -898,7 +898,7 @@ A tolvaj zárnyitási esélye 10 Ügyességnél 90%, 11-nél 93%, 12-nél 96%, 1
 
 A `FogOfWar` pályánként külön logikai tömbben tárolja a már felfedezett cellákat. A játékos körül 5 cellás Chebyshev-távolságon belül Bresenham-jellegű látóvonal-ellenőrzés történik. A fal és a zárt vagy kulcsra zárt ajtó látható lehet, de blokkolja a mögötte lévő cellákat; a nyitott és bezúzott ajtó nem blokkol.
 
-A rendszer a két már felfedezett végpont közötti, legfeljebb háromcellás rövid ködcsíkot automatikusan kitölti, kivéve ha ajtó van benne. A `Ctrl+Shift+U` csak a megjelenítés számára fedi fel vagy rejti vissza a teljes térképet; a tényleges felfedezettségi adatokat nem írja át.
+A rendszer a két már felfedezett végpont közötti, legfeljebb háromcellás rövid ködcsíkot automatikusan kitölti, akkor is, ha ajtó van benne. Csak az újonnan felfedezett végpontokhoz kapcsolódó réseket vizsgálja, így egy lokális esemény nem módosítja távoli térképrészek felfedezettségét. Az ajtó mögötti ismeretlen területet nem fedi fel. A `Ctrl+Shift+U` csak a megjelenítés számára fedi fel vagy rejti vissza a teljes térképet; a tényleges felfedezettségi adatokat nem írja át.
 
 ## Csata algoritmusa
 
