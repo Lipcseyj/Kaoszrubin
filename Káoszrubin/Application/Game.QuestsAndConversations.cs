@@ -110,6 +110,13 @@ public sealed partial class Game
                 LegacyNpcIdMap.ToQuestNpcId(npc.DefinitionId),
                 _questWorldContext.GetInstanceId(npc));
 
+            if (NpcQuestCoordinator.HasQuestReadyToTurnIn(questNpc.GetActiveQuests()))
+            {
+                ProcessNpcQuests(npc, activateOffered: false);
+                _renderer.CharacterSheet.RefreshCharacterSheet();
+                return false;
+            }
+
             var unfinishedQuests = questNpc
                 .GetActiveQuests()
                 .Where(quest => quest.IsActive)
@@ -735,6 +742,8 @@ public sealed partial class Game
                         string.IsNullOrWhiteSpace(itemRewards)
                             ? "nem volt tárgyjutalom"
                             : itemRewards,
+
+                    CompletionDialogueText = quest.CompletionDialogue?.Text,
 
                     HighRelationshipDialogueText = grantsHighRelationshipBonus
                         ? quest.HighRelationshipDialogue?.Text

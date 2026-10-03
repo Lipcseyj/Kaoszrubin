@@ -13,6 +13,58 @@ namespace KaoszRubin.Tests.Quests;
 
 internal static class QuestJournalTests
 {
+    public static void ReadyRatHunterQuestSkipsEncounterDialogue()
+    {
+        var data = LoadData();
+        var definition = data.Quests.Get(QuestId.RatHunterClearTheTunnels);
+        var fixture = new QuestTestFixture(definition);
+        var (maze, registry, _) = World();
+        var npc = Add(maze, fixture.SelectedCharacter, "NPC005", 2);
+        var instanceId = registry.GetOrCreate(npc);
+        var quest = fixture.Manager.Activate(definition.Id, instanceId);
+        var questNpc = fixture.Manager.For(definition.Giver, instanceId);
+        Require(!NpcQuestCoordinator.HasQuestReadyToTurnIn(questNpc.GetActiveQuests()),
+            "A patkányvadász aktív megbízásánál idő előtt kimaradt a találkozási párbeszéd.");
+
+        fixture.Manager.RestoreState([new(definition.Id, instanceId, QuestState.ReadyToTurnIn,
+            definition.Objective.RequiredCount, 0)]);
+        Require(NpcQuestCoordinator.HasQuestReadyToTurnIn(questNpc.GetActiveQuests()) &&
+                quest.CompletionDialogue?.Id == "NPCD080",
+            "Az öt patkány után nem közvetlenül a leadás következik a lezáró párbeszéddel.");
+    }
+
+    public static void LiveCompletionDialogueSurvivesQuestJournalUpdates()
+    {
+        var data = LoadData();
+        var definition = data.Quests.Get(QuestId.HerbalistHealingSupplies);
+        var dialogue = definition.CompletionDialogue?.Text;
+        Require(!string.IsNullOrWhiteSpace(dialogue), "A tesztküldetéshez nincs lezáró párbeszéd rendelve.");
+        var fixture = new QuestTestFixture(definition);
+        var (maze, registry, world) = World();
+        var npc = Add(maze, fixture.SelectedCharacter, "NPC001", 2);
+        var coordinator = new NpcQuestCoordinator(data, fixture.Manager, world);
+        var journal = new Dictionary<QuestKey, QuestJournalEntrySnapshot>();
+        fixture.Manager.QuestChanged += quest => coordinator.SynchronizeQuestJournal(journal, quest);
+        var quest = fixture.Manager.Activate(definition.Id, registry.GetOrCreate(npc));
+        fixture.Inventory[((QuestObjective.CollectItem)definition.Objective).Item] =
+            definition.Objective.RequiredCount;
+        fixture.Manager.SynchronizeCollectQuests();
+        quest.Complete();
+
+        var completed = journal[quest.Key];
+        Require(completed.Status == QuestJournalStatus.Completed &&
+                completed.CompletionDialogueText == dialogue &&
+                QuestCompletionWindow.Build(completed).Any(line =>
+                    line.Text.Contains(dialogue![..Math.Min(15, dialogue!.Length)], StringComparison.Ordinal)),
+            "Az élő questleadás lezáró párbeszéde nem jutott el az összegző ablakig.");
+
+        journal[quest.Key] = completed with { HighRelationshipDialogueText = "Kapcsolati párbeszéd" };
+        coordinator.SynchronizeQuestJournal(journal, quest);
+        Require(journal[quest.Key].CompletionDialogueText == dialogue &&
+                journal[quest.Key].HighRelationshipDialogueText == "Kapcsolati párbeszéd",
+            "A questnapló újraszinkronizálása eltüntette a lezáró párbeszédet vagy a kapcsolati bónuszt.");
+    }
+
     public static void SeparateRowsAndTargetedAbandon()
     {
         var data = LoadData();

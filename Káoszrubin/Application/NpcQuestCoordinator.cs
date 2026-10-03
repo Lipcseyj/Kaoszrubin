@@ -36,6 +36,9 @@ public sealed class NpcQuestCoordinator
                 StringComparer.CurrentCultureIgnoreCase)
             .ToArray();
 
+    public static bool HasQuestReadyToTurnIn(IEnumerable<QuestHandle> quests) =>
+        quests.Any(quest => quest.IsReadyToTurnIn);
+
     /// <summary>Pontos futáskulcs szerinti projekció, a napló nem ír vissza a managerbe.</summary>
     public void SynchronizeQuestJournal(Dictionary<QuestKey, QuestJournalEntrySnapshot> journal, QuestHandle quest)
     {
@@ -55,7 +58,8 @@ public sealed class NpcQuestCoordinator
                 QuestState.Failed => QuestJournalStatus.Abandoned,
                 _ => QuestJournalStatus.Active
             }, quest.Progress, quest.RequiredCount, previous?.ExperienceReward ?? quest.ExperienceReward,
-            previous?.CompletionExperienceSummary, previous?.CompletionItemRewardSummary);
+            previous?.CompletionExperienceSummary, previous?.CompletionItemRewardSummary,
+            quest.CompletionDialogue?.Text, previous?.HighRelationshipDialogueText);
     }
     public static bool IsRodericInsigniaEnemy(
         string? groupId) =>

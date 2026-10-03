@@ -278,6 +278,9 @@ public sealed class QuestHandle
     public NpcDialogueDefinition? HighRelationshipDialogue =>
         _definition.HighRelationshipDialogue;
 
+    public NpcDialogueDefinition? CompletionDialogue =>
+        _definition.CompletionDialogue;
+
     /// <summary>
     /// API: YES
     /// Leadja és sikeresen lezárja a questet a

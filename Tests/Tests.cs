@@ -31,6 +31,8 @@ internal static partial class Program
     ("A leadási megerősítés után friss készletellenőrzés történik", QuestPresentationTests.ConfirmationDoesNotFreezeInventoryEligibility),
     ("Elira kijárati döntése tényleges questlezárást igényel", QuestPresentationTests.EliraDepartureRequiresActualCompletion),
     ("A questnapló külön sorokat és célzott feladást használ", QuestJournalTests.SeparateRowsAndTargetedAbandon),
+    ("Az öt patkány után az NPC találkozási párbeszéde kimarad", QuestJournalTests.ReadyRatHunterQuestSkipsEncounterDialogue),
+    ("Az élő questleadás megjeleníti és megőrzi a lezáró párbeszédet", QuestJournalTests.LiveCompletionDialogueSurvivesQuestJournalUpdates),
     ("A gyorsutazás konkrét questadót és friss útvonalat használ", QuestJournalTests.TravelTargetsOneInstanceAndRechecksWorld),
     ("A gyorsutazás újraellenőrzi a collect készletét", QuestJournalTests.TravelRechecksCollectInventory),
     ("A globális quest utazása is konkrét karakterhez kötött", QuestJournalTests.GlobalTravelRetainsConcreteGiver),
