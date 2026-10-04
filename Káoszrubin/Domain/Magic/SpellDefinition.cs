@@ -69,6 +69,7 @@ public sealed record SpellDefinition(string Id, string Name, SpellSchool School,
     public int? ImpactDurationMilliseconds { get; init; }
     public bool EnemyOnly { get; init; }
     public bool ExcludesUndead { get; init; }
+    public string LogEmoji { get; init; } = "✨";
     public bool HasAreaImpact => TargetType is SpellTargetType.Area or SpellTargetType.Direction;
     public int EffectiveImpactDurationMilliseconds => ImpactDurationMilliseconds ?? (HasAreaImpact ? 3000 : 1500);
     public bool CanUseInCombat => UsageMode is SpellUsageMode.Combat or SpellUsageMode.Both;

@@ -604,7 +604,8 @@ public static class CsvGameDataLoader
                     ImpactPattern = OptionalSpellVisual<SpellImpactPattern>(cells, 13, id, "becsapódásminta", SpellImpactPattern.Ripple),
                     StormPattern = OptionalSpellVisual<StormVisualPattern>(cells, 14, id, "viharminta", StormVisualPattern.Drift),
                     StormPalette = OptionalSpellVisual<SpellImpactPalette>(cells, 15, id, "viharszín"),
-                    ExcludesUndead = IsYes(cells, 16)
+                    ExcludesUndead = IsYes(cells, 16),
+                    LogEmoji = EmptyAsNull(Cell(cells, 17)) ?? "✨"
                 });
                 break;
             case DataSection.StrengthHitBonuses:
@@ -639,7 +640,8 @@ public static class CsvGameDataLoader
                     ImpactPattern = OptionalSpellVisual<SpellImpactPattern>(cells, 13, id, "becsapódásminta", SpellImpactPattern.Ripple),
                     StormPattern = OptionalSpellVisual<StormVisualPattern>(cells, 14, id, "viharminta", StormVisualPattern.Drift),
                     StormPalette = OptionalSpellVisual<SpellImpactPalette>(cells, 15, id, "viharszín"),
-                    ExcludesUndead = IsYes(cells, 16)
+                    ExcludesUndead = IsYes(cells, 16),
+                    LogEmoji = EmptyAsNull(Cell(cells, 17)) ?? "✨"
                 });
                 break;
             case DataSection.SpellEffects:

@@ -414,7 +414,7 @@ public sealed partial class Game
         var execution = ExecuteSpell(caster, casterPosition, spell, target.Value, inCombat, currentEnemy, divineJudgment);
         var judgmentText = divineJudgment ? " ⚡ Isteni ítélet: kétszeres számszerű hatás és ingyenes varázslat." : string.Empty;
         return new SpellCastAttempt(true,
-            $"{caster.Name} elsüti: {spell.Name} → {targetText}. " +
+            $"{spell.LogEmoji} {caster.Name} elsüti: {spell.Name} → {targetText}. " +
             (usingItem ? $"{CastingItemUseText(castingItem!)}; 0 manna." : $"-{manaCost} manna.") +
             $"{judgmentText} {execution.Summary}",
             BattleLogKind.PlayerAttack, execution.DamageToCurrentEnemy, execution.ExtraPlayerActions,

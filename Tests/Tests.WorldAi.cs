@@ -825,6 +825,64 @@ internal static partial class Program
             "A típusvédelmek tízszázalékos skálája hibás.");
     }
 
+    static void PlayerSpellLogShowsDamageModifiersAndRemainingHealth()
+    {
+        var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory,
+            CsvGameDataLoader.GameDataFileName));
+        var damagingSpells = catalog.SpellEffects
+            .Where(effect => effect.Type is SpellEffectType.Damage or SpellEffectType.ChainDamage)
+            .Select(effect => catalog.GetSpell(effect.SpellId))
+            .Where(spell => !spell.EnemyOnly)
+            .DistinctBy(spell => spell.Id);
+        Assert(damagingSpells.All(spell => !string.IsNullOrWhiteSpace(spell.LogEmoji) &&
+                                          spell.LogEmoji != "✨"),
+            "A játékos sebző varázslatainak hiányzik a CSV-ben megadott naplóikonja.");
+
+        var maze = new Maze(9, 9);
+        for (var y = 0; y < maze.Height; y++)
+        for (var x = 0; x < maze.Width; x++) maze.Carve(new Position(x, y));
+        var baseDefinition = catalog.GetEnemy("E001") with { HitPoints = 200 };
+        var resistant = new ConfiguredEnemy(new Position(4, 4), baseDefinition with
+        { Name = "Ellenálló", Resistances = new DamageResistance(Fire: 5), MagicResistance = 25 });
+        var vulnerable = new ConfiguredEnemy(new Position(5, 4), baseDefinition with
+        { Name = "Sérülékeny", Resistances = new DamageResistance(Fire: -5) });
+        var immune = new ConfiguredEnemy(new Position(4, 5), baseDefinition with
+        { Name = "Immunis", Resistances = new DamageResistance(Fire: 10) });
+        var fragile = new ConfiguredEnemy(new Position(5, 5), baseDefinition with
+        { Name = "Sebzett", HitPoints = 1, Resistances = new DamageResistance() });
+        maze.AddEnemy(resistant);
+        maze.AddEnemy(vulnerable);
+        maze.AddEnemy(immune);
+        maze.AddEnemy(fragile);
+        var caster = CreateCharacter("Mágus");
+        var spell = catalog.GetSpell("S007");
+        var timeStop = false;
+        var result = new SpellExecutionService(catalog, new Random(91)).ExecuteSpell(caster,
+            new Position(4, 2), spell, resistant.Position, true, resistant, false, ref timeStop,
+            [(caster, new Position(4, 2))], maze,
+            (_, enemy, amount, _) => enemy.ReceiveSpellDamage(amount),
+            (_, _) => false, (_, _) => "", (_, _) => "");
+        var vulnerableDamage = 200 - vulnerable.CurrentHitPoints;
+        var targetLines = result.Summary.Split("; ", StringSplitOptions.None);
+        var resistantLine = targetLines.Single(line => line.StartsWith("Ellenálló:", StringComparison.Ordinal));
+        var vulnerableLine = targetLines.Single(line => line.StartsWith("Sérülékeny:", StringComparison.Ordinal));
+        var immuneLine = targetLines.Single(line => line.StartsWith("Immunis:", StringComparison.Ordinal));
+        var fragileLine = targetLines.Single(line => line.StartsWith("Sebzett:", StringComparison.Ordinal));
+        Assert(spell.LogEmoji == "☄️🔥" && result.DamageToCurrentEnemy > 0 &&
+               resistant.CurrentHitPoints == 200 && vulnerableDamage > 0 &&
+               resistantLine.Contains($"❤️-{result.DamageToCurrentEnemy} " +
+                   "(🛡️ tűz ellenállás 50%, 🔮 varázsvédelem 25%, 🎲 ") &&
+               resistantLine.EndsWith($"(❤️{200 - result.DamageToCurrentEnemy}/200)") &&
+               vulnerableLine.Contains($"❤️-{vulnerableDamage} " +
+                   "(⚠️ tűz sérülékenység +50%, 🎲 ") &&
+               vulnerableLine.EndsWith($"(❤️{vulnerable.CurrentHitPoints}/200)") &&
+               immuneLine.Contains("❤️-0 (🛡️ tűz ellenállás 100%, 🎲 ") &&
+               immuneLine.EndsWith("(❤️200/200)") &&
+               fragile.CurrentHitPoints == 0 && fragileLine.Contains("Sebzett: ❤️-1") &&
+               fragileLine.EndsWith("(❤️0/1)"),
+            "A többcélú varázslat naplója nem mutatja célpontonként a tényleges sebzést, védelmet és maradék HP-t.");
+    }
+
     static void InvisibilityPreventsExplorationDetection()
     {
         var invisible = CreateCharacter("Láthatatlan");

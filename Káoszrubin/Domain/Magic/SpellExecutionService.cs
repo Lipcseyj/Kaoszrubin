@@ -279,6 +279,13 @@ public sealed class SpellExecutionService
         var resolutionCache = new Dictionary<(Enemy Enemy, SpellResolution Resolution), SpellResolutionResult>();
         var friendlySaves = new Dictionary<LiveCharacter, bool>();
         var notes = new List<string>();
+        var damageModifiers = new Dictionary<Enemy, List<string>>();
+        List<string> ModifiersFor(Enemy enemy)
+        {
+            if (!damageModifiers.TryGetValue(enemy, out var modifiers))
+                damageModifiers[enemy] = modifiers = [];
+            return modifiers;
+        }
         var extraActions = 0;
 
         foreach (var effect in effects)
@@ -289,7 +296,8 @@ public sealed class SpellExecutionService
                     foreach (var enemy in targets)
                         damage[enemy] += ResolveSpellDamage(caster, effect, spell, enemy, resolutionCache, notes,
                             divineJudgment, spell.Id == "S011"
-                                ? SpellAreaFootprint.MeteorDamagePercent(meteorCenters, enemy.Position, maze) : 100);
+                                ? SpellAreaFootprint.MeteorDamagePercent(meteorCenters, enemy.Position, maze) : 100,
+                            ModifiersFor(enemy));
                     foreach (var character in friendlyFireTargets)
                         friendlyDamage[character] += ResolveFriendlySpellDamage(caster, effect, spell,
                             character, friendlySaves, divineJudgment, notes, spell.Id == "S011"
@@ -297,7 +305,8 @@ public sealed class SpellExecutionService
                                     livingParty.First(member => member.Character == character).Position, maze) : 100);
                     break;
                 case SpellEffectType.ChainDamage:
-                    ApplyChainDamage(caster, effect, spell, target, currentEnemy, damage, initialHitPoints, notes, maze);
+                    ApplyChainDamage(caster, effect, spell, target, currentEnemy, damage, initialHitPoints,
+                        notes, maze, ModifiersFor);
                     break;
                 case SpellEffectType.Burning:
                     ApplyEnemyTimedEffect(caster, effect, spell, targets, ActiveSpellEffectType.Burning, resolutionCache, notes, divineJudgment);
@@ -397,7 +406,8 @@ public sealed class SpellExecutionService
                     }
                     break;
                 case SpellEffectType.RandomElement:
-                    var element = ApplyRandomElement(caster, effect, spell, targets, damage, resolutionCache, notes);
+                    var element = ApplyRandomElement(caster, effect, spell, targets, damage, resolutionCache,
+                        notes, ModifiersFor);
                     ApplyFriendlyRandomElement(caster, effect, spell, friendlyFireTargets,
                         friendlyDamage, friendlySaves, element, notes);
                     break;
@@ -498,7 +508,8 @@ public sealed class SpellExecutionService
                     damage[enemy] += ResolveSpellDamage(caster, effect, spell, enemy,
                         new Dictionary<(Enemy, SpellResolution), SpellResolutionResult>(), notes,
                         damagePercent: spell.Id == "S011"
-                            ? SpellAreaFootprint.MeteorDamagePercent(meteorCenters, enemy.Position, maze) : 100);
+                            ? SpellAreaFootprint.MeteorDamagePercent(meteorCenters, enemy.Position, maze) : 100,
+                        damageModifiers: ModifiersFor(enemy));
                 foreach (var character in friendlyFireTargets)
                     friendlyDamage[character] += ResolveFriendlySpellDamage(caster, effect, spell,
                         character, new Dictionary<LiveCharacter, bool>(), divineJudgment, notes,
@@ -506,7 +517,8 @@ public sealed class SpellExecutionService
                             livingParty.First(member => member.Character == character).Position, maze) : 100);
             }
             foreach (var effect in effects.Where(effect => effect.Type == SpellEffectType.ChainDamage))
-                ApplyChainDamage(caster, effect, spell, target, currentEnemy, damage, initialHitPoints, notes, maze);
+                ApplyChainDamage(caster, effect, spell, target, currentEnemy, damage, initialHitPoints,
+                    notes, maze, ModifiersFor);
             notes.Add("🔁 Láncvarázs: a sebzés ingyen megismétlődött");
         }
 
@@ -527,6 +539,7 @@ public sealed class SpellExecutionService
 
         var currentDamage = 0;
         var actualDamage = 0;
+        var actualFriendlyDamage = 0;
         var dealsFireDamage = effects.Any(effect => effect.Type == SpellEffectType.Burning ||
                                                    effect.DamageType == DamageType.Fire);
         foreach (var entry in damage.Where(entry => entry.Value > 0))
@@ -547,9 +560,23 @@ public sealed class SpellExecutionService
         }
         foreach (var entry in friendlyDamage.Where(entry => entry.Value > 0))
         {
+            var before = entry.Key.CurrentVitality;
             entry.Key.ReceiveDamage(entry.Value);
-            notes.Add($"{entry.Key.Name}: baráti tűz -{entry.Value} HP");
+            var inflicted = before - entry.Key.CurrentVitality;
+            actualFriendlyDamage += inflicted;
+            notes.Add($"{entry.Key.Name}: baráti tűz -{inflicted} HP");
         }
+        var damageSummary = damage
+            .Where(entry => entry.Value > 0 ||
+                damageModifiers.TryGetValue(entry.Key, out var modifiers) && modifiers.Count > 0)
+            .Select(entry =>
+            {
+                var initial = initialHitPoints[entry.Key];
+                var inflicted = Math.Min(Math.Max(0, entry.Value), initial);
+                var modifierText = damageModifiers.TryGetValue(entry.Key, out var modifiers) && modifiers.Count > 0
+                    ? $" ({string.Join(", ", modifiers.Distinct())})" : string.Empty;
+                return $"{entry.Key.Name}: ❤️-{inflicted}{modifierText} (❤️{initial - inflicted}/{entry.Key.MaximumHitPoints})";
+            }).ToArray();
         if (actualDamage > 0 && caster.SpecializationId == ClassSpecializations.MageNecromancer)
         {
             var before = caster.CurrentVitality;
@@ -575,13 +602,14 @@ public sealed class SpellExecutionService
         if (damage.Values.Any(value => value > 0) || friendlyDamage.Values.Any(value => value > 0)) caster.BreakInvisibility();
         if (!inCombat && onRefreshCharacterSheet is not null) onRefreshCharacterSheet(caster);
         return new SpellExecutionResult(currentDamage, extraActions,
-            notes.Count == 0 ? "A varázslat nem talált érvényes célpontot." : string.Join("; ", notes.Distinct()),
+            damageSummary.Length == 0 && notes.Count == 0 ? "A varázslat nem talált érvényes célpontot."
+                : string.Join("; ", damageSummary.Concat(notes).Distinct()),
             new BattleActionDetails(Guid.NewGuid(), caster.Name, spell.Name,
-                [$"✨ {spell.Name}", $"💥 Összes sebzés: {damage.Values.Sum() + friendlyDamage.Values.Sum()}",
+                [$"{spell.LogEmoji} {spell.Name}", $"💥 Összes sebzés: {actualDamage + actualFriendlyDamage}",
                  effects.Any(effect => effect.Resolution == SpellResolution.Attack)
                     ? $"🎲 Kritikus: 5% / cél — {(_criticalOccurred ? "KRITIKUS!" : "nem")}" :
                       "🎲 Kritikus: nem alkalmazható"],
-                _calculation.Concat(notes).ToArray()));
+                _calculation.Concat(damageSummary).Concat(notes).ToArray()));
     }
 
     public IEnumerable<Enemy> ResolveEnemySpellTargets(SpellDefinition spell, Position target, Enemy? currentEnemy,
@@ -628,7 +656,8 @@ public sealed class SpellExecutionService
 
     public int ResolveSpellDamage(LiveCharacter caster, SpellEffectDefinition effect, SpellDefinition spell,
         Enemy enemy, Dictionary<(Enemy Enemy, SpellResolution Resolution), SpellResolutionResult> cache,
-        List<string> notes, bool divineJudgment = false, int damagePercent = 100)
+        List<string> notes, bool divineJudgment = false, int damagePercent = 100,
+        ICollection<string>? damageModifiers = null)
     {
         var resolution = ResolveAgainstEnemy(caster, effect, spell, enemy, cache);
         if (!resolution.Applies)
@@ -653,15 +682,17 @@ public sealed class SpellExecutionService
         {
             rolled = (int)Math.Ceiling(rolled * 1.5);
             _calculation.Add("✨ Szent sebezhetőség ×1,50 ↑");
-            notes.Add($"{enemy.Name}: ✨ szent sebezhetőség +50%");
+            if (damageModifiers is null) notes.Add($"{enemy.Name}: ✨ szent sebezhetőség +50%");
+            else damageModifiers.Add("✨ szent sebezhetőség +50%");
         }
         if (divineJudgment) { rolled *= 2; _calculation.Add("⚡ Isteni ítélet ×2"); }
         if (resolution.Critical) { rolled *= 2; _calculation.Add("🎲 KRITIKUS ×2"); }
         if (resolution.Half) { rolled = Math.Max(1, rolled / 2); _calculation.Add("🛡️ Sikeres mentő: felezés ↓, min. 1"); }
         rolled = Math.Max(1, rolled * damagePercent / 100);
-        rolled = ApplyTypedResistance(enemy, rolled, effect.DamageType, notes);
-        rolled = ApplyMagicResistance(enemy, rolled, notes);
-        notes.Add($"{enemy.Name}: -{rolled} HP ({resolution.Text})");
+        rolled = ApplyTypedResistance(enemy, rolled, effect.DamageType, notes, damageModifiers);
+        rolled = ApplyMagicResistance(enemy, rolled, notes, damageModifiers);
+        if (damageModifiers is null) notes.Add($"{enemy.Name}: -{rolled} HP ({resolution.Text})");
+        else if (resolution.Text != "automatikus") damageModifiers.Add($"🎲 {resolution.Text}");
         return rolled;
     }
 
@@ -824,7 +855,8 @@ public sealed class SpellExecutionService
 
     public void ApplyChainDamage(LiveCharacter caster, SpellEffectDefinition effect, SpellDefinition spell,
         Position target, Enemy? currentEnemy, Dictionary<Enemy, int> damage,
-        Dictionary<Enemy, int> initialHitPoints, List<string> notes, Maze maze)
+        Dictionary<Enemy, int> initialHitPoints, List<string> notes, Maze maze,
+        Func<Enemy, List<string>>? modifiersFor = null)
     {
         var candidates = maze.Enemies.Where(enemy => enemy.CurrentHitPoints > 0 && CanAffectEnemy(spell, enemy))
             .Concat(currentEnemy is null ? [] : [currentEnemy]).Distinct()
@@ -841,7 +873,8 @@ public sealed class SpellExecutionService
             if (!damage.ContainsKey(enemy)) damage[enemy] = 0;
             if (!initialHitPoints.ContainsKey(enemy)) initialHitPoints[enemy] = enemy.CurrentHitPoints;
             var baseDamage = ResolveSpellDamage(caster, effect, spell, enemy,
-                new Dictionary<(Enemy, SpellResolution), SpellResolutionResult>(), notes);
+                new Dictionary<(Enemy, SpellResolution), SpellResolutionResult>(), notes,
+                damageModifiers: modifiersFor?.Invoke(enemy));
             damage[enemy] += baseDamage * multipliers[Math.Min(index, multipliers.Length - 1)] / 100;
         }
     }
@@ -849,7 +882,7 @@ public sealed class SpellExecutionService
     public string ApplyRandomElement(LiveCharacter caster, SpellEffectDefinition effect, SpellDefinition spell,
         IEnumerable<Enemy> targets, Dictionary<Enemy, int> damage,
         Dictionary<(Enemy Enemy, SpellResolution Resolution), SpellResolutionResult> cache,
-        List<string> notes)
+        List<string> notes, Func<Enemy, List<string>>? modifiersFor = null)
     {
         var element = (effect.Parameter ?? "Fire|Frost|Lightning").Split('|')[_random.Next(3)];
         foreach (var enemy in targets)
@@ -860,10 +893,11 @@ public sealed class SpellExecutionService
                 var fireDamage = effect.Dice?.Roll(_random) ?? 0;
                 if (caster.HasPerk(PerkIds.MageElementalMaster))
                     fireDamage = (int)Math.Ceiling(fireDamage * 1.25);
-                fireDamage = ApplyTypedResistance(enemy, fireDamage, DamageType.Fire, notes);
-                fireDamage = ApplyMagicResistance(enemy, fireDamage, notes);
+                fireDamage = ApplyTypedResistance(enemy, fireDamage, DamageType.Fire, notes,
+                    modifiersFor?.Invoke(enemy));
+                fireDamage = ApplyMagicResistance(enemy, fireDamage, notes, modifiersFor?.Invoke(enemy));
                 damage[enemy] += fireDamage;
-                notes.Add($"{enemy.Name}: 🔥 -{fireDamage} HP");
+                if (modifiersFor is null) notes.Add($"{enemy.Name}: 🔥 -{fireDamage} HP");
             }
             else if (element.Equals("Frost", StringComparison.OrdinalIgnoreCase))
                 enemy.ApplySpellEffect(new ActiveSpellEffect(spell.Id, ActiveSpellEffectType.Frost, effect.Value, effect.Duration));
@@ -947,24 +981,31 @@ public sealed class SpellExecutionService
         }
     }
 
-    private int ApplyMagicResistance(Enemy enemy, int damage, ICollection<string> notes)
+    private int ApplyMagicResistance(Enemy enemy, int damage, ICollection<string> notes,
+        ICollection<string>? damageModifiers = null)
     {
         var resistance = MagicResistance(enemy);
         if (damage <= 0 || resistance <= 0) return Math.Max(0, damage);
         var reduced = resistance >= 100 ? 0 : Math.Max(1, damage * (100 - resistance) / 100);
         _calculation.Add($"🔮 {enemy.Name}: varázsvédelem {resistance}%, {damage} → {reduced}");
-        notes.Add($"{enemy.Name}: 🔮 varázsvédelem -{damage - reduced} sebzés");
+        if (damageModifiers is null) notes.Add($"{enemy.Name}: 🔮 varázsvédelem -{damage - reduced} sebzés");
+        else damageModifiers.Add($"🔮 varázsvédelem {resistance}%");
         return reduced;
     }
 
-    private int ApplyTypedResistance(Enemy enemy, int damage, DamageType? type, ICollection<string> notes)
+    private int ApplyTypedResistance(Enemy enemy, int damage, DamageType? type, ICollection<string> notes,
+        ICollection<string>? damageModifiers = null)
     {
         if (damage <= 0 || type is not { } damageType) return Math.Max(0, damage);
         var resistance = enemy.Definition.Resistances?.Against(damageType) ?? 0;
         if (resistance == 0) return damage;
         var adjusted = DamageResistance.ApplySpellPercent(damage, resistance);
         _calculation.Add($"🛡️ {enemy.Name}: {damageType.Name()} védelem {resistance * 10:+#;-#;0}%, {damage} → {adjusted}");
-        notes.Add($"{enemy.Name}: {damageType.Name()} védelem {resistance * 10:+#;-#;0}%");
+        var modifier = resistance > 0
+            ? $"🛡️ {damageType.Name()} ellenállás {resistance * 10}%"
+            : $"⚠️ {damageType.Name()} sérülékenység +{-resistance * 10}%";
+        if (damageModifiers is null) notes.Add($"{enemy.Name}: {modifier}");
+        else damageModifiers.Add(modifier);
         return adjusted;
     }
 
