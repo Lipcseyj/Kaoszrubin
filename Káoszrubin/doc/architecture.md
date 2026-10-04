@@ -982,6 +982,17 @@ A támadások addig váltakoznak, amíg valamelyik fél HP-ja nullára nem csök
 
 Az ellenfél definíciója változatlan adat. A játékos támadásának számítása egy külön `EnemyDefenseSnapshot` objektumban tartja a csata során változó HP-t és az adott támadáshoz módosított védelmi adatokat, majd a maradék HP-t visszaírja az `Enemy.CurrentHitPoints` értékébe. Az ellenfél támadása közvetlenül az `Enemy` példányt kapja, ezért a definíció mellett a futásidejű varázshatásokat, képességtölteteket és lehűléseket is ugyanabból a forrásból olvassa. A játékos HP-ja közvetlenül a `LiveCharacter` objektumon változik.
 
+### Ellenség harci AI
+
+A **szokásos fegyveres támadásnál** a közelharci és a távolsági célpontot ugyanaz a sorrend választja ki:
+
+1. Az élő partitagok közül csak azokat veszi számításba, akiket az adott fegyver elér. Közelharcban ez többnyire a szomszédos mező; távolsági fegyvernél a hatótáv és a rálátás is számít.
+2. Az elérhető célpontok közül **a legalacsonyabb aktuális HP-arányú** karaktert támadja. Azonos aránynál a közelebbit választja. Tehát nem automatikusan a vezért vagy a legkevesebb abszolút HP-val rendelkezőt. [Célpontválasztás](C:/Dev/Kaoszrubin/Káoszrubin/Combat/TacticalBattleCoordinator.cs:229)
+
+Az aktív alakzat elölről védi a hátsó sor tagját, ha az előtte álló párja él. Ilyenkor az ellenség először a nem védett partitagok közül választ. Ha senki sem érhető el támadással, a legközelebbi lehetséges célpont felé indul. [Alakzatvédelem](C:/Dev/Kaoszrubin/Káoszrubin/Combat/BattleEncounter.cs:272) · [Mozgási cél](C:/Dev/Kaoszrubin/Káoszrubin/Application/Game.Combat.Resolution.cs:503)
+
+A több célpontot érintő fegyvereknél a fenti sorrend adja az elsődleges célpontot, majd a támadás alakja szerint kerülnek mellé továbbiak. A **tölcsér alakú támadás kivétel**: azt az irányt keresi, amelyik a legtöbb karaktert éri el. A szörnyek különleges képességei és varázslatai saját célzási szabályokat használnak. [Többcélú és tölcsér támadások](C:/Dev/Kaoszrubin/Káoszrubin/Combat/TacticalBattleCoordinator.cs:258)
+
 ## Megjelenítés
 
 A `ConsoleRenderer` a pályát, a karakterlapot, az ASCII-képpanelt és az üzenetnaplót egy rögzített konzolelrendezésben jeleníti meg. A jobb alsó képpanel öt képsorból és az azt körülvevő két keretsorból áll; a rövidebb portrékat a renderer üres sorokkal egészíti ki. Mozgáskor és csatakor csak az érintett cellákat vagy panelsorokat írja újra. Emiatt a játékmeneti osztályok a teljes újrarajzolás helyett célzott renderer-metódusokat hívnak.

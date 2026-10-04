@@ -874,7 +874,11 @@ public sealed partial class Game
             .ThenBy(enemy => enemy.Id.ToString(), StringComparer.Ordinal)
             .ToArray();
         if (targets.Length == 0) return null;
-        var selectedIndex = battle.SelectedTargetEnemyId is { } selectedId
+        var focusedId = battle.SelectedTargetEnemyId ??
+                        (BattleFocusTarget(battle, battle.Current) is { } focused
+                            ? battle.EnemyFor(focused)?.Id
+                            : null);
+        var selectedIndex = focusedId is { } selectedId
             ? Array.FindIndex(targets, enemy => enemy.Id == selectedId)
             : -1;
         return targets[(selectedIndex + 1) % targets.Length];
