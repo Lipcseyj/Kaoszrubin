@@ -907,7 +907,7 @@ TR111;Meteorrúna;✺;Spell;18;14;14;0;0;0;650;1300;Meteorzáport zúdít a cél
 TR112;Lélekvihar-rúna;◈;Spell;21;15;16;0;0;0;800;1600;Sötét lélekvihart szakít a kalandozókra.;S025
 
 #Varázslatok
-Id;Név;Szint;Manna;Leírás;Célzás;Hatótáv;Terület;Látóvonal;HasználatiMód;BecsapódásSzín;BecsapódásIdőMs;CsakEllenség;BecsapódásMinta;ViharMinta;ViharSzín
+Id;Név;Szint;Manna;Leírás;Célzás;Hatótáv;Terület;Látóvonal;HasználatiMód;BecsapódásSzín;BecsapódásIdőMs;CsakEllenség;BecsapódásMinta;ViharMinta;ViharSzín;NemHatÉlőholtra
 S001;Mágikus lövedék;1;6;Biztosan célba találó arkán lövedék amely a varázsló erejével növekszik.;Enemy;8;0;igen;Both;Blue;700;
 S002;Fagyasztó érintés;1;5;Fagyos közelharci varázslat amely megsebzi és lelassítja az ellenfelet.;Enemy;1;0;igen;Both;Blue;1200;
 S003;Égő kéz;1;8;Rövid lángtölcsér amely minden benne állót megsebezhet és lángra lobbanthat.;Direction;2;1;igen;Both;Red;2200;
@@ -934,10 +934,12 @@ S023;Hasadó villám;3;18;Egy villámív több egymáshoz közeli ellenfélen is
 S024;Harci gyorsítás;4;25;Felgyorsítja a teljes partit és pontosabbá teszi a támadásaikat.;Party;0;0;nem;Both;Blue;0;
 S025;Armageddon;5;44;7x7-ös pusztító és tartós viharcsapás: kisebb kezdeti csapás és öt körig erős utósebzés. A társakat is éri.;Area;9;3;igen;Both;Red;4200;;Pillars;Crackle
 S026;Fényvarázslat;1;6;Arkán fény veszi körül a mágust és messzebbre tárja fel előtte a labirintust. A fény 15 százalékponttal javítja a csapdafelderítést.;Self;0;0;nem;Exploration;Blue;3000;
-S027;Vakítás;2;11;Vakító arkán villanás homályosítja el az ellenfél látását és jelentősen rontja a támadásainak pontosságát.;Enemy;8;0;igen;Both;YellowBrown;600;
-S028;Rémkép;3;15;Rémisztő látomásokat idéz az ellenségek elméjébe amelyek megtorpannak és bizonytalanabbul támadnak.;Area;7;1;igen;Both;Blue;3400;
+S027;Vakítás;2;11;Vakító arkán villanás homályosítja el az ellenfél látását és jelentősen rontja a támadásainak pontosságát. Élőholtakra nem hat.;Enemy;8;0;igen;Both;YellowBrown;600;;;;;igen
+S028;Rémkép;3;15;Rémisztő látomásokat idéz az élő ellenségek elméjébe amelyek megtorpannak és bizonytalanabbul támadnak. Élőholtakra nem hat.;Area;7;1;igen;Both;Blue;3400;;;;;igen
 S029;Sírpenge;2;11;Egy partitag fegyvere négy körig nekrotikus sebzést és plusz négy fegyversebzést kap.;PartyMember;6;0;igen;Both;Shadow;3000;
 S030;Halálosztó fegyverzet;4;28;A teljes élő parti fegyverei négy körig nekrotikus sebzést és fejenként plusz két fegyversebzést kapnak.;Party;0;0;nem;Both;Shadow;3000;
+S031;Savnyíl;2;12;Maró sav lövell egy ellenfélre.;Enemy;7;0;igen;Both;SicklyGreen;1200;;Bolt
+S032;Léleksorvasztás;3;18;Nekrotikus energia tépi az ellenfél életerejét.;Enemy;7;0;igen;Both;Shadow;1600;;Bolt
 
 D001;Árnyéktű;1;6;Sötét erőből szőtt lövedék amely könyörtelenül követi áldozatát.;Enemy;8;0;igen;Combat;Shadow;900;igen
 D002;Dermesztő átok;1;5;Síri hideggel marja és lassítja meg a közeli áldozatot.;Enemy;1;0;igen;Combat;SicklyGreen;1300;igen
@@ -959,7 +961,7 @@ D017;Vérgyógyítás;2;11;Tiltott vérmágia állítja helyre egy szövetséges
 
 
 #Papi varázslatok
-Id;Név;Szint;Manna;Leírás;Célzás;Hatótáv;Terület;Látóvonal;HasználatiMód;BecsapódásSzín;BecsapódásIdőMs;CsakEllenség;BecsapódásMinta;ViharMinta;ViharSzín
+Id;Név;Szint;Manna;Leírás;Célzás;Hatótáv;Terület;Látóvonal;HasználatiMód;BecsapódásSzín;BecsapódásIdőMs;CsakEllenség;BecsapódásMinta;ViharMinta;ViharSzín;NemHatÉlőholtra
 P001;Gyógyító érintés;1;5;Érintéssel gyógyít 2d8 plusz Intelligencia plusz karakterszint HP-t.;PartyMember;1;0;igen;Both;YellowBrown;1000;
 P002;Szent fény;1;6;Szent fényt lő egy ellenfélre amely élőholt és démoni célpont ellen másfélszeres sebzést okoz.;Enemy;8;0;igen;Both;YellowBrown;800;
 P003;Áldás;1;8;Négy körre találatot védelmet és kezdeményezést ad minden élő part tagnak.;Party;0;0;nem;Both;YellowBrown;2000;
@@ -993,14 +995,14 @@ P030;Lángoló fegyverzet;4;28;Isteni lánggal vonja be a teljes élő parti tá
 P031;Lángörvény;3;19;3x3-as tartós szent tűzörvény perzseli a területen állókat és a belépőket. A társakat is sebzi.;Area;7;1;igen;Both;Red;2200;;Vortex;Embers;YellowBrown
 
 #Varázshatások
-Id;VarázslatId;Sorrend;Típus;Kocka;IntSzorzó;SzintSzorzó;Érték;IdőtartamKör;Esély;Ellenpróba;Paraméter;Leírás
+Id;VarázslatId;Sorrend;Típus;Kocka;IntSzorzó;SzintSzorzó;Érték;IdőtartamKör;Esély;Ellenpróba;Paraméter;Leírás;Sebzéstípus
 FX-S001-1;S001;1;Damage;2d6;1;1;0;0;100;Auto;;Automatikusan találó mágikus sebzés.
 FX-S002-1;S002;1;Damage;2d6;0.5;1;0;0;100;Attack;;Mágikus támadással okozott fagysebzés.
 FX-S002-2;S002;2;SpeedPenalty;;0;0;3;4;100;Attack;;Találatkor három ponttal csökkenti a Gyorsaságot négy körre.
-FX-S003-1;S003;1;Damage;2d6;1;1;0;0;100;SaveHalf;;Rövid lángtölcsér sebzése mentőre felezve.
-FX-S003-2;S003;2;Burning;1d4;0;0;0;2;100;SaveNegates;;Sikertelen mentőnél két körig égést okoz.
-FX-S005-1;S005;1;Damage;3d6;1;1;0;0;100;Attack;;Mágikus támadással okozott tűzsebzés.
-FX-S005-2;S005;2;Burning;1d4;0;0;0;2;100;Attack;;Találatkor két körig égést okoz.
+FX-S003-1;S003;1;Damage;2d6;1;1;0;0;100;SaveHalf;;Rövid lángtölcsér sebzése mentőre felezve.;tűz
+FX-S003-2;S003;2;Burning;1d4;0;0;0;2;100;SaveNegates;;Sikertelen mentőnél két körig égést okoz.;tűz
+FX-S005-1;S005;1;Damage;3d6;1;1;0;0;100;Attack;;Mágikus támadással okozott tűzsebzés.;tűz
+FX-S005-2;S005;2;Burning;1d4;0;0;0;2;100;Attack;;Találatkor két körig égést okoz.;tűz
 FX-S021-1;S021;1;DefenseBonus;;0;0;3;15;100;Auto;;Tizenöt körre három pont védelmet ad.
 FX-S026-1;S026;1;VisionBonus;;0;0;2;12;100;Auto;;Tizenkét körre kettővel növeli a látótávot és 15 százalékponttal javítja a csapdafelderítést.
 FX-S004-1;S004;1;Damage;5d8;2;3;0;0;100;Attack;;Nagy erejű egycélpontos villámsebzés.
@@ -1009,7 +1011,7 @@ FX-S013-1;S013;1;DefenseBonus;;0;0;8;5;100;Auto;;Öt körig nyolc pont mágikus 
 FX-S014-1;S014;1;SpeedPenalty;;0;0;4;6;100;SaveNegates;;Hat körig négy ponttal csökkenti a Gyorsaságot.
 FX-S022-1;S022;1;SpeedPenalty;;0;0;3;2;100;SaveNegates;;Két körig három ponttal csökkenti a Gyorsaságot.
 FX-S022-2;S022;2;SkipAlternate;;0;0;1;1;100;SaveNegates;Next;A következő akció kimarad.
-FX-S007-1;S007;1;Damage;8d8;3;5;0;0;100;SaveHalf;;Koncentrált tűzsebzés mentőre felezve.
+FX-S007-1;S007;1;Damage;8d8;3;5;0;0;100;SaveHalf;;Koncentrált tűzsebzés mentőre felezve.;tűz
 FX-S008-1;S008;1;Damage;4d8;2;3;0;0;100;SaveHalf;;Nagyobb területű fagysebzés mentőre felezve.
 FX-S008-2;S008;2;SpeedPenalty;;0;0;4;3;100;SaveNegates;;Három körig jeges lassítást okoz.
 FX-S008-3;S008;3;Storm;1d8;0.5;0;0;3;100;SaveNegates;;Három körig jeges viharsebzést okoz a területen.
@@ -1018,8 +1020,8 @@ FX-S015-1;S015;1;Dispel;;0;0;0;0;100;Auto;;Eltávolítja az ideiglenes mágikus 
 FX-S023-1;S023;1;ChainDamage;6d8;2;4;0;0;100;SaveHalf;100|70|40;Legfeljebb két további célpontra ugró villámsebzés.
 FX-S009-1;S009;1;Damage;5d10;2;4;0;0;100;SaveHalf;;A villámvihar kezdeti területi sebzése.
 FX-S009-2;S009;2;Storm;2d10;1;0;0;3;100;SaveNegates;;Három körig további villámsebzést okoz.
-FX-S011-1;S011;1;Damage;9d10;3;6;0;0;100;SaveHalf;;Három szétszórt meteor becsapódása.
-FX-S011-2;S011;2;Burning;2d8;0;0;0;2;100;SaveNegates;;Két körig égést okoz a becsapódásnál.
+FX-S011-1;S011;1;Damage;9d10;3;6;0;0;100;SaveHalf;;Három szétszórt meteor becsapódása.;tűz
+FX-S011-2;S011;2;Burning;2d8;0;0;0;2;100;SaveNegates;;Két körig égést okoz a becsapódásnál.;tűz
 FX-S016-1;S016;1;ChainDamage;10d8;3;6;0;0;100;SaveHalf;100|75|50|25;Legfeljebb három további célpontra ugró villámsebzés.
 FX-S017-1;S017;1;PhysicalReduction;;0;0;50;4;100;Auto;;Négy körig ötven százalékkal csökkenti a fizikai sebzést.
 FX-S017-2;S017;2;BleedingImmunity;;0;0;1;4;100;Auto;;Négy körig megakadályozza a vérzés felkerülését.
@@ -1041,6 +1043,8 @@ FX-S029-1;S029;1;WeaponDamageType;;0;0;0;4;100;Auto;Necrotic;Négy körre nekrot
 FX-S029-2;S029;2;DamageBonus;;0;0;4;4;100;Auto;;Négy körre plusz négy fegyversebzést ad a célpontnak.
 FX-S030-1;S030;1;WeaponDamageType;;0;0;0;4;100;Auto;Necrotic;Négy körre nekrotikussá változtatja a teljes parti fegyversebzését.
 FX-S030-2;S030;2;DamageBonus;;0;0;2;4;100;Auto;;Négy körre fejenként plusz két fegyversebzést ad a teljes partinak.
+FX-S031-1;S031;1;Damage;4d6;1;2;0;0;100;Attack;;Közvetlen savsebzés.;sav
+FX-S032-1;S032;1;Damage;6d8;2;3;0;0;100;SaveHalf;;Nekrotikus sebzés ellenpróbára felezve.;nekrotikus
 FX-D001-1;D001;1;Damage;2d6;1;1;0;0;100;Auto;;Automatikusan célba találó sötét sebzés.
 FX-D002-1;D002;1;Damage;2d6;0.5;1;0;0;100;Attack;;Közelharci síri sebzés.
 FX-D002-2;D002;2;SpeedPenalty;;0;0;3;4;100;Attack;;Találatkor négy körre lelassítja az áldozatot.
@@ -1107,8 +1111,8 @@ FX-P018-1;P018;1;Damage;18d10;5;12;0;0;100;SaveHalf;Holy50;Hatalmas területi sz
 FX-P018-2;P018;2;DispelBeneficial;;0;0;0;0;100;SaveNegates;;Rontott ellenpróbánál szétoszlatja az ellenségek pozitív varázshatásait.
 FX-P019-1;P019;1;Sanctuary;;0;0;50;4;100;Auto;;A Pap közelében álló társakat védi amíg nem támadnak.
 FX-P020-1;P020;1;Resurrect;;0;0;100;0;100;Auto;50|STATUS003|STATUS004|STATUS005;Teljes HP-val fél mannával és megtisztítva hoz vissza egy elesett társat.
-FX-P025-1;P025;1;Damage;20d10;5;14;0;0;100;SaveHalf;;Hatalmas területi égi tűzsebzés.
-FX-P025-2;P025;2;Burning;2d8;0;0;0;3;100;SaveNegates;;Három körig égi lánggal perzsel.
+FX-P025-1;P025;1;Damage;20d10;5;14;0;0;100;SaveHalf;;Hatalmas területi égi tűzsebzés.;tűz
+FX-P025-2;P025;2;Burning;2d8;0;0;0;3;100;SaveNegates;;Három körig égi lánggal perzsel.;tűz
 FX-P026-1;P026;1;HitBonus;;0;0;2;4;100;Auto;;Négy körre két pont találati bónuszt ad a papnak.
 FX-P026-2;P026;2;DamageBonus;;0;0;2;4;100;Auto;;Négy körre két pont fizikai sebzést ad a papnak.
 FX-P027-1;P027;1;Dispel;;0;0;0;0;100;Auto;HarmfulOnly;Eltávolítja a célpontot sújtó ideiglenes káros mágikus hatásokat.
@@ -1117,8 +1121,8 @@ FX-P028-1;P028;1;Damage;6d8;2;3;0;0;100;SaveHalf;Holy50;Szent területi sebzés 
 FX-P028-2;P028;2;SkipAlternate;;0;0;1;1;100;SaveNegates;Next;Sikertelen ellenpróbánál a célpont következő akciója kimarad.
 FX-P029-1;P029;1;WeaponDamageType;;0;0;0;4;100;Auto;Fire;Négy körre tűzzé változtatja a célpont fegyversebzését.
 FX-P030-1;P030;1;WeaponDamageType;;0;0;0;4;100;Auto;Fire;Négy körre tűzzé változtatja a teljes parti fegyversebzését.
-FX-P031-1;P031;1;Damage;3d6;1;2;0;0;100;SaveHalf;;A lángörvény kezdeti 3x3-as tűzsebzése.
-FX-P031-2;P031;2;Storm;1d6;0.5;0;0;3;100;SaveNegates;;Három körön át perzseli a bent állókat és a belépőket.
+FX-P031-1;P031;1;Damage;3d6;1;2;0;0;100;SaveHalf;;A lángörvény kezdeti 3x3-as tűzsebzése.;tűz
+FX-P031-2;P031;2;Storm;1d6;0.5;0;0;3;100;SaveNegates;;Három körön át perzseli a bent állókat és a belépőket.;tűz
 
 #Karakternevek
 Id;Név;OsztályId

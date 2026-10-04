@@ -743,6 +743,88 @@ internal static partial class Program
             "A társ elfoglalhatta a vezér utolsó szabad kijáratát.");
     }
 
+    static void UndeadSpellImmunityAndTypedMagicResistanceWork()
+    {
+        var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory,
+            CsvGameDataLoader.GameDataFileName));
+        var service = new SpellExecutionService(catalog, new Random(42));
+        var undead = new ConfiguredEnemy(new Position(3, 3), catalog.GetEnemy("E004"));
+        var living = new ConfiguredEnemy(new Position(4, 3), catalog.GetEnemy("E001"));
+        var maze = new Maze(7, 7);
+        for (var y = 0; y < maze.Height; y++)
+        for (var x = 0; x < maze.Width; x++) maze.Carve(new Position(x, y));
+        maze.AddEnemy(undead);
+        maze.AddEnemy(living);
+        var casterPosition = new Position(3, 2);
+        var fog = new FogOfWar(maze.Width, maze.Height, 5);
+        fog.RevealFrom(maze, casterPosition);
+        var blind = catalog.GetSpell("S027");
+        var fright = catalog.GetSpell("S028");
+        Assert(blind.ExcludesUndead && fright.ExcludesUndead &&
+               !service.ValidateSpellTarget(casterPosition, blind, undead.Position, undead, maze, fog,
+                   casterPosition, null).IsValid &&
+               service.ValidateSpellTarget(casterPosition, blind, living.Position, living, maze, fog,
+                   casterPosition, null).IsValid &&
+               !service.ResolveEnemySpellTargets(fright, undead.Position, undead, casterPosition, maze)
+                   .Contains(undead) &&
+               service.ResolveEnemySpellTargets(fright, undead.Position, undead, casterPosition, maze)
+                   .Contains(living),
+            "A Vakítás vagy Rémkép élőholtat célzott, vagy az élő célpontot is kizárta.");
+
+        var testDefinition = catalog.GetEnemy("E001") with
+        {
+            Resistances = new DamageResistance(Fire: 5, Acid: -3, Necrotic: 8),
+            MagicResistance = 0
+        };
+        var resistant = new ConfiguredEnemy(new Position(3, 3), testDefinition);
+        var caster = CreateCharacter("Varázsló");
+        var spell = catalog.GetSpell("S031");
+        var baseEffect = new SpellEffectDefinition("TEST-TYPED", spell.Id, 1, SpellEffectType.Damage,
+            null, 0, 0, 20, 0, 100, SpellResolution.Auto, null, "");
+        int Damage(DamageType type) => service.ResolveSpellDamage(caster,
+            baseEffect with { DamageType = type }, spell, resistant,
+            new Dictionary<(Enemy, SpellResolution), SpellResolutionResult>(), []);
+        Assert(catalog.GetSpellEffects("S031").Single().DamageType == DamageType.Acid &&
+               catalog.GetSpellEffects("S032").Single().DamageType == DamageType.Necrotic &&
+               catalog.GetSpellEffects("S007").Single(effect => effect.Type == SpellEffectType.Damage)
+                   .DamageType == DamageType.Fire &&
+               Damage(DamageType.Fire) == 10 && Damage(DamageType.Acid) == 26 &&
+               Damage(DamageType.Necrotic) == 4,
+            "A varázssebzés típusa vagy az előjeles elemi ellenállás nem érvényesül.");
+
+        var burning = new ActiveSpellEffect("TEST-FIRE", ActiveSpellEffectType.Burning, 0, 2,
+            new DiceExpression(1, 2), 10, DamageType: DamageType.Fire);
+        resistant.ApplySpellEffect(burning);
+        var neutral = new ConfiguredEnemy(new Position(4, 3), testDefinition with
+            { Resistances = new DamageResistance() });
+        neutral.ApplySpellEffect(burning);
+        Assert(resistant.AdvanceSpellEffects(new Random(7)).Damage ==
+               DamageResistance.ApplySpellPercent(neutral.AdvanceSpellEffects(new Random(7)).Damage, 5),
+            "A tartós tűzsebzésre nem hat az ellenállás.");
+
+        var acidic = burning with { SourceSpellId = "TEST-ACID", DamageType = DamageType.Acid };
+        var acidResistant = new ConfiguredEnemy(new Position(3, 3), testDefinition);
+        var acidNeutral = new ConfiguredEnemy(new Position(4, 3), neutral.Definition);
+        acidResistant.ApplySpellEffect(acidic);
+        acidNeutral.ApplySpellEffect(acidic);
+        Assert(acidResistant.AdvanceSpellEffects(new Random(8)).Damage ==
+               DamageResistance.ApplySpellPercent(acidNeutral.AdvanceSpellEffects(new Random(8)).Damage, -3),
+            "A negatív savvédelem nem növelte a tartós varázssebzést.");
+        var storm = new ActiveStormZone(Guid.NewGuid(), "TEST-FIRE", resistant.Position,
+            [resistant.Position], 2, new DiceExpression(1, 2), 10, 100, SpellResolution.Auto,
+            DamageType: DamageType.Fire);
+        Assert(storm.RollDamage(new Random(9), 0, 0, testDefinition.Resistances!.Fire) ==
+               DamageResistance.ApplySpellPercent(storm.RollDamage(new Random(9), 0, 0), 5) &&
+               storm.RollDamage(new Random(9), 0, 0, 10) == 0 &&
+               storm.RollDamage(new Random(9), 0, 0, -10) ==
+               2 * storm.RollDamage(new Random(9), 0, 0),
+            "A tűzörvény sebzésére nem hat az elemi ellenállás.");
+        Assert(DamageResistance.ApplySpellPercent(20, 10) == 0 &&
+               DamageResistance.ApplySpellPercent(20, -10) == 40 &&
+               DamageResistance.ApplySpellPercent(20, 5) == 10,
+            "A típusvédelmek tízszázalékos skálája hibás.");
+    }
+
     static void InvisibilityPreventsExplorationDetection()
     {
         var invisible = CreateCharacter("Láthatatlan");

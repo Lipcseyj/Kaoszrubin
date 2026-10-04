@@ -1,4 +1,5 @@
 using KaoszRubin.Domain;
+using KaoszRubin.Domain.Combat;
 using System.Text.Json.Serialization;
 
 namespace KaoszRubin.Domain.Magic;
@@ -67,7 +68,8 @@ public readonly record struct DiceExpression(int Count, int Sides)
 
 public sealed record SpellEffectDefinition(string Id, string SpellId, int Order, SpellEffectType Type,
     DiceExpression? Dice, double IntelligenceMultiplier, int LevelMultiplier, int Value, int Duration,
-    int ChancePercent, SpellResolution Resolution, string? Parameter, string Description) : IGameDefinition
+    int ChancePercent, SpellResolution Resolution, string? Parameter, string Description,
+    DamageType? DamageType = null) : IGameDefinition
 {
     public string Name => Id;
 }
@@ -97,6 +99,7 @@ public enum ActiveSpellEffectType
 public sealed record ActiveSpellEffect(string SourceSpellId, ActiveSpellEffectType Type, int Value,
     [property: JsonPropertyName("RemainingActions")] int RemainingRounds,
     DiceExpression? PeriodicDamage = null, int IntelligenceBonus = 0,
-    bool Beneficial = false, int DamageMultiplierPercent = 100, string? Parameter = null);
+    bool Beneficial = false, int DamageMultiplierPercent = 100, string? Parameter = null,
+    DamageType? DamageType = null);
 
 public sealed record SpellEffectTickResult(int Damage, bool SkipAction, IReadOnlyList<string> Notes);

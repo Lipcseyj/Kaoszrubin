@@ -96,7 +96,8 @@ public static class BestiaryWindow
             new($"Gyorsaság: {Value(enemy.Speed)}   XP: {enemy.ExperienceReward}", ConsoleColor.Cyan),
             new($"Látás: {enemy.VisionRange}   Lopakodás: {enemy.Stealth}   Zaj: {enemy.Noise}   Nyomkövetés: {enemy.TrackingSense}", ConsoleColor.Gray),
             new($"Mágiaellenállás: {enemy.MagicResistance}%", ConsoleColor.Magenta),
-            new($"Sebzésellenállás: {enemy.Resistances ?? new DamageResistance()}", ConsoleColor.Gray),
+            new($"Fegyver ellen (páncélpont): {enemy.Resistances ?? new DamageResistance()}", ConsoleColor.Gray),
+            new($"Varázslat ellen: {(enemy.Resistances ?? new DamageResistance()).ToSpellPercentString()}", ConsoleColor.Gray),
             new($"Jellemzők: {(traits.Count == 0 ? "nincs" : string.Join(", ", traits))}", ConsoleColor.DarkYellow),
             new($"Fegyverek: {(weapons.Length == 0 ? "természetes vagy ismeretlen" : string.Join(", ", weapons))}", ConsoleColor.Green)
         };

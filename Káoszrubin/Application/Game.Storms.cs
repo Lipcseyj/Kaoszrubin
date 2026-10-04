@@ -103,7 +103,10 @@ public sealed partial class Game
             : null;
         if (occupant.Enemy is { CurrentHitPoints: > 0 } enemy)
         {
-            var amount = zone.RollDamage(_random, enemy.EffectiveSpeed, enemy.Definition.MagicResistance);
+            var typedResistance = zone.DamageType is { } type
+                ? enemy.Definition.Resistances?.Against(type) ?? 0 : 0;
+            var amount = zone.RollDamage(_random, enemy.EffectiveSpeed, enemy.Definition.MagicResistance,
+                typedResistance);
             if (amount <= 0) return;
             notes.Add($"{enemy.Name} -{amount} HP");
             if (battle is not null && battle.Enemies.Contains(enemy))

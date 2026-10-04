@@ -273,6 +273,9 @@ public abstract class Enemy(Position position) : WorldObject(position)
         {
             if (effect.PeriodicDamage is not { } dice) continue;
             var rolled = (dice.Roll(random) + effect.IntelligenceBonus) * effect.DamageMultiplierPercent / 100;
+            if (effect.DamageType is { } damageType)
+                rolled = DamageResistance.ApplySpellPercent(rolled,
+                    Definition.Resistances?.Against(damageType) ?? 0);
             damage += rolled;
             notes.Add($"{EffectName(effect.Type)} -{rolled} HP");
         }

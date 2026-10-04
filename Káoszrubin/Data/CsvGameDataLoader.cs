@@ -603,7 +603,8 @@ public static class CsvGameDataLoader
                     EnemyOnly = IsYes(cells, 12),
                     ImpactPattern = OptionalSpellVisual<SpellImpactPattern>(cells, 13, id, "becsapódásminta", SpellImpactPattern.Ripple),
                     StormPattern = OptionalSpellVisual<StormVisualPattern>(cells, 14, id, "viharminta", StormVisualPattern.Drift),
-                    StormPalette = OptionalSpellVisual<SpellImpactPalette>(cells, 15, id, "viharszín")
+                    StormPalette = OptionalSpellVisual<SpellImpactPalette>(cells, 15, id, "viharszín"),
+                    ExcludesUndead = IsYes(cells, 16)
                 });
                 break;
             case DataSection.StrengthHitBonuses:
@@ -637,7 +638,8 @@ public static class CsvGameDataLoader
                     EnemyOnly = IsYes(cells, 12),
                     ImpactPattern = OptionalSpellVisual<SpellImpactPattern>(cells, 13, id, "becsapódásminta", SpellImpactPattern.Ripple),
                     StormPattern = OptionalSpellVisual<StormVisualPattern>(cells, 14, id, "viharminta", StormVisualPattern.Drift),
-                    StormPalette = OptionalSpellVisual<SpellImpactPalette>(cells, 15, id, "viharszín")
+                    StormPalette = OptionalSpellVisual<SpellImpactPalette>(cells, 15, id, "viharszín"),
+                    ExcludesUndead = IsYes(cells, 16)
                 });
                 break;
             case DataSection.SpellEffects:
@@ -646,7 +648,8 @@ public static class CsvGameDataLoader
                     Double(cells, 5) ?? 0, Integer(cells, 6) ?? 0, Integer(cells, 7) ?? 0,
                     Integer(cells, 8) ?? 0, Math.Clamp(Integer(cells, 9) ?? 100, 0, 100),
                     ParseRequiredEnum<SpellResolution>(cells, 10, id, "ellenpróba"),
-                    EmptyAsNull(Cell(cells, 11)), Cell(cells, 12)));
+                    EmptyAsNull(Cell(cells, 11)), Cell(cells, 12),
+                    string.IsNullOrWhiteSpace(Cell(cells, 13)) ? null : ParseDamageType(Cell(cells, 13))));
                 break;
             case DataSection.EnemySpellcasters:
                 enemySpellcasters.Add(new EnemySpellcasterProfile(id, IdList(Cell(cells, 1)),

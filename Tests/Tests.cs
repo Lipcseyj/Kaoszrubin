@@ -143,6 +143,7 @@ internal static partial class Program
     ("A varázslatiskolák teljes listát adnak, és a Fényvarázslat elérhető", SpellSchoolsIncludeMageLightSpell),
     ("A buff varázslatok időtartama CSV-ből, harci körökben érkezik", SpellBuffDurationLoadsAsRounds),
     ("Az új varázslatok hatásai és célpontszabályai működnek", NewSpellEffectsAreSupported),
+    ("Az élőholt-immunitás és az előjeles varázssebzés-ellenállás működik", UndeadSpellImmunityAndTypedMagicResistanceWork),
     ("A varázsmemória osztályonként eltérően fejlődik", SpellMemorizationCapacityUsesClassFormula),
     ("A lovag ismert varázslata nem tűnik el köztes szinten mentéskor", KnightKnownSpellSurvivesNonLearningLevelSave),
     ("A kasztok CSV-ből módosítják a HP- és mannanövekedést", ClassResourceGrowthLoadsFromCsv),

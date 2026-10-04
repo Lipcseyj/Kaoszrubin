@@ -1226,6 +1226,12 @@ internal static partial class Program
                Enum.GetValues<DamageType>().Select(type => type.Name()).SequenceEqual(
                    ["vágás", "szúrás", "zúzás", "tűz", "sav", "nekrotikus", "káosz"]),
             "Az elemi és természetfeletti sebzéstípusok vagy ellenállásaik hibásak.");
+        var unprotectedFire = PlayerDamage(DamageType.Fire, new());
+        var fireWithTenArmorPoints = PlayerDamage(DamageType.Fire, new(Fire: 10));
+        Assert(unprotectedFire > 0 &&
+               fireWithTenArmorPoints > 0 && fireWithTenArmorPoints < unprotectedFire &&
+               PlayerDamage(DamageType.Fire, new(Fire: -10)) > unprotectedFire,
+            "A fegyver ellen a szörny típusvédelme páncélpontként kell működjön.");
         int EnemyDamage(int weaponDamage, DamageResistance resistance)
         {
             var total = 0;
