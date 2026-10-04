@@ -413,7 +413,7 @@ public sealed class CharacterCreationScreen
 
     private static string FormatRaceTraits(RaceDefinition race) => race.Traits switch
     {
-        RaceTraits.Adaptable => "Alkalmazkodó: választott képesség +1, első tehetség a 4. szinten",
+        RaceTraits.Adaptable => "Alkalmazkodó: választott képesség +1, első két tehetség a 3. és 13. szinten",
         RaceTraits.Resilient => "Rendíthetetlen: +4 mérgezés- és betegség-ellenállás",
         RaceTraits.KeenSenses => "Éles érzékek: +15% keresési esély, 👁️ látótáv +1",
         RaceTraits.Relentless => "Könyörtelen: +2 ajtóbetörés, pályánként egyszer 1 HP-n túlél",

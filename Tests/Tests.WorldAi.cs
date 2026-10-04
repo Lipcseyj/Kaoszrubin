@@ -46,8 +46,11 @@ internal static partial class Program
             new PrimaryAbilities(0, 0, 0, 1));
         Assert(character.Abilities == new PrimaryAbilities(5, 5, 5, 6),
             "Az Alkalmazkodó tulajdonság nem a kiválasztott képességre adta a +1-et.");
-        Assert(PerkProgressionRules.TriggerLevel(race, 1) == 4 &&
-               PerkProgressionRules.TriggerLevel(race, 2) == 15,
+        Assert(PerkProgressionRules.TriggerLevel(race, 1) == 3 &&
+               PerkProgressionRules.TriggerLevel(race, 2) == 13 &&
+               PerkProgressionRules.TriggerLevel(race, 3) == 25 &&
+               PerkProgressionRules.TriggerLevel(race with { Traits = RaceTraits.None }, 1) == 5 &&
+               PerkProgressionRules.TriggerLevel(race with { Traits = RaceTraits.None }, 2) == 15,
             "Az Alkalmazkodó ember tehetségszintjei hibásak.");
     }
 

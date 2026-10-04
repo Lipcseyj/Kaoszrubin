@@ -1239,7 +1239,7 @@ public sealed class MainMenu
             Blank(),
             Section("⚔️ OSZTÁLYTAKTIKÁK ÉS HARCI MÓDOSÍTÓK", ConsoleColor.DarkCyan),
             Text("HARCI ALAPOK — A Harcos, Barbár és Lovag 7/10/13 Erőnél +1/+2/+3 fegyveres találatot kap. A kétkezes fegyver az ellenfél páncéljának csak a felét számítja."),
-            Text("🌟 A tehetségfokozatok a 5., 15. és 25. karakterszinten választhatók. Az Alkalmazkodó ember az 1. fokozatot már a 4. szinten megkapja. Fokozatonként a felsorolt két tehetség egyikét lehet véglegesen választani."),
+            Text("🌟 A tehetségfokozatok az 5., 15. és 25. karakterszinten választhatók. Az Alkalmazkodó ember az első két fokozatot már a 3. és 13. szinten megkapja. Fokozatonként a felsorolt két tehetség egyikét lehet véglegesen választani."),
             ColoredText("💪🏹❤️🧠 KÉPESSÉGPONT — Minden 3. szinten egy választott képesség +1 pontot kap. Egy képesség értéke legfeljebb 13 lehet; a maximumot elért képesség nem választható.", ConsoleColor.Green),
             Blank(),
             ColoredText("⚔️ HARCOS — TAKTIKUS", ConsoleColor.Red),

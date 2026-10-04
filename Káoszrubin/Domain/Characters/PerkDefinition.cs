@@ -15,7 +15,9 @@ public static class PerkProgressionRules
     public static int TriggerLevel(RaceDefinition race, int tier)
     {
         if (tier is < 1 or > 3) throw new ArgumentOutOfRangeException(nameof(tier));
-        return tier == 1 && race.HasTrait(RaceTraits.Adaptable) ? 4 : Milestones[tier - 1];
+        return race.HasTrait(RaceTraits.Adaptable) && tier <= 2
+            ? Milestones[tier - 1] - 2
+            : Milestones[tier - 1];
     }
 }
 
