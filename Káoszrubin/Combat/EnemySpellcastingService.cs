@@ -100,6 +100,8 @@ public sealed class EnemySpellcastingService(GameDataCatalog gameData, Random ra
             };
         }
         var notes = new List<string>();
+        var partyDamage = new Dictionary<LiveCharacter, SpellDamageLogTarget>();
+        var friendlyDamage = new Dictionary<Enemy, SpellDamageLogTarget>();
         if (meteorCenters is { Count: 3 }) notes.Add("három meteor becsapódik");
         foreach (var effect in gameData.GetSpellEffects(plan.Spell.Id))
         {
@@ -116,11 +118,16 @@ public sealed class EnemySpellcastingService(GameDataCatalog gameData, Random ra
                     10 + intelligence / 2 + plan.Spell.Level, effect.Resolution, EnemyCasterId: caster.Id));
                 notes.Add($"vihar a területen ({effect.Duration} kör)");
             }
-            else ApplyEffect(caster, plan, effect, notes, meteorCenters, maze);
+            else ApplyEffect(caster, plan, effect, notes, partyDamage, friendlyDamage, meteorCenters, maze);
         }
-        var result = notes.Count == 0 ? "a célpont ellenáll" : string.Join(", ", notes);
+        var results = partyDamage.Select(entry =>
+                entry.Value.Format(entry.Key.Name, entry.Key.CurrentVitality, entry.Key.MaximumVitality))
+            .Concat(friendlyDamage.Select(entry => entry.Value.Format(entry.Key.ShortName,
+                entry.Key.CurrentHitPoints, entry.Key.MaximumHitPoints, "baráti tűz ")))
+            .Concat(notes).ToArray();
+        var result = results.Length == 0 ? "a célpont ellenáll" : string.Join("; ", results);
         return new BattleLogEntry(
-            $"✨ {caster.Name} elmondja: {plan.Spell.Name} — {result}.",
+            $"{plan.Spell.LogEmoji} {caster.Name} elmondja: {plan.Spell.Name} — {result}.",
             BattleLogKind.EnemyAttack);
     }
 
@@ -212,7 +219,9 @@ public sealed class EnemySpellcastingService(GameDataCatalog gameData, Random ra
     }
 
     private void ApplyEffect(Enemy caster, EnemySpellPlan plan, SpellEffectDefinition effect,
-        List<string> notes, IReadOnlyList<Position>? meteorCenters, Maze? maze)
+        List<string> notes, Dictionary<LiveCharacter, SpellDamageLogTarget> partyDamage,
+        Dictionary<Enemy, SpellDamageLogTarget> friendlyDamage,
+        IReadOnlyList<Position>? meteorCenters, Maze? maze)
     {
         if (effect.Type == SpellEffectType.Heal)
         {
@@ -229,6 +238,8 @@ public sealed class EnemySpellcastingService(GameDataCatalog gameData, Random ra
             var index = 0;
             foreach (var target in plan.HostileTargets)
             {
+                if (!partyDamage.ContainsKey(target))
+                    partyDamage[target] = new SpellDamageLogTarget(target.CurrentVitality);
                 var damage = RollPower(caster, plan.Spell, effect);
                 if (effect.Type == SpellEffectType.ChainDamage)
                 {
@@ -242,11 +253,12 @@ public sealed class EnemySpellcastingService(GameDataCatalog gameData, Random ra
                         meteorCenters ?? [],
                         plan.HostilePositions?.GetValueOrDefault(target.Id) ?? plan.TargetPosition, maze) / 100);
                 target.ReceiveDamage(damage);
-                notes.Add($"{target.Name} -{damage} HP");
             }
             if (effect.Type == SpellEffectType.Damage)
                 foreach (var ally in plan.FriendlyFireTargets ?? [])
                 {
+                    if (!friendlyDamage.ContainsKey(ally))
+                        friendlyDamage[ally] = new SpellDamageLogTarget(ally.CurrentHitPoints);
                     var damage = RollPower(caster, plan.Spell, effect);
                     var saved = (effect.Resolution is SpellResolution.SaveHalf or SpellResolution.SaveNegates) &&
                         random.Next(1, 21) + ally.EffectiveSpeed >=
@@ -258,8 +270,9 @@ public sealed class EnemySpellcastingService(GameDataCatalog gameData, Random ra
                             meteorCenters ?? [], ally.Position, maze) / 100);
                     var resistance = Math.Clamp(ally.Definition.MagicResistance, 0, 100);
                     damage = resistance >= 100 ? 0 : damage > 0 ? Math.Max(1, damage * (100 - resistance) / 100) : 0;
+                    if (resistance > 0)
+                        friendlyDamage[ally].Modifiers.Add($"🔮 varázsvédelem {resistance}%");
                     ally.ReceiveSpellDamage(damage);
-                    if (damage > 0) notes.Add($"{ally.ShortName} baráti tűz -{damage} HP");
                 }
             return;
         }
@@ -268,6 +281,8 @@ public sealed class EnemySpellcastingService(GameDataCatalog gameData, Random ra
             foreach (var target in plan.HostileTargets.Where(target =>
                          target.CurrentVitality * 100 <= target.MaximumVitality * effect.Value))
             {
+                if (!partyDamage.ContainsKey(target))
+                    partyDamage[target] = new SpellDamageLogTarget(target.CurrentVitality);
                 target.ReceiveDamage(target.CurrentVitality);
                 notes.Add($"{target.Name} megsemmisül");
             }
@@ -314,6 +329,20 @@ public sealed class EnemySpellcastingService(GameDataCatalog gameData, Random ra
         (effect.Dice?.Roll(random) ?? 0) + effect.Value +
         (int)Math.Round(caster.Definition.SpellcasterProfile!.Intelligence * effect.IntelligenceMultiplier) +
         caster.Definition.StrengthTier * effect.LevelMultiplier;
+
+    // A későbbi partiellenállások ugyanide adhatják hozzá a ténylegesen alkalmazott módosítókat.
+    private sealed class SpellDamageLogTarget(int initialHitPoints)
+    {
+        public List<string> Modifiers { get; } = [];
+
+        public string Format(string name, int currentHitPoints, int maximumHitPoints, string label = "")
+        {
+            var modifierText = Modifiers.Count > 0
+                ? $" ({string.Join(", ", Modifiers.Distinct())})" : string.Empty;
+            return $"{name}: {label}❤️-{Math.Max(0, initialHitPoints - currentHitPoints)}" +
+                   $"{modifierText} (❤️{currentHitPoints}/{maximumHitPoints})";
+        }
+    }
 
     private int ResolveDamage(LiveCharacter target, SpellResolution resolution, int damage, int intelligence, int level) =>
         resolution switch

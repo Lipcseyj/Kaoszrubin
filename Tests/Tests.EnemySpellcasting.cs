@@ -16,6 +16,8 @@ internal static partial class Program
         Assert(enemyOnlySpells.Length > 0 &&
                enemyOnlySpells.All(spell => spell.Id.StartsWith('D')),
             "A sötét ellenséges varázslatkészlet hiányos vagy hibásan van megjelölve.");
+        Assert(enemyOnlySpells.All(spell => !string.IsNullOrWhiteSpace(spell.LogEmoji) && spell.LogEmoji != "✨"),
+            "Az ellenséges varázslatokhoz nem töltődtek be a tematikus naplóikonok.");
         foreach (var enemyId in expected)
         {
             var enemy = data.GetEnemy(enemyId);
@@ -115,11 +117,20 @@ internal static partial class Program
 
         var blastAlly = new ConfiguredEnemy(new Position(5, 3), baseDefinition);
         var blastAllyHp = blastAlly.CurrentHitPoints;
+        var fragileTarget = CreateCharacter("Sebzett cél", vitality: 1);
+        var targetHpBeforeBlast = target.CurrentVitality;
         var directBlast = new EnemySpellPlan(data.GetSpell("D008"), new Position(5, 2),
-            [target], [], 100, [blastAlly]);
-        service.Execute(artillery, directBlast);
+            [target, fragileTarget], [], 100, [blastAlly]);
+        var blastLog = service.Execute(artillery, directBlast).Message;
         Assert(blastAlly.CurrentHitPoints < blastAllyHp,
             "Az ellenséges területi varázslat nem sebezte a saját oldalán álló lényt.");
+        Assert(blastLog.StartsWith($"{directBlast.Spell.LogEmoji} {artillery.Name}") &&
+               blastLog.Contains($"{target.Name}: ❤️-{targetHpBeforeBlast - target.CurrentVitality} " +
+                                 $"(❤️{target.CurrentVitality}/{target.MaximumVitality})") &&
+               blastLog.Contains($"{fragileTarget.Name}: ❤️-1 (❤️0/{fragileTarget.MaximumVitality})") &&
+               blastLog.Contains($"{blastAlly.ShortName}: baráti tűz ❤️-{blastAllyHp - blastAlly.CurrentHitPoints} " +
+                                 $"(❤️{blastAlly.CurrentHitPoints}/{blastAlly.MaximumHitPoints})"),
+            "Az ellenséges területi varázslat naplója nem a tényleges sebzést és a célpontok maradék HP-ját mutatja.");
         var healerDefinition = data.GetEnemy(MonsterIds.Káoszpap);
         var healer = new ConfiguredEnemy(new Position(2, 2), healerDefinition with
         {

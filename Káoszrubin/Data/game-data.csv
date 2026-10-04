@@ -941,23 +941,23 @@ S030;Halálosztó fegyverzet;4;28;A teljes élő parti fegyverei négy körig ne
 S031;Savnyíl;2;12;Maró sav lövell egy ellenfélre.;Enemy;7;0;igen;Both;SicklyGreen;1200;;Bolt;;;;🧪
 S032;Léleksorvasztás;3;18;Nekrotikus energia tépi az ellenfél életerejét.;Enemy;7;0;igen;Both;Shadow;1600;;Bolt;;;;💀
 
-D001;Árnyéktű;1;6;Sötét erőből szőtt lövedék amely könyörtelenül követi áldozatát.;Enemy;8;0;igen;Combat;Shadow;900;igen
-D002;Dermesztő átok;1;5;Síri hideggel marja és lassítja meg a közeli áldozatot.;Enemy;1;0;igen;Combat;SicklyGreen;1300;igen
-D003;Pokoli lehelet;1;8;Alvilági lángok tölcsére perzseli fel a varázshasználó előtti területet.;Direction;2;1;igen;Combat;BloodRed;2400;igen
-D004;Kárhozat nyila;1;7;Átkozott tűznyíl amely tovább emészti a célpont testét.;Enemy;8;0;igen;Combat;Purple;1200;igen
-D005;Árnyékpajzs;1;6;Sűrű árnyékmező óvja rövid időre a varázshasználót.;Self;0;0;nem;Combat;Shadow;1100;igen
-D006;Vérvillám;2;12;Bíbor villám tépi fel egyetlen áldozat életerejét.;Enemy;6;0;igen;Combat;BloodRed;700;igen
-D007;Fekete bilincs;2;11;Élő árnyékok béklyózzák meg és akasztják meg az áldozat mozdulatait.;Enemy;8;0;igen;Combat;Shadow;2100;igen
-D008;Pokoltűzgömb;3;18;Robbanó pokoltűz borítja lángba a célterületet.;Area;8;2;igen;Combat;BloodRed;3200;igen
-D009;Dögvészvihar;3;18;Mérgező zöld vihar sebzi és lassítja a terület áldozatait.;Area;8;2;igen;Combat;SicklyGreen;3700;igen;Ripple;Rain
-D010;Rémület hulláma;3;15;Sötét látomások bénítják meg és bizonytalanítják el a közel állókat.;Area;7;1;igen;Combat;Purple;3500;igen
-D011;Kárhozatvihar;4;26;Tartós sötét villámvihar emészti a teljes célterületet.;Area;8;2;igen;Combat;Purple;4000;igen;Bolt;Crackle
-D012;Léleklánc;4;28;Áldozatról áldozatra ugró fekete energia tépi ki az életerőt.;Enemy;8;0;igen;Combat;Shadow;2800;igen
-D013;Vérbástya;3;18;Vérrel táplált oltalom védi a varázshasználó szövetségeseit.;Party;0;0;nem;Combat;BloodRed;0;igen
-D014;Sötét litánia;3;14;Baljós ima fokozza a szövetségesek harci erejét és gyorsaságát.;Party;0;0;nem;Combat;Purple;0;igen
-D015;Véráldozat;4;30;Tiltott rítus egyszerre tölti fel a teljes ellenséges csapat életerejét.;Party;0;0;nem;Combat;BloodRed;0;igen
-D016;Fekete nap;5;50;Mindenséget elemésztő sötétség és kaotikus energia söpör végig a területen.;Area;10;4;igen;Combat;Shadow;5200;igen
-D017;Vérgyógyítás;2;11;Tiltott vérmágia állítja helyre egy szövetséges életerejét.;PartyMember;6;0;igen;Combat;BloodRed;0;igen
+D001;Árnyéktű;1;6;Sötét erőből szőtt lövedék amely könyörtelenül követi áldozatát.;Enemy;8;0;igen;Combat;Shadow;900;igen;;;;;🌑✧
+D002;Dermesztő átok;1;5;Síri hideggel marja és lassítja meg a közeli áldozatot.;Enemy;1;0;igen;Combat;SicklyGreen;1300;igen;;;;;❄️💀
+D003;Pokoli lehelet;1;8;Alvilági lángok tölcsére perzseli fel a varázshasználó előtti területet.;Direction;2;1;igen;Combat;BloodRed;2400;igen;;;;;🔥👹
+D004;Kárhozat nyila;1;7;Átkozott tűznyíl amely tovább emészti a célpont testét.;Enemy;8;0;igen;Combat;Purple;1200;igen;;;;;🏹🔥
+D005;Árnyékpajzs;1;6;Sűrű árnyékmező óvja rövid időre a varázshasználót.;Self;0;0;nem;Combat;Shadow;1100;igen;;;;;🌑🛡️
+D006;Vérvillám;2;12;Bíbor villám tépi fel egyetlen áldozat életerejét.;Enemy;6;0;igen;Combat;BloodRed;700;igen;;;;;🩸⚡
+D007;Fekete bilincs;2;11;Élő árnyékok béklyózzák meg és akasztják meg az áldozat mozdulatait.;Enemy;8;0;igen;Combat;Shadow;2100;igen;;;;;⛓️🌑
+D008;Pokoltűzgömb;3;18;Robbanó pokoltűz borítja lángba a célterületet.;Area;8;2;igen;Combat;BloodRed;3200;igen;;;;;☄️🔥
+D009;Dögvészvihar;3;18;Mérgező zöld vihar sebzi és lassítja a terület áldozatait.;Area;8;2;igen;Combat;SicklyGreen;3700;igen;Ripple;Rain;;;☠️🌫️
+D010;Rémület hulláma;3;15;Sötét látomások bénítják meg és bizonytalanítják el a közel állókat.;Area;7;1;igen;Combat;Purple;3500;igen;;;;;👁️💀
+D011;Kárhozatvihar;4;26;Tartós sötét villámvihar emészti a teljes célterületet.;Area;8;2;igen;Combat;Purple;4000;igen;Bolt;Crackle;;;🌩️💀
+D012;Léleklánc;4;28;Áldozatról áldozatra ugró fekete energia tépi ki az életerőt.;Enemy;8;0;igen;Combat;Shadow;2800;igen;;;;;💀⛓️
+D013;Vérbástya;3;18;Vérrel táplált oltalom védi a varázshasználó szövetségeseit.;Party;0;0;nem;Combat;BloodRed;0;igen;;;;;🩸🛡️
+D014;Sötét litánia;3;14;Baljós ima fokozza a szövetségesek harci erejét és gyorsaságát.;Party;0;0;nem;Combat;Purple;0;igen;;;;;🌑📜
+D015;Véráldozat;4;30;Tiltott rítus egyszerre tölti fel a teljes ellenséges csapat életerejét.;Party;0;0;nem;Combat;BloodRed;0;igen;;;;;🩸
+D016;Fekete nap;5;50;Mindenséget elemésztő sötétség és kaotikus energia söpör végig a területen.;Area;10;4;igen;Combat;Shadow;5200;igen;;;;;🌑☀️
+D017;Vérgyógyítás;2;11;Tiltott vérmágia állítja helyre egy szövetséges életerejét.;PartyMember;6;0;igen;Combat;BloodRed;0;igen;;;;;🩸❤️
 
 
 #Papi varázslatok
