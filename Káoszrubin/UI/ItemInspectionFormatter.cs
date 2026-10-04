@@ -57,6 +57,7 @@ public static class ItemInspectionFormatter
             MagicItemDefinition magic =>
                 $"Varázstárgy | típus: {MagicItemKindName(magic.Kind)} | súly: {magic.Weight} | " +
                 $"hatás: {MagicItemEffectName(magic.Effect)} {magic.EffectValue}" +
+                (IsSpellResistance(magic.Effect) ? "%" : string.Empty) +
                 (magic.SpellId is null ? string.Empty : $" | varázslat: {gameData.GetSpell(magic.SpellId).Name}") +
                 (magic.MaximumCharges > 0 ? $" | töltet: {charges}/{magic.MaximumCharges}" : string.Empty) +
                 $" | kasztok: {AllowedClassNames(magic.AllowedClassIds, gameData)}",
@@ -265,6 +266,17 @@ public static class ItemInspectionFormatter
         MagicItemEffect.BattleHeal => "csata eleji HP", MagicItemEffect.BattleMana => "csata eleji manna",
         MagicItemEffect.Strength => "Erő", MagicItemEffect.Dexterity => "Ügyesség",
         MagicItemEffect.Health => "Egészség", MagicItemEffect.Intelligence => "Intelligencia",
+        MagicItemEffect.FireResistance => "tűzvarázs elleni védelem",
+        MagicItemEffect.AcidResistance => "savvarázs elleni védelem",
+        MagicItemEffect.NecroticResistance => "nekrotikus varázs elleni védelem",
+        MagicItemEffect.MagicResistance => "általános varázsvédelem",
+        MagicItemEffect.FrostResistance => "jégvarázs elleni védelem",
+        MagicItemEffect.LightningResistance => "villámvarázs elleni védelem",
         _ => "varázslattároló"
     };
+
+    private static bool IsSpellResistance(MagicItemEffect effect) => effect is
+        MagicItemEffect.FireResistance or MagicItemEffect.AcidResistance or
+        MagicItemEffect.NecroticResistance or MagicItemEffect.MagicResistance or
+        MagicItemEffect.FrostResistance or MagicItemEffect.LightningResistance;
 }

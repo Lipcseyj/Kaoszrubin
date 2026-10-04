@@ -1,5 +1,6 @@
 using KaoszRubin.Domain.Characters;
 using KaoszRubin.Domain.Magic;
+using KaoszRubin.Domain.Combat;
 using KaoszRubin.Data;
 
 namespace KaoszRubin.Application;
@@ -20,7 +21,8 @@ public sealed record CharacterSheetSnapshot(string RaceName, string CharacterCla
     int InitiativeBase = 0, int CombatMovementAllowance = CharacterMobilityRules.BaselineMovementAllowance,
     bool HasArmorMaster = false, double CarriedWeight = 0, string CarriedEncumbrance = "Könnyű",
     int ExplorationMovementAllowance = CharacterMobilityRules.BaselineMovementAllowance,
-    double CombatCarryingCapacity = 0);
+    double CombatCarryingCapacity = 0,
+    IReadOnlyList<string>? SpellResistanceDetails = null);
 
 public sealed record VisionModifierSnapshot(string Name, int Value);
 public sealed record MonsterKillSnapshot(string EnemyDefinitionId, int Count);
@@ -65,6 +67,10 @@ public static class CharacterSheetSnapshotProjector
                 ActiveSpellEffectType.ProtectionFromEvil => "✝️🛡️",
                 ActiveSpellEffectType.GuardianAngel => "👼",
                 ActiveSpellEffectType.Sanctuary => "⛪",
+                ActiveSpellEffectType.FireResistance => "🔥🛡️",
+                ActiveSpellEffectType.AcidResistance => "🧪🛡️",
+                ActiveSpellEffectType.NecroticResistance => "💀🛡️",
+                ActiveSpellEffectType.MagicResistance => "🔮🛡️",
                 ActiveSpellEffectType.WeaponDamageType when string.Equals(effect.Parameter, "Fire", StringComparison.OrdinalIgnoreCase) => "🔥⚔️",
                 ActiveSpellEffectType.WeaponDamageType => "☠️⚔️",
                 ActiveSpellEffectType.VisionBonus when effect.Value < 0 => "🌑",
@@ -95,7 +101,22 @@ public static class CharacterSheetSnapshotProjector
             mobility.InitiativeBase, mobility.CombatMovementAllowance,
             character.HasPerk(PerkIds.KnightArmorMaster), mobility.CarriedWeight,
             EncumbranceName(mobility.CarriedEncumbrance), mobility.ExplorationMovementAllowance,
-            mobility.CombatCarryingCapacity);
+            mobility.CombatCarryingCapacity,
+            BuildSpellResistanceDetails(character));
+    }
+
+    private static IReadOnlyList<string> BuildSpellResistanceDetails(LiveCharacter character)
+    {
+        var result = new List<string>();
+        foreach (var type in new[] { DamageType.Fire, DamageType.Acid, DamageType.Frost,
+                     DamageType.Lightning, DamageType.Necrotic })
+        {
+            var percent = CharacterSpellResistance.Percent(character, type);
+            if (percent > 0) result.Add($"{type.Name()}: {percent}%");
+        }
+        var magic = CharacterSpellResistance.MagicPercent(character);
+        if (magic > 0) result.Add($"általános varázsvédelem: {magic}%");
+        return result;
     }
 
     private static string EncumbranceName(EncumbranceLevel level) => level switch

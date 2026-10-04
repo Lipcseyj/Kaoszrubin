@@ -1,5 +1,6 @@
 using KaoszRubin.Combat;
 using KaoszRubin.Domain.Characters;
+using KaoszRubin.Domain.Magic;
 using KaoszRubin.World;
 
 namespace KaoszRubin.Application;
@@ -130,10 +131,16 @@ public sealed partial class Game
         }
         else if (occupant.Character is { IsAlive: true } character)
         {
-            var amount = zone.RollDamage(_random, character.EffectiveAbilities.Dexterity, 0);
-            if (amount <= 0) return;
+            var modifiers = new List<string>();
+            var amount = CharacterSpellResistance.Apply(character,
+                zone.RollDamage(_random, character.EffectiveAbilities.Dexterity, 0),
+                zone.DamageType, modifiers);
+            if (amount <= 0 && modifiers.Count == 0) return;
+            var before = character.CurrentVitality;
             character.ReceiveDamage(amount);
-            notes.Add($"{character.Name} -{amount} HP");
+            notes.Add($"{character.Name}: ❤️-{before - character.CurrentVitality}" +
+                      (modifiers.Count > 0 ? $" ({string.Join(", ", modifiers)})" : string.Empty) +
+                      $" (❤️{character.CurrentVitality}/{character.MaximumVitality})");
             _renderer.RefreshCharacterSheet(character);
             if (!character.IsAlive)
             {

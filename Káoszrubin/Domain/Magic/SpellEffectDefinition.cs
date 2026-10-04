@@ -35,7 +35,11 @@ public enum SpellEffectType
     RestoreNeeds,
     VisionBonus,
     BreakItemCurse,
-    WeaponDamageType
+    WeaponDamageType,
+    FireResistance,
+    AcidResistance,
+    NecroticResistance,
+    MagicResistance
 }
 
 public enum SpellResolution
@@ -93,7 +97,13 @@ public enum ActiveSpellEffectType
     Sanctuary,
     SkipNext,
     VisionBonus,
-    WeaponDamageType
+    WeaponDamageType,
+    FireResistance,
+    AcidResistance,
+    NecroticResistance,
+    MagicResistance,
+    FrostResistance,
+    LightningResistance
 }
 
 public sealed record ActiveSpellEffect(string SourceSpellId, ActiveSpellEffectType Type, int Value,

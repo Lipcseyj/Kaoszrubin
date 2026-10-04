@@ -1,5 +1,6 @@
 using KaoszRubin.Data;
 using KaoszRubin.Domain.Characters;
+using KaoszRubin.Domain.Combat;
 using KaoszRubin.Domain.Magic;
 using KaoszRubin.World;
 
@@ -252,6 +253,8 @@ public sealed class EnemySpellcastingService(GameDataCatalog gameData, Random ra
                     damage = Math.Max(1, damage * SpellAreaFootprint.MeteorDamagePercent(
                         meteorCenters ?? [],
                         plan.HostilePositions?.GetValueOrDefault(target.Id) ?? plan.TargetPosition, maze) / 100);
+                damage = CharacterSpellResistance.Apply(target, damage, effect.DamageType,
+                    partyDamage[target].Modifiers);
                 target.ReceiveDamage(damage);
             }
             if (effect.Type == SpellEffectType.Damage)
@@ -268,6 +271,13 @@ public sealed class EnemySpellcastingService(GameDataCatalog gameData, Random ra
                     if (plan.Spell.Id == "S011" && damage > 0)
                         damage = Math.Max(1, damage * SpellAreaFootprint.MeteorDamagePercent(
                             meteorCenters ?? [], ally.Position, maze) / 100);
+                    var typedResistance = effect.DamageType is { } type
+                        ? ally.Definition.Resistances?.Against(type) ?? 0 : 0;
+                    damage = DamageResistance.ApplySpellPercent(damage, typedResistance);
+                    if (typedResistance != 0)
+                        friendlyDamage[ally].Modifiers.Add(typedResistance > 0
+                            ? $"🛡️ {effect.DamageType!.Value.Name()} ellenállás {typedResistance * 10}%"
+                            : $"⚠️ {effect.DamageType!.Value.Name()} sérülékenység +{-typedResistance * 10}%");
                     var resistance = Math.Clamp(ally.Definition.MagicResistance, 0, 100);
                     damage = resistance >= 100 ? 0 : damage > 0 ? Math.Max(1, damage * (100 - resistance) / 100) : 0;
                     if (resistance > 0)
@@ -399,7 +409,8 @@ public sealed class EnemySpellcastingService(GameDataCatalog gameData, Random ra
         Math.Max(1, effect.Duration), effect.Type is SpellEffectType.Burning or SpellEffectType.Storm or
         SpellEffectType.RandomElement ? effect.Dice : null,
         (int)Math.Round(caster.Definition.SpellcasterProfile!.Intelligence * effect.IntelligenceMultiplier) +
-        caster.Definition.StrengthTier * effect.LevelMultiplier, beneficial);
+        caster.Definition.StrengthTier * effect.LevelMultiplier, beneficial,
+        DamageType: effect.DamageType);
 
     private static bool HasAllEffects(Enemy ally, IReadOnlyList<SpellEffectDefinition> effects) => effects
         .Where(effect => TryActiveType(effect, out _)).All(effect =>

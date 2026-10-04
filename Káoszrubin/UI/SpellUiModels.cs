@@ -163,6 +163,10 @@ public static class SpellInfoPanel
         SpellEffectType.VisionBonus => "Látásmódosítás",
         SpellEffectType.BreakItemCurse => "Tárgyátok megtörése",
         SpellEffectType.WeaponDamageType => "Fegyversebzés-típus",
+        SpellEffectType.FireResistance => "Tűzvarázs-védelem",
+        SpellEffectType.AcidResistance => "Savvarázs-védelem",
+        SpellEffectType.NecroticResistance => "Nekrotikus varázs elleni védelem",
+        SpellEffectType.MagicResistance => "Általános varázsvédelem",
         _ => type.ToString()
     };
 

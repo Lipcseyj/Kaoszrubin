@@ -184,7 +184,11 @@ public static class ItemInspectionPanel
                 yield return ("", ConsoleColor.Gray);
                 yield return ("🔮 VARÁZSTÁRGY TULAJDONSÁGOK", ConsoleColor.Magenta);
                 yield return ($"💍 Típus: {MagicItemKindName(magic.Kind)}", ConsoleColor.Gray);
-                yield return ($"✨ Hatás: {MagicItemEffectName(magic.Effect)} {magic.EffectValue}", ConsoleColor.Gray);
+                yield return ($"✨ Hatás: {MagicItemEffectName(magic.Effect)} {magic.EffectValue}" +
+                              (magic.Effect is MagicItemEffect.FireResistance or MagicItemEffect.AcidResistance or
+                                  MagicItemEffect.NecroticResistance or MagicItemEffect.MagicResistance or
+                                  MagicItemEffect.FrostResistance or MagicItemEffect.LightningResistance
+                                  ? "%" : string.Empty), ConsoleColor.Gray);
                 yield return ($"🎓 Engedélyezett kasztok: {AllowedClassNames(magic.AllowedClassIds, gameData)}", ConsoleColor.Gray);
                 yield return (magic.SpellId is null
                     ? "📜 Beépített varázslat: nincs"
@@ -268,6 +272,12 @@ public static class ItemInspectionPanel
         MagicItemEffect.Dexterity => "Ügyesség",
         MagicItemEffect.Health => "Egészség",
         MagicItemEffect.Intelligence => "Intelligencia",
+        MagicItemEffect.FireResistance => "tűzvarázs elleni védelem",
+        MagicItemEffect.AcidResistance => "savvarázs elleni védelem",
+        MagicItemEffect.NecroticResistance => "nekrotikus varázs elleni védelem",
+        MagicItemEffect.MagicResistance => "általános varázsvédelem",
+        MagicItemEffect.FrostResistance => "jégvarázs elleni védelem",
+        MagicItemEffect.LightningResistance => "villámvarázs elleni védelem",
         _ => "varázslattároló"
     };
 }

@@ -43,6 +43,8 @@ public static class CharacterDetailsWindow
         AddSection(lines, "FEGYVERJÁRTASSÁGOK", sheet.DetailedWeaponProficiencyNames ??
             sheet.WeaponProficiencyNames ?? [], "Nincs fegyverjártasság.");
         AddSection(lines, "ÁLLAPOTJELZŐK", DescribeStatuses(character, data), "Nincs aktív állapot.");
+        AddSection(lines, "VARÁZSSEBZÉS ELLENI VÉDELEM", sheet.SpellResistanceDetails ?? [],
+            "Nincs varázssebzés elleni védelem.");
         if (character.SpellInfo is { } spellInfo)
         {
             lines.Add((string.Empty, ConsoleColor.Gray));
@@ -175,6 +177,10 @@ public static class CharacterDetailsWindow
         "✝️🛡️" => "Gonosz elleni védelem — védelmet ad a gonosz ellen.",
         "👼" => "Őrangyal — védő varázshatás.",
         "⛪" => "Menedék — védő varázshatás.",
+        "🔥🛡️" => "Tűzoltalom — csökkenti a tűzvarázslatok sebzését.",
+        "🧪🛡️" => "Savoltalom — csökkenti a savvarázslatok sebzését.",
+        "💀🛡️" => "Lélekpajzs — csökkenti a nekrotikus varázssebzést.",
+        "🔮🛡️" => "Arkán védelem — minden varázssebzést csökkent.",
         "🔥⚔️" => "Tűzfegyver — a fegyver tűzsebzést okoz.",
         "☠️⚔️" => "Átformált fegyversebzés — a fegyver sebzéstípusa megváltozott.",
         "🌑" => "Látásromlás — csökkenti a látótávolságot.",

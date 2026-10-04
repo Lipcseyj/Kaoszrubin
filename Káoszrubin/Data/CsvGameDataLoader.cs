@@ -380,6 +380,8 @@ public static class CsvGameDataLoader
         "tűz" => DamageType.Fire,
         "sav" or "savas" => DamageType.Acid,
         "nekrotikus" => DamageType.Necrotic,
+        "jég" or "fagy" => DamageType.Frost,
+        "villám" => DamageType.Lightning,
         "káosz" => DamageType.Chaos,
         _ => throw new InvalidDataException($"Ismeretlen sebzéstípus: '{value}'.")
     };
@@ -1372,6 +1374,11 @@ public static class CsvGameDataLoader
             if (item.Kind is MagicItemKind.Ring or MagicItemKind.Amulet &&
                 (item.SpellId is not null || item.MaximumCharges != 0 || item.Effect == MagicItemEffect.None))
                 throw new InvalidOperationException($"A(z) '{item.Id}' gyűrűnek vagy amulettnek passzív hatással és töltet nélkül kell rendelkeznie.");
+            if (item.Effect is MagicItemEffect.FireResistance or MagicItemEffect.AcidResistance or
+                    MagicItemEffect.NecroticResistance or MagicItemEffect.FrostResistance or
+                    MagicItemEffect.LightningResistance or MagicItemEffect.MagicResistance &&
+                (item.Kind is not (MagicItemKind.Ring or MagicItemKind.Amulet) || item.EffectValue is < 1 or > 100))
+                throw new InvalidOperationException($"A(z) '{item.Id}' varázsvédelmének 1 és 100% közötti passzív ékszerhatásnak kell lennie.");
         }
     }
 
@@ -1456,6 +1463,11 @@ public static class CsvGameDataLoader
                 (effect.Duration <= 0 || !Enum.TryParse<DamageType>(effect.Parameter, true, out _)))
                 throw new InvalidOperationException(
                     $"A(z) '{effect.Id}' fegyversebzés-típus hatásához érvényes típus és pozitív időtartam szükséges.");
+            if (effect.Type is SpellEffectType.FireResistance or SpellEffectType.AcidResistance or
+                    SpellEffectType.NecroticResistance or SpellEffectType.MagicResistance &&
+                (effect.Duration <= 0 || effect.Value is < 0 or > 75 ||
+                 effect.IntelligenceMultiplier < 0 || effect.LevelMultiplier < 0))
+                throw new InvalidOperationException($"A(z) '{effect.Id}' ellenállás-varázslatának pozitív időtartam és nemnegatív erő szükséges.");
         }
         foreach (var spell in spells)
             if (!effects.Any(effect => string.Equals(effect.SpellId, spell.Id, StringComparison.OrdinalIgnoreCase)))

@@ -391,8 +391,11 @@ public sealed class LiveCharacter
         {
             if (effect.PeriodicDamage is not { } dice) continue;
             var rolled = (dice.Roll(random) + effect.IntelligenceBonus) * effect.DamageMultiplierPercent / 100;
-            damage += rolled;
-            notes.Add($"{ExplorationSpellEffectName(effect.Type)} -{rolled} HP");
+            var modifiers = new List<string>();
+            var reduced = CharacterSpellResistance.Apply(this, rolled, effect.DamageType, modifiers);
+            damage += reduced;
+            notes.Add($"{ExplorationSpellEffectName(effect.Type)} ❤️-{reduced}" +
+                      (modifiers.Count > 0 ? $" ({string.Join(", ", modifiers)})" : string.Empty));
         }
         if (damage > 0) ReceiveDamage(damage);
         AdvanceSpellEffects();

@@ -145,6 +145,134 @@ internal static partial class Program
             "Az ellenséges gyógyító nem a legsérültebb szörnytársat választotta.");
     }
 
+    static void PartySpellResistancesCoverEnemyMagicAndFriendlyFire()
+    {
+        var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
+        var protectedMember = CreateCharacter("Védett társ", vitality: 200);
+        Assert(protectedMember.AddMagicItem(data.GetMagicItem("M025")) &&
+               protectedMember.AddMagicItem(data.GetMagicItem("M031")) &&
+               CharacterSpellResistance.Percent(protectedMember, DamageType.Fire) == 25 &&
+               CharacterSpellResistance.MagicPercent(protectedMember) == 25 &&
+               CharacterSpellResistance.Apply(protectedMember, 100, DamageType.Fire) == 56 &&
+               CharacterSpellResistance.Apply(protectedMember, 100, DamageType.Acid) == 75,
+            "A felszerelt tűzgyűrű és az általános varázsvédő amulett százalékai nem megfelelőek.");
+        Assert(data.GetMagicItem("M026").EffectValue == 50 &&
+               data.GetMagicItem("M028").EffectValue == 50 &&
+               data.GetMagicItem("M030").EffectValue == 50 &&
+               data.GetMagicItem("M032").EffectValue == 50 &&
+               data.GetMagicItem("M034").EffectValue == 50 &&
+               data.GetMagicItem("M036").EffectValue == 50 &&
+               data.GetSpellEffects("S008").First(effect => effect.Type == SpellEffectType.Damage)
+                   .DamageType == DamageType.Frost &&
+               data.GetSpellEffects("S009").First(effect => effect.Type == SpellEffectType.Damage)
+                   .DamageType == DamageType.Lightning,
+            "Az erős védőékszerek nem ötven százalékosak.");
+        var frostWard = CreateCharacter("Jégvédett", vitality: 100);
+        Assert(frostWard.AddMagicItem(data.GetMagicItem("M034")) &&
+               CharacterSpellResistance.Apply(frostWard, 100, DamageType.Frost) == 50 &&
+               CharacterSpellResistance.Apply(frostWard, 100, DamageType.Lightning) == 100,
+            "A jégvédő gyűrű más elemi sebzést is csökkent, vagy a jégsebzést nem felezi.");
+        protectedMember.ApplySpellEffect(new ActiveSpellEffect("WARD-CAP",
+            ActiveSpellEffectType.FireResistance, 90, 1, Beneficial: true));
+        Assert(CharacterSpellResistance.Percent(protectedMember, DamageType.Fire) == 100 &&
+               CharacterSpellResistance.Apply(protectedMember, 100, DamageType.Fire) == 0,
+            "Az összeadódó ellenállás nem áll meg a teljes immunitásnál.");
+        protectedMember.RemoveSpellEffects(effect => effect.SourceSpellId == "WARD-CAP");
+
+        var priest = CreateCharacter("Védőpap", vitality: 100, characterClassId: CharacterClassIds.Pap);
+        var mage = CreateCharacter("Védőmágus", vitality: 100, characterClassId: CharacterClassIds.Mágus);
+        priest.SetProgress(10, 0);
+        mage.SetProgress(10, 0);
+        var spellService = new SpellExecutionService(data, new Random(17));
+        var maze = new Maze(8, 8);
+        for (var y = 0; y < maze.Height; y++)
+        for (var x = 0; x < maze.Width; x++) maze.Carve(new Position(x, y));
+        var party = new (LiveCharacter Character, Position Position)[]
+        {
+            (priest, new Position(2, 2)), (mage, new Position(2, 3)),
+            (protectedMember, new Position(3, 2))
+        };
+        var timeStop = false;
+        void Cast(LiveCharacter caster, string spellId, Position target) => spellService.ExecuteSpell(
+            caster, party.First(member => member.Character == caster).Position, data.GetSpell(spellId),
+            target, false, null, false, ref timeStop, party, maze,
+            (_, _, _, _) => { }, (_, _) => false, (_, _) => "", (_, _) => "");
+        Cast(priest, "P032", new Position(2, 2));
+        Cast(priest, "P033", new Position(3, 2));
+        Cast(mage, "S033", new Position(2, 3));
+        Assert(CharacterSpellResistance.Percent(protectedMember, DamageType.Fire) == 50 &&
+               CharacterSpellResistance.Percent(protectedMember, DamageType.Necrotic) == 25 &&
+               CharacterSpellResistance.MagicPercent(protectedMember) == 55 &&
+               CharacterSpellResistance.Apply(protectedMember, 100, DamageType.Fire) == 22,
+            "Az új papi és mágusi védővarázslatok nem növelik helyesen az ellenállást.");
+        var sheet = CharacterSheetSnapshotProjector.Create(protectedMember, data.ExperienceByLevel);
+        Assert(sheet.SpellResistanceDetails?.Contains("tűz: 50%") == true &&
+               sheet.SpellResistanceDetails.Contains("általános varázsvédelem: 55%"),
+            "A host és a guest részletes karakterlapja nem kapja meg a tényleges ellenállásokat.");
+        for (var round = 0; round < 5; round++) protectedMember.AdvanceSpellEffects();
+        Assert(CharacterSpellResistance.Percent(protectedMember, DamageType.Fire) == 25 &&
+               CharacterSpellResistance.Percent(protectedMember, DamageType.Necrotic) == 0 &&
+               CharacterSpellResistance.MagicPercent(protectedMember) == 25,
+            "Az ellenállás varázslatok nem jártak le, vagy a tárgyi védelem is eltűnt.");
+
+        var definition = data.GetEnemy(MonsterIds.Káoszmágus);
+        var enemyCaster = new ConfiguredEnemy(new Position(1, 1), definition);
+        var enemyPlan = new EnemySpellPlan(data.GetSpell("D008"), new Position(3, 2),
+            [protectedMember], [], 100);
+        var enemyBefore = protectedMember.CurrentVitality;
+        var enemyLog = new EnemySpellcastingService(data, new Random(21))
+            .Execute(enemyCaster, enemyPlan).Message;
+        Assert(enemyBefore > protectedMember.CurrentVitality &&
+               enemyLog.Contains("tűz ellenállás 25%") &&
+               enemyLog.Contains("varázsvédelem 25%") &&
+               enemyLog.Contains($"❤️{protectedMember.CurrentVitality}/{protectedMember.MaximumVitality}"),
+            "Az ellenséges tűzvarázslat nem használta vagy nem naplózta a parti ellenállásait.");
+
+        int FriendlyFire(LiveCharacter target, out string summary)
+        {
+            var fireMaze = new Maze(8, 8);
+            for (var y = 0; y < fireMaze.Height; y++)
+            for (var x = 0; x < fireMaze.Width; x++) fireMaze.Carve(new Position(x, y));
+            var enemy = new ConfiguredEnemy(new Position(4, 4), data.Enemies[0]);
+            fireMaze.AddEnemy(enemy);
+            var caster = CreateCharacter("Tűzmágus", vitality: 200);
+            var fireParty = new (LiveCharacter Character, Position Position)[]
+            { (caster, new Position(2, 4)), (target, new Position(4, 5)) };
+            var used = false;
+            var before = target.CurrentVitality;
+            summary = new SpellExecutionService(data, new Random(42)).ExecuteSpell(caster,
+                fireParty[0].Position, data.GetSpell("S007"), enemy.Position,
+                false, null, false, ref used, fireParty, fireMaze,
+                (_, victim, damage, _) => victim.ReceiveSpellDamage(damage),
+                (_, _) => false, (_, _) => "", (_, _) => "").Summary;
+            return before - target.CurrentVitality;
+        }
+        var plainDamage = FriendlyFire(CreateCharacter("Védett társ", vitality: 200), out _);
+        var protectedDamage = FriendlyFire(protectedMember, out var friendlyLog);
+        Assert(plainDamage > 0 && protectedDamage ==
+               CharacterSpellResistance.Apply(protectedMember, plainDamage, DamageType.Fire) &&
+               friendlyLog.Contains("tűz ellenállás 25%") &&
+               friendlyLog.Contains("varázsvédelem 25%") &&
+               friendlyLog.Contains($"❤️{protectedMember.CurrentVitality}/{protectedMember.MaximumVitality}"),
+            "A játékos tűzvarázslatának baráti tüze nem a tényleges ellenállásokat és HP-t mutatja.");
+        var burningTarget = CreateCharacter("Égő társ", vitality: 100);
+        Assert(burningTarget.AddMagicItem(data.GetMagicItem("M025")) &&
+               burningTarget.AddMagicItem(data.GetMagicItem("M031")),
+            "A folyamatos sebzés próbájához nem kerültek fel a védőékszerek.");
+        var burningDice = new DiceExpression(1, 2);
+        burningTarget.ApplySpellEffect(new ActiveSpellEffect("D008", ActiveSpellEffectType.Burning,
+            0, 2, burningDice, 10, DamageType: DamageType.Fire));
+        var rawBurning = burningDice.Roll(new Random(9)) + 10;
+        var burningTick = burningTarget.AdvanceCombatSpellEffects(new Random(9));
+        Assert(burningTick.Damage == CharacterSpellResistance.Apply(burningTarget, rawBurning, DamageType.Fire) &&
+               burningTick.Notes.Any(note => note.Contains("tűz ellenállás 25%") &&
+                   note.Contains("varázsvédelem 25%")),
+            "Az időszakos tűzsebzés nem érvényesíti vagy nem mutatja az ellenállásokat.");
+        Assert(protectedMember.SetInventoryItem(InventorySlotKind.MagicItem, 0, null) &&
+               CharacterSpellResistance.Percent(protectedMember, DamageType.Fire) == 0,
+            "A levett védőgyűrű továbbra is védi a karaktert.");
+    }
+
     static void EnemyCastersLeadRareThematicLevelGroups()
     {
         var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));

@@ -411,6 +411,7 @@ internal static partial class Program
     ("Az ellenséges varázshasználói profilok adatvezéreltek és teljesek", EnemySpellcasterProfilesAreDataDrivenAndComplete),
     ("A sötét varázslatok kizárólag ellenségek számára érhetők el", DarkSpellsRemainEnemyOnly),
     ("Az ellenséges varázslás mannát használ, a partit célozza és menthető", EnemySpellcastingUsesManaTargetsPartyAndPersists),
+    ("A parti tárgyi és varázslatos ellenállása csökkenti a bejövő varázssebzést", PartySpellResistancesCoverEnemyMagicAndFriendlyFire),
     ("A varázshasználó AI csak a legjobb, egymáshoz közeli akciók között variál", EnemyActionSelectionUsesScoredShortlist),
     ("A casterek ritka, tematikus pályacsoportokat vezetnek", EnemyCastersLeadRareThematicLevelGroups),
     ("A SignalR LAN host elindítható és leállítható", () =>

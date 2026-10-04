@@ -1,10 +1,10 @@
 namespace KaoszRubin.Domain.Combat;
 
-public enum DamageType { Slashing, Piercing, Bludgeoning, Fire, Acid, Necrotic, Chaos }
+public enum DamageType { Slashing, Piercing, Bludgeoning, Fire, Acid, Necrotic, Chaos, Frost, Lightning }
 
 /// <summary>Signed armor adjustments: positive protects, negative exposes a weakness.</summary>
 public sealed record DamageResistance(int Slashing = 0, int Piercing = 0, int Bludgeoning = 0,
-    int Fire = 0, int Acid = 0, int Necrotic = 0, int Chaos = 0)
+    int Fire = 0, int Acid = 0, int Necrotic = 0, int Chaos = 0, int Frost = 0, int Lightning = 0)
 {
     // Spells use ten-percent steps; weapon hits use the same rating as a flat armor adjustment.
     public static int ApplySpellPercent(int damage, int rating) =>
@@ -20,6 +20,8 @@ public sealed record DamageResistance(int Slashing = 0, int Piercing = 0, int Bl
         DamageType.Acid => Acid,
         DamageType.Necrotic => Necrotic,
         DamageType.Chaos => Chaos,
+        DamageType.Frost => Frost,
+        DamageType.Lightning => Lightning,
         _ => throw new ArgumentOutOfRangeException(nameof(type), type, null)
     };
 
@@ -29,7 +31,8 @@ public sealed record DamageResistance(int Slashing = 0, int Piercing = 0, int Bl
         {
             (DamageType.Slashing, Slashing), (DamageType.Piercing, Piercing),
             (DamageType.Bludgeoning, Bludgeoning), (DamageType.Fire, Fire),
-            (DamageType.Acid, Acid), (DamageType.Necrotic, Necrotic), (DamageType.Chaos, Chaos)
+            (DamageType.Acid, Acid), (DamageType.Necrotic, Necrotic), (DamageType.Chaos, Chaos),
+            (DamageType.Frost, Frost), (DamageType.Lightning, Lightning)
         };
         var configured = values.Where(value => value.Item2 != 0)
             .Select(value => $"{value.Item1.Name()} {value.Item2:+#;-#;0}").ToArray();
@@ -42,7 +45,8 @@ public sealed record DamageResistance(int Slashing = 0, int Piercing = 0, int Bl
         {
             (DamageType.Slashing, Slashing), (DamageType.Piercing, Piercing),
             (DamageType.Bludgeoning, Bludgeoning), (DamageType.Fire, Fire),
-            (DamageType.Acid, Acid), (DamageType.Necrotic, Necrotic), (DamageType.Chaos, Chaos)
+            (DamageType.Acid, Acid), (DamageType.Necrotic, Necrotic), (DamageType.Chaos, Chaos),
+            (DamageType.Frost, Frost), (DamageType.Lightning, Lightning)
         };
         var configured = values.Where(value => value.Item2 != 0)
             .Select(value => $"{value.Item1.Name()} {value.Item2 * 10:+#;-#;0}%").ToArray();
@@ -61,6 +65,8 @@ public static class PhysicalDamage
         DamageType.Acid => "sav",
         DamageType.Necrotic => "nekrotikus",
         DamageType.Chaos => "káosz",
+        DamageType.Frost => "jég",
+        DamageType.Lightning => "villám",
         _ => throw new ArgumentOutOfRangeException(nameof(type), type, null)
     };
 

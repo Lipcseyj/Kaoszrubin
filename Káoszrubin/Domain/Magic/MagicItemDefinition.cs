@@ -15,5 +15,7 @@ public enum MagicItemKind { Ring, Amulet, Wand, Scroll }
 public enum MagicItemEffect
 {
     None, Initiative, Hit, Damage, Defense, BattleHeal, BattleMana,
-    Strength, Dexterity, Health, Intelligence
+    Strength, Dexterity, Health, Intelligence,
+    FireResistance, AcidResistance, NecroticResistance, MagicResistance,
+    FrostResistance, LightningResistance
 }

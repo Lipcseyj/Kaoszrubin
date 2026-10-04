@@ -1224,7 +1224,7 @@ internal static partial class Program
             PlayerDamage(DamageType.Piercing) > PlayerDamage(DamageType.Slashing), "A szörny típusvédelme nem számít.");
         Assert(PlayerDamage(DamageType.Acid, new(Acid: -4)) > PlayerDamage(DamageType.Acid, new(Acid: 4)) &&
                Enum.GetValues<DamageType>().Select(type => type.Name()).SequenceEqual(
-                   ["vágás", "szúrás", "zúzás", "tűz", "sav", "nekrotikus", "káosz"]),
+                   ["vágás", "szúrás", "zúzás", "tűz", "sav", "nekrotikus", "káosz", "jég", "villám"]),
             "Az elemi és természetfeletti sebzéstípusok vagy ellenállásaik hibásak.");
         var unprotectedFire = PlayerDamage(DamageType.Fire, new());
         var fireWithTenArmorPoints = PlayerDamage(DamageType.Fire, new(Fire: 10));

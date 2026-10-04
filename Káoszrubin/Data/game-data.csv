@@ -287,6 +287,18 @@ M021;Életerő smaragdgyűrűje;Varázsgyűrű;Varázs;1200;0;;Health;1;nem;Smar
 M022;Életfa amulettje;Amulett;Varázs;3000;0;;Health;2;nem;Életfarúnás medál amely két ponttal növeli viselője Egészségét legfeljebb 13-ig.;6;0.2
 M023;Értelem ametisztgyűrűje;Varázsgyűrű;Varázs;1200;0;;Intelligence;1;nem;Ametiszttel foglalt gyűrű amely egy ponttal növeli viselője Intelligenciáját legfeljebb 13-ig.;3
 M024;Bölcsesség amulettje;Amulett;Varázs;3000;0;;Intelligence;2;nem;Lila kristálymedál amely két ponttal növeli viselője Intelligenciáját legfeljebb 13-ig.;6;0.2
+M025;Parázsőrző gyűrű;Varázsgyűrű;Varázs;1500;0;;FireResistance;25;nem;A beérkező tűzvarázslatok sebzését huszonöt százalékkal csökkenti.;3
+M026;Lángőr gyűrű;Varázsgyűrű;Varázs;3900;0;;FireResistance;50;nem;Az erős rubinfoglalat felére csökkenti a tűzvarázslatok sebzését.;6
+M027;Marásgátló gyűrű;Varázsgyűrű;Varázs;1500;0;;AcidResistance;25;nem;Zöld rúnája huszonöt százalékkal csökkenti a savvarázslatok sebzését.;3
+M028;Savőr gyűrű;Varázsgyűrű;Varázs;3900;0;;AcidResistance;50;nem;A mélyzöld kő felére csökkenti a savvarázslatok sebzését.;6
+M029;Lélekőrző gyűrű;Varázsgyűrű;Varázs;1500;0;;NecroticResistance;25;nem;Ezüst rúnája huszonöt százalékkal csökkenti a nekrotikus varázssebzést.;3
+M030;Sírvédő gyűrű;Varázsgyűrű;Varázs;3900;0;;NecroticResistance;50;nem;A fekete opál felére csökkenti a nekrotikus varázssebzést.;6
+M031;Arkánőrző amulett;Amulett;Varázs;2100;0;;MagicResistance;25;nem;Kék medálja minden varázssebzést huszonöt százalékkal csökkent.;4;0.2
+M032;Mágiafaló amulett;Amulett;Varázs;5400;0;;MagicResistance;50;nem;Összetett védőrúnái minden varázssebzést felére csökkentenek.;8;0.2
+M033;Dérőrző gyűrű;Varázsgyűrű;Varázs;1500;0;;FrostResistance;25;nem;Huszonöt százalékkal csökkenti a jégvarázslatok sebzését.;3
+M034;Jégőr gyűrű;Varázsgyűrű;Varázs;3900;0;;FrostResistance;50;nem;Felére csökkenti a jégvarázslatok sebzését.;6
+M035;Szikraőrző gyűrű;Varázsgyűrű;Varázs;1500;0;;LightningResistance;25;nem;Huszonöt százalékkal csökkenti a villámvarázslatok sebzését.;3
+M036;Villámőr gyűrű;Varázsgyűrű;Varázs;3900;0;;LightningResistance;50;nem;Felére csökkenti a villámvarázslatok sebzését.;6
 LMI-R001;Tűzúr gyűrűje;Varázsgyűrű;Legendás;12000;0;;Damage;5;nem;Olvadt aranyból készült gyűrű örökké izzó rubinnal.;7
 LMI-R002;Az Idő gyűrűje;Varázsgyűrű;Legendás;14500;0;;Initiative;8;nem;Ősi gyűrű amely egy szívdobbanással a világ elé helyezi viselőjét.;9
 LMI-R003;Végzetpecsét;Varázsgyűrű;Legendás;15500;0;;Hit;5;nem;Fekete pecsétgyűrű amely kijelöli az elkerülhetetlen találat helyét.;9
@@ -940,6 +952,7 @@ S029;Sírpenge;2;11;Egy partitag fegyvere négy körig nekrotikus sebzést és p
 S030;Halálosztó fegyverzet;4;28;A teljes élő parti fegyverei négy körig nekrotikus sebzést és fejenként plusz két fegyversebzést kapnak.;Party;0;0;nem;Both;Shadow;3000;
 S031;Savnyíl;2;12;Maró sav lövell egy ellenfélre.;Enemy;7;0;igen;Both;SicklyGreen;1200;;Bolt;;;;🧪
 S032;Léleksorvasztás;3;18;Nekrotikus energia tépi az ellenfél életerejét.;Enemy;7;0;igen;Both;Shadow;1600;;Bolt;;;;💀
+S033;Arkán védőháló;3;18;Öt körre minden partitagot véd a varázssebzéstől. A védelem 15% plusz a mágus Intelligenciája és szintje, legfeljebb 75%.;Party;0;0;nem;Both;Blue;1800;;;;;;🔮🛡️
 
 D001;Árnyéktű;1;6;Sötét erőből szőtt lövedék amely könyörtelenül követi áldozatát.;Enemy;8;0;igen;Combat;Shadow;900;igen;;;;;🌑✧
 D002;Dermesztő átok;1;5;Síri hideggel marja és lassítja meg a közeli áldozatot.;Enemy;1;0;igen;Combat;SicklyGreen;1300;igen;;;;;❄️💀
@@ -993,11 +1006,13 @@ P028;Fénykitörés;3;16;Robbanásszerű szent fény sújt mindenkit a célterü
 P029;Lángáldás;2;11;Isteni lánggal vonja be egy partitag támadó fegyverét négy körre.;PartyMember;6;0;igen;Both;Red;3000;
 P030;Lángoló fegyverzet;4;28;Isteni lánggal vonja be a teljes élő parti támadó fegyvereit négy körre.;Party;0;0;nem;Both;Red;3000;
 P031;Lángörvény;3;19;3x3-as tartós szent tűzörvény perzseli a területen állókat és a belépőket. A társakat is sebzi.;Area;7;1;igen;Both;Red;2200;;Vortex;Embers;YellowBrown;;🔥🌪️
+P032;Tűzoltalom;2;13;Öt körre minden partitagot véd a tűzvarázslatoktól. A védelem 10% plusz a pap Intelligenciája és szintje, legfeljebb 75%.;Party;0;0;nem;Both;YellowBrown;1700;;;;;;🔥🛡️
+P033;Lélekpajzs;3;18;Öt körre egy partitagot véd a nekrotikus varázssebzéstől. A védelem 10% plusz a pap Intelligenciája és szintje, legfeljebb 75%.;PartyMember;6;0;igen;Both;YellowBrown;1700;;;;;;💀🛡️
 
 #Varázshatások
 Id;VarázslatId;Sorrend;Típus;Kocka;IntSzorzó;SzintSzorzó;Érték;IdőtartamKör;Esély;Ellenpróba;Paraméter;Leírás;Sebzéstípus
 FX-S001-1;S001;1;Damage;2d6;1;1;0;0;100;Auto;;Automatikusan találó mágikus sebzés.
-FX-S002-1;S002;1;Damage;2d6;0.5;1;0;0;100;Attack;;Mágikus támadással okozott fagysebzés.
+FX-S002-1;S002;1;Damage;2d6;0.5;1;0;0;100;Attack;;Mágikus támadással okozott fagysebzés.;jég
 FX-S002-2;S002;2;SpeedPenalty;;0;0;3;4;100;Attack;;Találatkor három ponttal csökkenti a Gyorsaságot négy körre.
 FX-S003-1;S003;1;Damage;2d6;1;1;0;0;100;SaveHalf;;Rövid lángtölcsér sebzése mentőre felezve.;tűz
 FX-S003-2;S003;2;Burning;1d4;0;0;0;2;100;SaveNegates;;Sikertelen mentőnél két körig égést okoz.;tűz
@@ -1005,24 +1020,24 @@ FX-S005-1;S005;1;Damage;3d6;1;1;0;0;100;Attack;;Mágikus támadással okozott t�
 FX-S005-2;S005;2;Burning;1d4;0;0;0;2;100;Attack;;Találatkor két körig égést okoz.;tűz
 FX-S021-1;S021;1;DefenseBonus;;0;0;3;15;100;Auto;;Tizenöt körre három pont védelmet ad.
 FX-S026-1;S026;1;VisionBonus;;0;0;2;12;100;Auto;;Tizenkét körre kettővel növeli a látótávot és 15 százalékponttal javítja a csapdafelderítést.
-FX-S004-1;S004;1;Damage;5d8;2;3;0;0;100;Attack;;Nagy erejű egycélpontos villámsebzés.
+FX-S004-1;S004;1;Damage;5d8;2;3;0;0;100;Attack;;Nagy erejű egycélpontos villámsebzés.;villám
 FX-S006-1;S006;1;Invisibility;;0;0;5;3;100;Auto;;Közvetlen célzás elleni védelem és plusz öt az első támadáshoz.
 FX-S013-1;S013;1;DefenseBonus;;0;0;8;5;100;Auto;;Öt körig nyolc pont mágikus védelmet ad.
 FX-S014-1;S014;1;SpeedPenalty;;0;0;4;6;100;SaveNegates;;Hat körig négy ponttal csökkenti a Gyorsaságot.
 FX-S022-1;S022;1;SpeedPenalty;;0;0;3;2;100;SaveNegates;;Két körig három ponttal csökkenti a Gyorsaságot.
 FX-S022-2;S022;2;SkipAlternate;;0;0;1;1;100;SaveNegates;Next;A következő akció kimarad.
 FX-S007-1;S007;1;Damage;8d8;3;5;0;0;100;SaveHalf;;Koncentrált tűzsebzés mentőre felezve.;tűz
-FX-S008-1;S008;1;Damage;4d8;2;3;0;0;100;SaveHalf;;Nagyobb területű fagysebzés mentőre felezve.
+FX-S008-1;S008;1;Damage;4d8;2;3;0;0;100;SaveHalf;;Nagyobb területű fagysebzés mentőre felezve.;jég
 FX-S008-2;S008;2;SpeedPenalty;;0;0;4;3;100;SaveNegates;;Három körig jeges lassítást okoz.
-FX-S008-3;S008;3;Storm;1d8;0.5;0;0;3;100;SaveNegates;;Három körig jeges viharsebzést okoz a területen.
+FX-S008-3;S008;3;Storm;1d8;0.5;0;0;3;100;SaveNegates;;Három körig jeges viharsebzést okoz a területen.;jég
 FX-S010-1;S010;1;TeleportSelf;;0;0;0;0;100;Auto;;A varázslót a célmezőre teleportálja.
 FX-S015-1;S015;1;Dispel;;0;0;0;0;100;Auto;;Eltávolítja az ideiglenes mágikus hatásokat.
-FX-S023-1;S023;1;ChainDamage;6d8;2;4;0;0;100;SaveHalf;100|70|40;Legfeljebb két további célpontra ugró villámsebzés.
-FX-S009-1;S009;1;Damage;5d10;2;4;0;0;100;SaveHalf;;A villámvihar kezdeti területi sebzése.
-FX-S009-2;S009;2;Storm;2d10;1;0;0;3;100;SaveNegates;;Három körig további villámsebzést okoz.
+FX-S023-1;S023;1;ChainDamage;6d8;2;4;0;0;100;SaveHalf;100|70|40;Legfeljebb két további célpontra ugró villámsebzés.;villám
+FX-S009-1;S009;1;Damage;5d10;2;4;0;0;100;SaveHalf;;A villámvihar kezdeti területi sebzése.;villám
+FX-S009-2;S009;2;Storm;2d10;1;0;0;3;100;SaveNegates;;Három körig további villámsebzést okoz.;villám
 FX-S011-1;S011;1;Damage;9d10;3;6;0;0;100;SaveHalf;;Három szétszórt meteor becsapódása.;tűz
 FX-S011-2;S011;2;Burning;2d8;0;0;0;2;100;SaveNegates;;Két körig égést okoz a becsapódásnál.;tűz
-FX-S016-1;S016;1;ChainDamage;10d8;3;6;0;0;100;SaveHalf;100|75|50|25;Legfeljebb három további célpontra ugró villámsebzés.
+FX-S016-1;S016;1;ChainDamage;10d8;3;6;0;0;100;SaveHalf;100|75|50|25;Legfeljebb három további célpontra ugró villámsebzés.;villám
 FX-S017-1;S017;1;PhysicalReduction;;0;0;50;4;100;Auto;;Négy körig ötven százalékkal csökkenti a fizikai sebzést.
 FX-S017-2;S017;2;BleedingImmunity;;0;0;1;4;100;Auto;;Négy körig megakadályozza a vérzés felkerülését.
 FX-S024-1;S024;1;InitiativeBonus;;0;0;5;5;100;Auto;;Öt körre öt pont kezdeményezést ad a teljes partinak.
@@ -1045,23 +1060,24 @@ FX-S030-1;S030;1;WeaponDamageType;;0;0;0;4;100;Auto;Necrotic;Négy körre nekrot
 FX-S030-2;S030;2;DamageBonus;;0;0;2;4;100;Auto;;Négy körre fejenként plusz két fegyversebzést ad a teljes partinak.
 FX-S031-1;S031;1;Damage;4d6;1;2;0;0;100;Attack;;Közvetlen savsebzés.;sav
 FX-S032-1;S032;1;Damage;6d8;2;3;0;0;100;SaveHalf;;Nekrotikus sebzés ellenpróbára felezve.;nekrotikus
-FX-D001-1;D001;1;Damage;2d6;1;1;0;0;100;Auto;;Automatikusan célba találó sötét sebzés.
-FX-D002-1;D002;1;Damage;2d6;0.5;1;0;0;100;Attack;;Közelharci síri sebzés.
+FX-S033-1;S033;1;MagicResistance;;1;1;15;5;100;Auto;;Öt körig általános varázssebzés elleni védelem.
+FX-D001-1;D001;1;Damage;2d6;1;1;0;0;100;Auto;;Automatikusan célba találó sötét sebzés.;nekrotikus
+FX-D002-1;D002;1;Damage;2d6;0.5;1;0;0;100;Attack;;Közelharci síri sebzés.;jég
 FX-D002-2;D002;2;SpeedPenalty;;0;0;3;4;100;Attack;;Találatkor négy körre lelassítja az áldozatot.
-FX-D003-1;D003;1;Damage;3d6;1;1;0;0;100;SaveHalf;;Területi pokoltűz sebzés mentőre felezve.
-FX-D003-2;D003;2;Burning;1d4;0;0;0;2;100;SaveNegates;;Sikertelen mentőnél tovább éget.
-FX-D004-1;D004;1;Damage;3d6;1;1;0;0;100;Attack;;Átkozott tűzsebzés.
-FX-D004-2;D004;2;Burning;1d4;0;0;0;2;100;Attack;;Találatkor tovább perzsel.
+FX-D003-1;D003;1;Damage;3d6;1;1;0;0;100;SaveHalf;;Területi pokoltűz sebzés mentőre felezve.;tűz
+FX-D003-2;D003;2;Burning;1d4;0;0;0;2;100;SaveNegates;;Sikertelen mentőnél tovább éget.;tűz
+FX-D004-1;D004;1;Damage;3d6;1;1;0;0;100;Attack;;Átkozott tűzsebzés.;tűz
+FX-D004-2;D004;2;Burning;1d4;0;0;0;2;100;Attack;;Találatkor tovább perzsel.;tűz
 FX-D005-1;D005;1;DefenseBonus;;0;0;3;15;100;Auto;;Tizenöt körre homály fedi a varázslót.
-FX-D006-1;D006;1;Damage;5d8;2;3;0;0;100;Attack;;Nagy erejű bíbor villámsebzés.
+FX-D006-1;D006;1;Damage;5d8;2;3;0;0;100;Attack;;Nagy erejű bíbor villámsebzés.;villám
 FX-D007-1;D007;1;SpeedPenalty;;0;0;5;3;100;SaveNegates;;Három körre súlyosan lelassítja az áldozatot.
 FX-D007-2;D007;2;SkipAlternate;;0;0;1;2;100;SaveNegates;;Minden második akciót megakaszt.
 FX-D017-1;D017;1;Heal;5d8;2;2;0;0;100;Auto;;Egy szövetséges életerejét állítja helyre.
-FX-D008-1;D008;1;Damage;8d8;3;5;0;0;100;SaveHalf;;Nagy területi pokoltűz sebzés mentőre felezve.
-FX-D008-2;D008;2;Burning;1d6;0;0;0;2;100;SaveNegates;;Sikertelen mentőnél tovább éget.
-FX-D009-1;D009;1;Damage;6d8;3;5;0;0;100;SaveHalf;;Területi dögvészsebzés mentőre felezve.
+FX-D008-1;D008;1;Damage;8d8;3;5;0;0;100;SaveHalf;;Nagy területi pokoltűz sebzés mentőre felezve.;tűz
+FX-D008-2;D008;2;Burning;1d6;0;0;0;2;100;SaveNegates;;Sikertelen mentőnél tovább éget.;tűz
+FX-D009-1;D009;1;Damage;6d8;3;5;0;0;100;SaveHalf;;Területi dögvészsebzés mentőre felezve.;sav
 FX-D009-2;D009;2;SpeedPenalty;;0;0;4;3;100;SaveNegates;;Három körre beteges gyengeséget okoz.
-FX-D009-3;D009;3;Storm;1d8;0.5;0;0;3;100;SaveNegates;;Három körig dögvészsebzést okoz a területen.
+FX-D009-3;D009;3;Storm;1d8;0.5;0;0;3;100;SaveNegates;;Három körig dögvészsebzést okoz a területen.;sav
 FX-D010-1;D010;1;SkipAlternate;;0;0;1;1;100;SaveNegates;Next;Sikertelen ellenpróbánál kimarad a következő akció.
 FX-D010-2;D010;2;HitBonus;;0;0;-2;3;100;SaveNegates;;Három körre rontja a találati értéket.
 FX-D013-1;D013;1;DefenseBonus;;0;0;3;4;100;Auto;;Négy körre védelmet ad a teljes ellenséges csapatnak.
@@ -1069,11 +1085,11 @@ FX-D013-2;D013;2;PhysicalReduction;;0;0;25;4;100;Auto;;Négy körre csökkenti a
 FX-D014-1;D014;1;HitBonus;;0;0;2;5;100;Auto;;Öt körre találati bónuszt ad.
 FX-D014-2;D014;2;DamageBonus;;0;0;2;5;100;Auto;;Öt körre fizikai sebzésbónuszt ad.
 FX-D014-3;D014;3;InitiativeBonus;;0;0;3;5;100;Auto;;Öt körre kezdeményezési bónuszt ad.
-FX-D011-1;D011;1;Damage;10d10;4;8;0;0;100;SaveHalf;;A kárhozatvihar kezdeti területi sebzése.
-FX-D011-2;D011;2;Storm;3d10;1;0;0;3;100;SaveNegates;;Három körig további sötét sebzést okoz.
-FX-D012-1;D012;1;ChainDamage;12d8;4;8;0;0;100;SaveHalf;100|75|50|25;Legfeljebb három további célpontra ugrik.
+FX-D011-1;D011;1;Damage;10d10;4;8;0;0;100;SaveHalf;;A kárhozatvihar kezdeti területi sebzése.;villám
+FX-D011-2;D011;2;Storm;3d10;1;0;0;3;100;SaveNegates;;Három körig további sötét sebzést okoz.;villám
+FX-D012-1;D012;1;ChainDamage;12d8;4;8;0;0;100;SaveHalf;100|75|50|25;Legfeljebb három további célpontra ugrik.;nekrotikus
 FX-D015-1;D015;1;Heal;5d8;2;3;0;0;100;Auto;;A teljes ellenséges csapatot gyógyítja.
-FX-D016-1;D016;1;Damage;24d12;6;20;0;0;100;SaveHalf;;Hatalmas területi sötét sebzés mentőre felezve.
+FX-D016-1;D016;1;Damage;24d12;6;20;0;0;100;SaveHalf;;Hatalmas területi sötét sebzés mentőre felezve.;nekrotikus
 FX-D016-2;D016;2;RandomElement;4d10;0;0;4;3;30;SaveNegates;Fire|Frost|Lightning;Véletlen pusztító utóhatást okoz.
 FX-P001-1;P001;1;Heal;2d8;1;1;0;0;100;Auto;;Érintéssel helyreállított életerő.
 FX-P002-1;P002;1;Damage;2d6;1;1;0;0;100;Attack;Holy50;Szent sebzés élőholt és démoni célpont ellen másfélszeres erővel.
@@ -1123,6 +1139,8 @@ FX-P029-1;P029;1;WeaponDamageType;;0;0;0;4;100;Auto;Fire;Négy körre tűzzé v�
 FX-P030-1;P030;1;WeaponDamageType;;0;0;0;4;100;Auto;Fire;Négy körre tűzzé változtatja a teljes parti fegyversebzését.
 FX-P031-1;P031;1;Damage;3d6;1;2;0;0;100;SaveHalf;;A lángörvény kezdeti 3x3-as tűzsebzése.;tűz
 FX-P031-2;P031;2;Storm;1d6;0.5;0;0;3;100;SaveNegates;;Három körön át perzseli a bent állókat és a belépőket.;tűz
+FX-P032-1;P032;1;FireResistance;;1;1;10;5;100;Auto;;Öt körig tűzvarázslat elleni védelem.
+FX-P033-1;P033;1;NecroticResistance;;1;1;10;5;100;Auto;;Öt körig nekrotikus varázslat elleni védelem.
 
 #Karakternevek
 Id;Név;OsztályId
