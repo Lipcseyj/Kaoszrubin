@@ -61,6 +61,18 @@ internal static partial class Program
         Assert(common.GroveSize.Minimum != 99 && !ReferenceEquals(copy.BuildingStyles[0].Wall, common.BuildingStyles[0].Wall),
             "Az összetett tulajdonságok másolata megosztott szerkeszthető objektumot tartalmaz.");
 
+        var packaged = ForestConfigurationJson.DeserializeDocument(File.ReadAllText(
+            Path.Combine(AppContext.BaseDirectory, "ForestLevelGraphs", "level-6.json")));
+        var blackwater = packaged.Graph.Areas.Single(area => area.Id == "BLACKWATER");
+        var blackwaterInherited = ForestAreaConfigurationResolver.Resolve(common, packaged.Graph,
+            blackwater with { Overrides = null });
+        var blackwaterEdited = ForestConfigurationEditing.Snapshot(
+            ForestAreaConfigurationResolver.Resolve(common, packaged.Graph, blackwater));
+        var blackwaterPatch = ForestConfigurationEditing.Difference(blackwaterEdited, blackwaterInherited);
+        Assert(blackwaterPatch?.MarshCount == new IntRange(12, 15) &&
+               blackwaterPatch.Palette?.Tree.Id == blackwater.Overrides?.Palette?.Tree.Id,
+            "A BLACKWATER 15-ös mocsártartománya vagy módosított palettája elveszett a szerkesztői körben.");
+
         static void Set(object target, string name, object value) =>
             TypeDescriptor.GetProperties(target)[name]!.SetValue(target, value);
     }

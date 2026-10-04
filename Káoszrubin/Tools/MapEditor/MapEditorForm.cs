@@ -27,17 +27,6 @@ internal sealed partial class MapEditorForm : Form
     private readonly TextBox _newTemplateName = new() { Width = 130, PlaceholderText = "Megjelenő név" };
     private readonly NumericUpDown _x = Number(-20, 20);
     private readonly NumericUpDown _y = Number(-20, 20);
-    private readonly CheckBox _densityEnabled = new() { Text = "Erdősűrűség felülírása", Dock = DockStyle.Top };
-    private readonly NumericUpDown _density = Number(0, 100, 58);
-    private readonly CheckBox _lakesEnabled = new() { Text = "Tavak felülírása", Dock = DockStyle.Top };
-    private readonly NumericUpDown _lakeMin = Number(0, 12, 1);
-    private readonly NumericUpDown _lakeMax = Number(0, 12, 3);
-    private readonly CheckBox _marshEnabled = new() { Text = "Mocsarak felülírása", Dock = DockStyle.Top };
-    private readonly NumericUpDown _marshMin = Number(0, 12, 1);
-    private readonly NumericUpDown _marshMax = Number(0, 12, 3);
-    private readonly CheckBox _buildingsEnabled = new() { Text = "Épületek felülírása", Dock = DockStyle.Top };
-    private readonly NumericUpDown _buildingMin = Number(0, 8, 1);
-    private readonly NumericUpDown _buildingMax = Number(0, 8, 2);
     private readonly ComboBox _connectionFrom = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 145 };
     private readonly ComboBox _connectionTo = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 145 };
     private readonly ComboBox _entrance = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 145 };
@@ -613,12 +602,6 @@ internal sealed partial class MapEditorForm : Form
         if (area is null) { _loadingSelection = false; return; }
         _id.Text = area.Id; _name.Text = area.Name; _template.SelectedItem = area.TemplateId;
         _x.Value = area.Coordinate.X; _y.Value = area.Coordinate.Y;
-        var patch = area.Overrides;
-        _densityEnabled.Checked = patch?.ForestDensity is not null;
-        if (patch?.ForestDensity is { } density) _density.Value = (decimal)(density * 100);
-        SetRange(patch?.LakeCount, _lakesEnabled, _lakeMin, _lakeMax);
-        SetRange(patch?.MarshCount, _marshEnabled, _marshMin, _marshMax);
-        SetRange(patch?.BuildingCount, _buildingsEnabled, _buildingMin, _buildingMax);
         _loadingSelection = false;
         RefreshEffectiveProperties();
         _canvas.Invalidate();
@@ -950,16 +933,6 @@ internal static class TerminalMazePreview
         SelectCombo(_connectionFrom, connectionFrom ?? _areas.FirstOrDefault()?.Id);
         SelectCombo(_connectionTo, connectionTo ?? _areas.Skip(1).FirstOrDefault()?.Id);
         _canvas.Areas = _areas; _canvas.Connections = _connections; _canvas.SelectedArea = _selected; _canvas.Invalidate();
-    }
-
-    private static IntRange? Range(CheckBox enabled, NumericUpDown minimum, NumericUpDown maximum) =>
-        enabled.Checked ? new IntRange((int)minimum.Value, (int)maximum.Value) : null;
-
-    private static void SetRange(IntRange? range, CheckBox enabled, NumericUpDown minimum, NumericUpDown maximum)
-    {
-        enabled.Checked = range is not null;
-        if (range is null) return;
-        minimum.Value = range.Minimum; maximum.Value = range.Maximum;
     }
 
     private static void SelectCombo(ComboBox combo, string? value)
