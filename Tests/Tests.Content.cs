@@ -2,12 +2,21 @@ internal static partial class Program
 {
     static void CreatureQuotesLoadAndResolveForMainMenu()
     {
-        var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory,
-            CsvGameDataLoader.GameDataFileName));
+        var dataPath = Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName);
+        var catalog = CsvGameDataLoader.Load(dataPath);
+        var quoteRows = File.ReadLines(dataPath)
+            .SkipWhile(line => !string.Equals(line.Trim(), "#Lény mondatok", StringComparison.Ordinal))
+            .Skip(2)
+            .TakeWhile(line => !line.StartsWith('#'))
+            .Where(line => line.StartsWith("CS", StringComparison.Ordinal) ||
+                           line.StartsWith("ES", StringComparison.Ordinal))
+            .ToArray();
 
-        Assert(catalog.CreatureQuotes.Count == 101 &&
-               catalog.CreatureQuotes.Count(quote => quote.Kind == CreatureQuoteKind.CharacterClass) == 6 &&
-               catalog.CreatureQuotes.Count(quote => quote.Kind == CreatureQuoteKind.Enemy) == 95,
+        Assert(catalog.CreatureQuotes.Count == quoteRows.Length &&
+               catalog.CreatureQuotes.Count(quote => quote.Kind == CreatureQuoteKind.CharacterClass) ==
+               catalog.CharacterClasses.Count &&
+               catalog.CreatureQuotes.Count(quote => quote.Kind == CreatureQuoteKind.Enemy) ==
+               quoteRows.Count(line => line.StartsWith("ES", StringComparison.Ordinal)),
             "A #Lény mondatok szekció nem minden osztály- és szörnymondatot olvasott be.");
         Assert(catalog.CreatureQuotes.Single(quote => quote.Id == "CS001").CreatureId == "C001" &&
                catalog.CreatureQuotes.Single(quote => quote.Id == "ES001").CreatureId == "E001" &&

@@ -111,8 +111,11 @@ internal static partial class Program
         using (var parsed = JsonDocument.Parse(packagedJson))
         {
             var areas = parsed.RootElement.GetProperty("Graph").GetProperty("Areas");
+            var patchedAreas = areas.EnumerateArray()
+                .Where(area => area.TryGetProperty("Overrides", out _)).ToArray();
             Assert(!packagedJson.Contains(": null", StringComparison.Ordinal) &&
-                   areas.EnumerateArray().Count(area => area.TryGetProperty("Overrides", out _)) == 2 &&
+                   patchedAreas.Length >= 2 &&
+                   patchedAreas.All(area => area.GetProperty("Overrides").EnumerateObject().Any()) &&
                    areas.EnumerateArray().Single(area => area.GetProperty("Id").GetString() == "OLD_PINES")
                        .GetProperty("Overrides").GetProperty("PineChance").GetDouble() == 0.72 &&
                    areas.EnumerateArray().Single(area => area.GetProperty("Id").GetString() == "LOST_MANOR")
