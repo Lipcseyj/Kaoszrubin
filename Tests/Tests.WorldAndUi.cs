@@ -327,6 +327,13 @@ internal static partial class Program
             })) with { SharedWindow = sharedWindow, LevelUpPrompt = prompt };
         Assert(CoopGuestScreen.HasConcreteSnapshotOverlay(snapshot),
             "A guest az aktuális szintlépési prompt helyett a korábbi általános ablakot rajzolná ki.");
+        var nestedGuestLevelUp = snapshot with { LeaderDecisionTitle = "Beszélgetés — Füvesasszony" };
+        Assert(CoopGuestScreen.HasConcreteSnapshotOverlay(nestedGuestLevelUp) &&
+               CoopGuestScreen.ShouldHandleLevelUpPrompt(nestedGuestLevelUp, companion.Id) &&
+               !CoopGuestScreen.ShouldHandleLevelUpPrompt(nestedGuestLevelUp, leader.Id) &&
+               CoopGuestScreen.GuestSharedEventBanner(nestedGuestLevelUp) ==
+               $"⌛ AZ IDŐ ÁLL — Szintlépés — {companion.Name}.",
+            "A küldetés párbeszédablaka elfedi a közben induló guest szintlépését.");
 
         var abilityChoice = sharedWindow with
         {

@@ -86,7 +86,10 @@ public sealed partial class Game
         if (result is not null)
         {
             _renderer.CharacterSheet.RefreshBattleStatusRows();
-            _renderer.DrawInventoryMessage(result.Message, result.Kind == BattleLogKind.Information ? ConsoleColor.Red : ConsoleColor.Magenta);
+            var color = result.Kind == BattleLogKind.Information ? ConsoleColor.Red : ConsoleColor.Magenta;
+            _renderer.DrawInventoryMessage(result.Message, color);
+            if (result.ConsumesTurn)
+                RecordSessionActivity(SessionActivityKind.Spell, result.Message, color);
             if (result.ConsumesTurn) SynchronizeExplorationSpellDefeats();
         }
     }
@@ -726,11 +729,11 @@ public sealed partial class Game
             _renderer.RefreshCharacterSheet(PartyLeader);
             _renderer.DrawMapCellsChanged(_maze, _fogOfWar, _player.Position, [position]);
             _renderer.DrawInventoryMessage(text, ConsoleColor.Yellow);
-            RecordSessionActivity(SessionActivityKind.System, text, ConsoleColor.Yellow, [character.Id]);
+            RecordSessionActivity(SessionActivityKind.System, text, ConsoleColor.Yellow);
             foreach (var identificationMessage in identificationMessages)
             {
                 _renderer.DrawInventoryMessage(identificationMessage, ConsoleColor.Cyan);
-                RecordSessionActivity(SessionActivityKind.System, identificationMessage, ConsoleColor.Cyan, [character.Id]);
+                RecordSessionActivity(SessionActivityKind.System, identificationMessage, ConsoleColor.Cyan);
             }
             if (result.FirstOpening) PlaySessionSound(SoundEffect.Chest, [character.Id]);
             RequestCoopSnapshotPublish();
@@ -755,10 +758,14 @@ public sealed partial class Game
                       (jackpot ? $" (jackpot, {jackpotChance}% esély)" : string.Empty) + ".";
         _renderer.DrawInventoryMessage(message, jackpot ? ConsoleColor.Magenta : ConsoleColor.Yellow);
         RecordSessionActivity(SessionActivityKind.System, message,
-            jackpot ? ConsoleColor.Magenta : ConsoleColor.Yellow, [character.Id]);
+            jackpot ? ConsoleColor.Magenta : ConsoleColor.Yellow);
         PlaySessionSound(jackpot ? SoundEffect.Chest2 : SoundEffect.Chest, [character.Id]);
 
-        if (masterThiefLoot is null) return;
+        if (masterThiefLoot is null)
+        {
+            RequestCoopSnapshotPublish();
+            return;
+        }
         var masterIdentification = RollLootItemState(masterThiefLoot);
         var masterLootName = ItemIdentificationRules.DisplayName(masterThiefLoot, masterIdentification.State.IsIdentified);
         if (TryStoreSearchedLoot(character, masterThiefLoot, shareLootWithParty, out var owner, masterIdentification.State))
@@ -769,7 +776,8 @@ public sealed partial class Game
             message = $"🎁 Mestertolvaj: {masterLootName} a földön maradt, mert a hátizsák tele van.{FormatMageIdentification(masterIdentification)}";
         }
         _renderer.DrawInventoryMessage(message, ConsoleColor.Magenta);
-        RecordSessionActivity(SessionActivityKind.System, message, ConsoleColor.Magenta, [character.Id]);
+        RecordSessionActivity(SessionActivityKind.System, message, ConsoleColor.Magenta);
+        RequestCoopSnapshotPublish();
     }
 
     private void SubmitLocalExplorationCommand(ConsoleKeyInfo keyInfo)

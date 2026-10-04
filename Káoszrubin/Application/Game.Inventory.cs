@@ -305,7 +305,10 @@ public sealed partial class Game
         var message = $"{character.Name} használta: {item.Name} — {result}.";
         if (command.SenderId == _session.HostPlayerId)
             _renderer.DrawInventoryMessage(message, ConsoleColor.Green);
-        else RecordSessionActivity(SessionActivityKind.System, message, ConsoleColor.Green, [character.Id]);
+        RecordSessionActivity(SessionActivityKind.System, message, ConsoleColor.Green,
+            command.SenderId == _session.HostPlayerId || item.Effect == ConsumableEffect.Heal
+                ? null
+                : [character.Id]);
         if (item.Effect == ConsumableEffect.Heal)
             PlaySessionSound(SoundEffect.DefensiveSpell, [character.Id]);
     }

@@ -520,6 +520,32 @@ public sealed class CoopGuestScreen
             }
             return;
         }
+        if (snapshot.SpellPreparation is { CharacterId: var preparingCharacter } preparation &&
+            preparingCharacter == characterId)
+        {
+            var preparationCommand = HandleSpellPreparationInput(client, characterId, preparation, key);
+            if (preparationCommand is not null)
+            {
+                try { await client.SendCommandAsync(preparationCommand, cancellationToken); }
+                catch (Exception exception) when (exception is InvalidOperationException or TimeoutException)
+                { SetMessage(exception.Message); }
+            }
+            return;
+        }
+        _spellPreparationPromptId = null;
+        if (ShouldHandleLevelUpPrompt(snapshot, characterId) &&
+            snapshot.LevelUpPrompt is { } levelUp)
+        {
+            var levelUpCommand = HandleLevelUpInput(client, characterId, levelUp, key);
+            if (levelUpCommand is not null)
+            {
+                try { await client.SendCommandAsync(levelUpCommand, cancellationToken); }
+                catch (Exception exception) when (exception is InvalidOperationException or TimeoutException)
+                { SetMessage(exception.Message); }
+            }
+            return;
+        }
+        _levelUpPromptId = null;
         if (snapshot.SharedWindow is { } sharedWindow)
         {
             if (key is not (ConsoleKey.Enter or ConsoleKey.Escape) ||
@@ -545,32 +571,6 @@ public sealed class CoopGuestScreen
             return;
         }
         if (snapshot.LevelImage is not null) return;
-        if (snapshot.SpellPreparation is { CharacterId: var preparingCharacter } preparation &&
-            preparingCharacter == characterId)
-        {
-            var preparationCommand = HandleSpellPreparationInput(client, characterId, preparation, key);
-            if (preparationCommand is not null)
-            {
-                try { await client.SendCommandAsync(preparationCommand, cancellationToken); }
-                catch (Exception exception) when (exception is InvalidOperationException or TimeoutException)
-                { SetMessage(exception.Message); }
-            }
-            return;
-        }
-        _spellPreparationPromptId = null;
-        if (snapshot.LevelUpPrompt is { CharacterId: var levelingCharacter } levelUp &&
-            levelingCharacter == characterId)
-        {
-            var levelUpCommand = HandleLevelUpInput(client, characterId, levelUp, key);
-            if (levelUpCommand is not null)
-            {
-                try { await client.SendCommandAsync(levelUpCommand, cancellationToken); }
-                catch (Exception exception) when (exception is InvalidOperationException or TimeoutException)
-                { SetMessage(exception.Message); }
-            }
-            return;
-        }
-        _levelUpPromptId = null;
         SynchronizeSpellUi(snapshot, characterId);
         if (snapshot.RestNotice is { } rest)
         {
@@ -937,6 +937,9 @@ public sealed class CoopGuestScreen
                 MagicProgressionWindow.PreparationWidth, FramedWindow.SpellPreparation);
         return null;
     }
+
+    internal static bool ShouldHandleLevelUpPrompt(SessionSnapshot snapshot, CharacterId characterId) =>
+        snapshot.LevelUpPrompt?.CharacterId == characterId;
 
     private void RefreshMagicProgressionOverlay(WorldId? worldId,
         IReadOnlyList<(string Text, ConsoleColor Color)> lines, int width, FramedWindow window)
@@ -2207,7 +2210,12 @@ public sealed class CoopGuestScreen
 
     private static bool HasCurrentHostSharedWindow(SessionSnapshot snapshot) =>
         snapshot.SharedWindow is { Lines.Count: > 0 } &&
-        !string.IsNullOrWhiteSpace(snapshot.LeaderDecisionTitle);
+        (snapshot.LevelUpPrompt is { } levelUp &&
+         string.Equals(snapshot.LeaderDecisionTitle, $"Szintlépés — {levelUp.CharacterName}",
+             StringComparison.Ordinal) ||
+         snapshot.SpellPreparation is { } preparation &&
+         string.Equals(snapshot.LeaderDecisionTitle, $"Varázsmemorizálás — {preparation.CharacterName}",
+             StringComparison.Ordinal));
 
     private static void ApplyRemotePlayerWindowStatus(GuestMapCell[,] grid, SessionSnapshot snapshot,
         PlayerId? localPlayerId)
@@ -2227,7 +2235,11 @@ public sealed class CoopGuestScreen
     internal static string? GuestSharedEventBanner(SessionSnapshot snapshot) =>
         snapshot.SharedWindow is not null && !string.IsNullOrWhiteSpace(snapshot.LeaderDecisionTitle)
             ? Game.SharedWindowBanner(snapshot.Inn is null ? GameSessionPhase.Exploration : GameSessionPhase.Inn,
-                snapshot.LeaderDecisionTitle!)
+                snapshot.LevelUpPrompt is { } levelUp && !HasCurrentHostSharedWindow(snapshot)
+                    ? $"Szintlépés — {levelUp.CharacterName}"
+                    : snapshot.SpellPreparation is { } preparation && !HasCurrentHostSharedWindow(snapshot)
+                        ? $"Varázsmemorizálás — {preparation.CharacterName}"
+                        : snapshot.LeaderDecisionTitle!)
             : null;
 
     private void ApplyPendingSharedWindowStatus(GuestMapCell[,] grid, SessionSnapshot snapshot)
