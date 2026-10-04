@@ -723,7 +723,7 @@ public static class MazeLevelConfigurations
                 [
                     Encounters.Same(MonsterIds.Goblin, Amount.Handful, Amount.Pack),
                     Encounters.Same(MonsterIds.Ork, Amount.Handful, Amount.Several),
-                    Encounters.Mixed(MonsterIds.Hobgoblin, Amount.Few, MonsterIds.Bugbear, Amount.Few, Amount.Handful),
+                    Encounters.Mixed(MonsterIds.Hobgoblin, Amount.Few, MonsterIds.OrkTestőr, Amount.Few, Amount.Handful),
                     Encounters.LeaderGroup(MonsterIds.OrkSámán, MonsterIds.Ork, Amount.Few, Amount.Several),
                     Encounters.LeaderGroup(MonsterIds.OrkVérpap, MonsterIds.Ork, Amount.One, Amount.Pack)
                 ],
@@ -775,7 +775,7 @@ public static class MazeLevelConfigurations
                 TreasureGold = new(560, 1050),
                 RoomEncounters =
                 [
-                    Encounters.Same(MonsterIds.Bugbear, Amount.Handful, Amount.Several),
+                    Encounters.Same(MonsterIds.OrkTestőr, Amount.Handful, Amount.Several),
                     Encounters.Same(MonsterIds.Ogre, Amount.Handful, Amount.Handful),
                     Encounters.Mixed(MonsterIds.Troll, Amount.Few, MonsterIds.Ettin, Amount.Few, Amount.Few),
                     Encounters.LeaderGroup(MonsterIds.Fagyóriás, MonsterIds.Ogre, Amount.One, Amount.Several)
@@ -784,7 +784,7 @@ public static class MazeLevelConfigurations
                 [
                     Encounters.LeaderHorde(MonsterIds.Ogre, MonsterIds.Ork,
                         Amount.Handful, Amount.Pack),
-                    Encounters.MixedHorde(MonsterIds.Bugbear, Amount.Handful, MonsterIds.Gnoll, Amount.Handful,
+                    Encounters.MixedHorde(MonsterIds.OrkTestőr, Amount.Handful, MonsterIds.Gnoll, Amount.Handful,
                         Amount.Handful),
                     Encounters.LeaderHorde(MonsterIds.Ettin, MonsterIds.Goblin,
                         Amount.Handful, Amount.Pack)

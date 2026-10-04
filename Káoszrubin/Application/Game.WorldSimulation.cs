@@ -238,7 +238,8 @@ public sealed partial class Game
     private (LiveCharacter Character, Position Position)? FindAmbushProximityTarget(Enemy enemy)
     {
         if (!enemy.IsAmbushing || enemy.AmbushTriggerDistance <= 0) return null;
-        return LivingPartyWithPositions().Where(candidate => candidate.Character.IsAlive &&
+        return LivingPartyWithPositions().Where(candidate =>
+                EnemyTargeting.CanDetectDuringExploration(candidate.Character) &&
                 Manhattan(enemy.Position, candidate.Position) <= enemy.AmbushTriggerDistance)
             .OrderBy(candidate => Manhattan(enemy.Position, candidate.Position))
             .FirstOrDefault() is { Character: not null } target ? target : null;

@@ -1,9 +1,13 @@
 using KaoszRubin.Domain.Characters;
+using KaoszRubin.Domain.Magic;
 
 namespace KaoszRubin.World;
 
 public static class EnemyTargeting
 {
+    public static bool CanDetectDuringExploration(LiveCharacter character) =>
+        character.IsAlive && !character.HasSpellEffect(ActiveSpellEffectType.Invisibility);
+
     public static (LiveCharacter Character, Position Position)? ChooseNearestVisible(
         Position observerPosition,
         IEnumerable<(LiveCharacter Character, Position Position)> candidates,
@@ -20,7 +24,8 @@ public static class EnemyTargeting
         Random random,
         CharacterId? preferredTargetCharacterId = null)
     {
-        var visible = candidates.Where(candidate => candidate.Character.IsAlive && canSee(candidate)).ToArray();
+        var visible = candidates.Where(candidate => CanDetectDuringExploration(candidate.Character) &&
+                                                    canSee(candidate)).ToArray();
         if (visible.Length == 0) return null;
         if (preferredTargetCharacterId is { } preferredId)
         {
@@ -52,7 +57,7 @@ public static class EnemyTargeting
         CharacterId? preferredTargetCharacterId = null)
     {
         if (trackingSense <= 0) return null;
-        var sensed = candidates.Where(candidate => candidate.Character.IsAlive)
+        var sensed = candidates.Where(candidate => CanDetectDuringExploration(candidate.Character))
             .Select(candidate => (Candidate: candidate, Distance: pathDistance(candidate)))
             .Where(entry => entry.Distance is >= 0 && entry.Distance <= trackingSense).ToArray();
         if (sensed.Length == 0) return null;

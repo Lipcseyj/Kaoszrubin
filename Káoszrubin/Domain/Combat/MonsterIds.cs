@@ -32,7 +32,7 @@ public static class MonsterIds
     public const string Útonálló = "E028";
     public const string BarlangiGyík = "E029";
     public const string PestishordozóPatkány = "E030";
-    public const string Bugbear = "E031";
+    public const string OrkTestőr = "E031";
     public const string Hárpia = "E032";
     public const string Ghoul = "E033";
     public const string ÓriásBaziliszkusz = "E034";

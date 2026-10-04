@@ -331,6 +331,7 @@ internal static partial class Program
     ("Csak az explicit Horde találkozás válik vezérrel mozgó hordává", CorridorGroupsBecomeLedHordes),
     ("A horda vándorlási és táborozási állapota menthető és üldözéskor megszakad", HordeRoamingStatePersistsAndYieldsToPursuit),
     ("A szaglás és hatodik érzék CSV-ből, útvonaltávolsággal működik", EnemyTrackingSenseIsDataDriven),
+    ("A láthatatlanság megakadályozza a térképi észlelést", InvisibilityPreventsExplorationDetection),
     ("A szörnyjellemzők és képességparaméterek külön töltődnek", MonsterTraitsAndAbilitiesAreDataDriven),
     ("A regeneráció és a leheletlehűlés példányonként működik", MonsterRegenerationAndBreathCooldownWork),
     ("A sebzés nélküli, időzített állapot is lejár", TimedNonDamageStatusExpires),

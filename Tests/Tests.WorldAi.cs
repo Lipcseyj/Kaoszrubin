@@ -743,6 +743,30 @@ internal static partial class Program
             "A társ elfoglalhatta a vezér utolsó szabad kijáratát.");
     }
 
+    static void InvisibilityPreventsExplorationDetection()
+    {
+        var invisible = CreateCharacter("Láthatatlan");
+        var visible = CreateCharacter("Látható");
+        invisible.ApplySpellEffect(new ActiveSpellEffect("S006", ActiveSpellEffectType.Invisibility, 5, 3));
+        var candidates = new[]
+        {
+            (invisible, new Position(2, 1)),
+            (visible, new Position(3, 1))
+        };
+        Assert(!EnemyTargeting.CanDetectDuringExploration(invisible) &&
+               EnemyTargeting.ChooseNearestVisible(new Position(1, 1), candidates, _ => true,
+                   new Random(1))?.Character == visible &&
+               EnemyTargeting.ChooseNearestSensed(new Position(1, 1), candidates, 5,
+                   position => position.X - 1, new Random(1))?.Character == visible,
+            "A láthatatlan karaktert a térképi látás vagy nyomérzék továbbra is célpontnak tekinti.");
+
+        invisible.BreakInvisibility();
+        Assert(EnemyTargeting.CanDetectDuringExploration(invisible) &&
+               EnemyTargeting.ChooseNearestVisible(new Position(1, 1), candidates, _ => true,
+                   new Random(1))?.Character == invisible,
+            "A láthatatlanság megszűnése után az ellenség nem észleli újra a karaktert.");
+    }
+
     static void PartyMovementProfilesHaveDistinctEnemyLeashes()
     {
         var maze = new Maze(13, 9);

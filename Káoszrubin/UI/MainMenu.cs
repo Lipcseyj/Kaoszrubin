@@ -1228,7 +1228,7 @@ public sealed class MainMenu
             Text("⏱️ Akció: csatában a karakter saját köre; térképen ugyanazon karakter minden 10. sikeres lépése."),
             Text("👥 A partitagok saját akciószámlálót használnak. Az Isteni ítélet megduplázza a papi buff időtartamát."),
             Blank(),
-            Text("👻 Láthatatlanság: 3 akció; támadásig célpontvédelem, az első támadásra +5 találat."),
+            Text("👻 Láthatatlanság: 3 akció; felfedezéskor az ellenség nem fedezi fel látással, nyomérzékkel vagy közelségi rajtaütéssel. A korábban észlelő ellenség még keresheti az utolsó ismert helyet; közvetlen ütközéskor csata indul. Harcban támadásig célpontvédelem, az első támadásra +5 találat."),
             Text("🛡️ Védelem: Arkán páncél +5/5; Áldás +1/4; Szent pajzs +5/4; Isteni védelem +3/4 akció."),
             Text($"{ConsoleRenderer.DamageReductionIcon} Sebzéscsökkentés: Kőbőr 50%/4; Isteni védelem 25%/4 akció. 🩸🚫 Kőbőr: vérzésvédelem/4."),
             Text("🎯 Találat: Áldás +1/4; Bátorság imája +2/5; Mézsör/Fűszeres bor +1/10 akció."),

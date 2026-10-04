@@ -621,7 +621,7 @@ E084;Pokolfajzat;ߟ;5;90;2;8;350;1;MA006|MA004|MA020;Demonic;5;2;2;nem;WN007;nem
 E090;Goblin vajákos;ǵ;4;45;1;6;350;1;;;5;2;1;igen;W018|W001;nem;0;0;0;0;0;0;1;3;;0
 E091;Káoszmágus tanítvány;ӎ;3;80;0;6;500;1;;;6;1;1;igen;W018;nem;0;0;0;0;0;0;2;3;;15
 E007;Ork;o;7;120;4;5;400;2;MA005;;5;;;igen;W010|W004|W006|W017;igen;0;0;0;0;0;0;0;2;W014;0
-E103;Ork íjász;ô;7;120;4;5;400;2;MA005|MA016;;5;;;igen;W041;nem;0;0;0;0;0;0;0;2;;0
+E103;Ork íjász;ô;6;100;3;6;400;2;MA016;;5;;;igen;W041;nem;0;0;0;0;0;0;0;2;;0
 E008;Hobgoblin;h;6;90;6;7;450;2;;;5;;;igen;W004|W006|W011;igen;0;0;0;0;0;0;0;2;W027;0
 E009;Óriáspók;ᛤ;8;150;5;7;680;2;MA002|MA007;;5;2;1;igen;WN025;nem;0;0;0;0;1;0;0;5;;5
 E010;Gnoll;n;7;140;3;7;600;2;MA004|MA005|MA020;;5;;;igen;W006|W010|W007|W011;igen;0;0;0;0;0;0;0;6;W035;0
@@ -702,14 +702,14 @@ E099;Káosz főpap;҂;14;400;10;6;5000;5;MA013;;8;1;2;nem;W021|W013;nem;2;2;0;3;
 E100;Feketemágus;Ӻ;13;1000;11;8;10000;5;MA013;;8;3;0;nem;W021|W020;nem;-2;2;-2;4;3;6;7;8;;20
 E104;Vadkan;v;5;70;2;6;320;1;MA005|MA007;;4;1;3;igen;WN011;nem;0;0;1;0;0;0;0;6;;0
 E105;Hegyi hiúz;ƛ;4;50;1;9;320;1;MA006|MA004;;6;3;2;igen;WN002|WN007;igen;0;0;0;0;0;0;0;8;;0
-E106;Óriáspióca;ɭ;3;45;0;4;220;1;MA003;;3;3;0;nem;WN001;nem;0;0;0;-2;2;0;0;7;;0
-E107;Mérges varangy;ʚ;4;65;2;4;280;1;MA002|MA007;;4;2;2;igen;WN018;nem;0;1;1;-2;3;0;0;5;;5
-E108;Mocsári vipera;ʃ;4;50;1;8;300;1;MA002|MA006;;5;3;1;igen;WN018;nem;0;1;0;-1;3;0;0;8;;5
-E109;Mocsári krokodil;Ͻ;9;220;5;5;800;2;MA005|MA007;;5;3;1;igen;WN011|WN012;nem;2;1;0;0;2;0;0;8;;5
-E110;Gyíkember portyázó;ɀ;8;180;4;6;750;2;MA006;;6;2;2;igen;W002|W006|W010;igen;1;1;0;0;2;0;0;6;W025;10
-E111;Lápi lidérc;ʑ;10;260;4;7;950;2;MA006|MA013;Undead;7;4;0;nem;WN002;nem;2;2;-2;0;1;4;1;8;;25
-E112;Óriáskrokodil;Ͼ;14;620;8;5;1900;3;MA005|MA007;;6;2;3;igen;WN011|WN012;nem;3;2;1;0;3;0;0;9;;10
-E113;Mocsári ogre;Ǫ;13;420;6;3;1300;3;MA005|MA007;;5;1;4;igen;W019|W017;igen;1;1;1;0;1;0;0;5;;5
+E106;Óriáspióca;ɭ;2;22;0;4;80;1;MA003;;3;3;0;nem;WN001;nem;0;0;0;-2;2;0;0;1;;0
+E107;Óriásvarangy;ʚ;4;65;2;4;280;1;MA002|MA007;;4;2;2;igen;WN018;nem;0;1;1;-2;3;0;0;2;;0
+E108;Mocsári vipera;ʃ;4;25;1;8;130;1;MA002|MA006;;5;3;1;igen;WN018;nem;0;1;0;-1;3;0;0;1;;0
+E109;Mocsári krokodil;Ͻ;9;220;4;5;500;2;MA005;;5;3;1;igen;WN011;nem;2;1;0;0;2;0;0;4;;0
+E110;Gyíkember portyázó;ɀ;8;180;2;6;400;2;;;6;2;2;igen;W002|W006|W022;igen;1;1;0;0;2;0;0;4;W025;0
+E111;Lápi lidérc;ʑ;10;260;4;7;950;2;MA024;Undead;7;4;0;nem;WN002;nem;2;2;-2;0;1;4;1;6;;10
+E112;Óriáskrokodil;Ͼ;14;620;8;5;1900;3;MA005|MA007;;6;2;3;igen;WN011|WN012;nem;3;2;1;0;3;0;0;6;;0
+E113;Mocsári ogre;Ǫ;13;420;4;3;1300;3;MA005|MA007;;5;1;4;igen;W019|W017;igen;1;1;1;0;1;0;0;5;;0
 
 #Ellenséges varázshasználók
 EllenségId;VarázslatIds;MaxManna;Intelligencia;Mannatartalék%;VarázslásiEsély%;Profil;VarázslatLehűlés
@@ -2600,7 +2600,7 @@ ES027;Blub... te szilárd vagy. Ezen segíthetek.;Ne lépj belém! Vagy lépj. N
 ES028;Az erszényt vagy az életedet! Igazából jöhet mindkettő.;Semmi személyes, barátom. Csak kell a pénzed.;Szép felszerelés. Kár lenne, ha gazdát cserélne.
 ES029;Ssssz... meleg hús közeledik.;Ne aggódj, csak egy kicsit harapok.;Ez az én kövem. Keress magadnak másikat!
 ES030;Cinc... közelebb! Hadd köhögjek rád.;Nem én vagyok beteg. Mindenki más túl egészséges.;Egy harapás, és máris lesz bennünk valami közös.
-ES031;Te túl kicsi vagy ekkora fegyverhez.;Ork nem beszél sokat. Ork üt.;Ha sikítasz, legalább tudom, hogy eltaláltalak.
+ES031;Te túl kicsi vagy ekkora fegyverhez.;Életemet és véremet a törzsfőért!;Egy tapodtat sem hátra!
 ES032;Micsoda csinos arc! Kár lenne összekarmolni.;Gyere csak közelebb, szépségem!;Sikíts hangosabban! Szeretem, ha visszhangzik.
 ES033;Hús... friss hús...;Ne félj! A halottakat már nem eszem meg. Többnyire.;Éhes vagyok, te pedig feltűnően ehető.
 ES034;Ne nézz sokáig a szemembe! Még gyakorlok.;Ha nagy leszek, mindenki kővé változik!;Ssssz... anya azt mondta, idegeneket szabad megharapni.
@@ -2663,6 +2663,9 @@ ES097;A természet nem jó és nem gonosz. Csak éhes.;A gyökerek már érzik a
 ES098;Minden csepp véretek egy újabb varázslat.;Nektek seb. Nekem hatalom.;A legerősebb mágiához mindig kell egy kis áldozat.
 ES099;A Káosz előtt király és koldus egyaránt térdre hull.;Én vagyok az akarata, ti pedig csak az áldozatai.;Imádkozzatok, ha még emlékeztek hogyan kell.
 ES100;A fény csak addig létezik, amíg én el nem oltom.;Annyi lelket láttam elbukni, hogy a tietek már fel sem tűnik.;Ne féljetek a haláltól. Van annál sokkal rosszabb is.
+ES101;Ne mozogj! Úgy könnyebb eltalálni.;Hehe, innen fentről sokkal bátrabb vagyok!;Még egy lépés, és nyílvessző nő a homlokodból!
+ES102;A hús elrohad. A csont célba talál.;Nincs lélegzetem, mégis türelmesebben célzok nálatok.;Fussatok csak. A nyílvesszőim gyorsabbak.
+ES103;Ne bújj el! Az ork nyila úgyis megtalál.;Egy lövés, egy üvöltés, egy holttest.;Az íj csak addig fegyver, amíg el nem érek hozzád.
 ES104;Röf! Takarodjatok az utamból!;Egyetlen roham, és repültök!;Az agyaram már élesebb, mint tegnap!
 ES105;Nem hallottatok közeledni, igaz?;Egyetlen rossz lépés, és már a torkotokon vagyok.;A hegyekben mindig a gyorsabb marad életben.
 ES106;Csak egy kortyot kérek... az összes véretekkel együtt.;Rátapadok, és addig nem engedlek el, míg ki nem száradsz.;A mocsár legjobb része az, amikor a zsákmány nem tud kiszabadulni.

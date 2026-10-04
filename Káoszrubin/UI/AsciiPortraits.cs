@@ -131,7 +131,7 @@ public static class AsciiPortraits
                """
                    ______
                   / ò  ó \
-                ó|  _°°_ |ò
+                ó|  _°°_ |Ɂ
                  |░/↑ ↑\░|
                  \_|░░░|_/
                """),
@@ -366,14 +366,14 @@ public static class AsciiPortraits
                   ~*~  /_/
                """),
 
-           // E031 - Bugbear
-           [MonsterIds.Bugbear] = Portrait(
+           // E031 - Ork testőr
+           [MonsterIds.OrkTestőr] = Portrait(
                """
-                  /\____/\
-                 /  ò  ó  \
-                |    ▲     |
-                |  ▽▽▽▽▽   |
-                 \_/|██|\_/
+                  ΅ ▄█▀▀█▄΅  ߈
+                  / x  ó \ |ব
+                 ȼ|  °° Ԇ|ͽ|
+                 /|=↑ΞΞ↑=|\|
+                / ▄█|██|█▄ |
                """),
 
            // E032 - Hárpia
@@ -409,11 +409,11 @@ public static class AsciiPortraits
            // E035 - Ork sámán
            [MonsterIds.OrkSámán] = Portrait(
                """
-                  ^\____/^
+                   __ʺʺ__
                   / ◉  ◉ \
-                 |  _▲_   |
-                 \_/↑ ↑\_/
-                  /|☼☼|\  Y
+                ȴ|  _°°_ |Ɂ
+                 |░/▽ ▲\░|  Y
+                 \_|☼☼☼|_/  |  
                """),
 
            // E036 - Ettin
@@ -621,7 +621,7 @@ public static class AsciiPortraits
                """
                    ▄█▀▀█▄
                   / ò  ó \
-                  |  °°  |
+                 ȼ|  °°  |Ɂ
                  /|=↑██↑=|\
                 / ▄█|██|█▄ \
                """),
@@ -921,7 +921,7 @@ public static class AsciiPortraits
                """
                      __~_~
                     / ◉ ◉ \
-                    \  ▽  /
+                    \  ɤ  /
                     /|~~~|\*
                      /___\
                """),
@@ -929,11 +929,11 @@ public static class AsciiPortraits
            // E094 - Ork vérpap
            [MonsterIds.OrkVérpap] = Portrait(
                """
-                    ______
-                   / ò  ó \
-                  |  _▲_   |
-                  \_/☼☼\_/†
-                   /|██|\ 
+                    __ʬʬ__
+                   / ȏ  ȏ \
+                 ȼ|  -°°-  |†
+                   \/☼†☼\_/
+                   /|███|\ 
                """),
 
            // E095 - Kígyópap
@@ -1118,7 +1118,7 @@ public static class AsciiPortraits
                """
                    ______   /
                   / •  • \ /
-                 ó  _°°_ |)==>
+                 ó  -°°- |)==>
                  |░/↑ ↑\░| \
                  \_|░░░|_/
                """),
