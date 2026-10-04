@@ -10,10 +10,7 @@
           "X": 0,
           "Y": 0
         },
-        "TemplateId": "mixed-forest",
-        "Overrides": {
-          "OpenBuildingDoorChance": 0.05
-        }
+        "TemplateId": "mixed-forest"
       },
       {
         "Id": "WHISPERING_WOOD",
@@ -22,7 +19,25 @@
           "X": 1,
           "Y": 0
         },
-        "TemplateId": "dense-cabin-forest"
+        "TemplateId": "dense-cabin-forest",
+        "Overrides": {
+          "UndergrowthChance": 0.57,
+          "DenseUndergrowthChance": 0.31,
+          "MarshCount": {
+            "Minimum": 0,
+            "Maximum": 0
+          },
+          "BuildingCount": {
+            "Minimum": 2,
+            "Maximum": 3
+          },
+          "BuildingSize": {
+            "Minimum": 3,
+            "Maximum": 4
+          },
+          "ManorBuildingChance": 0,
+          "LabyrinthBuildingChance": 0
+        }
       },
       {
         "Id": "RAVEN_CROSSING",
@@ -31,7 +46,7 @@
           "X": 2,
           "Y": 0
         },
-        "TemplateId": "mixed-forest"
+        "TemplateId": "hunter-camp"
       },
       {
         "Id": "OLD_PINES",
@@ -43,12 +58,21 @@
         "TemplateId": "old-pines",
         "Overrides": {
           "PineChance": 0.72,
-          "MarshChance": 0.1,
-          "MarshCount": {
-            "Minimum": 1,
-            "Maximum": 1
+          "LakeCount": {
+            "Minimum": 3,
+            "Maximum": 4
           },
-          "LockedBuildingDoorChance": 1
+          "MarshChance": 0,
+          "MarshCount": {
+            "Minimum": 0,
+            "Maximum": 0
+          },
+          "BuildingCount": {
+            "Minimum": 3,
+            "Maximum": 4
+          },
+          "LockedBuildingDoorChance": 0.9,
+          "OpenBuildingDoorChance": 0.05
         }
       },
       {
@@ -60,9 +84,13 @@
         },
         "TemplateId": "lakes-and-manors",
         "Overrides": {
-          "BuildingCount": {
-            "Minimum": 3,
+          "LakeCount": {
+            "Minimum": 5,
             "Maximum": 6
+          },
+          "LakeRadius": {
+            "Minimum": 5,
+            "Maximum": 8
           },
           "ManorBuildingChance": 1,
           "LabyrinthBuildingChance": 0
@@ -75,15 +103,106 @@
           "X": 2,
           "Y": 1
         },
-        "TemplateId": "huge-swamp",
+        "TemplateId": "swamp",
         "Overrides": {
+          "LakeCount": {
+            "Minimum": 6,
+            "Maximum": 9
+          },
+          "LakeRadius": {
+            "Minimum": 4,
+            "Maximum": 8
+          },
+          "MarshChance": 0.9,
           "MarshCount": {
             "Minimum": 12,
-            "Maximum": 20
+            "Maximum": 15
           },
           "MarshRadius": {
-            "Minimum": 5,
-            "Maximum": 10
+            "Minimum": 3,
+            "Maximum": 9
+          },
+          "Palette": {
+            "Tree": {
+              "Id": "forbidden-tree",
+              "Rune": "\u2660",
+              "ForegroundColor": "DarkGreen",
+              "BackgroundColor": "Black",
+              "Walkable": false,
+              "BlocksSight": true
+            },
+            "Bush": {
+              "Id": "forest-bush",
+              "Rune": "\u2663",
+              "ForegroundColor": "Green",
+              "BackgroundColor": "Black",
+              "Walkable": true,
+              "BlocksSight": false
+            },
+            "Pine": {
+              "Id": "forest-pine",
+              "Rune": "\u25B2",
+              "ForegroundColor": "Green",
+              "BackgroundColor": "Black",
+              "Walkable": false,
+              "BlocksSight": true
+            },
+            "FlowerBush": {
+              "Id": "forbidden-flower-bush",
+              "Rune": "\u273F",
+              "ForegroundColor": "DarkMagenta",
+              "BackgroundColor": "Black",
+              "Walkable": true,
+              "BlocksSight": false
+            },
+            "Thicket": {
+              "Id": "forest-thicket",
+              "Rune": "#",
+              "ForegroundColor": "DarkGreen",
+              "BackgroundColor": "Black",
+              "Walkable": false,
+              "BlocksSight": true
+            },
+            "Undergrowth": {
+              "Id": "forest-undergrowth",
+              "Rune": "\u2591",
+              "ForegroundColor": "DarkGreen",
+              "BackgroundColor": "Black",
+              "Walkable": true,
+              "BlocksSight": false
+            },
+            "DenseUndergrowth": {
+              "Id": "forest-dense-undergrowth",
+              "Rune": "\u2592",
+              "ForegroundColor": "Green",
+              "BackgroundColor": "Black",
+              "Walkable": true,
+              "BlocksSight": false
+            },
+            "Water": {
+              "Id": "forbidden-water",
+              "Rune": "\u2248",
+              "ForegroundColor": "DarkBlue",
+              "BackgroundColor": "Black",
+              "Walkable": false,
+              "BlocksSight": false
+            },
+            "Marsh": {
+              "Id": "forbidden-marsh",
+              "Rune": "\u224B",
+              "ForegroundColor": "Black",
+              "BackgroundColor": "DarkBlue",
+              "Walkable": true,
+              "BlocksSight": false
+            },
+            "BuildingWall": {
+              "Id": "forbidden-building-wall",
+              "Rune": "\u2588",
+              "ForegroundColor": "Gray",
+              "BackgroundColor": "Black",
+              "Walkable": false,
+              "BlocksSight": true
+            }
           }
         }
       },
@@ -96,18 +215,7 @@
         },
         "TemplateId": "forest-labyrinth",
         "Overrides": {
-          "MarshChance": 0.2,
-          "MarshCount": {
-            "Minimum": 1,
-            "Maximum": 1
-          },
-          "ExtraTrailChance": 0.4,
-          "BuildingCount": {
-            "Minimum": 4,
-            "Maximum": 6
-          },
-          "LockedBuildingDoorChance": 0.98,
-          "OpenBuildingDoorChance": 0.01
+          "ThicketChance": 0.5
         }
       },
       {
@@ -117,7 +225,22 @@
           "X": 3,
           "Y": 2
         },
-        "TemplateId": "open-groves"
+        "TemplateId": "open-groves",
+        "Overrides": {
+          "LakeCount": {
+            "Minimum": 3,
+            "Maximum": 5
+          },
+          "MarshChance": 0.05,
+          "MarshCount": {
+            "Minimum": 0,
+            "Maximum": 1
+          },
+          "MarshRadius": {
+            "Minimum": 2,
+            "Maximum": 4
+          }
+        }
       }
     ],
     "Connections": [

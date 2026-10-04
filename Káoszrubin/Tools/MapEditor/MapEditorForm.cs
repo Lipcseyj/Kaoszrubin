@@ -633,28 +633,9 @@ internal sealed partial class MapEditorForm : Form
             _customTemplates.ToArray());
         _propertyGridInherited = ForestAreaConfigurationResolver.Resolve(
             _previewBaseConfiguration, graph, previewArea with { Overrides = null });
-        _forestProperties.SelectedObject = ForestAreaConfigurationResolver.Resolve(
-            _previewBaseConfiguration, graph, previewArea);
+        _forestProperties.SelectedObject = ForestConfigurationEditing.Snapshot(
+            ForestAreaConfigurationResolver.Resolve(_previewBaseConfiguration, graph, previewArea));
         _forestProperties.Refresh();
-    }
-
-    private static ForestGenerationConfigurationPatch? DifferencePatch(ForestGenerationConfiguration configuration,
-        ForestGenerationConfiguration inherited)
-    {
-        var patch = new ForestGenerationConfigurationPatch();
-        var changed = false;
-        foreach (var patchProperty in typeof(ForestGenerationConfigurationPatch).GetProperties())
-        {
-            var sourceProperty = typeof(ForestGenerationConfiguration).GetProperty(patchProperty.Name);
-            if (sourceProperty is null) continue;
-            var value = sourceProperty.GetValue(configuration);
-            if (!Equals(value, sourceProperty.GetValue(inherited)))
-            {
-                patchProperty.SetValue(patch, value);
-                changed = true;
-            }
-        }
-        return changed ? patch : null;
     }
 
 internal static class TerminalMazePreview
@@ -835,7 +816,7 @@ internal static class TerminalMazePreview
         var index = _areas.IndexOf(_selected);
         if (index < 0) return;
         var patch = _forestProperties.SelectedObject is ForestGenerationConfiguration edited
-            ? DifferencePatch(edited, _propertyGridInherited)
+            ? ForestConfigurationEditing.Difference(edited, _propertyGridInherited)
             : _selected.Overrides;
         var replacement = _selected with
         {

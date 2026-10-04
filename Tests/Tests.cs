@@ -303,6 +303,7 @@ internal static partial class Program
     ("Az encounterek konkrét képernyőhöz rendelhetők", EncountersCanTargetASpecificScreen),
     ("A pihenési korlát többképernyős pályán képernyőnként külön él", RestLimitIsTrackedPerScreen),
     ("A széles pályatípus hárommezős folyosókat és külön konfigurációt használ", WideMazeUsesThreeCellCorridors),
+    ("A szerkesztett erdei paletta képernyőnként külön menthető és visszatölthető", ForestEditorPaletteChangesSurviveSave),
     ("Az erdősűrűség a borítást, a ligetméret a foltok léptékét szabályozza", ForestDensityControlsCoverageAndGroveScale),
     ("Az erdei épületek kunyhó-, kúria- és labirintusalaprajzot is készítenek", ForestBuildingsSupportMultipleLayoutTypes),
     ("Az explicit erdőgráf template-jei, JSON-ja és felfedezett térképe megőrzik a szerkezetet", ForestAreaConfigurationAndMapRoundTrip),
