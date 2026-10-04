@@ -784,7 +784,8 @@ public sealed partial class Game
                 $"A vezető {completedEntry.Title} " +
                 "küldetésének összegzését olvassa…",
                 () => QuestCompletionWindow.Show(
-                    completedEntry));
+                    completedEntry, lines => CaptureSharedWindowPresentation(
+                        QuestCompletionWindow.Width, lines, FramedWindow.QuestOffer)));
 
             completedQuests.Add(quest);
         }

@@ -42,7 +42,8 @@ public static class QuestCompletionWindow
         return lines;
     }
 
-    public static void Show(QuestJournalEntrySnapshot quest)
+    public static void Show(QuestJournalEntrySnapshot quest,
+        Action<IReadOnlyList<(string Text, ConsoleColor Color)>>? onPresented = null)
     {
         var lines = Build(quest);
         var width = Math.Min(Width, Math.Max(20, Console.WindowWidth));
@@ -52,6 +53,7 @@ public static class QuestCompletionWindow
         using var background = new BackgroundContentRestorer(left, top, width, height);
 
         Draw(lines, left, top, width);
+        onPresented?.Invoke(lines);
         while (Console.ReadKey(intercept: true).Key is not (ConsoleKey.Enter or ConsoleKey.Escape)) { }
     }
 
