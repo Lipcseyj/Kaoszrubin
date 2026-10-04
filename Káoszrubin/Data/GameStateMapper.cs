@@ -86,7 +86,8 @@ internal sealed class GameStateMapper
                 enemy.PreparedAbilityId, enemy.PreparedAbilityTurnsRemaining,
                 enemy.PreparedAbilityTargetPosition, enemy.SummonerId,
                  enemy.GrantsRewardsAndLoot, enemy.PreparedAbilityRequiresHeavyStagger,
-                 enemy.IsAmbushing, enemy.AmbushTriggerDistance)).ToList(),
+                 enemy.IsAmbushing, enemy.AmbushTriggerDistance,
+                 enemy.SpellResistanceEstimates.ToList())).ToList(),
             Corpses = maze.Corpses.Select(corpse => new CorpseSaveData(corpse.Position, corpse.FormerName,
                 corpse is PartyMemberCorpse partyCorpse ? CharacterIndex(partyCorpse.Character) : null,
                 (corpse as MonsterCorpse)?.EnemyDefinitionId, (corpse as MonsterCorpse)?.IsSearched ?? false,
@@ -254,6 +255,7 @@ internal sealed class GameStateMapper
                 savedEnemy.PreparedAbilityId, savedEnemy.PreparedAbilityTurnsRemaining,
                 savedEnemy.PreparedAbilityTargetPosition, savedEnemy.PreparedAbilityRequiresHeavyStagger);
             enemy.RestoreSpellcasting(savedEnemy.CurrentMana ?? enemy.MaximumMana, savedEnemy.SpellCooldowns);
+            enemy.RestoreSpellResistanceEstimates(savedEnemy.SpellResistanceEstimates);
             foreach (var effect in savedEnemy.ActiveSpellEffects ?? []) enemy.RestoreSpellEffect(effect);
             maze.AddEnemy(enemy);
             var remaining = savedEnemy.NextMoveRemainingMilliseconds >= 0

@@ -12,6 +12,8 @@ public enum EnemyAlertness { Sleeping, Drowsy, Alert }
 public enum EnemySearchRole { None, Scout, Returning, Guarding }
 
 public sealed record EnemyEquipmentSelection(string? WeaponId, string? ShieldId);
+public sealed record EnemySpellResistanceEstimate(CharacterId TargetId, DamageType? DamageType,
+    double EstimatedPercent);
 
 public abstract class Enemy(Position position) : WorldObject(position)
 {
@@ -79,11 +81,35 @@ public abstract class Enemy(Position position) : WorldObject(position)
     private readonly Dictionary<string, int> _abilityCooldowns = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, int> _weaponCooldowns = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, int> _spellCooldowns = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<(CharacterId TargetId, DamageType? DamageType), double> _spellResistanceEstimates = [];
     private readonly Dictionary<string, int> _remainingAbilityCharges = new(StringComparer.OrdinalIgnoreCase);
     private int _regenerationSuppressedTurns;
     public IReadOnlyDictionary<string, int> AbilityCooldowns => _abilityCooldowns;
     public IReadOnlyDictionary<string, int> WeaponCooldowns => _weaponCooldowns;
     public IReadOnlyDictionary<string, int> SpellCooldowns => _spellCooldowns;
+    public IReadOnlyList<EnemySpellResistanceEstimate> SpellResistanceEstimates => _spellResistanceEstimates
+        .Select(entry => new EnemySpellResistanceEstimate(entry.Key.TargetId, entry.Key.DamageType, entry.Value))
+        .ToArray();
+    public double? EstimatedSpellResistance(CharacterId targetId, DamageType? damageType) =>
+        _spellResistanceEstimates.TryGetValue((targetId, damageType), out var estimate) ? estimate : null;
+
+    public void ObserveSpellResistance(CharacterId targetId, DamageType? damageType,
+        double actualPercent, int intelligence, Random random)
+    {
+        if (actualPercent <= 0) return;
+        var uncertainty = 2 + 48 * (20 - Math.Clamp(intelligence, 1, 20)) / 19d;
+        var error = (random.NextDouble() * 2 - 1) * uncertainty / 100d;
+        _spellResistanceEstimates[(targetId, damageType)] =
+            Math.Clamp(actualPercent * (1 + error), 0, 100);
+    }
+
+    public void RestoreSpellResistanceEstimates(IEnumerable<EnemySpellResistanceEstimate>? estimates)
+    {
+        _spellResistanceEstimates.Clear();
+        foreach (var estimate in estimates ?? [])
+            _spellResistanceEstimates[(estimate.TargetId, estimate.DamageType)] =
+                Math.Clamp(estimate.EstimatedPercent, 0, 100);
+    }
     public int MaximumMana => Definition.SpellcasterProfile?.MaximumMana ?? 0;
     public int CurrentMana { get; private set; }
     public IReadOnlyDictionary<string, int> RemainingAbilityCharges => _remainingAbilityCharges;

@@ -273,6 +273,90 @@ internal static partial class Program
             "A levett védőgyűrű továbbra is védi a karaktert.");
     }
 
+    static void EnemySpellResistanceKnowledgeIsReactiveAndImprecise()
+    {
+        var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
+        var definition = data.GetEnemy(MonsterIds.KáoszmágusTanítvány);
+        var profile = definition.SpellcasterProfile! with
+        {
+            SpellIds = ["D001", "D004"], CastingChancePercent = 100, ManaReservePercent = 0,
+            Style = EnemySpellcastingStyle.Artillery
+        };
+        var caster = new ConfiguredEnemy(new Position(2, 2), definition with { SpellcasterProfile = profile });
+        var otherCaster = new ConfiguredEnemy(new Position(2, 3), definition with { SpellcasterProfile = profile });
+        var protectedTarget = CreateCharacter("Tűzvédett", vitality: 100);
+        protectedTarget.ApplySpellEffect(new ActiveSpellEffect("TEST-FIRE", ActiveSpellEffectType.FireResistance,
+            100, 5, Beneficial: true));
+        var anotherTarget = CreateCharacter("Másik cél", vitality: 100);
+        var service = new EnemySpellcastingService(data, new AlwaysHitRandom());
+        var hostiles = new[] { (protectedTarget, new Position(4, 2)) };
+        var first = service.SelectSpell(caster, [caster], hostiles, (_, _, _) => true);
+        Assert(first?.Spell.Id == "D004" && caster.SpellResistanceEstimates.Count == 0 &&
+               otherCaster.SpellResistanceEstimates.Count == 0,
+            "Az ellenséges mágus már az első találat előtt ismerte a tűzvédelmet.");
+        service.Execute(caster, first!);
+        var estimate = caster.EstimatedSpellResistance(protectedTarget.Id, DamageType.Fire);
+        Assert(estimate is >= 0 and <= 100 && estimate > 0 &&
+               caster.EstimatedSpellResistance(protectedTarget.Id, DamageType.Necrotic) is null &&
+               caster.EstimatedSpellResistance(anotherTarget.Id, DamageType.Fire) is null &&
+               otherCaster.EstimatedSpellResistance(protectedTarget.Id, DamageType.Fire) is null,
+            "A megfigyelt ellenállás más típusra, célpontra vagy mágusra is átszivárgott.");
+        caster.AdvanceCombatCooldowns();
+        var revised = service.SelectSpell(caster, [caster], hostiles, (_, _, _) => true);
+        Assert(revised?.Spell.Id == "D001",
+            "A megtapasztalt tűzellenállás után a mágus nem értékelte fel a másik sebzéstípust.");
+        var alternateAim = service.SelectSpell(caster, [caster],
+            [(protectedTarget, new Position(4, 2)), (anotherTarget, new Position(4, 3))],
+            (_, _, _) => true);
+        Assert(alternateAim?.Spell.Id == "D004" && alternateAim.HostileTargets.Single() == anotherTarget,
+            "Az ismert tűzvédelem mellett a mágus nem a védtelenebb célpontot választotta.");
+        var interruptedPlan = service.SelectSpell(otherCaster, [otherCaster],
+            [(protectedTarget, new Position(4, 2))], (_, _, _) => true)!;
+        service.Execute(otherCaster, interruptedPlan, combatFailureChance: 100);
+        Assert(otherCaster.SpellResistanceEstimates.Count == 0,
+            "A meghiúsult varázslat is elárulta a célpont ellenállását.");
+        otherCaster.AdvanceCombatCooldowns();
+        Assert(service.SelectSpell(otherCaster, [otherCaster],
+                   [(protectedTarget, new Position(4, 2))], (_, _, _) => true)?.Spell.Id == "D004",
+            "A másik mágus saját megfigyelés nélkül is módosította a választását.");
+
+        var lowIntelligence = new ConfiguredEnemy(new Position(1, 1),
+            definition with { SpellcasterProfile = profile with { Intelligence = 1 } });
+        var highIntelligence = new ConfiguredEnemy(new Position(1, 1),
+            definition with { SpellcasterProfile = profile with { Intelligence = 20 } });
+        foreach (var fraction in new[] { 0d, 1d })
+        {
+            lowIntelligence.ObserveSpellResistance(protectedTarget.Id, DamageType.Fire,
+                40, 1, new FixedFractionRandom(fraction));
+            highIntelligence.ObserveSpellResistance(protectedTarget.Id, DamageType.Fire,
+                40, 20, new FixedFractionRandom(fraction));
+            var lowEstimate = lowIntelligence.EstimatedSpellResistance(protectedTarget.Id, DamageType.Fire)!.Value;
+            var highEstimate = highIntelligence.EstimatedSpellResistance(protectedTarget.Id, DamageType.Fire)!.Value;
+            Assert(lowEstimate is >= 20 and <= 60 && highEstimate is >= 39.2 and <= 40.8 &&
+                   Math.Abs(highEstimate - 40) < Math.Abs(lowEstimate - 40),
+                "A mágus Intelligenciája nem csökkenti a becslés legfeljebb ±50%-os hibáját.");
+        }
+        var saved = new EnemySaveData(caster.Position, caster.Definition.Id, caster.CurrentHitPoints,
+            SpellResistanceEstimates: caster.SpellResistanceEstimates.ToList());
+        var roundTrip = JsonSerializer.Deserialize<EnemySaveData>(JsonSerializer.Serialize(saved))!;
+        var restored = new ConfiguredEnemy(caster.Position, caster.Definition);
+        restored.RestoreSpellResistanceEstimates(roundTrip.SpellResistanceEstimates);
+        Assert(restored.EstimatedSpellResistance(protectedTarget.Id, DamageType.Fire) == estimate,
+            "Az ellenség megszerzett, pontatlan ellenállásismerete elveszett a mentési körben.");
+    }
+
+    private sealed class FixedFractionRandom(double fraction) : Random
+    {
+        public override double NextDouble() => fraction;
+    }
+
+    private sealed class AlwaysHitRandom : Random
+    {
+        public override int Next(int maxValue) => 0;
+        public override int Next(int minValue, int maxValue) => maxValue - 1;
+        public override double NextDouble() => .5;
+    }
+
     static void EnemyCastersLeadRareThematicLevelGroups()
     {
         var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));

@@ -132,9 +132,16 @@ public sealed partial class Game
         else if (occupant.Character is { IsAlive: true } character)
         {
             var modifiers = new List<string>();
-            var amount = CharacterSpellResistance.Apply(character,
-                zone.RollDamage(_random, character.EffectiveAbilities.Dexterity, 0),
-                zone.DamageType, modifiers);
+            var rawDamage = zone.RollDamage(_random, character.EffectiveAbilities.Dexterity, 0);
+            if (rawDamage > 0 && zone.EnemyCasterId is { } enemyCasterId)
+            {
+                var enemyCaster = _maze.Enemies.FirstOrDefault(enemy => enemy.Id == enemyCasterId);
+                if (enemyCaster?.Definition.SpellcasterProfile is { } profile)
+                    enemyCaster.ObserveSpellResistance(character.Id, zone.DamageType,
+                        CharacterSpellResistance.EffectivePercent(character, zone.DamageType),
+                        profile.Intelligence, _random);
+            }
+            var amount = CharacterSpellResistance.Apply(character, rawDamage, zone.DamageType, modifiers);
             if (amount <= 0 && modifiers.Count == 0) return;
             var before = character.CurrentVitality;
             character.ReceiveDamage(amount);

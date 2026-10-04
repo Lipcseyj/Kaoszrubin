@@ -116,7 +116,8 @@ public sealed class EnemySpellcastingService(GameDataCatalog gameData, Random ra
                         plan.TargetPosition, maze).ToArray(), Math.Max(1, effect.Duration), stormDice,
                     effect.Value + (int)Math.Round(intelligence * effect.IntelligenceMultiplier) +
                     caster.Definition.StrengthTier * effect.LevelMultiplier,
-                    10 + intelligence / 2 + plan.Spell.Level, effect.Resolution, EnemyCasterId: caster.Id));
+                    10 + intelligence / 2 + plan.Spell.Level, effect.Resolution,
+                    EnemyCasterId: caster.Id, DamageType: effect.DamageType));
                 notes.Add($"vihar a területen ({effect.Duration} kör)");
             }
             else ApplyEffect(caster, plan, effect, notes, partyDamage, friendlyDamage, meteorCenters, maze);
@@ -148,11 +149,12 @@ public sealed class EnemySpellcastingService(GameDataCatalog gameData, Random ra
         if (spell.TargetType is SpellTargetType.Enemy)
         {
             var target = hostiles.Where(item => InRange(item.Position))
-                .OrderBy(item => HasAllHarmfulEffects(item.Character, effects))
+                .OrderByDescending(item => Score(caster, effects, [item.Character]))
+                .ThenBy(item => HasAllHarmfulEffects(item.Character, effects))
                 .ThenBy(item => item.Character.CurrentVitality)
                 .ThenByDescending(item => item.Character.EffectiveAbilities.Intelligence).FirstOrDefault();
             return target.Character is null ? null : new EnemySpellPlan(spell, target.Position,
-                [target.Character], [], Score(effects, 1, target.Character.CurrentVitality));
+                [target.Character], [], Score(caster, effects, [target.Character]));
         }
         if (spell.TargetType is SpellTargetType.Area or SpellTargetType.Direction)
         {
@@ -183,13 +185,12 @@ public sealed class EnemySpellcastingService(GameDataCatalog gameData, Random ra
                         .Select(item => item.Character).ToArray()
                 };
             }).Where(item => item.Targets.Length > 0)
-                .OrderByDescending(item => Score(effects, item.Targets.Length,
-                    item.Targets.Min(target => target.CurrentVitality)) -
-                    item.FriendlyFire.Length * Math.Max(30, Score(effects, 1, 100)))
+                .OrderByDescending(item => Score(caster, effects, item.Targets) -
+                    item.FriendlyFire.Length * Math.Max(30, RawDamageScore(effects)))
                 .FirstOrDefault();
             return best is null ? null : new EnemySpellPlan(spell, best.Position, best.Targets, [],
-                Score(effects, best.Targets.Length, best.Targets.Min(target => target.CurrentVitality)) -
-                best.FriendlyFire.Length * Math.Max(30, Score(effects, 1, 100)), best.FriendlyFire,
+                Score(caster, effects, best.Targets) -
+                best.FriendlyFire.Length * Math.Max(30, RawDamageScore(effects)), best.FriendlyFire,
                 hostiles.ToDictionary(item => item.Character.Id, item => item.Position));
         }
 
@@ -209,14 +210,25 @@ public sealed class EnemySpellcastingService(GameDataCatalog gameData, Random ra
             isHeal ? Math.Min(220, 60 + missing) : 65 + affected.Length * 12);
     }
 
-    private static int Score(IReadOnlyList<SpellEffectDefinition> effects, int targetCount, int weakestHp)
+    private static int RawDamageScore(IReadOnlyList<SpellEffectDefinition> effects) =>
+        effects.Where(effect => effect.Type is SpellEffectType.Damage or SpellEffectType.ChainDamage)
+            .Sum(effect => effect.Dice is { } dice ? dice.Count * (dice.Sides + 1) / 2 : effect.Value) +
+        effects.Count(effect => effect.Type is SpellEffectType.SpeedPenalty or SpellEffectType.SkipAlternate ||
+            effect.Type == SpellEffectType.HitBonus && effect.Value < 0) * 25;
+
+    private static int Score(Enemy caster, IReadOnlyList<SpellEffectDefinition> effects,
+        IReadOnlyList<LiveCharacter> targets)
     {
-        var damage = effects.Where(effect => effect.Type is SpellEffectType.Damage or SpellEffectType.ChainDamage)
-            .Sum(effect => effect.Dice is { } dice ? dice.Count * (dice.Sides + 1) / 2 : effect.Value);
         var control = effects.Count(effect => effect.Type is SpellEffectType.SpeedPenalty or
             SpellEffectType.SkipAlternate || effect.Type == SpellEffectType.HitBonus && effect.Value < 0) * 25;
-        return damage * Math.Max(1, targetCount) + control * Math.Max(1, targetCount) +
-               (damage >= weakestHp ? 45 : 0);
+        var estimatedDamage = targets.Select(target => effects
+            .Where(effect => effect.Type is SpellEffectType.Damage or SpellEffectType.ChainDamage)
+            .Sum(effect => (effect.Dice is { } dice
+                    ? dice.Count * (dice.Sides + 1) / 2d : effect.Value) *
+                (100 - (caster.EstimatedSpellResistance(target.Id, effect.DamageType) ?? 0)) / 100d))
+            .ToArray();
+        return (int)Math.Round(estimatedDamage.Sum() + control * targets.Count +
+            (targets.Where((target, index) => estimatedDamage[index] >= target.CurrentVitality).Any() ? 45 : 0));
     }
 
     private void ApplyEffect(Enemy caster, EnemySpellPlan plan, SpellEffectDefinition effect,
@@ -253,6 +265,10 @@ public sealed class EnemySpellcastingService(GameDataCatalog gameData, Random ra
                     damage = Math.Max(1, damage * SpellAreaFootprint.MeteorDamagePercent(
                         meteorCenters ?? [],
                         plan.HostilePositions?.GetValueOrDefault(target.Id) ?? plan.TargetPosition, maze) / 100);
+                if (damage > 0 && target.IsAlive)
+                    caster.ObserveSpellResistance(target.Id, effect.DamageType,
+                        CharacterSpellResistance.EffectivePercent(target, effect.DamageType),
+                        caster.Definition.SpellcasterProfile!.Intelligence, random);
                 damage = CharacterSpellResistance.Apply(target, damage, effect.DamageType,
                     partyDamage[target].Modifiers);
                 target.ReceiveDamage(damage);

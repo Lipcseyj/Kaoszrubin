@@ -25,6 +25,9 @@ public static class CharacterSpellResistance
         character.GetMagicItemBonus(MagicItemEffect.MagicResistance) +
         character.SpellEffectValue(ActiveSpellEffectType.MagicResistance), 0, 100);
 
+    public static double EffectivePercent(LiveCharacter character, DamageType? type) =>
+        100 - (100 - Percent(character, type)) * (100 - MagicPercent(character)) / 100d;
+
     public static int Apply(LiveCharacter character, int damage, DamageType? type,
         ICollection<string>? modifiers = null)
     {

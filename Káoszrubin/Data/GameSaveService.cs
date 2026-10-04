@@ -621,7 +621,8 @@ public sealed record EnemySaveData(Position Position, string DefinitionId, int C
     bool GrantsRewardsAndLoot = true,
     bool PreparedAbilityRequiresHeavyStagger = false,
     bool IsAmbushing = false,
-    int AmbushTriggerDistance = 0);
+    int AmbushTriggerDistance = 0,
+    List<World.EnemySpellResistanceEstimate>? SpellResistanceEstimates = null);
 public sealed record EnemyEquipmentSaveData(string? WeaponId, string? ShieldId, int MagicPower = 0);
 public sealed record CorpseSaveData(Position Position, string FormerName, int? PartyCharacterIndex,
     string? EnemyDefinitionId = null, bool IsSearched = false, List<string>? GuaranteedLootIds = null,
