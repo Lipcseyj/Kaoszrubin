@@ -1,5 +1,15 @@
 internal static partial class Program
 {
+    static void BestiaryStaysAboveMessageLog()
+    {
+        foreach (var windowHeight in new[] { 48, 52, 60 })
+        {
+            var placement = BestiaryWindow.Placement(180, windowHeight);
+            Assert(placement.Top >= 0 && placement.Top + placement.Height <= ConsoleRenderer.PlayfieldHeight,
+                "A Bestiárium alsó kerete a logmezőbe nyúlik.");
+        }
+    }
+
     static void CreatureQuotesLoadAndResolveForMainMenu()
     {
         var dataPath = Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName);

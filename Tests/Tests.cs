@@ -195,6 +195,7 @@ internal static partial class Program
     ("A hosszú NPC-párbeszéd az ablakon belül sortörést kap", NpcDialogueWrapsInsideRecruitmentWindow),
     ("A közös küldetésnapló elkülöníti az aktív és teljesített küldetéseket", QuestJournalBuildsSharedHistory),
     ("A küldetés lezáró párbeszéde a jutalomösszegzés előtt jelenik meg", QuestCompletionShowsDialogueBeforeRewards),
+    ("A Bestiárium kerete nem ér a coop logmezőbe", BestiaryStaysAboveMessageLog),
     ("Az ismeretlen CSV-fejezet sorszámos hibát ad", UnknownCsvSectionIsRejectedWithLineNumber),
     ("A hiányzó kötelező CSV-mező sorszámos hibát ad", MissingRequiredCsvFieldIsRejectedWithLineNumber),
     ("Az alkalmazkodó ember választott képességbónuszt kap", AdaptableRaceGainsChosenAbility),

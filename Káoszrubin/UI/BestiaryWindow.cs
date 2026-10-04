@@ -42,10 +42,7 @@ public static class BestiaryWindow
         Func<string?>? coopStatusProvider = null)
     {
         var entries = CreateEntries(gameData, kills);
-        var width = Math.Max(54, Math.Min(116, Console.WindowWidth - 4));
-        var height = Math.Max(16, Math.Min(40, Console.WindowHeight - 4));
-        var left = Math.Max(0, (Console.WindowWidth - width) / 2);
-        var top = Math.Max(0, (Console.WindowHeight - height) / 2);
+        var (left, top, width, height) = Placement(Console.WindowWidth, Console.WindowHeight);
         var style = WindowFrameConfiguration.For(FramedWindow.Bestiary);
         var index = 0;
         using var background = new BackgroundContentRestorer(left, top, width, height);
@@ -69,6 +66,15 @@ public static class BestiaryWindow
             else if (key == ConsoleKey.Home) index = 0;
             else if (key == ConsoleKey.End) index = entries.Count - 1;
         }
+    }
+
+    internal static (int Left, int Top, int Width, int Height) Placement(int windowWidth, int windowHeight)
+    {
+        var playfieldHeight = Math.Min(ConsoleRenderer.PlayfieldHeight, windowHeight);
+        var width = Math.Max(54, Math.Min(116, windowWidth - 4));
+        var height = Math.Max(16, Math.Min(40, playfieldHeight - 4));
+        return (Math.Max(0, (windowWidth - width) / 2),
+            Math.Max(0, (playfieldHeight - height) / 2), width, height);
     }
 
     internal static IReadOnlyList<Line> BuildDetails(GameDataCatalog gameData, Entry entry)
