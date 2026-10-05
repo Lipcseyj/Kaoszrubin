@@ -609,11 +609,26 @@ internal sealed partial class MapEditorForm
             var rows = grid.Rows.Cast<DataGridViewRow>().Where(row => !row.IsNewRow)
                 .Select(row => persistedColumnIndexes.Select(index => row.Cells[index].Value?.ToString() ?? "").ToArray())
                 .Where(row => row.Any(value => value.Length > 0)).ToArray();
-            if (rows.Any(row => string.IsNullOrWhiteSpace(row[0])) ||
-                rows.Select(row => row[0]).Distinct(StringComparer.OrdinalIgnoreCase).Count() != rows.Length)
-                throw new InvalidDataException("Az azonosítók nem lehetnek üresek vagy ismétlődők.");
+            var missingId = rows.FirstOrDefault(row => string.IsNullOrWhiteSpace(row[0]));
+            if (missingId is not null)
+                throw new InvalidDataException($"A(z) {section} szekcióban van azonosító nélküli sor.");
+            var repeatedId = rows.GroupBy(row => row[0], StringComparer.OrdinalIgnoreCase)
+                .FirstOrDefault(group => group.Count() > 1);
+            if (repeatedId is not null)
+                throw new InvalidDataException($"A(z) {section} szekcióban ismétlődő azonosító: {repeatedId.Key}. " +
+                    "A találkozások Id mezője különbözzön akkor is, ha ugyanaz a NpcId.");
             if (section == "NPC találkozások")
             {
+                var recurringNpcs = new CsvSectionEditor(EditorSources.PathFor("Data/game-data.csv"))
+                    .Rows("NPC-k")
+                    .Where(npc => npc.Length > 9 && npc[9].Equals("igen", StringComparison.OrdinalIgnoreCase))
+                    .Select(npc => npc[0]).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                var repeatedRecurringNpc = rows.Where(row => row.Length > 2 && recurringNpcs.Contains(row[1]))
+                    .GroupBy(row => (NpcId: row[1].ToUpperInvariant(), Level: row[2]))
+                    .FirstOrDefault(group => group.Count() > 1);
+                if (repeatedRecurringNpc is not null)
+                    throw new InvalidDataException($"A(z) {repeatedRecurringNpc.Key.NpcId} visszatérő NPC a(z) " +
+                        $"{repeatedRecurringNpc.Key.Level}. pályán csak egyszer helyezhető el, különböző AreaId esetén is.");
                 foreach (var row in rows)
                 {
                     if (row.Length < 7 || !int.TryParse(row[2], out var level) || level < 1 ||
