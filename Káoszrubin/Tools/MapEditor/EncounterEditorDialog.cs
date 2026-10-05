@@ -215,7 +215,8 @@ internal sealed class EncounterEditorDialog : Form
             grid.DataError += (_, e) => { e.ThrowException = false; _error.Text = "Válassz létező ellenfelet és szerepet."; };
             _fields.Controls.Add(new Label { Text = label + " — új sor: hozzáadás; sorkijelölés + Delete: törlés", AutoSize = true });
             _fields.Controls.Add(grid);
-            return () => grid.Rows.Cast<DataGridViewRow>().Where(row => !row.IsNewRow).Select(row =>
+            return () => grid.Rows.Cast<DataGridViewRow>().Where(row => !row.IsNewRow &&
+                row.Cells.Cast<DataGridViewCell>().Any(cell => !string.IsNullOrWhiteSpace(cell.Value?.ToString()))).Select(row =>
             {
                 if (row.Cells[0].Value is not string enemy ||
                     !int.TryParse(row.Cells[1].Value?.ToString(), out var minimum) ||

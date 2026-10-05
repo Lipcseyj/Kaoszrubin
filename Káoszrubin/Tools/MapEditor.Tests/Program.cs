@@ -224,6 +224,15 @@ internal static class Program
         Assert(!Field<Button>(dialog, "_accept").Enabled, "Hibás darabszámot fogadott el az űrlap.");
         grid.Rows[0].Cells[1].Value = 1;
         Assert(Field<Button>(dialog, "_accept").Enabled, "A javított darabszámot nem fogadja el.");
+        var emptyRow = grid.Rows[grid.Rows.Add()];
+        emptyRow.Cells[1].Value = "   ";
+        Assert(Field<Button>(dialog, "_accept").Enabled, "A teljesen üres sor letiltja az alkalmazást.");
+        configuration = EncounterDraft.Parse(Field<TextBox>(dialog, "_preview").Text).Configuration();
+        Assert(configuration.Members.Count == 1, "Az üres sor bekerült a kifejezésbe.");
+        emptyRow.Cells[0].Value = MonsterIds.Goblin;
+        Assert(!Field<Button>(dialog, "_accept").Enabled, "A részben kitöltött sort elfogadja.");
+        emptyRow.Cells[0].Value = null;
+        Assert(Field<Button>(dialog, "_accept").Enabled, "A kiürített sor továbbra is hibát okoz.");
     }
 
     private static void SaveAndReload()

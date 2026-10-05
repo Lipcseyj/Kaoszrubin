@@ -633,7 +633,8 @@ public static class MazeLevelConfigurations
                     Encounters.LeaderGroup(leaderId: MonsterIds.GoblinVajákos, followerId: MonsterIds.Goblin, groups: Amount.Few, followers: Amount.Several),
                     Encounters.LeaderGroup(MonsterIds.OrkSámán, MonsterIds.Ork,
                         Amount.Few, Amount.Several) with
-                        { AreaId = "LOST_MANOR", TargetRoomKind = RoomKind.Manor }
+                        { AreaId = "LOST_MANOR", TargetRoomKind = RoomKind.Manor },
+                    new EnemyEncounterConfiguration(GroupCount: new IntRange(3, 4), Members: [new(MonsterIds.Goblin, new IntRange(4, 6), EnemyGroupRole.Member), new(MonsterIds.GoblinÍjász, new IntRange(2, 4), EnemyGroupRole.Member), new(MonsterIds.GoblinVajákos, new IntRange(2, 4), EnemyGroupRole.Member)], MovementProfile: EnemyMovementProfile.Stationary) with { AreaId = "MOSS_GATE" }
                 ],
                 CorridorEncounters = [
                     Encounters.Horde(MonsterIds.Farkas, Amount.Handful, Amount.Handful),
