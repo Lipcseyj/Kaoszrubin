@@ -627,37 +627,21 @@ public static class MazeLevelConfigurations
                 RoomSize = new IntRange(4, 8),
                 TreasureChestCount = new IntRange(18, 26),
                 TreasureGold = new IntRange(180, 460),
-                RoomEncounters =
-                [
-                    Encounters.Same(MonsterIds.Farkas, Amount.Handful, Amount.Several),
-                    Encounters.Mixed(MonsterIds.Vadkan, Amount.Few, MonsterIds.HegyiHiúz, Amount.Few,
-                        Amount.Handful),
-                    Encounters.Mixed(MonsterIds.Goblin, Amount.Several, MonsterIds.GoblinÍjász, Amount.Few,
-                        Amount.Handful),
-                    Encounters.LeaderGroup(MonsterIds.GoblinVajákos, MonsterIds.Goblin,
-                        Amount.Few, Amount.Several),
+                RoomEncounters = [
+                    Encounters.Mixed(firstEnemyId: MonsterIds.Útonálló, firstCount: Amount.Pair, secondEnemyId: MonsterIds.HegyiHiúz, secondCount: Amount.Pair, groups: Amount.Handful) with { TargetRoomKind = RoomKind.Clearing },
+                    Encounters.Mixed(firstEnemyId: MonsterIds.Goblin, firstCount: Amount.Several, secondEnemyId: MonsterIds.GoblinÍjász, secondCount: Amount.TwoThree, groups: Amount.Handful),
+                    Encounters.LeaderGroup(leaderId: MonsterIds.GoblinVajákos, followerId: MonsterIds.Goblin, groups: Amount.Few, followers: Amount.Several),
                     Encounters.LeaderGroup(MonsterIds.OrkSámán, MonsterIds.Ork,
                         Amount.Few, Amount.Several) with
                         { AreaId = "LOST_MANOR", TargetRoomKind = RoomKind.Manor }
                 ],
-                CorridorEncounters =
-                [
+                CorridorEncounters = [
                     Encounters.Horde(MonsterIds.Farkas, Amount.Handful, Amount.Handful),
-                    Encounters.Solo(MonsterIds.HegyiHiúz, Amount.Handful, EnemyMovementProfile.Patrol),
-                    Encounters.MixedHorde(MonsterIds.Goblin, Amount.Several, MonsterIds.GoblinÍjász,
-                        Amount.Few, Amount.Handful),
-                    Encounters.Solo(MonsterIds.Vadkan, Amount.Handful),
-                    Encounters.TerrainAmbush(MonsterIds.GoblinÍjász, Amount.One, Amount.Few,
-                        TerrainTag.Bush | TerrainTag.Undergrowth, triggerDistance: 5) with
-                        { AreaId = "WHISPERING_WOOD" },
-                    Encounters.TerrainAmbush(MonsterIds.HegyiHiúz, Amount.One, Amount.Few,
-                        TerrainTag.DenseUndergrowth | TerrainTag.ThicketEdge, triggerDistance: 4) with
-                        { AreaId = "THORN_MAZE" },
-                    Encounters.TerrainAmbush(MonsterIds.Goblin, Amount.One, Amount.Several,
-                        TerrainTag.Marsh, triggerDistance: 4) with
-                        { AreaId = "BLACKWATER" }
-                ]
-            },
+                    Encounters.Horde(enemyId: MonsterIds.HegyiHiúz, groups: Amount.Handful, size: Amount.TwoThree),
+                    Encounters.MixedHorde(firstEnemyId: MonsterIds.Goblin, firstCount: Amount.Several, secondEnemyId: MonsterIds.GoblinÍjász, secondCount: Amount.Few, groups: Amount.Handful) with { AreaId = "MOSS_GATE" },
+                    Encounters.Solo(enemyId: MonsterIds.Vadkan, count: Amount.Handful, movement: EnemyMovementProfile.Wander) with { AreaId = "MOSS_GATE" },
+                    Encounters.Horde(enemyId: MonsterIds.Vadkan, groups: Amount.Handful, size: Amount.Several)
+                ],
             [7] = new()
             {
                 Level = 7,

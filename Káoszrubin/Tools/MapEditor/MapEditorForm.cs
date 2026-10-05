@@ -176,6 +176,10 @@ internal sealed partial class MapEditorForm : Form
 
     private void NewDocument()
     {
+        _encounterLevel = null;
+        _roomEncounterList.Items.Clear();
+        _corridorEncounterList.Items.Clear();
+        _encounterExpression.Clear();
         _nonForestMode = false;
         _forestTab.Enabled = true;
         _areas.Clear();
@@ -422,9 +426,11 @@ internal sealed partial class MapEditorForm : Form
             "Válassz pályaszámot, majd nyomd meg a Pálya betöltése gombot.\n" +
             "Az Erdős pálya fülön a gráf és a template-ek szerkeszthetők; a felső Mentés csak az erdei JSON-t menti.\n" +
             "A Labirintus pálya és Találkozások fülek saját mentőgombjai a MazeLevelConfiguration.cs fájlt írják.\n" +
+            "Találkozások: Új találkozás vagy Szerkesztés (dupla kattintás). A mezőkből automatikusan C# kifejezés készül.\n" +
+            "Az Alkalmazás a listát módosítja, a Találkozások mentése írja ki a változtatásokat a forrásfájlba.\n" +
             "Az NPC-k fülön az adott pálya sorai látszanak; az Összes pálya NPC-i jelölő minden sort mutat.\n" +
             "Az NPC-k fül CSV mentőgombjai a game-data.csv adott szekcióját írják.\n" +
-            "A térképen kijelölt képernyő AreaId-ja a találkozásokba és az NPC-elhelyezésbe is beilleszthető.\n" +
+            "A találkozás célképernyője, AreaId-ja és szobatípusa listából választható; az NPC-khez a kijelölt AreaId beilleszthető.\n" +
             "Erdei pálya betöltésekor a ForestLevelGraphs/level-x.json kerül a C# erdőprofilra; a Mentés ugyanoda ír.\n" +
             "A véletlen gráf seedje csak új, nem mentett gráf vagy változó képernyőszámú labirintus előnézeténél számít.\n" +
             "C# konfiguráció mentése után fordítsd újra és indítsd újra a szerkesztőt az előnézet frissítéséhez.",

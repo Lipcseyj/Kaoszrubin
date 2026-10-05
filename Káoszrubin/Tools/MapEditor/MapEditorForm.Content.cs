@@ -18,15 +18,13 @@ internal sealed partial class MapEditorForm
     private readonly ListBox _roomEncounterList = new() { Dock = DockStyle.Fill };
     private readonly ListBox _corridorEncounterList = new() { Dock = DockStyle.Fill };
     private readonly TextBox _encounterExpression = new() { Dock = DockStyle.Top, Multiline = true, Height = 94, ScrollBars = ScrollBars.Vertical };
-    private readonly ComboBox _encounterArea = new() { Width = 190, DropDownStyle = ComboBoxStyle.DropDownList };
-    private readonly Button _encounterTargetButton = new() { AutoSize = true };
-    private readonly Label _encounterTargetHint = new() { Width = 365, Height = 36, ForeColor = Color.DimGray };
     private readonly TabControl _encounterKinds = new() { Dock = DockStyle.Fill };
     private readonly Dictionary<string, DataGridView> _csvGrids = [];
     private readonly CheckBox _showAllNpcs = new() { Text = "Összes pálya NPC-i", AutoSize = true };
     private readonly ComboBox _npcEncounterSelector = new() { Width = 270, DropDownStyle = ComboBoxStyle.DropDownList };
     private IReadOnlyDictionary<string, string> _npcNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
     private bool _refreshingContent;
+    private int? _encounterLevel;
 
     private Control BuildTabs()
     {
@@ -145,34 +143,27 @@ internal sealed partial class MapEditorForm
         _encounterKinds.TabPages.Add(new TabPage("Szobai") { Controls = { _roomEncounterList } });
         _encounterKinds.TabPages.Add(new TabPage("Folyosói") { Controls = { _corridorEncounterList } });
         _encounterKinds.SelectedIndexChanged += (_, _) => ShowEncounterExpression();
-        _roomEncounterList.SelectedIndexChanged += (_, _) => ShowEncounterExpression();
-        _corridorEncounterList.SelectedIndexChanged += (_, _) => ShowEncounterExpression();
-        var bottom = new FlowLayoutPanel { Dock = DockStyle.Bottom, Height = 245,
-            FlowDirection = FlowDirection.TopDown, WrapContents = false };
-        bottom.Controls.Add(new Label { Text = "Kijelölt találkozás C# kifejezése", AutoSize = true });
-        _encounterExpression.Width = 365;
-        bottom.Controls.Add(_encounterExpression);
-        bottom.Controls.Add(_encounterTargetHint);
-        var row = new FlowLayoutPanel { Width = 370, Height = 67 };
-        row.Controls.Add(_encounterArea);
-        _encounterTargetButton.Click += (_, _) => InsertEncounterTarget();
-        row.Controls.Add(_encounterTargetButton);
-        row.Controls.Add(Button("Kijelölt", (_, _) =>
+        foreach (var list in new[] { _roomEncounterList, _corridorEncounterList })
         {
-            if (_selected is not null) { _encounterArea.SelectedItem = _selected.Id; InsertEncounterTarget(); }
-        }));
-        bottom.Controls.Add(row);
-        var actions = new FlowLayoutPanel { Dock = DockStyle.Bottom, Height = 72 };
-        actions.Controls.Add(Button("Sor alkalmazása", (_, _) => ApplyEncounterExpression()));
-        actions.Controls.Add(Button("Új találkozás", (_, _) => AddEncounter()));
+            list.HorizontalScrollbar = true;
+            list.SelectedIndexChanged += (_, _) => ShowEncounterExpression();
+            list.DoubleClick += (_, _) => EditEncounter();
+        }
+        var bottom = new Panel { Dock = DockStyle.Bottom, Height = 145, Padding = new Padding(0, 8, 0, 4) };
+        _encounterExpression.ReadOnly = true;
+        _encounterExpression.Dock = DockStyle.Fill;
+        bottom.Controls.Add(_encounterExpression);
+        bottom.Controls.Add(new Label { Text = "Kijelölt találkozás – generált C#", Dock = DockStyle.Top, Height = 24 });
+        var actions = new FlowLayoutPanel { Dock = DockStyle.Bottom, Height = 78 };
+        actions.Controls.Add(Button("Új találkozás…", (_, _) => AddEncounter()));
+        actions.Controls.Add(Button("Szerkesztés…", (_, _) => EditEncounter()));
         actions.Controls.Add(Button("Törlés", (_, _) => RemoveEncounter()));
         actions.Controls.Add(Button("Találkozások mentése", (_, _) => SaveEncounters()));
         panel.Controls.Add(_encounterKinds);
-        panel.Controls.Add(actions);
         panel.Controls.Add(bottom);
+        panel.Controls.Add(actions);
         return panel;
     }
-
     private Control BuildNpcTab()
     {
         var container = new Panel { Dock = DockStyle.Fill };
@@ -231,6 +222,7 @@ internal sealed partial class MapEditorForm
     private void RefreshAdditionalTabs()
     {
         _refreshingContent = true;
+        _encounterLevel = null;
         try
         {
             var level = (int)_level.Value;
@@ -256,14 +248,7 @@ internal sealed partial class MapEditorForm
             }
             LoadEncounterList(_roomEncounterList, EditorSources.Property(block, "RoomEncounters"));
             LoadEncounterList(_corridorEncounterList, EditorSources.Property(block, "CorridorEncounters"));
-            _encounterArea.Items.Clear();
-            _encounterArea.Items.Add("(automatikus)");
-            _encounterArea.Items.AddRange(_areas.Select(area => area.Id).ToArray());
-            _encounterArea.SelectedIndex = 0;
-            _encounterTargetButton.Text = _nonForestMode ? "Képernyőszám beillesztése" : "AreaId beillesztése";
-            _encounterTargetHint.Text = _nonForestMode
-                ? $"A széles labirintusban képernyőszámot használj. Biztosan létező képernyők: 1–{_minimumScreenCount}."
-                : "Az erdei gráfban a stabil AreaId-val célozhatsz képernyőt.";
+            _encounterLevel = level;
             var csv = new CsvSectionEditor(EditorSources.PathFor("Data/game-data.csv"));
             _npcNames = csv.Rows("NPC-k")
                 .Where(row => row.Length > 1 && !string.IsNullOrWhiteSpace(row[0]))
@@ -317,7 +302,7 @@ internal sealed partial class MapEditorForm
             FilterNpcRows();
         }
         catch (Exception exception) { MessageBox.Show(this, exception.Message, "Adatbetöltési hiba"); }
-        finally { _refreshingContent = false; }
+        finally { _refreshingContent = false; ShowEncounterExpression(); }
     }
 
     private void NpcIdCellValueChanged(object? sender, DataGridViewCellEventArgs args)
@@ -352,6 +337,7 @@ internal sealed partial class MapEditorForm
     {
         list.Items.Clear();
         foreach (var item in EditorSources.CollectionItems(property)) list.Items.Add(item);
+        if (list.Items.Count > 0) list.SelectedIndex = 0;
     }
 
     private ListBox CurrentEncounterList => _encounterKinds.SelectedIndex == 0
@@ -361,110 +347,107 @@ internal sealed partial class MapEditorForm
     {
         if (_refreshingContent) return;
         _encounterExpression.Text = CurrentEncounterList.SelectedItem?.ToString() ?? "";
-        var match = Regex.Match(_encounterExpression.Text, "AreaId\\s*=\\s*\"([^\"]+)\"");
-        var screen = Regex.Match(_encounterExpression.Text, @"(?:ScreenNumber\s*=|screen\s*:)\s*(\d+)");
-        var targetId = match.Success ? match.Groups[1].Value
-            : screen.Success ? "AREA_" + screen.Groups[1].Value : null;
-        _encounterArea.SelectedItem = targetId is not null && _encounterArea.Items.Contains(targetId)
-            ? targetId : "(automatikus)";
-        if (targetId is not null && _areas.FirstOrDefault(area => area.Id == targetId) is { } target)
-            SelectArea(target);
     }
 
-    private void InsertEncounterTarget()
+    private void AddEncounter() => OpenEncounterEditor(null);
+    private void EditEncounter()
     {
-        var expression = _encounterExpression.Text.Trim();
-        if (expression.Length == 0) return;
-        if (_nonForestMode)
-        {
-            var screen = _encounterArea.SelectedIndex;
-            if (screen > _minimumScreenCount)
-            {
-                MessageBox.Show(this,
-                    $"A(z) {screen}. képernyő nem minden futásban létezik. Ez a pálya legalább {_minimumScreenCount} képernyőt generál.",
-                    "Bizonytalan célképernyő");
-                return;
-            }
-            expression = RemoveAreaTarget(expression);
-            if (Regex.IsMatch(expression, @"\bscreen\s*:\s*\d+"))
-                expression = Regex.Replace(expression, @"\bscreen\s*:\s*\d+", "screen: " + (screen > 0 ? screen.ToString() : "null"));
-            else if (Regex.IsMatch(expression, @"\bScreenNumber\s*=\s*\d+"))
-                expression = Regex.Replace(expression, @"\bScreenNumber\s*=\s*\d+", "ScreenNumber = " + (screen > 0 ? screen.ToString() : "null"));
-            else if (screen > 0)
-                expression = AddWithField(expression, "ScreenNumber = " + screen);
-            _encounterExpression.Text = expression;
-            ApplyEncounterExpression();
-            return;
-        }
-        var field = "AreaId = \"" + _encounterArea.SelectedItem + "\"";
-        var hasArea = Regex.IsMatch(expression, @"\bAreaId\s*=\s*""[^""]*""");
-        if (_encounterArea.SelectedIndex <= 0)
-            expression = RemoveAreaTarget(expression);
-        else if (hasArea)
-            expression = Regex.Replace(expression, @"\bAreaId\s*=\s*""[^""]*""", field);
+        if (CurrentEncounterList.SelectedItem is string expression) OpenEncounterEditor(expression);
+    }
+
+    private IReadOnlyDictionary<string, string> EncounterMonsters() =>
+        new CsvSectionEditor(EditorSources.PathFor("Data/game-data.csv")).Rows("Ellenségek")
+            .Where(row => row.Length >= 2 && !string.IsNullOrWhiteSpace(row[0]))
+            .OrderBy(row => row[1], StringComparer.CurrentCulture)
+            .ToDictionary(row => row[0], row => row[1], StringComparer.Ordinal);
+
+    private EncounterEditorContext EncounterContext(bool roomList, IReadOnlyDictionary<string, string> monsters)
+    {
+        RequireEncounterLevel();
+        var layout = MazeLevelConfigurations.Get((int)_level.Value).Layout;
+        var forest = layout as ForestMazeLayoutConfiguration;
+        var guaranteed = forest is null ? _minimumScreenCount : _layoutSeed.Visible
+            ? forest.Graph.AreaCount.Minimum : _areas.Count;
+        var areaIds = _areas.Take(guaranteed).Select(area => area.Id).ToArray();
+        var kinds = new HashSet<RoomKind>();
+        var areaKinds = new Dictionary<string, IReadOnlyList<RoomKind>>();
+        if (forest is null) kinds.Add(RoomKind.Generic);
         else
-            expression = AddWithField(expression, field);
-        _encounterExpression.Text = expression;
-        ApplyEncounterExpression();
+        {
+            kinds.Add(RoomKind.Clearing);
+            var graph = new ExplicitForestAreaGraphConfiguration(_areas.ToArray(), _connections.ToArray(),
+                _areas[0].Id, _areas[^1].Id, _customTemplates.ToArray());
+            foreach (var area in _areas)
+            {
+                var localKinds = new List<RoomKind> { RoomKind.Clearing };
+                areaKinds[area.Id] = localKinds;
+                var profile = ForestAreaConfigurationResolver.Resolve(_previewBaseConfiguration, graph, area);
+                if (profile.BuildingCount.Maximum == 0) continue;
+                if (profile.ManorBuildingChance + profile.LabyrinthBuildingChance < 1) localKinds.Add(RoomKind.Cabin);
+                if (profile.ManorBuildingChance > 0) localKinds.Add(RoomKind.Manor);
+                if (profile.LabyrinthBuildingChance > 0) localKinds.Add(RoomKind.Labyrinth);
+                kinds.UnionWith(localKinds);
+            }
+        }
+        return new(forest is not null, roomList, guaranteed, areaIds, kinds.Order().ToArray(), monsters.Keys.ToHashSet(), areaKinds);
     }
 
-    private static string RemoveAreaTarget(string expression)
+    private void OpenEncounterEditor(string? expression)
     {
-        expression = Regex.Replace(expression, @"\s*with\s*\{\s*AreaId\s*=\s*""[^""]*""\s*\}", "");
-        expression = Regex.Replace(expression, @"\bAreaId\s*=\s*""[^""]*""\s*,\s*", "");
-        return Regex.Replace(expression, @",\s*AreaId\s*=\s*""[^""]*""", "");
+        try
+        {
+            var list = CurrentEncounterList;
+            var index = list.SelectedIndex;
+            var draft = expression is null ? new EncounterDraft("Same") : EncounterDraft.Parse(expression);
+            var monsters = EncounterMonsters();
+            using var dialog = new EncounterEditorDialog(draft, EncounterContext(list == _roomEncounterList, monsters), monsters);
+            if (dialog.ShowDialog(this) != DialogResult.OK) return;
+            if (expression is null) index = list.Items.Add(dialog.Expression);
+            else list.Items[index] = dialog.Expression;
+            list.SelectedIndex = index;
+            ShowEncounterExpression();
+            UpdateStatus("Találkozás alkalmazva. A fájlba íráshoz: Találkozások mentése.");
+        }
+        catch (Exception exception)
+        {
+            MessageBox.Show(this, exception.Message + "\nAz eredeti találkozáskifejezés változatlan maradt.", "Találkozás szerkesztése");
+        }
     }
 
-    private static string AddWithField(string expression, string field) =>
-        Regex.IsMatch(expression, @"\bwith\s*\{[^}]*\}\s*$")
-            ? Regex.Replace(expression, @"\}\s*$", ", " + field + " }")
-            : expression + " with { " + field + " }";
-
-    private void ApplyEncounterExpression()
+    private void RequireEncounterLevel()
     {
-        var list = CurrentEncounterList;
-        if (list.SelectedIndex < 0 || string.IsNullOrWhiteSpace(_encounterExpression.Text)) return;
-        var index = list.SelectedIndex;
-        list.Items[index] = _encounterExpression.Text.Trim();
-        list.SelectedIndex = index;
+        if (_encounterLevel != (int)_level.Value)
+            throw new InvalidOperationException("Előbb töltsd be a kiválasztott pályát a Pálya betöltése gombbal.");
     }
-
-    private void AddEncounter()
-    {
-        var list = CurrentEncounterList;
-        var index = list.Items.Add("Encounters.Solo(MonsterIds.Goblin, Amount.Few)");
-        list.SelectedIndex = index;
-    }
-
     private void RemoveEncounter()
     {
         var list = CurrentEncounterList;
-        if (list.SelectedIndex >= 0) list.Items.RemoveAt(list.SelectedIndex);
+        var index = list.SelectedIndex;
+        if (index < 0) return;
+        list.Items.RemoveAt(index);
+        if (list.Items.Count > 0) list.SelectedIndex = Math.Min(index, list.Items.Count - 1);
+        ShowEncounterExpression();
     }
 
     private void SaveEncounters()
     {
         try
         {
-            ApplyEncounterExpression();
-            if (_nonForestMode)
-                foreach (var expression in _roomEncounterList.Items.Cast<string>()
-                             .Concat(_corridorEncounterList.Items.Cast<string>()))
+            RequireEncounterLevel();
+            var monsters = EncounterMonsters();
+            var original = EditorSources.ReadLevel((int)_level.Value);
+            foreach (var (name, list) in new[] { ("RoomEncounters", _roomEncounterList), ("CorridorEncounters", _corridorEncounterList) })
+            {
+                var context = EncounterContext(list == _roomEncounterList, monsters);
+                var previous = EditorSources.CollectionItems(EditorSources.Property(original, name));
+                foreach (string expression in list.Items)
                 {
-                    var screen = Regex.Match(expression, @"(?:ScreenNumber\s*=|screen\s*:)\s*(\d+)");
-                    var area = Regex.Match(expression, "AreaId\\s*=\\s*\"([^\"]+)\"");
-                    if (screen.Success && screen.Groups[1].Value == "0")
-                        throw new InvalidDataException("A képernyőszám 1-től indul.");
-                    if (area.Success && !Regex.IsMatch(area.Groups[1].Value, @"^AREA_[1-9]\d*$"))
-                        throw new InvalidDataException($"A labirintus képernyőazonosítója AREA_1, AREA_2 stb. lehet: {area.Groups[1].Value}.");
-                    foreach (var number in new[]
-                    {
-                        screen.Success ? int.Parse(screen.Groups[1].Value) : 0,
-                        area.Success ? int.Parse(area.Groups[1].Value[5..]) : 0
-                    }.Where(value => value != 0))
-                        if (number > _minimumScreenCount)
-                            throw new InvalidDataException($"A(z) {number}. képernyő nem minden futásban létezik. Biztosan elérhető: 1–{_minimumScreenCount}.");
+                    EncounterDraft draft;
+                    try { draft = EncounterDraft.Parse(expression); }
+                    catch (FormatException) when (previous.Contains(expression)) { continue; }
+                    context.Validate(draft.Configuration());
                 }
+            }
             static string Expression(ListBox list) => "[" + Environment.NewLine +
                 string.Join("," + Environment.NewLine, list.Items.Cast<string>().Select(item => "                    " + item)) +
                 Environment.NewLine + "                ]";

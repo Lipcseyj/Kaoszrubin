@@ -1497,7 +1497,7 @@ NPC023;Vildar;C001;Friendly;Friendly;nem;igen;R001
 NpcId;Szint;Erő;Ügyesség;Egészség;Intelligencia;Alkalmazkodó;ÉleterőBónusz;MannaBónusz;Szín;HarciViselkedés;SpecializációId;TehetségId-k;Fegyver1Id;Fegyver2Id;PáncélId;VarázstárgyId-k;HátizsákId-k;FegyverjártasságId-k
 NPC020;3;5;9;6;6;;8;1;Green;Scout;;;W002;;A002;;T011|T001|T002;
 NPC021;7;9;5;9;6;STR;20;1;DarkCyan;Aggressive;;PERK-C003-1B|PERK-NPC021-OATHBLADE|PERK-C003-2B|PERK-C003-3A;RW001;;RA001;;T011|T011|T012|T012|T001|T001|T002|T002;SWORD|SWORD
-NPC022;9;3;9;4;11;INT;8;10;Magenta;Defensive;;;W001;;A001;;T011|T001|T002;
+NPC022;9;3;9;4;11;INT;8;10;Magenta;Defensive;;;W001;;A001;MW007;T011|T001|T002;
 NPC023;3;8;3;8;4;STR;5;0;Magenta;Aggressive;;;W004;;A002;;T011|T001|T002;
 
 #NPC találkozások

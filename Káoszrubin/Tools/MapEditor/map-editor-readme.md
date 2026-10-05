@@ -27,6 +27,38 @@ képernyő között hozható létre vagy törölhető él.
    A **Mentés másként** másik JSON-fájlt választ.
 6. A **Megnyitás** a szerkesztővel korábban mentett JSON-fájlt tölti vissza.
 
+## Találkozások szerkesztése
+
+1. Töltsd be a pályát, majd válaszd a **Találkozások** fül **Szobai** vagy **Folyosói** listáját.
+2. Az **Új találkozás…** üres űrlapot nyit; meglévő sorhoz a **Szerkesztés…** vagy dupla kattintás használható.
+3. Válassz típust: `Same`, `Solo`, `Mixed`, `LeaderGroup`, `Horde`, `MixedHorde`, `LeaderHorde`,
+   erdőben `TerrainAmbush`, illetve **Egyedi csoport**. Az utóbbinál tetszőleges számú ellenféltípus,
+   pontos minimum/maximum létszám és tag/vezér szerep állítható. Új tagot az üres táblázatsorral,
+   törlést a sor fejlécének kijelölésével és a Delete billentyűvel lehet megadni.
+4. Az ellenfelek a `game-data.csv` aktuális katalógusából választhatók. A mennyiségi kategóriák mellett
+   látható a darabszámtartomány. A csoportszám különbözik a csoportonkénti létszámtól.
+5. A cél automatikus, biztosan létező képernyőszám, vagy erdőben stabil `AreaId` lehet. A szobatípusokat
+   az aktuális terület erdőprofilja szűri; a folyosói listán nincs szobatípus-célzás. Terepi elhelyezés és
+   szobatípus szerinti elhelyezés közül egyet válassz. A rajtaütéshez terep és pozitív aktiválási távolság kell.
+6. A C# előnézet minden változtatásra frissül. Az **Alkalmazás** a listába teszi a módosítást;
+   a **Mégse** elveti. A **Törlés** a kijelölt találkozást veszi ki a listából.
+7. A **Találkozások mentése** írja ki mindkét lista változásait a `World/MazeLevelConfiguration.cs`
+   fájl megfelelő pályájába. Ezután fordítsd újra a játékot/szerkesztőt. A felső **Mentés** továbbra is
+   az erdei gráf JSON-jához tartozik.
+
+A szöveges kifejezés csak olvasható előnézet. A szerkesztő az ismert deklaratív C# formákat olvassa,
+nem futtat beírt kódot. Ismeretlen egyedi kifejezést változatlanul megőriz, és jelzi, ha nem nyitható
+meg űrlapként. A meglévő sorok puszta kijelölése vagy az ablak megszakítása nem írja át a forrást.
+
+A találkozásszerkesztő tesztjei (Windows, .NET SDK):
+
+```powershell
+dotnet run --project Tools\MapEditor.Tests\MapEditor.Tests.csproj
+```
+
+Az editor a telepített .NET SDK Roslyn könyvtárait használja a C# szintaxis olvasására; ezek a
+fordításkor az editor mellé másolódnak, külön NuGet-csomag telepítése nem szükséges.
+
 Az **Oldalpanel** gombbal a jobb oldali panel bármikor elrejthető vagy visszahozható. A szerkesztő
 maximalizálva indul, ezért kisebb vagy nagyított kijelzőn sem kellene lelógnia.
 Az erdei fül alján lévő **Terephatás/rajtaütés overlay** csak az előnézet megjelenítését érinti,

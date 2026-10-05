@@ -32,13 +32,18 @@ internal static class EditorSources
     {
         var path = PathFor("World/MazeLevelConfiguration.cs");
         var source = File.ReadAllText(path);
+        var updatedSource = UpdateLevelSource(source, level, properties);
+        if (updatedSource != source) File.WriteAllText(path, updatedSource);
+    }
+
+    public static string UpdateLevelSource(string source, int level, IReadOnlyDictionary<string, string> properties)
+    {
         var original = LevelBlock(source, level);
         var updated = original;
         foreach (var (name, value) in properties)
             if (Property(updated, name) != value.Trim())
                 updated = ReplaceProperty(updated, name, value);
-        if (updated == original) return;
-        File.WriteAllText(path, source.Replace(original, updated));
+        return updated == original ? source : source.Replace(original, updated);
     }
 
     public static string? Property(string block, string name)
