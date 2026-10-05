@@ -10,7 +10,10 @@
           "X": 0,
           "Y": 0
         },
-        "TemplateId": "mixed-forest"
+        "TemplateId": "mixed-forest",
+        "Overrides": {
+          "ManorBuildingChance": 0.55
+        }
       },
       {
         "Id": "WHISPERING_WOOD",

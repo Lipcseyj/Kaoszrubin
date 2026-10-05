@@ -388,7 +388,8 @@ public sealed partial class Game
         else caster.SpendMana(manaCost);
         _renderer.CharacterSheet.RefreshBattleStatusRows();
 
-        if (inCombat)
+        // A pálca aktiválásához csak a varázsszó kell; lekötésben sem dobunk varázslási kudarcot.
+        if (inCombat && castingItem?.Kind != MagicItemKind.Wand)
         {
             var engaged = _activeBattle?.IsEngaged(caster) == true;
             var failureChance = SpellcastingRules.CombatFailureChance(caster, engaged);

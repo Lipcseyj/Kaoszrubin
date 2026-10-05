@@ -1069,7 +1069,7 @@ public sealed class MainMenu
             Text("🛡️ Zárt alakzatban az élő első sor az alakzat eleje felől védi a mögötte álló társat. Oldalról és hátulról a hátsó sor továbbra is támadható."),
             Text("👣 Az alakzatmozgás csak akkor lehetséges, ha minden célmező szabad, és a mozdulat egyik fennálló közelharci lekötést sem szakítja meg."),
             Text("🏃 A sikeres visszavonuláshoz a leglassabb élő csapattagnak is gyorsabbnak kell lennie a leggyorsabb üldözőnél vagy az ellenségnek kellően távol kell lennie."),
-            Text("✨ Harci varázslási kudarc: max(0, 30 - Intelligencia - Ügyesség)%; a manna és az akció elvész."),
+            Text("✨ Lekötésben a saját varázslat és a tekercs kudarcot vallhat; a varázspálca ilyenkor is biztosan elsül, egy töltet árán."),
             Text("🎯 A fegyveres találat: 1d20 + Ügyesség + módosítók az ellenfél 11 + Gyorsaság értéke ellen. A természetes 1 mindig hibázik, a természetes 20 mindig talál és kritikus."),
             Text("⏳ A csata alatt a világ ideje megáll."),
             Blank(),

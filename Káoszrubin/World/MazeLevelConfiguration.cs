@@ -642,6 +642,7 @@ public static class MazeLevelConfigurations
                     Encounters.Solo(enemyId: MonsterIds.Vadkan, count: Amount.Handful, movement: EnemyMovementProfile.Wander) with { AreaId = "MOSS_GATE" },
                     Encounters.Horde(enemyId: MonsterIds.Vadkan, groups: Amount.Handful, size: Amount.Several)
                 ],
+            },
             [7] = new()
             {
                 Level = 7,
