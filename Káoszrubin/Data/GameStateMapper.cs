@@ -87,7 +87,7 @@ internal sealed class GameStateMapper
                 enemy.PreparedAbilityTargetPosition, enemy.SummonerId,
                  enemy.GrantsRewardsAndLoot, enemy.PreparedAbilityRequiresHeavyStagger,
                  enemy.IsAmbushing, enemy.AmbushTriggerDistance,
-                 enemy.SpellResistanceEstimates.ToList())).ToList(),
+                 enemy.SpellResistanceEstimates.ToList(), enemy.AmbushSpottedByParty)).ToList(),
             Corpses = maze.Corpses.Select(corpse => new CorpseSaveData(corpse.Position, corpse.FormerName,
                 corpse is PartyMemberCorpse partyCorpse ? CharacterIndex(partyCorpse.Character) : null,
                 (corpse as MonsterCorpse)?.EnemyDefinitionId, (corpse as MonsterCorpse)?.IsSearched ?? false,
@@ -243,6 +243,7 @@ internal sealed class GameStateMapper
                 savedEnemy.SearchVisitedPositions);
             enemy.ConfigureGroup(savedEnemy.GroupId, savedEnemy.GroupRole);
             enemy.ConfigureAmbush(savedEnemy.IsAmbushing, savedEnemy.AmbushTriggerDistance);
+            if (savedEnemy.AmbushSpottedByParty) enemy.MarkAmbushSpottedByParty();
             if (savedEnemy.SummonerId is { } summonerId)
                 enemy.ConfigureSummon(summonerId, savedEnemy.GrantsRewardsAndLoot);
             enemy.RestoreHordeRoaming(savedEnemy.HordeDestination,

@@ -23,6 +23,7 @@ internal static class Program
             ("Az űrlap betöltése és alkalmazása megőrzi a találkozást", DialogRoundTrip),
             ("Az űrlap módosítása új C# kifejezést készít", DialogEditing),
             ("Az egyedi csoportban tagok hozzáadhatók, módosíthatók és törölhetők", CustomMembersEditing),
+            ("A szerep legördülőből is módosítható", MemberRoleDropdown),
             ("A generált kifejezések C# fordítóval is érvényesek", CompileExpressions),
             ("A találkozások mentése csak a kijelölt listát módosítja", SaveAndReload)
         };
@@ -233,6 +234,37 @@ internal static class Program
         Assert(!Field<Button>(dialog, "_accept").Enabled, "A részben kitöltött sort elfogadja.");
         emptyRow.Cells[0].Value = null;
         Assert(Field<Button>(dialog, "_accept").Enabled, "A kiürített sor továbbra is hibát okoz.");
+    }
+
+    private static void MemberRoleDropdown()
+    {
+        using var dialog = new EncounterEditorDialog(new EncounterDraft(EncounterDraft.Custom), Context(), Monsters);
+        dialog.ShowInTaskbar = false;
+        dialog.Opacity = 0;
+        dialog.Show();
+        Application.DoEvents();
+        var grid = Field<FlowLayoutPanel>(dialog, "_fields").Controls.OfType<DataGridView>().Single();
+        var errors = new List<string>();
+        grid.DataError += (_, e) => errors.Add(e.Exception?.ToString() ?? e.Context.ToString());
+        grid.CurrentCell = grid.Rows[grid.NewRowIndex].Cells[0];
+        Assert(grid.BeginEdit(true), "Az új csoporttag nem szerkeszthető.");
+        ((ComboBox)grid.EditingControl!).SelectedValue = MonsterIds.GoblinFőnök;
+        grid.NotifyCurrentCellDirty(true);
+        Assert(grid.EndEdit(), "Az új főnök nem menthető.");
+        grid.CurrentCell = grid.Rows[1].Cells[3];
+        Assert(grid.BeginEdit(true), "A szerep nem szerkeszthető.");
+        var editor = (ComboBox)grid.EditingControl!;
+        editor.SelectedIndex = editor.FindStringExact("Leader");
+        grid.NotifyCurrentCellDirty(true);
+        Assert(grid.EndEdit(), "A szerepválasztás nem menthető: " + string.Join("; ", errors));
+        Application.DoEvents();
+        Assert(errors.Count == 0, string.Join("; ", errors));
+        Assert(Equals(grid.Rows[1].Cells[3].Value, EnemyGroupRole.Leader), "A Leader visszaállt.");
+        var configuration = EncounterDraft.Parse(Field<TextBox>(dialog, "_preview").Text).Configuration();
+        Assert(configuration.Members.Count == 2 && configuration.Members[1].EnemyId == MonsterIds.GoblinFőnök &&
+            configuration.Members[1].Role == EnemyGroupRole.Leader, "Az új főnök és szerepe nem került az előnézetbe.");
+        Assert(Field<Button>(dialog, "_accept").Enabled, "A főnök hozzáadása letiltotta az alkalmazást.");
+        dialog.Close();
     }
 
     private static void SaveAndReload()

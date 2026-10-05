@@ -201,7 +201,11 @@ internal sealed class EncounterEditorDialog : Form
             });
             grid.Columns.Add("Min", "Minimum");
             grid.Columns.Add("Max", "Maximum");
-            grid.Columns.Add(new DataGridViewComboBoxColumn { Name = "Role", HeaderText = "Szerep", DataSource = Enum.GetValues<EnemyGroupRole>() });
+            grid.Columns.Add(new DataGridViewComboBoxColumn
+            {
+                Name = "Role", HeaderText = "Szerep", ValueType = typeof(EnemyGroupRole),
+                DataSource = Enum.GetValues<EnemyGroupRole>()
+            });
             foreach (var member in (IReadOnlyList<EnemyGroupMemberConfiguration>)value!)
                 grid.Rows.Add(member.EnemyId, member.Count.Minimum, member.Count.Maximum, member.Role);
             grid.DefaultValuesNeeded += (_, e) =>

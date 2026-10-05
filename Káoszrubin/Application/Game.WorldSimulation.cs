@@ -117,21 +117,21 @@ public sealed partial class Game
         {
             ScheduleNextEnemyMove(enemy, now);
             if (enemy.ConsumeExplorationSpellActionSkip()) continue;
-            var proximityTarget = FindAmbushProximityTarget(enemy);
-            var visibleTarget = FindVisibleEnemyTarget(enemy);
-            var detectedTarget = proximityTarget ?? visibleTarget ?? FindSensedEnemyTarget(enemy);
-            if (enemy.IsAmbushing && detectedTarget is { } ambushTarget)
+            if (enemy.IsAmbushing)
             {
-                var avatar = _maze.PartyMembers.FirstOrDefault(member =>
-                    member.Character.Id == ambushTarget.Character.Id);
-                if (avatar is null) StartBattle(enemy);
-                else StartBattle(avatar, enemy);
-                return true;
+                if (FindAmbushProximityTarget(enemy) is { } ambushTarget)
+                {
+                    var avatar = _maze.PartyMembers.FirstOrDefault(member =>
+                        member.Character.Id == ambushTarget.Character.Id);
+                    if (avatar is null) StartBattle(enemy, ambushTriggeredByEnemy: true);
+                    else StartBattle(avatar, enemy, ambushTriggeredByEnemy: true);
+                    return true;
+                }
+                continue;
             }
+            var detectedTarget = FindVisibleEnemyTarget(enemy) ?? FindSensedEnemyTarget(enemy);
             if (detectedTarget is not null)
                 AlertEnemyGroup(enemy, detectedTarget.Value.Character.Id, detectedTarget.Value.Position);
-            else if (enemy.IsAmbushing)
-                continue;
             if (enemy.ConsumeReactionDelay()) continue;
 
             Direction? direction;
@@ -238,11 +238,31 @@ public sealed partial class Game
     private (LiveCharacter Character, Position Position)? FindAmbushProximityTarget(Enemy enemy)
     {
         if (!enemy.IsAmbushing || enemy.AmbushTriggerDistance <= 0) return null;
-        return LivingPartyWithPositions().Where(candidate =>
-                EnemyTargeting.CanDetectDuringExploration(candidate.Character) &&
-                Manhattan(enemy.Position, candidate.Position) <= enemy.AmbushTriggerDistance)
-            .OrderBy(candidate => Manhattan(enemy.Position, candidate.Position))
-            .FirstOrDefault() is { Character: not null } target ? target : null;
+        foreach (var candidate in LivingPartyWithPositions()
+                     .Where(candidate => EnemyTargeting.CanDetectDuringExploration(candidate.Character) &&
+                         Manhattan(enemy.Position, candidate.Position) <= enemy.AmbushTriggerDistance)
+                     .OrderBy(candidate => Manhattan(enemy.Position, candidate.Position)))
+            if (EnemyDistanceMap(candidate.Position).TryGetValue(enemy.Position, out var distance) &&
+                distance <= enemy.AmbushTriggerDistance)
+                return candidate;
+        return null;
+    }
+
+    private void MarkSpottedAmbushGroups()
+    {
+        var spotted = _maze.Enemies.Where(enemy => enemy.IsAmbushing &&
+            _fogOfWar.IsEnemyVisible(enemy.Id, enemy.Position)).ToArray();
+        foreach (var enemy in spotted)
+        {
+            if (enemy.GroupId is null)
+            {
+                enemy.MarkAmbushSpottedByParty();
+                continue;
+            }
+            foreach (var member in _maze.Enemies.Where(member => member.IsAmbushing &&
+                         member.GroupId == enemy.GroupId))
+                member.MarkAmbushSpottedByParty();
+        }
     }
 
     private (LiveCharacter Character, Position Position)? FindSensedEnemyTarget(Enemy enemy)

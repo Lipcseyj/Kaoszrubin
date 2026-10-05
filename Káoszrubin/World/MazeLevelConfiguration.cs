@@ -59,7 +59,7 @@ public sealed class IntRangeTypeConverter : ExpandableObjectConverter
 /// Jól olvasható mennyiségi kategóriák pályakonfigurációkhoz. A pontos tartományokat az
 /// <see cref="AmountRanges.Range"/> adja meg.
 /// </summary>
-public enum Amount { One, Few, Pair, TwoThree, Handful, Several, Pack, Lots, Horde }
+public enum Amount { One, Few, Pair, TwoThree, Handful, Band, Several, Pack, Lots, Horde }
 
 /// <summary>Az <see cref="Amount"/> kategóriákat konkrét, véletleníthető tartományokká alakítja.</summary>
 public static class AmountRanges
@@ -72,6 +72,7 @@ public static class AmountRanges
         Amount.Pair => new(2, 2),
         Amount.TwoThree => new(2, 3),
         Amount.Handful => new(2, 4),
+        Amount.Band => new(3, 6),
         Amount.Several => new(5, 9),
         Amount.Pack => new(10, 15),
         Amount.Lots => new(16, 25),
@@ -634,14 +635,40 @@ public static class MazeLevelConfigurations
                     Encounters.LeaderGroup(MonsterIds.OrkSámán, MonsterIds.Ork,
                         Amount.Few, Amount.Several) with
                         { AreaId = "LOST_MANOR", TargetRoomKind = RoomKind.Manor },
-                    new EnemyEncounterConfiguration(GroupCount: new IntRange(3, 4), Members: [new(MonsterIds.Goblin, new IntRange(4, 6), EnemyGroupRole.Member), new(MonsterIds.GoblinÍjász, new IntRange(2, 4), EnemyGroupRole.Member), new(MonsterIds.GoblinVajákos, new IntRange(2, 4), EnemyGroupRole.Member)], MovementProfile: EnemyMovementProfile.Stationary) with { AreaId = "MOSS_GATE" }
+                    new EnemyEncounterConfiguration(GroupCount: new IntRange(3, 4), Members: [new(MonsterIds.Goblin, new IntRange(4, 6), EnemyGroupRole.Member), new(MonsterIds.GoblinÍjász, new IntRange(2, 4), EnemyGroupRole.Member), new(MonsterIds.GoblinVajákos, new IntRange(2, 4), EnemyGroupRole.Member), new(MonsterIds.GoblinFőnök, new IntRange(1, 1), EnemyGroupRole.Leader)], MovementProfile: EnemyMovementProfile.Stationary) with { AreaId = "MOSS_GATE" },
+                    Encounters.LeaderGroup(leaderId: MonsterIds.KáoszmágusTanítvány, followerId: MonsterIds.Útonálló, groups: Amount.TwoThree, followers: Amount.Several) with { AreaId = "WHISPERING_WOOD" },
+                    Encounters.Mixed(firstEnemyId: MonsterIds.GoblinÍjász, firstCount: Amount.TwoThree, secondEnemyId: MonsterIds.Útonálló, secondCount: Amount.Band, groups: Amount.Few) with { AreaId = "RAVEN_CROSSING" },
+                    Encounters.LeaderGroup(leaderId: MonsterIds.Ghoul, followerId: MonsterIds.PáncélozottZombi, groups: Amount.Few, followers: Amount.Band) with { TargetRoomKind = RoomKind.Manor, AreaId = "LOST_MANOR" },
+                    new EnemyEncounterConfiguration(GroupCount: new IntRange(1, 2), Members: [new(MonsterIds.Ghoul, new IntRange(1, 2), EnemyGroupRole.Member), new(MonsterIds.Csontváz, new IntRange(2, 3), EnemyGroupRole.Member), new(MonsterIds.CsontvázÍjász, new IntRange(2, 3), EnemyGroupRole.Member), new(MonsterIds.Zombi, new IntRange(3, 5), EnemyGroupRole.Member), new(MonsterIds.KáoszmágusTanítvány, new IntRange(1, 1), EnemyGroupRole.Leader)]) with { AreaId = "LOST_MANOR" },
+                    Encounters.LeaderGroup(leaderId: MonsterIds.KáoszmágusTanítvány, followerId: MonsterIds.GyíkemberPortyázó, groups: Amount.TwoThree, followers: Amount.Band) with { AreaId = "BLACKWATER" },
+                    new EnemyEncounterConfiguration(GroupCount: new IntRange(1, 1), Members: [new(MonsterIds.Káoszpap, new IntRange(1, 1), EnemyGroupRole.Leader), new(MonsterIds.KáoszmágusTanítvány, new IntRange(1, 1), EnemyGroupRole.Member), new(MonsterIds.GoblinVajákos, new IntRange(1, 2), EnemyGroupRole.Member), new(MonsterIds.GoblinÍjász, new IntRange(2, 4), EnemyGroupRole.Member), new(MonsterIds.GyíkemberPortyázó, new IntRange(3, 5), EnemyGroupRole.Member)], TargetRoomKind: RoomKind.Labyrinth),
+                    new EnemyEncounterConfiguration(GroupCount: new IntRange(1, 1), Members: [new(MonsterIds.Káoszpap, new IntRange(1, 2), EnemyGroupRole.Leader), new(MonsterIds.Martalóc, new IntRange(4, 6), EnemyGroupRole.Member), new(MonsterIds.GyíkemberPortyázó, new IntRange(3, 4), EnemyGroupRole.Member), new(MonsterIds.Kígyóember, new IntRange(1, 2), EnemyGroupRole.Member)]) with { AreaId = "WINDLESS_GLADE" },
+                    Encounters.Mixed(firstEnemyId: MonsterIds.Goblin, firstCount: Amount.TwoThree, secondEnemyId: MonsterIds.Útonálló, secondCount: Amount.TwoThree, groups: Amount.Handful),
+                    Encounters.LeaderGroup(leaderId: MonsterIds.SötétDruida, followerId: MonsterIds.Óriásdenevér, groups: Amount.Few, followers: Amount.Several)
                 ],
                 CorridorEncounters = [
                     Encounters.Horde(MonsterIds.Farkas, Amount.Handful, Amount.Handful),
                     Encounters.Horde(enemyId: MonsterIds.HegyiHiúz, groups: Amount.Handful, size: Amount.TwoThree),
                     Encounters.MixedHorde(firstEnemyId: MonsterIds.Goblin, firstCount: Amount.Several, secondEnemyId: MonsterIds.GoblinÍjász, secondCount: Amount.Few, groups: Amount.Handful) with { AreaId = "MOSS_GATE" },
                     Encounters.Solo(enemyId: MonsterIds.Vadkan, count: Amount.Handful, movement: EnemyMovementProfile.Wander) with { AreaId = "MOSS_GATE" },
-                    Encounters.Horde(enemyId: MonsterIds.Vadkan, groups: Amount.Handful, size: Amount.Several)
+                    Encounters.Horde(enemyId: MonsterIds.Vadkan, groups: Amount.Handful, size: Amount.Several),
+                    Encounters.Same(enemyId: MonsterIds.HegyiHiúz, groups: Amount.Few, size: Amount.TwoThree) with { TriggerDistance = 3, Posture = EnemyEncounterPosture.Ambush, TargetTerrainTags = TerrainTag.Bush | TerrainTag.Undergrowth | TerrainTag.DenseUndergrowth | TerrainTag.ThicketEdge, AreaId = "WHISPERING_WOOD" },
+                    Encounters.Horde(enemyId: MonsterIds.HegyiHiúz, groups: Amount.TwoThree, size: Amount.TwoThree) with { AreaId = "WHISPERING_WOOD" },
+                    Encounters.Mixed(firstEnemyId: MonsterIds.Útonálló, firstCount: Amount.Handful, secondEnemyId: MonsterIds.Orgyilkos, secondCount: Amount.Few, groups: Amount.TwoThree) with { Posture = EnemyEncounterPosture.Ambush, TriggerDistance = 4, TargetTerrainTags = TerrainTag.Bush | TerrainTag.Undergrowth | TerrainTag.DenseUndergrowth | TerrainTag.ThicketEdge, AreaId = "WHISPERING_WOOD" },
+                    Encounters.Same(enemyId: MonsterIds.Orgyilkos, groups: Amount.Handful, size: Amount.Handful) with { Posture = EnemyEncounterPosture.Ambush, TriggerDistance = 4, AreaId = "RAVEN_CROSSING", TargetTerrainTags = TerrainTag.Bush | TerrainTag.Undergrowth | TerrainTag.DenseUndergrowth | TerrainTag.Marsh | TerrainTag.ThicketEdge },
+                    Encounters.LeaderHorde(leaderId: MonsterIds.Káoszpap, followerId: MonsterIds.Martalóc, groups: Amount.Pair, followers: Amount.Band) with { AreaId = "RAVEN_CROSSING" },
+                    Encounters.MixedHorde(firstEnemyId: MonsterIds.Martalóc, firstCount: Amount.Band, secondEnemyId: MonsterIds.Útonálló, secondCount: Amount.Several, groups: Amount.Pair) with { AreaId = "OLD_PINES" },
+                    Encounters.Mixed(firstEnemyId: MonsterIds.Orgyilkos, firstCount: Amount.TwoThree, secondEnemyId: MonsterIds.GoblinÍjász, secondCount: Amount.Band, groups: Amount.Few) with { Posture = EnemyEncounterPosture.Ambush, TriggerDistance = 5, TargetTerrainTags = TerrainTag.Bush | TerrainTag.Undergrowth | TerrainTag.DenseUndergrowth | TerrainTag.ThicketEdge, AreaId = "OLD_PINES" },
+                    Encounters.Mixed(firstEnemyId: MonsterIds.Útonálló, firstCount: Amount.Band, secondEnemyId: MonsterIds.OrkÍjász, secondCount: Amount.TwoThree, groups: Amount.Few, movement: EnemyMovementProfile.Wander) with { Behavior = EnemyEncounterBehavior.Horde, AreaId = "LOST_MANOR" },
+                    Encounters.Mixed(firstEnemyId: MonsterIds.Óriáspióca, firstCount: Amount.Band, secondEnemyId: MonsterIds.MocsáriVipera, secondCount: Amount.Band, groups: Amount.TwoThree) with { Posture = EnemyEncounterPosture.Ambush, TargetTerrainTags = TerrainTag.Marsh, TriggerDistance = 3 },
+                    Encounters.Mixed(firstEnemyId: MonsterIds.MérgesVarangy, firstCount: Amount.TwoThree, secondEnemyId: MonsterIds.MocsáriKrokodil, secondCount: Amount.TwoThree, groups: Amount.Few) with { TargetTerrainTags = TerrainTag.Marsh, AreaId = "BLACKWATER", TriggerDistance = 4, Posture = EnemyEncounterPosture.Ambush },
+                    Encounters.LeaderGroup(leaderId: MonsterIds.Óriáskrokodil, followerId: MonsterIds.MocsáriKrokodil, groups: Amount.One, followers: Amount.Several) with { TriggerDistance = 4, TargetTerrainTags = TerrainTag.Marsh, AreaId = "BLACKWATER" },
+                    Encounters.LeaderGroup(leaderId: MonsterIds.MocsáriOgre, followerId: MonsterIds.Goblin, groups: Amount.Few, followers: Amount.Several) with { TargetTerrainTags = TerrainTag.Marsh },
+                    Encounters.Mixed(firstEnemyId: MonsterIds.MocsáriVipera, firstCount: Amount.TwoThree, secondEnemyId: MonsterIds.MérgesVarangy, secondCount: Amount.Handful, groups: Amount.Band) with { TargetTerrainTags = TerrainTag.Marsh },
+                    Encounters.LeaderHorde(leaderId: MonsterIds.SötétDruida, followerId: MonsterIds.Kobold, groups: Amount.Few, followers: Amount.Several) with { AreaId = "THORN_MAZE" },
+                    Encounters.Mixed(firstEnemyId: MonsterIds.SötétDruida, firstCount: Amount.One, secondEnemyId: MonsterIds.Orgyilkos, secondCount: Amount.TwoThree, groups: Amount.Few) with { Posture = EnemyEncounterPosture.Ambush, TriggerDistance = 3, TargetTerrainTags = TerrainTag.Bush | TerrainTag.Undergrowth | TerrainTag.DenseUndergrowth | TerrainTag.ThicketEdge, AreaId = "THORN_MAZE" },
+                    Encounters.LeaderHorde(leaderId: MonsterIds.Lidércfarkas, followerId: MonsterIds.Farkas, groups: Amount.Few, followers: Amount.Band) with { AreaId = "WINDLESS_GLADE" },
+                    Encounters.Horde(enemyId: MonsterIds.Óriásdenevér, groups: Amount.Pair, size: Amount.Pack)
                 ],
             },
             [7] = new()

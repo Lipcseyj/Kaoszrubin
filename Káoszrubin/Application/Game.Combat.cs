@@ -35,23 +35,30 @@ public sealed partial class Game
                 "XIV. fejezet — A Rubin Útja", StoryNarratives.TwelveKeysStory);
     }
 
-    private void StartBattle(Enemy enemy, bool enemyStrikesFirst = false)
-        => StartBattle(PartyLeader, enemy, enemyStrikesFirst);
+    private void StartBattle(Enemy enemy, bool enemyStrikesFirst = false,
+        bool ambushTriggeredByEnemy = false)
+        => StartBattle(PartyLeader, enemy, enemyStrikesFirst, ambushTriggeredByEnemy);
 
-    private void StartBattle(PartyMemberAvatar member, Enemy enemy, bool enemyStrikesFirst = false)
-        => StartBattle(member.Character, enemy, enemyStrikesFirst);
+    private void StartBattle(PartyMemberAvatar member, Enemy enemy, bool enemyStrikesFirst = false,
+        bool ambushTriggeredByEnemy = false)
+        => StartBattle(member.Character, enemy, enemyStrikesFirst, ambushTriggeredByEnemy);
 
-    private void StartBattle(LiveCharacter initiatingCharacter, Enemy initiatingEnemy, bool enemyStrikesFirst)
+    private void StartBattle(LiveCharacter initiatingCharacter, Enemy initiatingEnemy, bool enemyStrikesFirst,
+        bool ambushTriggeredByEnemy = false)
     {
         if (_battleStarted || !initiatingCharacter.IsAlive || initiatingEnemy.CurrentHitPoints <= 0) return;
         InterruptNpcChestOrderForBattle();
         const int ambushInitiativeBonus = 3;
         var ambushGroupId = initiatingEnemy.IsAmbushing ? initiatingEnemy.GroupId : null;
-        var ambushingEnemyIds = _maze.Enemies.Where(enemy => enemy.IsAmbushing &&
+        var ambushingGroup = _maze.Enemies.Where(enemy => enemy.IsAmbushing &&
                 (enemy == initiatingEnemy || ambushGroupId is not null && enemy.GroupId == ambushGroupId))
-            .Select(enemy => enemy.Id).ToHashSet();
-        var ambushTriggered = ambushingEnemyIds.Count > 0;
-        foreach (var enemy in _maze.Enemies.Where(enemy => ambushingEnemyIds.Contains(enemy.Id)))
+            .ToArray();
+        var ambushTriggered = ambushingGroup.Length > 0 &&
+                              (ambushTriggeredByEnemy || ambushingGroup.All(enemy => !enemy.AmbushSpottedByParty));
+        var ambushingEnemyIds = ambushTriggered
+            ? ambushingGroup.Select(enemy => enemy.Id).ToHashSet()
+            : [];
+        foreach (var enemy in ambushingGroup)
             enemy.ConfigureAmbush(false);
         _nextExplorationStatusTickUtc = DateTime.MaxValue;
         CheckBossDiscovery([initiatingEnemy], initiatingCharacter);
@@ -167,7 +174,7 @@ public sealed partial class Game
         TryLogPartyComments(PartySituationIds.BattleStarted);
         if (ambushTriggered)
             preparationEntries.Insert(0, new BattleLogEntry(
-                $"🌿 RAJTAÜTÉS: a rejtőző ellenségek +{ambushInitiativeBonus} kezdeményezést kapnak; ingyenes támadás nincs.",
+                $"🌿 RAJTAÜTÉS: a rajtaütők +{ambushInitiativeBonus} kezdeményezést kapnak; ingyenes támadás nincs.",
                 BattleLogKind.Information));
         PresentBattleEntries(preparationEntries);
         foreach (var protectionMessage in protectionMessages)

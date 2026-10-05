@@ -728,6 +728,7 @@ public sealed partial class Game
             CharacterClassRules.HearingRange(entry.Character),
             CharacterClassRules.DetectionBonus(entry.Character))).ToArray();
         var revealed = _fogOfWar.UpdatePartyVisibility(_maze, sources, advanceEnemyMemory);
+        MarkSpottedAmbushGroups();
         if (IsLevelExitDiscovered())
         {
             _backgroundMusic.MarkExitDiscovered();

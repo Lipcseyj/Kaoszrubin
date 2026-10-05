@@ -53,6 +53,7 @@ public abstract class Enemy(Position position) : WorldObject(position)
     public EnemyAlertness Alertness { get; private set; } = EnemyAlertness.Alert;
     public bool IsAmbushing { get; private set; }
     public int AmbushTriggerDistance { get; private set; }
+    public bool AmbushSpottedByParty { get; private set; }
     public EnemySearchRole SearchRole { get; private set; }
     public Position HomePosition { get; private set; } = position;
     public Position? LastKnownTargetPosition { get; private set; }
@@ -400,11 +401,17 @@ public abstract class Enemy(Position position) : WorldObject(position)
     {
         IsAmbushing = active;
         AmbushTriggerDistance = active ? Math.Max(1, triggerDistance) : 0;
+        AmbushSpottedByParty = false;
         if (active)
         {
             Alertness = EnemyAlertness.Alert;
             ResetPursuit();
         }
+    }
+
+    public void MarkAmbushSpottedByParty()
+    {
+        if (IsAmbushing) AmbushSpottedByParty = true;
     }
 
     public int EffectiveVisionRange => Math.Max(1, (Alertness switch
