@@ -103,5 +103,7 @@ public enum QuestId
     VillagerMeat,
 
     // NPC002 - Szörnyvadász
-    MonsterHunterOrcTrail
+    MonsterHunterOrcTrail,
+    Quest046,
+    Quest047,
 }

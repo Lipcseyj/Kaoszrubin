@@ -202,6 +202,10 @@ internal sealed partial class MapEditorForm
                 };
             var actions = new FlowLayoutPanel { Dock = DockStyle.Bottom, Height = 69, AutoScroll = true };
             actions.Controls.Add(Button("Új sor", (_, _) => AddCsvRow(section)));
+            actions.Controls.Add(Button("Utolsó sor másolása", (_, _) =>
+            {
+                if (!CopyLastVisibleCsvRow(grid, section)) AddCsvRow(section);
+            }));
             actions.Controls.Add(Button("Kijelölt sor törlése", (_, _) =>
             {
                 if (grid.CurrentRow is { IsNewRow: false } row) grid.Rows.Remove(row);
@@ -511,19 +515,7 @@ internal sealed partial class MapEditorForm
     {
         var grid = _csvGrids[section];
         var values = Enumerable.Repeat<object>("", grid.Columns.Count).ToArray();
-        var prefix = section switch
-        {
-            "NPC-k" => "NPC", "NPC találkozások" => "NPCE", "NPC küldetések" => "NPCQ",
-            "NPC párbeszédek" => "NPCD", "NPC történeti választások" => "NSC", _ => ""
-        };
-        if (prefix.Length > 0)
-        {
-            var used = grid.Rows.Cast<DataGridViewRow>().Where(row => !row.IsNewRow)
-                .Select(row => row.Cells[0].Value?.ToString() ?? "").ToHashSet(StringComparer.OrdinalIgnoreCase);
-            var next = 1;
-            while (used.Contains(prefix + next.ToString("D3"))) next++;
-            values[0] = prefix + next.ToString("D3");
-        }
+        values[0] = NextCsvId(grid, section);
         if (section == "NPC találkozások")
         {
             values[2] = ((int)_level.Value).ToString(); values[3] = "6"; values[4] = "14";
@@ -545,6 +537,36 @@ internal sealed partial class MapEditorForm
         if (section == "NPC párbeszédek") { values[2] = "0"; values[3] = "10"; }
         var index = grid.Rows.Add(values);
         grid.CurrentCell = grid.Rows[index].Cells[0];
+    }
+
+    internal static bool CopyLastVisibleCsvRow(DataGridView grid, string section)
+    {
+        grid.EndEdit();
+        var source = grid.Rows.Cast<DataGridViewRow>().LastOrDefault(row => !row.IsNewRow && row.Visible);
+        if (source is null) return false;
+        var values = source.Cells.Cast<DataGridViewCell>()
+            .Select(cell => (object)(cell.Value?.ToString() ?? "")).ToArray();
+        values[0] = NextCsvId(grid, section);
+        if (grid.Columns.Contains(InformativeNpcNameColumn) && section == "Egyedi NPC karakterlap")
+            values[grid.Columns[InformativeNpcNameColumn]!.Index] = "";
+        var index = grid.Rows.Add(values);
+        grid.CurrentCell = grid.Rows[index].Cells[0];
+        return true;
+    }
+
+    private static string NextCsvId(DataGridView grid, string section)
+    {
+        var prefix = section switch
+        {
+            "NPC-k" => "NPC", "NPC találkozások" => "NPCE", "NPC küldetések" => "NPCQ",
+            "NPC párbeszédek" => "NPCD", "NPC történeti választások" => "NSC", _ => ""
+        };
+        if (prefix.Length == 0) return "";
+        var used = grid.Rows.Cast<DataGridViewRow>().Where(row => !row.IsNewRow)
+            .Select(row => row.Cells[0].Value?.ToString() ?? "").ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var next = 1;
+        while (used.Contains(prefix + next.ToString("D3"))) next++;
+        return prefix + next.ToString("D3");
     }
 
     private void FilterNpcRows()

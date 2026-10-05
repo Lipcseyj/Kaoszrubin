@@ -25,7 +25,8 @@ internal static class Program
             ("Az egyedi csoportban tagok hozzáadhatók, módosíthatók és törölhetők", CustomMembersEditing),
             ("A szerep legördülőből is módosítható", MemberRoleDropdown),
             ("A generált kifejezések C# fordítóval is érvényesek", CompileExpressions),
-            ("A találkozások mentése csak a kijelölt listát módosítja", SaveAndReload)
+            ("A találkozások mentése csak a kijelölt listát módosítja", SaveAndReload),
+            ("Az NPC-alfülek utolsó látható sora új azonosítóval másolható", CopyLastNpcRow)
         };
         var failed = 0;
         foreach (var (name, test) in tests)
@@ -56,6 +57,31 @@ internal static class Program
     private static void Assert(bool condition, string message)
     {
         if (!condition) throw new Exception(message);
+    }
+    private static void CopyLastNpcRow()
+    {
+        foreach (var (section, prefix) in new (string Section, string Prefix)[]
+        {
+            ("NPC találkozások", "NPCE"), ("NPC-k", "NPC"),
+            ("NPC küldetések", "NPCQ"), ("NPC párbeszédek", "NPCD"),
+            ("Egyedi NPC karakterlap", ""), ("NPC történeti választások", "NSC")
+        })
+        {
+            using var grid = new DataGridView { AllowUserToAddRows = true };
+            grid.Columns.Add("Id", "Id");
+            grid.Columns.Add("Value", "Value");
+            var sourceId = prefix.Length == 0 ? "NPC020" : prefix + "001";
+            grid.Rows.Add(sourceId, "Másolandó szöveg");
+            grid.Rows.Add(prefix.Length == 0 ? "NPC021" : prefix + "002", "Rejtett szöveg");
+            grid.CurrentCell = null;
+            grid.Rows[1].Visible = false;
+            Assert(MapEditorForm.CopyLastVisibleCsvRow(grid, section), section + ": nincs másolható sor");
+            Assert(grid.Rows[2].Cells[0].Value?.ToString() ==
+                   (prefix.Length == 0 ? "" : prefix + "003") &&
+                   grid.Rows[2].Cells[1].Value?.ToString() == "Másolandó szöveg" &&
+                   grid.CurrentRow == grid.Rows[2],
+                section + ": a másolat nem az utolsó látható sorból vagy ismétlődő azonosítóval készült.");
+        }
     }
     private static string Canonical(EnemyEncounterConfiguration configuration) => JsonSerializer.Serialize(configuration);
 

@@ -85,6 +85,10 @@ a már aktív quest a következő találkozásnál is leadható. Az NPC-k
 viszi tovább a későbbi pályákra. Az elhelyezést mentsd el a rá hivatkozó szöveg
 vagy quest előtt.
 
+Minden NPC-alfülön az **Utolsó sor másolása** gomb az utolsó látható sort veszi alapul.
+Az azonosítós szekciókban új, szabad azonosítót ad a másolatnak; az egyedi NPC
+karakterlapján az `NpcId` mezőt ki kell tölteni az új sor mentése előtt.
+
 A harci találkozásoknál az erdei gráf stabil `AreaId`-t, a klasszikus és széles labirintus
 képernyőszámot (`ScreenNumber`) használ a célzás segédgombján. A széles pálya `AREA_1`, `AREA_2`
 stb. azonosítókat is kap, de változó képernyőszámnál csak a konfigurált minimumig létező

@@ -2189,7 +2189,7 @@ public static class CsvGameDataLoader
             }
             cell.Append(character);
         }
-        if (quoted) throw new InvalidDataException("Lezáratlan idézőjeles CSV-mező.");
+        if (quoted) throw new InvalidDataException("Lezáratlan idézőjeles CSV-mező. Sor: " + line);
         cells.Add(cell.ToString().Trim());
         return cells.ToArray();
     }
