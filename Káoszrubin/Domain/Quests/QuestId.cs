@@ -116,4 +116,8 @@ public enum QuestId
     Sámánorr_gyűjtés,
     // NPC024 - Renegát orgyilkos
     Csökkentsük_a_konkurenciát,
+    // NPC025 - Inkvizítor
+    Tisztítótűz,
+    // NPC014 - Mocsári révész
+    Biztonságos_ösvény,
 }

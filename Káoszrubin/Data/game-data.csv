@@ -1482,7 +1482,7 @@ NPC010;Barlangi alkimista;C006;Neutral;Opportunistic;nem;nem
 NPC011;Hadifogoly felderítő;C001;Neutral;Guarded;nem;nem
 NPC012;Sírok őrzője;C005;Neutral;Guarded;nem;nem
 NPC013;Sárkánykutató;C006;Neutral;Opportunistic;nem;nem
-NPC014;Mocsári révész;C004;Neutral;Guarded;nem;nem
+NPC014;Mocsári révész;C004;Neutral;Guarded;nem;nem;;;igen
 NPC015;Kristálymérnök;C006;Neutral;Opportunistic;nem;nem
 NPC016;Éji menekült;C004;Neutral;Guarded;nem;nem
 NPC017;Láncait vesztett démonvadász;C003;Neutral;Aggressive;nem;nem
@@ -1493,6 +1493,7 @@ NPC021;Sir Roderic;C003;Neutral;Guarded;igen;igen;R001;RODERIC_OATH
 NPC022;Merion;C006;Friendly;Friendly;igen;igen;R001;;igen
 NPC023;Vildar;C001;Friendly;Friendly;nem;igen;R001
 NPC024;Renegát orgyilkos;C004;Neutral;Guarded;nem;nem;;;igen
+NPC025;Inkvizítor;C005;Neutral;Opportunistic;;;R001;;igen
 
 #Egyedi NPC karakterlap
 NpcId;Szint;Erő;Ügyesség;Egészség;Intelligencia;Alkalmazkodó;ÉleterőBónusz;MannaBónusz;Szín;HarciViselkedés;SpecializációId;TehetségId-k;Fegyver1Id;Fegyver2Id;PáncélId;VarázstárgyId-k;HátizsákId-k;FegyverjártasságId-k
@@ -1538,6 +1539,8 @@ NPCE033;NPC001;4;15;25;;
 NPCE034;NPC002;7;9;20
 NPCE035;NPC002;6;7;17;;WHISPERING_WOOD
 NPCE032;NPC024;6;17;27;;RAVEN_CROSSING
+NPCE036;NPC025;6;10;30;;LOST_MANOR
+NPCE037;NPC014;6;14;28;;BLACKWATER
 
 #Quest ládák
 Id;Név;Arany;Térképjel;Előtérszín;Háttérszín
@@ -1623,6 +1626,8 @@ NPCQ047;NPC007;Kill;E003;10;1800;Halál a zöldbőrűekre;Segítsd az Elf kósza
 NPCQ048;NPC002;Kill;E105;3;1600;Prémvadászat;Gyűjts hiúzprémeket a szörnyvadásznak;;;1;;NPCD133;;;;NPCE035;;;
 NPCQ049;NPC002;Kill;E035;1;2300;Sámánorr gyűjtés;Az ork sámánok orra állítólag értékes komponens boszorkányok számára...;;;2;;NPCD134;;;;NPCE035;7;;
 NPCQ050;NPC024;Kill;E072;3;2250;Csökkentsük a konkurenciát;A renegát orgyilkos megjutalmaz egyéb orgyilkosok likvidálásáért;;;;;NPCD136;;;;NPCE032;;;
+NPCQ051;NPC025;Kill;E033;2;2600;Tisztítótűz;Az inkvizítor megbízásából győd le a ghoulokat;;;;;NPCD138;;;;NPCE036;;;
+NPCQ052;NPC014;Kill;E112;1;2900;Biztonságos ösvény;Öld meg az óriáskrokodilt, ami terrorizálja a mocsárvidéket;;;;;NPC140;;;;NPCE037;;;
 
 #NPC párbeszédek
 Id;NpcId;MinimumBarátságosság;MaximumBarátságosság;Szöveg;TalálkozásId
@@ -1785,6 +1790,10 @@ NPCD133;NPC002;0;10;"A szörnyvadász megvizsgálja az árut: ""Kitűnő minős�
 NPCD134;NPC002;0;10;"A szörnyvadász megvizsgálja az árut: ""Ez valóban az ork sámán orra! Szép munka!"" - Kérdő tekintetetekre csak megvonja a vállát és széles vigyorral mondja: ""Ne kérdezzétek, honnan tudom. Még találkozunk, cimborák!""";NPCE035
 NPCD135;NPC024;0;10;"A fal árnyékából egy sötét ruhás alak válik ki, kezében keskeny pengével. ""Ne nyúljatok a fegyveretekhez. Ha meg akarnálak ölni benneteket, már nem beszélgetnénk."" Az orgyilkos halványan elmosolyodik. ""Van néhány szakmabeli a környéken, akik kezdik túl komolyan venni magukat. Megbízásokat halásznak el előlem, lenyomják az árakat, és ami a legrosszabb, életben maradnak. Keressétek meg őket, és tegyétek kevésbé zsúfolttá a szakmát. Ne aggódjatok, nem kérek ingyen szívességet. A konkurencia eltűnése nekem pénzt ér, és abból nektek is jut.""";NPCE032
 NPCD136;NPC024;0;10;"A renegát orgyilkos egyetlen pillantást vet rátok, majd elégedetten bólint. ""Hallottam, hogy néhány ismerős arc hirtelen eltűnt a környékről. Micsoda tragédia."" Elégedett mosoly fut át az arcán. ""Kevesebb orgyilkos, több megbízás nekem, és kevesebb ember, aki a hátamba próbál kést állítani. Mindenki jól jár. Mármint azok közül, akik még élnek."" Egy erszényt dob felétek. ""Tessék, a fizetségetek. Ha így folytatjátok, még a végén kénytelen leszek benneteket is konkurenciának tekinteni.""";NPCE032
+NPCD137;NPC025;0;10;"Az inkvizítor mozdulatlanul áll a folyosó közepén, kezében szent jelvényét szorítva. Amikor közelebb értek, szigorú tekintettel végigmér benneteket. ""A romlottság gyökeret vert ezekben a járatokban. Két ghoul ólálkodik a közelben, és már több szerencsétlen vándor húsát tépték le a csontjáról."" Undorodva pillant a sötétbe. ""Az ilyen förtelmeknek nincs helyük az élők világában. Keressétek meg mindkettőt, és küldjétek vissza őket oda, ahová valók. Ne legyen irgalom, ne legyen habozás. Csak a tisztítótűz.""";NPCE036
+NPCD138;NPC025;0;10;"Az inkvizítor figyelmesen végighallgatja beszámolótokat, majd lassan bólint. ""Mindkét ghoul elpusztult? Helyes. Két förtelemmel kevesebb szennyezi ezt a földet."" Egy pillanatra lehunyja a szemét, és halk imát mormol. ""Ne gondoljátok azonban, hogy ezzel megtisztítottuk ezeket a járatokat. Ahol egy holttest felkel, ott gyakran mások is követik."" Előveszi a jutalmatokat, és felétek nyújtja. ""Fogadjátok ezt szolgálatotokért. Ma a fény győzött a rothadás felett, és ebben nektek is részetek volt.""";NPCE036
+NPCD139;NPC014;0;10;"A mocsári révész egy félig korhadt ladik mellett áll, és hosszú csáklyájával a zavaros vizet kémleli. Amikor meglát benneteket, int, hogy maradjatok távolabb a parttól. ""Mostanában nem tanácsos túl közel menni a vízhez. Egy óriáskrokodil költözött erre a vidékre, és már embereket, állatokat, még kisebb csónakokat is megtámadott."" A révész idegesen végigpillant a nádason. ""Amíg az a bestia él, nincs biztonságos út a mocsáron át. Ha elég bátrak vagytok hozzá, keressétek meg és öljétek meg. Ha sikerrel jártok, végre ismét át tudom vezetni az utazókat ezen a vidéken anélkül, hogy minden csobbanásnál a halálra gondolnék.""";NPCE037
+NPCD140;NPC014;0;10;"A révész már messziről integet, amikor meglát benneteket közeledni. ""Ugye nem azt akarjátok mondani, hogy tényleg végeztetek vele?"" Amikor megerősítitek a hírt, széles mosoly terül el az arcán. ""Akkor végre újra járható lesz a mocsár. Az emberek visszatérhetnek az ösvényekre, én pedig úgy indíthatom útnak a csónakomat, hogy nem kell minden árnyékban egy hatalmas állkapcsot látnom."" A révész elővesz egy gondosan elrejtett erszényt. ""Ezt nektek tettem félre. Nemcsak nekem segítettetek, hanem mindenkinek, akinek át kell kelnie ezen az átkozott vidéken.""";NPCE037
 
 #NPC történeti választások
 Id;TörténetId;ÁllapotId;Mondat;Sorrend;Válasz;ViszonyVáltozás;KövetkezőÁllapotId;Reakció;Hatás;HatásParaméter;Folytatás;MinimumViszony;MaximumViszony

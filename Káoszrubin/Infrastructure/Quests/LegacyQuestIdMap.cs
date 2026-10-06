@@ -66,6 +66,8 @@ public static class LegacyQuestIdMap
             "NPCQ048" => QuestId.Prémvadászat,
             "NPCQ049" => QuestId.Sámánorr_gyűjtés,
             "NPCQ050" => QuestId.Csökkentsük_a_konkurenciát,
+            "NPCQ051" => QuestId.Tisztítótűz,
+            "NPCQ052" => QuestId.Biztonságos_ösvény,
             _ => throw new InvalidDataException(
                 $"Ismeretlen legacy quest-azonosító: '{legacyId}'.")
         };
@@ -122,6 +124,8 @@ public static class LegacyQuestIdMap
         QuestId.Prémvadászat => "NPCQ048",
         QuestId.Sámánorr_gyűjtés => "NPCQ049",
         QuestId.Csökkentsük_a_konkurenciát => "NPCQ050",
+        QuestId.Tisztítótűz => "NPCQ051",
+        QuestId.Biztonságos_ösvény => "NPCQ052",
         _ => throw new InvalidDataException("Ismeretlen típusos questazonosító.")
     };
 }

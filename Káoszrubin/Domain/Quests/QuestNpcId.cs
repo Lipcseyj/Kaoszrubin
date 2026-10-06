@@ -36,4 +36,5 @@ public enum QuestNpcId
     Vildar,
     VillagerHerbalist,
     Npc024,
+    Npc025,
 }

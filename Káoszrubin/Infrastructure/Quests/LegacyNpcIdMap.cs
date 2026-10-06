@@ -42,6 +42,7 @@ public static class LegacyNpcIdMap
             "NPC-FIRST-COMPANION" => QuestNpcId.None,
 
             "NPC024" => QuestNpcId.Npc024,
+            "NPC025" => QuestNpcId.Npc025,
             _ => throw new InvalidDataException(
                 $"Ismeretlen legacy quest NPC-azonosító: '{legacyId}'.")
         };
@@ -72,6 +73,7 @@ public static class LegacyNpcIdMap
         QuestNpcId.AureliosEmissary => "NPC022",
         QuestNpcId.Vildar => "NPC023",
         QuestNpcId.Npc024 => "NPC024",
+        QuestNpcId.Npc025 => "NPC025",
         _ => throw new InvalidDataException("Ismeretlen típusos questadó-azonosító.")
     };
 }
