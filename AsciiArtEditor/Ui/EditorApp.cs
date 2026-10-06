@@ -13,6 +13,7 @@ public sealed class EditorApp
     private const uint EnableMouseInput = 0x0010;
     private const uint EnableQuickEditMode = 0x0040;
     private const uint EnableExtendedFlags = 0x0080;
+    private const ushort KeyEventType = 0x0001;
     private const ushort MouseEventType = 0x0002;
     private const uint LeftButtonPressed = 0x0001;
     private const uint MouseMoved = 0x0001;
@@ -21,6 +22,8 @@ public sealed class EditorApp
     private readonly AsciiPortraitSource _source;
     private readonly Dictionary<string, string> _portraits;
     private readonly string[] _palette;
+    private (PortraitDictionary Dictionary, PortraitSourceEntry Entry)[] _portraitEntries = [];
+    private int _portraitIndex;
     private PortraitDictionary? _selectedDictionary;
     private string? _selectedKeyExpression;
     private string? _proposedKeyExpression;
@@ -40,9 +43,11 @@ public sealed class EditorApp
         _source = source;
         _portraits = portraits;
         var sourceContent = File.ReadAllText(sourcePath);
-        _palette = PortraitPalette.Collect(Enum.GetValues<PortraitDictionary>()
-                .SelectMany(dictionary => _source.ParseDictionary(sourceContent, dictionary))
-                .Select(entry => entry.Content))
+        _portraitEntries = Enum.GetValues<PortraitDictionary>()
+            .SelectMany(dictionary => _source.ParseDictionary(sourceContent, dictionary)
+                .Select(entry => (dictionary, entry)))
+            .ToArray();
+        _palette = PortraitPalette.Collect(_portraitEntries.Select(item => item.Entry.Content))
             .ToArray();
         _paletteIndex = Array.IndexOf(_palette, "█");
         if (_paletteIndex < 0)
@@ -52,37 +57,10 @@ public sealed class EditorApp
 
     public void Run()
     {
-        Console.Clear();
-        Console.WriteLine("ASCII Portrait Editor");
-        Console.WriteLine("Enter an existing source key to edit, or a new key to create a portrait:");
-        var id = Console.ReadLine()?.Trim() ?? "";
-        if (id.Length == 0)
-            return;
-
-        var matches = Enum.GetValues<PortraitDictionary>()
-            .SelectMany(dictionary => _source.ParseDictionary(File.ReadAllText(_sourcePath), dictionary)
-                .Where(entry => string.Equals(entry.KeyExpression, id, StringComparison.OrdinalIgnoreCase))
-                .Select(entry => (dictionary, entry)))
-            .ToArray();
-        if (matches.Length > 1)
-        {
-            Console.WriteLine("That key is ambiguous. Use a unique source key expression.");
-            return;
-        }
-
-        if (matches.Length == 1)
-        {
-            _selectedDictionary = matches[0].dictionary;
-            _selectedKeyExpression = matches[0].entry.KeyExpression;
-            Load(matches[0].entry.Content);
-        }
+        if (_portraitEntries.Length > 0)
+            SelectPortrait(0, redraw: false);
         else
-        {
-            _proposedKeyExpression = id.Contains('.', StringComparison.Ordinal)
-                ? id
-                : System.Text.Json.JsonSerializer.Serialize(id);
-            _status = "New portrait. Save with S and choose the target dictionary.";
-        }
+            StartNewPortrait();
 
         var originalCursorVisible = Console.CursorVisible;
         var inputHandle = IntPtr.Zero;
@@ -130,44 +108,42 @@ public sealed class EditorApp
     {
         while (true)
         {
-            if (!PeekConsoleInput(inputHandle, out var nextRecord, 1, out var eventsAvailable))
+            if (!ReadConsoleInput(inputHandle, out var record, 1, out var eventsRead) || eventsRead == 0)
             {
-                _status = "Could not inspect console input. Press a key to retry; Esc quits.";
+                _status = "Could not read console input. Press a key to retry; Esc quits.";
                 DrawAll();
                 RunKeyboardInput();
                 return;
             }
 
-            if (eventsAvailable == 0)
+            if (record.EventType == KeyEventType)
             {
-                Thread.Sleep(10);
+                var key = record.KeyEvent;
+                if (!key.KeyDown)
+                    continue;
+
+                if (key.VirtualKeyCode == (ushort)ConsoleKey.Escape || key.UnicodeChar is 'q' or 'Q')
+                    return;
+
+                var handled = HandleKey(new ConsoleKeyInfo(
+                    key.UnicodeChar,
+                    (ConsoleKey)key.VirtualKeyCode,
+                    (key.ControlKeyState & 0x0010) != 0,
+                    (key.ControlKeyState & 0x0003) != 0,
+                    (key.ControlKeyState & 0x000C) != 0));
+                if (handled)
+                    DrawAll();
                 continue;
             }
 
-            if (nextRecord.EventType == MouseEventType)
+            if (record.EventType == MouseEventType)
             {
-                if (!ReadConsoleInput(inputHandle, out var record, 1, out var eventsRead) || eventsRead == 0)
-                    continue;
-
                 var mouse = record.MouseEvent;
                 if ((mouse.ButtonState & LeftButtonPressed) != 0 || (mouse.EventFlags & MouseMoved) != 0)
                     HandleMouse(mouse.Position.X, mouse.Position.Y, (mouse.ButtonState & LeftButtonPressed) != 0);
 
                 continue;
             }
-
-            if (Console.KeyAvailable)
-            {
-                var key = Console.ReadKey(true);
-                if (key.Key is ConsoleKey.Escape or ConsoleKey.Q)
-                    return;
-
-                HandleKey(key);
-                DrawAll();
-                continue;
-            }
-
-            ReadConsoleInput(inputHandle, out _, 1, out _);
         }
     }
 
@@ -180,8 +156,8 @@ public sealed class EditorApp
             if (key.Key is ConsoleKey.Escape or ConsoleKey.Q)
                 return;
 
-            HandleKey(key);
-            DrawAll();
+            if (HandleKey(key))
+                DrawAll();
         }
     }
 
@@ -197,8 +173,23 @@ public sealed class EditorApp
         }
     }
 
-    private void HandleKey(ConsoleKeyInfo key)
+    private bool HandleKey(ConsoleKeyInfo key)
     {
+        if ((key.Modifiers & ConsoleModifiers.Shift) != 0)
+        {
+            if (key.Key == ConsoleKey.LeftArrow)
+            {
+                SwitchPortrait(-1);
+                return false;
+            }
+
+            if (key.Key == ConsoleKey.RightArrow)
+            {
+                SwitchPortrait(1);
+                return false;
+            }
+        }
+
         switch (key.Key)
         {
             case ConsoleKey.LeftArrow:
@@ -229,6 +220,9 @@ public sealed class EditorApp
             case ConsoleKey.C:
                 ChangeCanvasSize();
                 break;
+            case ConsoleKey.N:
+                StartNewPortrait();
+                break;
             case ConsoleKey.PageUp:
                 _palettePage = Math.Max(0, _palettePage - 1);
                 break;
@@ -236,6 +230,52 @@ public sealed class EditorApp
                 _palettePage = Math.Min(CalculateLayout().PalettePageCount - 1, _palettePage + 1);
                 break;
         }
+
+        return true;
+    }
+
+    private void SwitchPortrait(int direction)
+    {
+        if (_portraitEntries.Length == 0)
+            return;
+
+        var index = (_portraitIndex + direction + _portraitEntries.Length) % _portraitEntries.Length;
+        var previousLayout = CalculateLayout();
+        SelectPortrait(index, redraw: false);
+        ClearCanvasPanel(previousLayout);
+        var layout = CalculateLayout();
+        DrawCanvasPanel(layout);
+        DrawStatus(layout);
+    }
+
+    private void SelectPortrait(int index, bool redraw)
+    {
+        _portraitIndex = index;
+        var portrait = _portraitEntries[index];
+        _selectedDictionary = portrait.Dictionary;
+        _selectedKeyExpression = portrait.Entry.KeyExpression;
+        _proposedKeyExpression = null;
+        Load(portrait.Entry.Content);
+        _status = $"Portrait {_portraitIndex + 1}/{_portraitEntries.Length}: {_selectedKeyExpression}";
+        if (redraw)
+        {
+            var layout = CalculateLayout();
+            DrawCanvasPanel(layout);
+            DrawStatus(layout);
+        }
+    }
+
+    private void StartNewPortrait()
+    {
+        _selectedDictionary = null;
+        _selectedKeyExpression = null;
+        _proposedKeyExpression = null;
+        _canvasWidth = 17;
+        _canvasHeight = 5;
+        _cells = CreateCanvas(_canvasWidth, _canvasHeight);
+        _cursorX = 0;
+        _cursorY = 0;
+        _status = "New portrait. Save with S and choose the target dictionary and key. ";
     }
 
     private void HandleMouse(int x, int y, bool leftButtonDown)
@@ -405,11 +445,24 @@ public sealed class EditorApp
         _selectedDictionary = dictionary;
         _selectedKeyExpression = keyExpression;
         _proposedKeyExpression = null;
-        _portraits.Clear();
-        foreach (var entry in Enum.GetValues<PortraitDictionary>()
-                     .SelectMany(value => _source.ParseDictionary(File.ReadAllText(_sourcePath), value)))
-            _portraits[entry.KeyExpression] = entry.Content;
+        RefreshPortraitEntries();
+        _portraitIndex = Array.FindIndex(_portraitEntries, item =>
+            item.Dictionary == dictionary &&
+            string.Equals(item.Entry.KeyExpression, keyExpression, StringComparison.Ordinal));
         _status = result.Inserted ? "Portrait inserted." : "Portrait updated.";
+    }
+
+    private void RefreshPortraitEntries()
+    {
+        var sourceContent = File.ReadAllText(_sourcePath);
+        _portraitEntries = Enum.GetValues<PortraitDictionary>()
+            .SelectMany(dictionary => _source.ParseDictionary(sourceContent, dictionary)
+                .Select(entry => (dictionary, entry)))
+            .ToArray();
+
+        _portraits.Clear();
+        foreach (var item in _portraitEntries)
+            _portraits[item.Entry.KeyExpression] = item.Entry.Content;
     }
 
     private void Prompt(string prompt)
@@ -435,12 +488,22 @@ public sealed class EditorApp
         Console.ResetColor();
         Console.Clear();
         WriteAt(2, 0, "ASCII PORTRAIT EDITOR", layout.Width - 4);
-        WriteAt(2, 1, "Arrows move | Space/D draw | E erase | P next glyph | PgUp/PgDn palette | S save | C resize | Esc/Q quit",
+        WriteAt(2, 1, "Arrows move | Shift+Left/Right switch portrait | Space/D draw | E erase | P glyph | S save | C resize | N new | Esc/Q quit",
             layout.Width - 4);
 
         for (var y = 0; y < layout.Height; y++)
             WriteAt(layout.SplitX, y, "│", 1);
 
+        DrawCanvasPanel(layout);
+        DrawPalettePanel(layout);
+        DrawStatus(layout);
+
+        if (layout.Width < _canvasWidth + 5 || layout.Height < _canvasHeight + 8)
+            WriteAt(2, Math.Min(2, layout.Height - 1), "Enlarge the terminal to see both framed panels.", layout.Width - 4);
+    }
+
+    private void DrawCanvasPanel(EditorLayout layout)
+    {
         DrawFrame(layout.CanvasFrameX, layout.CanvasFrameY, layout.CanvasFrameWidth, layout.CanvasFrameHeight);
         WriteAt(layout.CanvasFrameX + 2, layout.CanvasFrameY, " Canvas ", layout.CanvasFrameWidth - 4);
         for (var y = 0; y < _canvasHeight; y++)
@@ -459,7 +522,10 @@ public sealed class EditorApp
                 Console.ResetColor();
             }
         }
+    }
 
+    private void DrawPalettePanel(EditorLayout layout)
+    {
         DrawFrame(layout.PaletteFrameX, layout.PaletteFrameY, layout.PaletteFrameWidth, layout.PaletteFrameHeight);
         var pageCount = layout.PalettePageCount;
         WriteAt(layout.PaletteFrameX + 2, layout.PaletteFrameY,
@@ -482,11 +548,13 @@ public sealed class EditorApp
                 Console.ResetColor();
             }
         }
+    }
 
-        DrawStatus(layout);
-
-        if (layout.Width < _canvasWidth + 5 || layout.Height < _canvasHeight + 8)
-            WriteAt(2, Math.Min(2, layout.Height - 1), "Enlarge the terminal to see both framed panels.", layout.Width - 4);
+    private static void ClearCanvasPanel(EditorLayout layout)
+    {
+        var blank = new string(' ', Math.Max(0, layout.CanvasFrameWidth));
+        for (var row = 0; row < layout.CanvasFrameHeight; row++)
+            WriteAt(layout.CanvasFrameX, layout.CanvasFrameY + row, blank, layout.CanvasFrameWidth);
     }
 
     private void DrawStatus(EditorLayout layout)
@@ -591,10 +659,6 @@ public sealed class EditorApp
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool ReadConsoleInput(IntPtr consoleInput, out InputRecord buffer, uint length, out uint eventsRead);
 
-    [DllImport("kernel32.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool PeekConsoleInput(IntPtr consoleInput, out InputRecord buffer, uint length, out uint eventsRead);
-
     [StructLayout(LayoutKind.Sequential)]
     private struct Coord
     {
@@ -611,7 +675,31 @@ public sealed class EditorApp
         public uint EventFlags;
     }
 
-    [StructLayout(LayoutKind.Explicit)]
+    [StructLayout(LayoutKind.Explicit, CharSet = CharSet.Unicode, Size = 16)]
+    private struct KeyEventRecord
+    {
+        [FieldOffset(0)]
+        [MarshalAs(UnmanagedType.Bool)]
+        public bool KeyDown;
+
+        [FieldOffset(4)]
+        public ushort RepeatCount;
+
+        [FieldOffset(6)]
+        public ushort VirtualKeyCode;
+
+        [FieldOffset(8)]
+        public ushort VirtualScanCode;
+
+        [FieldOffset(10)]
+        [MarshalAs(UnmanagedType.U2)]
+        public char UnicodeChar;
+
+        [FieldOffset(12)]
+        public uint ControlKeyState;
+    }
+
+    [StructLayout(LayoutKind.Explicit, Size = 20)]
     private struct InputRecord
     {
         [FieldOffset(0)]
@@ -619,5 +707,8 @@ public sealed class EditorApp
 
         [FieldOffset(4)]
         public MouseEventRecord MouseEvent;
+
+        [FieldOffset(4)]
+        public KeyEventRecord KeyEvent;
     }
 }
