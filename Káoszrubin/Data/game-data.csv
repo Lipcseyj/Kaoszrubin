@@ -1623,13 +1623,14 @@ NPCQ038;NPC021;Kill;E061;2;1950;A pátriárkák árnyai;Győzzétek le a két é
 NPCQ039;NPC021;Kill;E053;1;3600;Az esküszegő;Győzzétek le Sir Malrecet Roderic oldalán a bukott lovag sírkápolnájában.;;;1;MALREC_APPROACH;NPCD110
 NPCQ040;NPC021;KillWithTraits;MA001;8;1560;Egy oldalon harcolunk;Győzz le nyolc élőholtat hogy bizonyítsd Rodericnek: közös az ellenségetek.;;;1;;NPCD111
 NPCQ041;NPC021;OpenQuestChest;RODERIC_ORDER_RELICS;1;2250;A rend ereklyéi;Nyisd ki az Ezüst Eskü ereklyeládáját Roderickel.;;;0;;NPCD112
-NPCQ046;NPC007;Disarm;ANY;3;1100;Az erdő vasfogai;Az Elf kósza három veszélyes vadászcsapdára bukkant a Vadállatok odúiban. A szerkezetek nemcsak a ragadozókat, hanem minden arra tévedő élőlényt veszélyeztetnek. Keressétek meg és hatástalanítsátok mind a három csapdát.;;;1;;NPCD128;;;;;;;
+NPCQ046;NPC007;Disarm;ANY;3;1100;Az erdő vasfogai;Az Elf kósza három veszélyes vadászcsapdára bukkant a Vadállatok odúiban. A szerkezetek nemcsak a ragadozókat, hanem minden arra tévedő élőlényt veszélyeztetnek. Keressétek meg és hatástalanítsátok mind a három csapdát.;T033;1;1;;NPCD128;;;;;;;
 NPCQ047;NPC007;Kill;E003;10;1800;Halál a zöldbőrűekre;Segítsd az Elf kósza bosszúját a goblinok irtásával;;;1;;NPCD130;;;NPCD131;NPCE008;5;;
-NPCQ048;NPC002;Kill;E105;3;1600;Prémvadászat;Gyűjts hiúzprémeket a szörnyvadásznak;;;1;;NPCD133;;;;NPCE035;;;
-NPCQ049;NPC002;Kill;E035;1;2300;Sámánorr gyűjtés;Az ork sámánok orra állítólag értékes komponens boszorkányok számára...;;;2;;NPCD134;;;;NPCE035;7;;
-NPCQ050;NPC024;Kill;E072;3;2250;Csökkentsük a konkurenciát;A renegát orgyilkos megjutalmaz egyéb orgyilkosok likvidálásáért;;;;;NPCD136;;;;NPCE032;;;
-NPCQ051;NPC025;Kill;E033;2;2600;Tisztítótűz;Az inkvizítor megbízásából győd le a ghoulokat;;;;;NPCD138;;;;NPCE036;;;
-NPCQ052;NPC014;Kill;E112;1;2900;Biztonságos ösvény;Öld meg az óriáskrokodilt, ami terrorizálja a mocsárvidéket;;;;;NPC140;;;;NPCE037;;;
+NPCQ048;NPC002;Kill;E105;3;1600;Prémvadászat;Gyűjts hiúzprémeket a szörnyvadásznak;T033;1;1;;NPCD133;;;;NPCE035;;;
+NPCQ049;NPC002;Kill;E035;1;2300;Sámánorr gyűjtés;Az ork sámánok orra állítólag értékes komponens boszorkányok számára...;T033;1;2;;NPCD134;;;;NPCE035;7;;
+NPCQ050;NPC024;Kill;E072;3;2250;Csökkentsük a konkurenciát;A renegát orgyilkos megjutalmaz egyéb orgyilkosok likvidálásáért;T033;3;;;NPCD136;;;;NPCE032;;;
+NPCQ051;NPC025;Kill;E033;2;2600;Tisztítótűz;Az inkvizítor megbízásából győzd le a ghoulokat;PS008;1;;;NPCD138;PS007;3;;NPCE036;;;
+NPCQ052;NPC014;Kill;E112;1;2900;Biztonságos ösvény;Öld meg az óriáskrokodilt, ami terrorizálja a mocsárvidéket;T033;2;;;NPCD140;;;;NPCE037;;;
+NPCQ053;NPC025;Kill;E092;2;2800;A káosz szolgái;Az inkvizítor megbízásából győzd le a káoszpapokat;M011;1;;;NPCD142;PS007;3;;NPCE036;5;;
 
 #NPC párbeszédek
 Id;NpcId;MinimumBarátságosság;MaximumBarátságosság;Szöveg;TalálkozásId
@@ -1796,6 +1797,8 @@ NPCD137;NPC025;0;10;"Az inkvizítor mozdulatlanul áll a folyosó közepén, kez
 NPCD138;NPC025;0;10;"Az inkvizítor figyelmesen végighallgatja beszámolótokat, majd lassan bólint. ""Mindkét ghoul elpusztult? Helyes. Két förtelemmel kevesebb szennyezi ezt a földet."" Egy pillanatra lehunyja a szemét, és halk imát mormol. ""Ne gondoljátok azonban, hogy ezzel megtisztítottuk ezeket a járatokat. Ahol egy holttest felkel, ott gyakran mások is követik."" Előveszi a jutalmatokat, és felétek nyújtja. ""Fogadjátok ezt szolgálatotokért. Ma a fény győzött a rothadás felett, és ebben nektek is részetek volt.""";NPCE036
 NPCD139;NPC014;0;10;"A mocsári révész egy félig korhadt ladik mellett áll, és hosszú csáklyájával a zavaros vizet kémleli. Amikor meglát benneteket, int, hogy maradjatok távolabb a parttól. ""Mostanában nem tanácsos túl közel menni a vízhez. Egy óriáskrokodil költözött erre a vidékre, és már embereket, állatokat, még kisebb csónakokat is megtámadott."" A révész idegesen végigpillant a nádason. ""Amíg az a bestia él, nincs biztonságos út a mocsáron át. Ha elég bátrak vagytok hozzá, keressétek meg és öljétek meg. Ha sikerrel jártok, végre ismét át tudom vezetni az utazókat ezen a vidéken anélkül, hogy minden csobbanásnál a halálra gondolnék.""";NPCE037
 NPCD140;NPC014;0;10;"A révész már messziről integet, amikor meglát benneteket közeledni. ""Ugye nem azt akarjátok mondani, hogy tényleg végeztetek vele?"" Amikor megerősítitek a hírt, széles mosoly terül el az arcán. ""Akkor végre újra járható lesz a mocsár. Az emberek visszatérhetnek az ösvényekre, én pedig úgy indíthatom útnak a csónakomat, hogy nem kell minden árnyékban egy hatalmas állkapcsot látnom."" A révész elővesz egy gondosan elrejtett erszényt. ""Ezt nektek tettem félre. Nemcsak nekem segítettetek, hanem mindenkinek, akinek át kell kelnie ezen az átkozott vidéken.""";NPCE037
+NPCD141;NPC025;0;10;"Az inkvizítor ezúttal már ismerősként fogad, de arcán nyoma sincs megkönnyebbülésnek. ""Újabb fertőzés ütötte fel a fejét. Két káoszpap járja ezeket a folyosókat, és romlott tanításaikkal egyre több gyenge lelket térítenek le a helyes útról."" Ökölbe szorítja a kezét. ""A ghoulok csak testet falnak, de ezek a férgek a lelket mérgezik meg. Keressétek meg mindkettőt, és vessetek véget az istentelen szertartásaiknak. A káosz szolgáival nincs alku.""";NPCE036
+NPCD142;NPC025;0;10;"Az inkvizítor komoran hallgatja végig a beszámolótokat, majd elégedetten bólint. ""Mindkét káoszpap halott? Akkor két hanggal kevesebb suttogja a romlás igéit ezekben a járatokban."" Szent jelét a mellkasához emeli. ""Ne becsüljétek alá, amit tettetek. Egyetlen ilyen eretnek több száz ember lelkét képes megfertőzni, ha időt kap rá."" Ezután átnyújtja a jutalmatokat. ""Fogadjátok ezt szolgálatotokért. Ma nem csupán ellenségeket győztetek le, hanem a káosz terjedését is megállítottátok.""";NPCE036
 
 #NPC történeti választások
 Id;TörténetId;ÁllapotId;Mondat;Sorrend;Válasz;ViszonyVáltozás;KövetkezőÁllapotId;Reakció;Hatás;HatásParaméter;Folytatás;MinimumViszony;MaximumViszony

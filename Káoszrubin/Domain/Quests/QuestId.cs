@@ -120,4 +120,6 @@ public enum QuestId
     Tisztítótűz,
     // NPC014 - Mocsári révész
     Biztonságos_ösvény,
+    // NPC025 - Inkvizítor
+    A_káosz_szolgái,
 }
