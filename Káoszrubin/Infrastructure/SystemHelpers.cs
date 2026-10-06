@@ -12,7 +12,9 @@ public static class SystemHelpers
     internal const string TerminalChildArgument = "--kaoszrubin-terminal-child";
     private const string TerminalChildArgumentPrefix = TerminalChildArgument + "=";
 
-    public static bool EnsureWindowsTerminal(IReadOnlyCollection<string>? arguments = null)
+    public static bool EnsureWindowsTerminal(
+        IReadOnlyCollection<string>? arguments = null,
+        bool forwardArguments = false)
     {
         string? handshakeId = GetTerminalHandshakeId(arguments);
         var hasChildMarker = arguments?.Any(value =>
@@ -81,6 +83,13 @@ public static class SystemHelpers
         psi.ArgumentList.Add(AppContext.BaseDirectory);
 
         psi.ArgumentList.Add(exePath);
+
+        if (forwardArguments)
+        {
+            foreach (var argument in GetArgumentsToForward(arguments))
+                psi.ArgumentList.Add(argument);
+        }
+
         psi.ArgumentList.Add(TerminalChildArgumentPrefix + handshake.Id);
 
         try
@@ -199,6 +208,12 @@ public static class SystemHelpers
         string? id = argument?[TerminalChildArgumentPrefix.Length..];
         return Guid.TryParseExact(id, "N", out var parsed) ? parsed.ToString("N") : null;
     }
+
+    public static string[] GetArgumentsToForward(IReadOnlyCollection<string>? arguments) =>
+        arguments?.Where(value =>
+                !value.Equals(TerminalChildArgument, StringComparison.OrdinalIgnoreCase) &&
+                !value.StartsWith(TerminalChildArgumentPrefix, StringComparison.OrdinalIgnoreCase))
+            .ToArray() ?? [];
 
     private static bool CompleteTerminalChildHandshake(string handshakeId)
     {

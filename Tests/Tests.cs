@@ -82,6 +82,7 @@ internal static partial class Program
     ("A lénymondatok osztályhoz vagy szörnyhöz és főmenüportréhoz oldódnak", CreatureQuotesLoadAndResolveForMainMenu),
     ("A Windows Terminal újraindítás debuggerben és gyermekfolyamatban kimarad", WindowsTerminalRelaunchGuardsAreStable),
     ("A Windows Terminal gyermek-kézfogás argumentuma szigorúan validált", WindowsTerminalHandshakeArgumentIsValidated),
+    ("A Windows Terminal újraindítás megőrzi a felhasználói argumentumokat", WindowsTerminalForwardArgumentsExcludeHandshakeMarker),
     ("A hiányzó háttérzene callbackje kontextusonként egyszer jelez", BackgroundMusicMissingTrackReportingIsBounded),
     ("A többsoros fogadói pletyka minden sora a kereten belül marad", MultilineInnRumorStaysInsideFrame),
     ("A fejlesztői fegyvercsomag követi a kategóriákat és a hátizsák kapacitását", DevelopmentWeaponsRespectCapacity),
@@ -421,7 +422,12 @@ internal static partial class Program
     ("A SignalR kliens végigviszi a LAN coop kapcsolatot", () =>
         SignalRClientRunsLanProtocolFlow().GetAwaiter().GetResult()),
     ("Az in-memory transport végigviszi a coop protokollfolyamot", () =>
-        InMemoryTransportRunsProtocolFlow().GetAwaiter().GetResult())
+        InMemoryTransportRunsProtocolFlow().GetAwaiter().GetResult()),
+    ("A portrépaletta összegyűjti az egyedi Unicode-karaktereket", PortraitPaletteCollectsAllUniqueUnicodeRunes),
+    ("Az ASCII portréforrás mindkét szótárat és raw stringet beolvassa", AsciiPortraitSourceParsesDictionaries),
+    ("Az ASCII portréfrissítés csak a kiválasztott bejegyzést módosítja", AsciiPortraitSourceUpdatesOneEntry),
+    ("Az ASCII portrémentés új bejegyzést illeszt a kiválasztott szótárba", AsciiPortraitSourceInsertsEntry),
+    ("Az ASCII portrémentés visszautasítja a hibás kulcsot és nem ír fájlt", AsciiPortraitSourceRejectsInvalidKey)
         };
         #endregion
 

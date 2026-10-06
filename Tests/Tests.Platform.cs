@@ -118,6 +118,20 @@ internal static partial class Program
             "A hiányzó vagy hibás gyermek-kézfogás azonosítója elfogadásra került.");
     }
 
+    static void WindowsTerminalForwardArgumentsExcludeHandshakeMarker()
+    {
+        const string path = "C:\\repo\\AsciiPortraits.cs";
+        var forwarded = SystemHelpers.GetArgumentsToForward(
+            [path, "update", "MonsterIds.Kobold", "portrait.txt",
+             SystemHelpers.TerminalChildArgument,
+             $"{SystemHelpers.TerminalChildArgument}=0123456789abcdef0123456789abcdef"]);
+
+        Assert(forwarded.SequenceEqual([path, "update", "MonsterIds.Kobold", "portrait.txt"]) &&
+               SystemHelpers.GetArgumentsToForward(null).Length == 0 &&
+               SystemHelpers.GetArgumentsToForward([SystemHelpers.TerminalChildArgument]).Length == 0,
+            "A Windows Terminal újraindítás nem őrizte meg a felhasználói argumentumokat, vagy továbbadta a kézfogás-jelölőt.");
+    }
+
     static void DefensiveSpellSoundIsShared()
     {
         var leader = CreateCharacter("Hallgató");
