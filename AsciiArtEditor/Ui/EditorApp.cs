@@ -118,19 +118,18 @@ public sealed class EditorApp
 
             if (record.EventType == KeyEventType)
             {
-                var key = record.KeyEvent;
-                if (!key.KeyDown)
+                if (record.KeyDown == 0)
                     continue;
 
-                if (key.VirtualKeyCode == (ushort)ConsoleKey.Escape || key.UnicodeChar is 'q' or 'Q')
+                if (record.VirtualKeyCode == (ushort)ConsoleKey.Escape || record.UnicodeChar is 'q' or 'Q')
                     return;
 
                 var handled = HandleKey(new ConsoleKeyInfo(
-                    key.UnicodeChar,
-                    (ConsoleKey)key.VirtualKeyCode,
-                    (key.ControlKeyState & 0x0010) != 0,
-                    (key.ControlKeyState & 0x0003) != 0,
-                    (key.ControlKeyState & 0x000C) != 0));
+                    record.UnicodeChar,
+                    (ConsoleKey)record.VirtualKeyCode,
+                    (record.ControlKeyState & 0x0010) != 0,
+                    (record.ControlKeyState & 0x0003) != 0,
+                    (record.ControlKeyState & 0x000C) != 0));
                 if (handled)
                     DrawAll();
                 continue;
@@ -675,40 +674,32 @@ public sealed class EditorApp
         public uint EventFlags;
     }
 
-    [StructLayout(LayoutKind.Explicit, CharSet = CharSet.Unicode, Size = 16)]
-    private struct KeyEventRecord
-    {
-        [FieldOffset(0)]
-        [MarshalAs(UnmanagedType.Bool)]
-        public bool KeyDown;
-
-        [FieldOffset(4)]
-        public ushort RepeatCount;
-
-        [FieldOffset(6)]
-        public ushort VirtualKeyCode;
-
-        [FieldOffset(8)]
-        public ushort VirtualScanCode;
-
-        [FieldOffset(10)]
-        [MarshalAs(UnmanagedType.U2)]
-        public char UnicodeChar;
-
-        [FieldOffset(12)]
-        public uint ControlKeyState;
-    }
-
-    [StructLayout(LayoutKind.Explicit, Size = 20)]
+    [StructLayout(LayoutKind.Explicit, CharSet = CharSet.Unicode, Size = 20)]
     private struct InputRecord
     {
         [FieldOffset(0)]
         public ushort EventType;
 
         [FieldOffset(4)]
-        public MouseEventRecord MouseEvent;
+        public int KeyDown;
+
+        [FieldOffset(8)]
+        public ushort RepeatCount;
+
+        [FieldOffset(10)]
+        public ushort VirtualKeyCode;
+
+        [FieldOffset(12)]
+        public ushort VirtualScanCode;
+
+        [FieldOffset(14)]
+        [MarshalAs(UnmanagedType.U2)]
+        public char UnicodeChar;
+
+        [FieldOffset(16)]
+        public uint ControlKeyState;
 
         [FieldOffset(4)]
-        public KeyEventRecord KeyEvent;
+        public MouseEventRecord MouseEvent;
     }
 }
