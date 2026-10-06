@@ -16,6 +16,7 @@ public sealed class EditorApp
     private const ushort KeyEventType = 0x0001;
     private const ushort MouseEventType = 0x0002;
     private const uint LeftButtonPressed = 0x0001;
+    private const uint RightButtonPressed = 0x0002;
     private const uint MouseMoved = 0x0001;
 
     private readonly string _sourcePath;
@@ -84,7 +85,7 @@ public sealed class EditorApp
 
             if (mouseEnabled)
             {
-                DrawAll();
+                DrawAll(clear: true);
                 ReadWindowsInput(inputHandle);
             }
             else
@@ -131,15 +132,17 @@ public sealed class EditorApp
                     (record.ControlKeyState & 0x0003) != 0,
                     (record.ControlKeyState & 0x000C) != 0));
                 if (handled)
-                    DrawAll();
+                    DrawKeyChanges((ConsoleKey)record.VirtualKeyCode);
                 continue;
             }
 
             if (record.EventType == MouseEventType)
             {
                 var mouse = record.MouseEvent;
-                if ((mouse.ButtonState & LeftButtonPressed) != 0 || (mouse.EventFlags & MouseMoved) != 0)
-                    HandleMouse(mouse.Position.X, mouse.Position.Y, (mouse.ButtonState & LeftButtonPressed) != 0);
+                var leftButtonDown = (mouse.ButtonState & LeftButtonPressed) != 0;
+                var rightButtonDown = (mouse.ButtonState & RightButtonPressed) != 0;
+                if (leftButtonDown || rightButtonDown || (mouse.EventFlags & MouseMoved) != 0)
+                    HandleMouse(mouse.Position.X, mouse.Position.Y, leftButtonDown, rightButtonDown);
 
                 continue;
             }
@@ -148,7 +151,7 @@ public sealed class EditorApp
 
     private void RunKeyboardInput()
     {
-        DrawAll();
+        DrawAll(clear: true);
         while (true)
         {
             var key = Console.ReadKey(true);
@@ -156,7 +159,43 @@ public sealed class EditorApp
                 return;
 
             if (HandleKey(key))
+                DrawKeyChanges(key.Key);
+        }
+    }
+
+    private void DrawKeyChanges(ConsoleKey key)
+    {
+        var layout = CalculateLayout();
+        switch (key)
+        {
+            case ConsoleKey.LeftArrow:
+            case ConsoleKey.RightArrow:
+            case ConsoleKey.UpArrow:
+            case ConsoleKey.DownArrow:
+                DrawCanvasPanel(layout);
+                DrawStatus(layout);
+                break;
+            case ConsoleKey.Spacebar:
+            case ConsoleKey.D:
+            case ConsoleKey.E:
+                DrawCanvasCell(layout, _cursorX, _cursorY);
+                DrawStatus(layout);
+                break;
+            case ConsoleKey.P:
+                DrawPalettePanel(layout);
+                DrawStatus(layout);
+                break;
+            case ConsoleKey.PageUp:
+            case ConsoleKey.PageDown:
+                DrawPalettePanel(layout);
+                break;
+            case ConsoleKey.C:
+            case ConsoleKey.N:
                 DrawAll();
+                break;
+            case ConsoleKey.S:
+                DrawAll();
+                break;
         }
     }
 
@@ -277,9 +316,9 @@ public sealed class EditorApp
         _status = "New portrait. Save with S and choose the target dictionary and key. ";
     }
 
-    private void HandleMouse(int x, int y, bool leftButtonDown)
+    private void HandleMouse(int x, int y, bool leftButtonDown, bool rightButtonDown)
     {
-        if (!leftButtonDown)
+        if (!leftButtonDown && !rightButtonDown)
             return;
 
         var layout = CalculateLayout();
@@ -292,13 +331,14 @@ public sealed class EditorApp
             var oldCursorY = _cursorY;
             var newCursorX = x - canvasLeft;
             var newCursorY = y - canvasTop;
-            var cellChanged = _cells[newCursorX, newCursorY] != _brush;
+            var newCell = rightButtonDown ? " " : _brush;
+            var cellChanged = _cells[newCursorX, newCursorY] != newCell;
             if (oldCursorX == newCursorX && oldCursorY == newCursorY && !cellChanged)
                 return;
 
             _cursorX = newCursorX;
             _cursorY = newCursorY;
-            _cells[_cursorX, _cursorY] = _brush;
+            _cells[_cursorX, _cursorY] = newCell;
             DrawCanvasCell(layout, oldCursorX, oldCursorY);
             if (oldCursorX != newCursorX || oldCursorY != newCursorY)
                 DrawCanvasCell(layout, newCursorX, newCursorY);
@@ -469,13 +509,15 @@ public sealed class EditorApp
         DrawAll();
         Console.CursorVisible = true;
         Console.ResetColor();
-        Console.SetCursorPosition(0, Console.WindowHeight - 1);
-        Console.Write(new string(' ', Math.Max(0, Console.WindowWidth - 1)));
-        Console.SetCursorPosition(0, Console.WindowHeight - 1);
+        var promptY = Math.Max(0, Console.WindowHeight - 2);
+        var writableWidth = Math.Max(0, Console.WindowWidth - 1);
+        Console.SetCursorPosition(0, promptY);
+        Console.Write(new string(' ', writableWidth));
+        Console.SetCursorPosition(0, promptY);
         Console.Write(prompt);
     }
 
-    private void DrawAll()
+    private void DrawAll(bool clear = false)
     {
         var layout = CalculateLayout();
         if (layout.Width <= 0 || layout.Height <= 0)
@@ -485,7 +527,8 @@ public sealed class EditorApp
 
         Console.CursorVisible = false;
         Console.ResetColor();
-        Console.Clear();
+        if (clear)
+            Console.Clear();
         WriteAt(2, 0, "ASCII PORTRAIT EDITOR", layout.Width - 4);
         WriteAt(2, 1, "Arrows move | Shift+Left/Right switch portrait | Space/D draw | E erase | P glyph | PgUp/PgDn palette | S save | C resize | N new | Esc/Q quit",
             layout.Width - 4);
@@ -603,10 +646,10 @@ public sealed class EditorApp
     {
         var windowWidth = Console.WindowWidth;
         var windowHeight = Console.WindowHeight;
-        if (x < 0 || y < 0 || x >= windowWidth || y >= windowHeight || maximumWidth <= 0)
+        if (x < 0 || y < 0 || x >= windowWidth - 1 || y >= windowHeight - 1 || maximumWidth <= 0)
             return;
 
-        var availableWidth = Math.Min(maximumWidth, windowWidth - x);
+        var availableWidth = Math.Min(maximumWidth, windowWidth - 1 - x);
         var visible = text.Length > availableWidth ? text[..availableWidth] : text;
         Console.SetCursorPosition(x, y);
         Console.Write(visible);
