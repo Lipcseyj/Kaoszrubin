@@ -487,7 +487,7 @@ public sealed class EditorApp
         Console.ResetColor();
         Console.Clear();
         WriteAt(2, 0, "ASCII PORTRAIT EDITOR", layout.Width - 4);
-        WriteAt(2, 1, "Arrows move | Shift+Left/Right switch portrait | Space/D draw | E erase | P glyph | S save | C resize | N new | Esc/Q quit",
+        WriteAt(2, 1, "Arrows move | Shift+Left/Right switch portrait | Space/D draw | E erase | P glyph | PgUp/PgDn palette | S save | C resize | N new | Esc/Q quit",
             layout.Width - 4);
 
         for (var y = 0; y < layout.Height; y++)

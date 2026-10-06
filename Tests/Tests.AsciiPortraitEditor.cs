@@ -6,8 +6,11 @@ internal static partial class Program
     {
         var palette = PortraitPalette.Collect(["aλa\n", "😀b"]);
 
-        Assert(palette.SequenceEqual([" ", "a", "λ", "😀", "b"]),
-            "A portrépaletta nem őrizte meg az összes egyedi Unicode-karaktert forrássorrendben.");
+        Assert(palette[0] == " " && palette.Contains("─") && palette.Contains("█") &&
+               palette.Contains("◆") && palette.Contains("a") && palette.Contains("λ") &&
+               palette.Contains("😀") && palette.Contains("b") &&
+               palette.Count > 500 && palette.Distinct(StringComparer.Ordinal).Count() == palette.Count,
+            "A portrépaletta nem tartalmaz elég egyedi rajzolókaraktert és a forrás glyphjeit.");
     }
 
     static void AsciiPortraitSourceParsesDictionaries()
