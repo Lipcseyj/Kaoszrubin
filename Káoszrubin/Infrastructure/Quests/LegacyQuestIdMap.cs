@@ -61,9 +61,8 @@ public static class LegacyQuestIdMap
             "NPCQ043" => QuestId.GoblinChiefHunt,
             "NPCQ044" => QuestId.VillagerMeat,
             "NPCQ045" => QuestId.MonsterHunterOrcTrail,
-
-            "NPCQ046" => QuestId.Quest046,
-            "NPCQ047" => QuestId.Quest047,
+            "NPCQ046" => QuestId.Az_erdő_vasfogai,
+            "NPCQ047" => QuestId.Halál_a_zöldbőrűekre,
             _ => throw new InvalidDataException(
                 $"Ismeretlen legacy quest-azonosító: '{legacyId}'.")
         };
@@ -115,8 +114,8 @@ public static class LegacyQuestIdMap
         QuestId.GoblinChiefHunt => "NPCQ043",
         QuestId.VillagerMeat => "NPCQ044",
         QuestId.MonsterHunterOrcTrail => "NPCQ045",
-        QuestId.Quest046 => "NPCQ046",
-        QuestId.Quest047 => "NPCQ047",
+        QuestId.Az_erdő_vasfogai => "NPCQ046",
+        QuestId.Halál_a_zöldbőrűekre => "NPCQ047",
         _ => throw new InvalidDataException("Ismeretlen típusos questazonosító.")
     };
 }

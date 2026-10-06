@@ -104,6 +104,10 @@ public enum QuestId
 
     // NPC002 - Szörnyvadász
     MonsterHunterOrcTrail,
-    Quest046,
-    Quest047,
+
+    // NPC007 - Elf kósza
+    Az_erdő_vasfogai,
+
+    // NPC007 - Elf kósza
+    Halál_a_zöldbőrűekre,
 }
