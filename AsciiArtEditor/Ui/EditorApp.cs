@@ -33,6 +33,8 @@ public sealed class EditorApp
     private string[,] _cells = CreateCanvas(17, 5);
     private int _cursorX;
     private int _cursorY;
+    private int _mouseHoverX = -1;
+    private int _mouseHoverY = -1;
     private string _brush = " ";
     private int _paletteIndex;
     private int _palettePage;
@@ -318,19 +320,32 @@ public sealed class EditorApp
 
     private void HandleMouse(int x, int y, bool leftButtonDown, bool rightButtonDown)
     {
-        if (!leftButtonDown && !rightButtonDown)
-            return;
-
         var layout = CalculateLayout();
         var canvasLeft = layout.CanvasFrameX + 1;
         var canvasTop = layout.CanvasFrameY + 1;
-        if (x >= canvasLeft && x < canvasLeft + _canvasWidth &&
-            y >= canvasTop && y < canvasTop + _canvasHeight)
+        var isOverCanvas = x >= canvasLeft && x < canvasLeft + _canvasWidth &&
+                           y >= canvasTop && y < canvasTop + _canvasHeight;
+        var newHoverX = isOverCanvas ? x - canvasLeft : -1;
+        var newHoverY = isOverCanvas ? y - canvasTop : -1;
+        if (newHoverX != _mouseHoverX || newHoverY != _mouseHoverY)
+        {
+            var previousHoverX = _mouseHoverX;
+            var previousHoverY = _mouseHoverY;
+            _mouseHoverX = newHoverX;
+            _mouseHoverY = newHoverY;
+            DrawCanvasCell(layout, previousHoverX, previousHoverY);
+            DrawCanvasCell(layout, _mouseHoverX, _mouseHoverY);
+        }
+
+        if (!leftButtonDown && !rightButtonDown)
+            return;
+
+        if (isOverCanvas)
         {
             var oldCursorX = _cursorX;
             var oldCursorY = _cursorY;
-            var newCursorX = x - canvasLeft;
-            var newCursorY = y - canvasTop;
+            var newCursorX = newHoverX;
+            var newCursorY = newHoverY;
             var newCell = rightButtonDown ? " " : _brush;
             var cellChanged = _cells[newCursorX, newCursorY] != newCell;
             if (oldCursorX == newCursorX && oldCursorY == newCursorY && !cellChanged)
@@ -377,11 +392,14 @@ public sealed class EditorApp
     {
         var screenX = layout.CanvasFrameX + 1 + x;
         var screenY = layout.CanvasFrameY + 1 + y;
-        if (screenX < 0 || screenX >= layout.Width - 1 || screenY < 0 || screenY >= layout.Height - 1)
+        if (x < 0 || y < 0 || x >= _canvasWidth || y >= _canvasHeight ||
+            screenX < 0 || screenX >= layout.Width - 1 || screenY < 0 || screenY >= layout.Height - 1)
             return;
 
         Console.SetCursorPosition(screenX, screenY);
-        if (_cursorX == x && _cursorY == y)
+        if (_mouseHoverX == x && _mouseHoverY == y)
+            Console.BackgroundColor = ConsoleColor.DarkCyan;
+        else if (_cursorX == x && _cursorY == y)
             Console.BackgroundColor = ConsoleColor.DarkBlue;
         Console.Write(_cells[x, y]);
         Console.ResetColor();
