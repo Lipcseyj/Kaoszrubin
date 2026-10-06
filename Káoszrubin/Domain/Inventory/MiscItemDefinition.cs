@@ -40,6 +40,7 @@ public static class MiscItemIds
     public const string CrossbowBolt = AmmunitionIds.CrossbowBolt;
     public const string RawMeat = "T031";
     public const string CookedMeat = "T032";
+    public const string Gem = "T033";
 }
 
 public static class QuestItemIds

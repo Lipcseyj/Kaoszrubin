@@ -15,6 +15,7 @@ internal sealed class InnController
     private const int SecretStashLevelAdvance = 4;
     private const int FeastBasePricePerPerson = 90;
     private static readonly HashSet<string> DiscountedBuybackItemIds = ["W001", "W005", "A001", "A002"];
+    private static readonly HashSet<string> SellOnlyItemIds = [MiscItemIds.Gem];
     private static readonly HashSet<string> WitcherOnlyItemIds = ["T011", "T012", "T013", "T014", "T015", "T016", "T017", "T018", "T019", "T020"];
     private const int AmmunitionBundleSize = 12;
 
@@ -253,6 +254,8 @@ internal sealed class InnController
         if (bowyerPresent) _vendorStocks[InnVendorKind.Bowyer] = bowyerStock;
         _buybackPrices.Clear();
         foreach (var item in AllTradableItems())
+            _buybackPrices[item.Id] = Math.Max(1, item.BasePrice * _random.Next(40, 71) / 100);
+        foreach (var item in AllGameItems().Where(item => SellOnlyItemIds.Contains(item.Id)))
             _buybackPrices[item.Id] = Math.Max(1, item.BasePrice * _random.Next(40, 71) / 100);
         foreach (var item in AllGameItems().Where(item => DiscountedBuybackItemIds.Contains(item.Id)))
             _buybackPrices[item.Id] = Math.Max(1, item.BasePrice * _random.Next(20, 36) / 100);

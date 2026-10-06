@@ -260,6 +260,7 @@ T029;Nyíl;Vasból kovácsolt hegyű szabványos nyíl íjakhoz.;5;None;0;nem;0.
 T030;Íjpuskalövedék;Rövid vastag vessző íjpuskákhoz.;6;None;0;nem;0.08
 T031;Nyers hús;Egy ehető állatból kivágott húsdarab.;0;Food;15;nem;0.2
 T032;Sült hús;Egy megsütött húsdarab.;0;Food;50;nem;0.2
+T033;Drágakő;Csiszolt értékes kő amelyet a kereskedők szívesen megvesznek.;200;None;0;nem;0.05
 
 #Varázstárgyak
 Id;Név;Típus;Kategória;Ár;Töltet;VarázslatId;Hatás;Érték;CsakMágus;Jellemzés;MágikusErő;Súly
@@ -551,6 +552,7 @@ W045
 A010
 T031
 T032
+T033
 
 #Karaktergenerálási felszerelés
 Id;MinimumSzint;MaximumSzint
