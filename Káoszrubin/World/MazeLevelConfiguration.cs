@@ -682,20 +682,22 @@ public static class MazeLevelConfigurations
                 RoomSize = new(7, 11),
                 TreasureChestCount = Amount.Pack.Range(),
                 TreasureGold = new(180, 460),
-                RoomEncounters =
-                [
+                RoomEncounters = [
                     Encounters.Same(MonsterIds.Ork, Amount.Several, Amount.Several),
-                    Encounters.Mixed(MonsterIds.Hobgoblin, Amount.Several, MonsterIds.Ork, Amount.Few, Amount.Few),
+                    Encounters.Mixed(firstEnemyId: MonsterIds.Hobgoblin, firstCount: Amount.Several, secondEnemyId: MonsterIds.Káoszpap, secondCount: Amount.Few, groups: Amount.TwoThree),
                     Encounters.LeaderGroup(MonsterIds.Ogre, MonsterIds.Ork, Amount.One, Amount.Pack),
                     Encounters.LeaderGroup(MonsterIds.OrkSámán, MonsterIds.Ork, Amount.One, Amount.Several),
-                    Encounters.LeaderGroup(MonsterIds.Káoszpap, MonsterIds.Hobgoblin, Amount.One, Amount.Several)
+                    Encounters.LeaderGroup(leaderId: MonsterIds.Ogre, followerId: MonsterIds.Hobgoblin, groups: Amount.One, followers: Amount.Several),
+                    Encounters.Mixed(firstEnemyId: MonsterIds.Óriáspók, firstCount: Amount.TwoThree, secondEnemyId: MonsterIds.PestishordozóPatkány, secondCount: Amount.Several, groups: Amount.Few)
                 ],
-                CorridorEncounters =
-                [
-                    Encounters.Solo(MonsterIds.Ork, Amount.Few, EnemyMovementProfile.Patrol),
-                    Encounters.Solo(MonsterIds.Hobgoblin, Amount.Few, EnemyMovementProfile.Patrol),
-                    Encounters.MixedHorde(MonsterIds.Gnoll, Amount.Few, MonsterIds.Ork, Amount.Few, Amount.Few)
-                ]
+                CorridorEncounters = [
+                    Encounters.MixedHorde(firstEnemyId: MonsterIds.Gnoll, firstCount: Amount.Band, secondEnemyId: MonsterIds.Ork, secondCount: Amount.Band, groups: Amount.TwoThree),
+                    Encounters.MixedHorde(firstEnemyId: MonsterIds.Hobgoblin, firstCount: Amount.Band, secondEnemyId: MonsterIds.GoblinÍjász, secondCount: Amount.Band, groups: Amount.Handful),
+                    Encounters.LeaderHorde(leaderId: MonsterIds.Ogre, followerId: MonsterIds.Hobgoblin, groups: Amount.Few, followers: Amount.Several),
+                    Encounters.MixedHorde(firstEnemyId: MonsterIds.KáoszmágusTanítvány, firstCount: Amount.TwoThree, secondEnemyId: MonsterIds.Gnoll, secondCount: Amount.Band, groups: Amount.TwoThree),
+                    Encounters.Same(enemyId: MonsterIds.Hobgoblin, groups: Amount.Several, size: Amount.Pair, movement: EnemyMovementProfile.Patrol),
+                    Encounters.Same(enemyId: MonsterIds.Óriáspatkány, groups: Amount.Handful, size: Amount.Few, movement: EnemyMovementProfile.Wander)
+                ],
             },
             [8] = new()
             {

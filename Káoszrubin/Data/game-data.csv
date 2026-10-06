@@ -1589,8 +1589,8 @@ NPCQ010;NPC006;Kill;E002;4;990;Nincs visszaút;Győzz le négy koboldot hogy a s
 NPCQ011;NPC007;Kill;E003;5;1350;Az elveszett őrjárat;Ölj meg öt goblint a határőr elesett társaiért.;;;;;NPCD082;T018;1;NPCD126
 NPCQ012;NPC008;Kill;E004;5;1980;Csend a sírokban;Győzz le öt csontvázat hogy a katakombák halottai megnyugodhassanak.;;;1;;NPCD083;;;;;;
 NPCQ013;NPC008;Kill;E006;3;1755;A nyugtalan testek;Pusztíts el három zombit a remete szertartásához.;PS007;1;;;NPCD084;;;;;;
-NPCQ014;NPC009;Kill;E007;5;2520;Törött agyar;Győzz le öt orkot és gyengítsd meg a dezertőr egykori törzsét.;;;;;NPCD085
-NPCQ015;NPC009;Kill;E008;3;2790;A hadúr testőrei;Győzz le három hobgoblint az ork hadúr elitjéből.;;;;;NPCD086
+NPCQ014;NPC009;Kill;E007;5;2520;Törött agyar;Győzz le öt orkot és gyengítsd meg a dezertőr egykori törzsét.;;;1;;NPCD085;;;;;;;
+NPCQ015;NPC009;Kill;E008;3;2790;A hadúr testőrei;Győzz le három hobgoblint az ork hadúr elitjéből.;;;1;;NPCD086;;;;;;;
 NPCQ016;NPC010;Kill;E009;4;2430;Méregmirigyek;Győzz le négy óriáspókot az alkimista kísérleteihez.;;;;;NPCD087
 NPCQ017;NPC010;Collect;T017;2;1890;Biztos ellenszer;Vigyél két ellenmérget a barlangi alkimistának összehasonlító mintának.;;;;;NPCD088
 NPCQ018;NPC011;Kill;E031;2;3060;A tábor szemei;Győzz le két bugbeart és vakítsd meg az ork tábor felderítőit.;;;;;NPCD089
@@ -1612,7 +1612,7 @@ NPCQ033;NPC019;Kill;E012;3;3690;Nagyvad;Győzz le három ogrét az óriásvadás
 NPCQ042;NPC022;OpenQuestChest;AURELIOS_HELP;1;900;Uralkodód ezt a segítséget küldi;Találd meg Aurelios máguskirály küldöttének ládáját.;MW001;1;0;;NPCD071;;;;;;;igen
 NPCQ043;NPC023;Kill;E062;1;1800;Szemet szemért;Öld meg a goblin főnököt Vildar megbízásából.;T019;3;3;;NPCD114
 NPCQ044;NPC001;Collect;T031;2;1110;Húsleves;Gyűjts össze két adag nyers húst a füvesasszonynak.;T020;2;0;;NPCD116;T017;2;NPCD122;NPCE033;6;
-NPCQ045;NPC002;Kill;E007;5;2520;Az ork portyázók nyomában;Győzz le öt orkot a szörnyvadász megbízásából.;;;;;NPCD119;T019;3;NPCD125;NPCE034;6
+NPCQ045;NPC002;Kill;E010;5;2520;Fogas kérdés;Győzz le öt gnollt a szörnyvadász megbízásából.;T033;2;;;NPCD119;T019;3;NPCD125;NPCE034;6;;
 
 NPCQ034;NPC020;Escort;EXIT;1;1890;Ezüstág kimenekítése;Kísérd el Elirát élve a pálya kijáratáig.;T017;2;1;;NPCD105
 NPCQ035;NPC020;Collect;T019;1;720;Elszakadt kötés;Adj Elirának egy tiszta kötést hogy a sérült bokája bírja az utat.;T011;2;0;;NPCD106
@@ -1773,9 +1773,9 @@ NPCD113;NPC023;0;10;"Egy fiatal harcos áll az út szélén, kezében egy vérfo
 NPCD114;NPC023;0;10;"Vildar egy kidőlt fatörzs mellett ül, és némán a kezében tartott csorba nyílhegyet nézi. Amikor meglátja nálatok a goblin főnök fejét, hosszú másodpercekig egyetlen szót sem tud kimondani. Végül lehajtja a fejét, és remegő kézzel markolja meg a régi nyílhegyet. ""Hát... vége. Annyi éjszakán át azt hittem, csak akkor tudok majd újra lélegezni, ha az a gyilkos halott lesz. Bátyám... most már nyugodhatsz."" Vildar megtörli a szemét, majd felétek fordul. ""Köszönöm. Nemcsak bosszút álltatok érte... visszaadtatok nekem valamit abból, amit azon a napon elvesztettem. Fogadjátok el ezeket a kötéseket. Nem sok, de a testvérem mindig azt mondta: egy jó harcos nem szégyelli, ha életben akar maradni. Legyen most nektek hasznotokra. Úgy hallottam a vadállatok odúiban farkashordák kószálnak."""
 NPCD115;NPC001;0;10;"A füvesasszony egy kondért mellett kuporog, mellette rongyos falusiak. Fakanalat forgat az ujjai között, majd végigmér benneteket. ""Húslevest főznék ezeknek a szerencsétleneknek de nincs elég friss húsunk. Szerezzetek nekem és meghálálom. Vadkanhús különösen jó lenne."""
 NPCD116;NPC001;0;10;"A füvesasszony és a falusiak szeme felcsillan a hús láttán, felkel a kondér mellől és azonnal készíteni kezdi a levest. ""Jótét lelkek vagytok!"" Már csak főzés közben fűzi hozzá: ""Vigyetek gyógyteát cserébe, sokat főztem, jut nektek is."""
-NPCD117;NPC002;0;5;"A szörnyvadász egy ork nyomát vizsgálja. ""Ismét ti? Az orkok már itt portyáznak. Előbb látnom kell, hogy számíthatok rátok.""";NPCE034
-NPCD118;NPC002;6;10;"A szörnyvadász felismer benneteket, és félrehúzza az ágakat egy friss ork ösvényéről. ""A goblinoknál bizonyítottatok. Öt ork portyázik erre; segítsetek levadászni őket, és megkapjátok a részeteket.""";NPCE034
-NPCD119;NPC002;0;10;"A szörnyvadász végignézi az ork felszereléseket, majd bólint. ""Ezek többé nem támadnak meg senkit. Jó, hogy újra összefutottunk."""
+NPCD117;NPC002;0;8;"A szörnyvadász egy kopott bőrzsákot igazít a vállán, majd végigmér benneteket. ""Gnollok járják a környéket. Erősek, agresszívek, és a fogaikért meglepően jó pénzt adnak bizonyos gyűjtők."" Előhúz a zsebéből egy megsárgult agyart, és két ujja között megforgatja. ""Nekem most pontosan ezekre van szükségem. Ha levágtok néhány gnollt, hozzátok el a fogaikat. Nem érdekel, hogyan szerzitek meg őket, csak legyenek épek."" A vadász elteszi az agyart, és félmosollyal hozzáteszi: ""Ha elég jó példányokat hoztok, a jutalommal sem lesz panaszotok.""";NPCE034
+NPCD118;NPC002;9;10;"A szörnyvadász szélesen elvigyorodik, amikor meglát benneteket. ""Na, végre valakik, akiknek nem kell elmagyaráznom, melyik végén fogják a kardot."" Barátságosan vállon veregeti a hozzá legközelebb állót, majd elővesz egy hosszú, sárgás agyart. ""Új megrendelésem van. Gnollfogak kellenek, méghozzá szép, ép példányok. Másokra nem bíznám, de ti már párszor bebizonyítottátok, hogy ha szörnyekről van szó, tudjátok, mit csináltok."" Visszacsúsztatja az agyart az övébe. ""Intézzetek el néhány gnollt, és hozzátok el a fogaikat. A legjobb darabokat külön megfizetem. És próbáljatok meg mind visszajönni, mert kezdenék hozzászokni a társaságotokhoz.""";NPCE034
+NPCD119;NPC002;0;10;"A szörnyvadász végignézi a gnoll fogakat, majd bólint. ""Szép példányok, kitűnő nyakláncok lesznek belőlük."" - Rikkantja.";NPCE034
 NPCD120;NPC001;8;10;"A füvesasszony még két gyógyitalt csúsztat a csomagba. ""Régi barátnak több jár. Ezeket tartsátok meg magatoknak."""
 NPCD121;NPC001;8;10;"A füvesasszony egy gondosan lezárt fiolát is elővesz. ""Bennetek már megbízom. Ezt csak akkor használjátok, amikor igazán nagy a baj."""
 NPCD122;NPC001;8;10;"A füvesasszony külön csomagot köt át nektek. ""A barátaim nem indulnak útra üres kézzel. Ebből nektek is jut."""
