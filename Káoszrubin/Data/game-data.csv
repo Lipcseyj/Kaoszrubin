@@ -1492,6 +1492,7 @@ NPC020;Elira Ezüstág;C004;Neutral;Guarded;igen;igen;R003;ELIRA_RESCUE
 NPC021;Sir Roderic;C003;Neutral;Guarded;igen;igen;R001;RODERIC_OATH
 NPC022;Merion;C006;Friendly;Friendly;igen;igen;R001;;igen
 NPC023;Vildar;C001;Friendly;Friendly;nem;igen;R001
+NPC024;Renegát orgyilkos;C004;Neutral;Guarded;nem;nem;;;igen
 
 #Egyedi NPC karakterlap
 NpcId;Szint;Erő;Ügyesség;Egészség;Intelligencia;Alkalmazkodó;ÉleterőBónusz;MannaBónusz;Szín;HarciViselkedés;SpecializációId;TehetségId-k;Fegyver1Id;Fegyver2Id;PáncélId;VarázstárgyId-k;HátizsákId-k;FegyverjártasságId-k
@@ -1535,6 +1536,8 @@ NPCE030;NPC022;1;5;13
 NPCE031;NPC023;3;10;30
 NPCE033;NPC001;4;15;25;;
 NPCE034;NPC002;7;9;20
+NPCE035;NPC002;6;7;17;;WHISPERING_WOOD
+NPCE032;NPC024;6;17;27;;RAVEN_CROSSING
 
 #Quest ládák
 Id;Név;Arany;Térképjel;Előtérszín;Háttérszín
@@ -1616,7 +1619,10 @@ NPCQ039;NPC021;Kill;E053;1;3600;Az esküszegő;Győzzétek le Sir Malrecet Roder
 NPCQ040;NPC021;KillWithTraits;MA001;8;1560;Egy oldalon harcolunk;Győzz le nyolc élőholtat hogy bizonyítsd Rodericnek: közös az ellenségetek.;;;1;;NPCD111
 NPCQ041;NPC021;OpenQuestChest;RODERIC_ORDER_RELICS;1;2250;A rend ereklyéi;Nyisd ki az Ezüst Eskü ereklyeládáját Roderickel.;;;0;;NPCD112
 NPCQ046;NPC007;Disarm;ANY;3;1100;Az erdő vasfogai;Az Elf kósza három veszélyes vadászcsapdára bukkant a Vadállatok odúiban. A szerkezetek nemcsak a ragadozókat, hanem minden arra tévedő élőlényt veszélyeztetnek. Keressétek meg és hatástalanítsátok mind a három csapdát.;;;1;;NPCD128;;;;;;;
-NPCQ047;NPC007;Kill;E003;10;1400;Halál a zöldbőrűekre;Segítsd az Elf kósza bosszúját a goblinok irtásával;;;1;;NPCD129;;;NPCD130;NPCE008;;;
+NPCQ047;NPC007;Kill;E003;10;1800;Halál a zöldbőrűekre;Segítsd az Elf kósza bosszúját a goblinok irtásával;;;1;;NPCD130;;;NPCD131;NPCE008;5;;
+NPCQ048;NPC002;Kill;E105;3;1600;Prémvadászat;Gyűjts hiúzprémeket a szörnyvadásznak;;;1;;NPCD133;;;;NPCE035;;;
+NPCQ049;NPC002;Kill;E035;1;2300;Sámánorr gyűjtés;Az ork sámánok orra állítólag értékes komponens boszorkányok számára...;;;2;;NPCD134;;;;NPCE035;7;;
+NPCQ050;NPC024;Kill;E072;3;2250;Csökkentsük a konkurenciát;A renegát orgyilkos megjutalmaz egyéb orgyilkosok likvidálásáért;;;;;NPCD136;;;;NPCE032;;;
 
 #NPC párbeszédek
 Id;NpcId;MinimumBarátságosság;MaximumBarátságosság;Szöveg;TalálkozásId
@@ -1768,9 +1774,17 @@ NPCD122;NPC001;8;10;"A füvesasszony külön csomagot köt át nektek. ""A bará
 NPCD123;NPC002;8;10;"A szörnyvadász két tiszta kötést nyújt át. ""Aki ennyiszer fedezte a hátamat, annak én is tartozom ennyivel."""
 NPCD124;NPC002;8;10;"A szörnyvadász egy ellenmérget vesz elő a belső zsebéből. ""Ezt magamnak tettem félre. Nálatok jobb helyen lesz."""
 NPCD125;NPC002;8;10;"A szörnyvadász három kötést dob a zsákotokba. ""Most már nem megbízottak vagytok. Bajtársak."""
-NPCD126;NPC007;8;10;"Az elf kósza egy ritka főzetet nyújt át. ""Kevés vándornak mondom ezt, de az erdő ösvényei barátként emlékeznek majd rátok."""
+NPCD126;NPC007;8;10;"Az elf kósza egy ritka főzetet nyújt át. ""Kevés vándornak mondom ezt, de az erdő ösvényei barátként emlékeznek majd rátok.""";
 NPCD127;NPC007;0;10;"A sziklák között egy karcsú elf alak bukkan elő, köpenyén levelek és száraz ágak nyomai. Egy pillanatig némán végigmér benneteket, majd int, hogy halkabban közelítsetek. ""Jó, hogy erre jártok. Valaki vasfogú csapdákat helyezett el ezekben az üregekben. Háromról tudok, de egyedül nem merem mindet megközelíteni, amíg ennyi vadállat járja a környéket. Ezek a szerkezetek nem válogatnak: farkast, őzet vagy akár egy óvatlan vándort is ugyanúgy megnyomorítanak. Ha megtaláljátok mind a hármat, hatástalanítsátok őket. Az erdő lakói veszélyesek lehetnek, de attól még nem érdemlik meg, hogy vasba szorulva pusztuljanak el.""";
 NPCD128;NPC007;0;10;"Amikor visszatértek, az elf kósza már messziről észrevesz benneteket. Kérdő tekintetére csak bólintotok. ""Mind a három? Akkor ma néhány állat úgy térhet vissza az odújába, hogy nem egy rozsdás vasfog várja az ösvényen. Jól tettétek. A vadon nem szelíd hely, de megvan a maga rendje – és az ilyen csapdák csak felborítják azt. Fogadjátok ezt a segítségetekért. Remélem, még találkozunk olyan vidéken, ahol kevesebb vas és több élő fa vesz körül minket.""";
+NPCD129;NPC007;0;10;"Az Elf kósza egy tölgyfának támaszkodva vár benneteket. Amikor meglát, felismerés villan a szemében, és halvány mosollyal biccent. ""Ti vagytok azok. Reméltem, hogy még találkozunk."" A mosoly azonban gyorsan eltűnik az arcáról. ""A múltkor segítettetek megbosszulni az őrjáratomat, de az öt goblin halálával nem ért véget semmi. Minél mélyebbre jutok, annál többet találok belőlük. Fészkeket, őrhelyeket, egész csapatokat. Úgy szaporodnak ezekben a járatokban, mint a férgek."" Megmarkolja az íját, és a folyosó sötétje felé néz. ""Nem kérek tőletek célzott vadászatot ezúttal. Ha goblint láttok, öljétek meg. Minél többet küldtök közülük a föld alá, annál kevesebb családnak kell majd olyan veszteséget elszenvednie, mint nekem.""";NPCE008
+NPCD130;NPC007;0;10;"Az Elf kósza már messziről felismer benneteket. Végignéz a fegyvereiteken és a rajtuk maradt zöldes vérfoltokon, majd elégedetten bólint. ""Látom, nem tétlenkedtetek."" Egy pillanatra csendben marad, de az arcán most sem jelenik meg öröm. ""Sok goblin meghalt, és ezért hálás vagyok nektek. Mégsem érzem könnyebbnek azt, amit magammal hordozok. A bosszú furcsa dolog. Az ember azt hiszi, minden egyes halott ellenséggel közelebb kerül a nyugalomhoz, aztán rájön, hogy a halottak nem hozzák vissza azokat, akiket elveszítettünk."" Aztán rátok néz, és határozottabban folytatja: ""De legalább ezek a zöldbőrűek többé nem támadnak meg senkit. Ez is számít. Fogadjátok a jutalmatokat — és ha ismét keresztezzük egymás útját, remélem, egyszer már nem a halál lesz az oka.""";NPCE008
+NPCD131;NPC007;0;10;"""Mivel az elfek barátai vagytok elmondok nektek pár fontos dolgot a Tiltott Erdőről. A Hollók elágazásánál délre kell menni, ha minél hamarabb át akartok kelni az erdőn. Aztán keljetek ák a mocsáron és a tövisútveztőn és eljuttok a Szélcsend tisztására. Az az erdő kijárata. Ha az elágazásnál keletre mentek, az elveszett kúriákhoz juttok. Itt óvatosak legyetek mert a kúriákba egy ork törzs és élőholtak vették be magukat. Az északi út zsákutca.""";NPCE008
+NPCD132;NPC002;0;10;"Az egyik fa árnyékában egy ismerős alakot láttok, aki csípőre tett kézzel vár és hangosan üdvözöl titeket: ""Hallottam róla, hogy erre fogtok járni, cimborák!"" Prémekre van szükségem. És errefelé is láttak néhány zöldbőrű sámánt egy kihalt kúriában.";NPCE035
+NPCD133;NPC002;0;10;"A szörnyvadász megvizsgálja az árut: ""Kitűnő minőségű prémek!"" - Rikkantja. ""Még találkozunk, cimborák!""";NPCE035
+NPCD134;NPC002;0;10;"A szörnyvadász megvizsgálja az árut: ""Ez valóban az ork sámán orra! Szép munka!"" - Kérdő tekintetetekre csak megvonja a vállát és széles vigyorral mondja: ""Ne kérdezzétek, honnan tudom. Még találkozunk, cimborák!""";NPCE035
+NPCD135;NPC024;0;10;"A fal árnyékából egy sötét ruhás alak válik ki, kezében keskeny pengével. ""Ne nyúljatok a fegyveretekhez. Ha meg akarnálak ölni benneteket, már nem beszélgetnénk."" Az orgyilkos halványan elmosolyodik. ""Van néhány szakmabeli a környéken, akik kezdik túl komolyan venni magukat. Megbízásokat halásznak el előlem, lenyomják az árakat, és ami a legrosszabb, életben maradnak. Keressétek meg őket, és tegyétek kevésbé zsúfolttá a szakmát. Ne aggódjatok, nem kérek ingyen szívességet. A konkurencia eltűnése nekem pénzt ér, és abból nektek is jut.""";NPCE032
+NPCD136;NPC024;0;10;"A renegát orgyilkos egyetlen pillantást vet rátok, majd elégedetten bólint. ""Hallottam, hogy néhány ismerős arc hirtelen eltűnt a környékről. Micsoda tragédia."" Elégedett mosoly fut át az arcán. ""Kevesebb orgyilkos, több megbízás nekem, és kevesebb ember, aki a hátamba próbál kést állítani. Mindenki jól jár. Mármint azok közül, akik még élnek."" Egy erszényt dob felétek. ""Tessék, a fizetségetek. Ha így folytatjátok, még a végén kénytelen leszek benneteket is konkurenciának tekinteni.""";NPCE032
 
 #NPC történeti választások
 Id;TörténetId;ÁllapotId;Mondat;Sorrend;Válasz;ViszonyVáltozás;KövetkezőÁllapotId;Reakció;Hatás;HatásParaméter;Folytatás;MinimumViszony;MaximumViszony

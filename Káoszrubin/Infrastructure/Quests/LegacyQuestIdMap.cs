@@ -63,6 +63,9 @@ public static class LegacyQuestIdMap
             "NPCQ045" => QuestId.MonsterHunterOrcTrail,
             "NPCQ046" => QuestId.Az_erdő_vasfogai,
             "NPCQ047" => QuestId.Halál_a_zöldbőrűekre,
+            "NPCQ048" => QuestId.Prémvadászat,
+            "NPCQ049" => QuestId.Sámánorr_gyűjtés,
+            "NPCQ050" => QuestId.Csökkentsük_a_konkurenciát,
             _ => throw new InvalidDataException(
                 $"Ismeretlen legacy quest-azonosító: '{legacyId}'.")
         };
@@ -116,6 +119,9 @@ public static class LegacyQuestIdMap
         QuestId.MonsterHunterOrcTrail => "NPCQ045",
         QuestId.Az_erdő_vasfogai => "NPCQ046",
         QuestId.Halál_a_zöldbőrűekre => "NPCQ047",
+        QuestId.Prémvadászat => "NPCQ048",
+        QuestId.Sámánorr_gyűjtés => "NPCQ049",
+        QuestId.Csökkentsük_a_konkurenciát => "NPCQ050",
         _ => throw new InvalidDataException("Ismeretlen típusos questazonosító.")
     };
 }

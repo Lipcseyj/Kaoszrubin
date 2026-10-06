@@ -110,4 +110,10 @@ public enum QuestId
 
     // NPC007 - Elf kósza
     Halál_a_zöldbőrűekre,
+    // NPC002 - Szörnyvadász
+    Prémvadászat,
+    // NPC002 - Szörnyvadász
+    Sámánorr_gyűjtés,
+    // NPC024 - Renegát orgyilkos
+    Csökkentsük_a_konkurenciát,
 }

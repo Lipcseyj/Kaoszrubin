@@ -34,5 +34,6 @@ public enum QuestNpcId
     SirRoderic,
     AureliosEmissary,
     Vildar,
-    VillagerHerbalist
+    VillagerHerbalist,
+    Npc024,
 }

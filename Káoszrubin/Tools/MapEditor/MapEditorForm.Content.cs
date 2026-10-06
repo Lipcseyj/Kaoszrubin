@@ -20,6 +20,7 @@ internal sealed partial class MapEditorForm
     private readonly TextBox _encounterExpression = new() { Dock = DockStyle.Top, Multiline = true, Height = 94, ScrollBars = ScrollBars.Vertical };
     private readonly TabControl _encounterKinds = new() { Dock = DockStyle.Fill };
     private readonly Dictionary<string, DataGridView> _csvGrids = [];
+    private readonly Dictionary<string, Label> _csvDirtyIndicators = [];
     private readonly CheckBox _showAllNpcs = new() { Text = "Összes pálya NPC-i", AutoSize = true };
     private readonly ComboBox _npcEncounterSelector = new() { Width = 270, DropDownStyle = ComboBoxStyle.DropDownList };
     private IReadOnlyDictionary<string, string> _npcNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -190,6 +191,9 @@ internal sealed partial class MapEditorForm
             _csvGrids[section] = grid;
             RegisterGrid("csv." + section, grid);
             grid.CellValueChanged += NpcIdCellValueChanged;
+            grid.CellValueChanged += (_, _) => SetCsvDirty(section, true);
+            grid.RowsAdded += (_, _) => SetCsvDirty(section, true);
+            grid.RowsRemoved += (_, _) => SetCsvDirty(section, true);
             if (section == "NPC találkozások")
                 grid.SelectionChanged += (_, _) =>
                 {
@@ -213,6 +217,10 @@ internal sealed partial class MapEditorForm
             if (section == "NPC találkozások")
                 actions.Controls.Add(Button("Kijelölt AreaId", (_, _) => SetNpcArea(grid)));
             actions.Controls.Add(Button("CSV mentése", (_, _) => SaveCsvSection(section)));
+            var dirtyIndicator = new Label { AutoSize = true, Padding = new Padding(4, 6, 0, 0) };
+            _csvDirtyIndicators[section] = dirtyIndicator;
+            actions.Controls.Add(dirtyIndicator);
+            SetCsvDirty(section, false);
             page.Controls.Add(grid); page.Controls.Add(actions);
             _npcTabs.TabPages.Add(page);
         }
@@ -304,6 +312,7 @@ internal sealed partial class MapEditorForm
             }
             RefreshNpcEncounterChoices();
             FilterNpcRows();
+            foreach (var section in _csvGrids.Keys) SetCsvDirty(section, false);
         }
         catch (Exception exception) { MessageBox.Show(this, exception.Message, "Adatbetöltési hiba"); }
         finally { _refreshingContent = false; ShowEncounterExpression(); }
@@ -321,6 +330,13 @@ internal sealed partial class MapEditorForm
         row.Cells[InformativeNpcNameColumn].Value = npcId is not null && _npcNames.TryGetValue(npcId, out var npcName)
             ? npcName
             : "";
+    }
+
+    private void SetCsvDirty(string section, bool dirty)
+    {
+        if (dirty && _refreshingContent || !_csvDirtyIndicators.TryGetValue(section, out var indicator)) return;
+        indicator.Text = dirty ? "● Nincs mentve" : "● Mentve";
+        indicator.ForeColor = dirty ? Color.Firebrick : Color.ForestGreen;
     }
 
     private void RefreshNpcEncounterChoices()
@@ -703,6 +719,7 @@ internal sealed partial class MapEditorForm
                 foreach (var (path, bytes) in originals) File.WriteAllBytes(path, bytes);
                 throw;
             }
+            SetCsvDirty(section, false);
             UpdateStatus($"{section}: CSV és azonosítók mentve.");
             if (section == "NPC találkozások") RefreshNpcEncounterChoices();
         }
