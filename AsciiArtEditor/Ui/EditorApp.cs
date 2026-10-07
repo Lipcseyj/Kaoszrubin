@@ -551,7 +551,7 @@ public sealed class EditorApp
         WriteAt(2, 1, "Arrows move | Shift+Left/Right switch portrait | Space/D draw | E erase | P glyph | PgUp/PgDn palette | S save | C resize | N new | Esc/Q quit",
             layout.Width - 4);
 
-        for (var y = 0; y < layout.Height; y++)
+        for (var y = 2; y < layout.Height - 2; y++)
             WriteAt(layout.SplitX, y, "│", 1);
 
         DrawCanvasPanel(layout);
@@ -596,12 +596,16 @@ public sealed class EditorApp
             for (var column = 0; column < layout.PaletteColumns; column++)
             {
                 var index = _palettePage * layout.PalettePageSize + row * layout.PaletteColumns + column;
-                if (index >= _palette.Length)
-                    break;
-
                 var x = layout.PaletteItemsLeft + column * PaletteCellWidth;
                 if (x + PaletteCellWidth >= layout.Width - 1 || y >= layout.Height - 1)
                     continue;
+
+                if (index >= _palette.Length)
+                {
+                    WriteAt(x, y, new string(' ', PaletteCellWidth), PaletteCellWidth);
+                    continue;
+                }
+
                 Console.SetCursorPosition(x, y);
                 Console.BackgroundColor = index == _paletteIndex ? ConsoleColor.DarkGreen : ConsoleColor.Black;
                 Console.Write($" {_palette[index]}  ");
@@ -620,7 +624,9 @@ public sealed class EditorApp
     private void DrawStatus(EditorLayout layout)
     {
         var statusY = Math.Max(2, layout.Height - 2);
-        WriteAt(2, statusY, $"Brush: '{_brush}'  Position: ({_cursorX},{_cursorY})  {_status}", layout.Width - 4);
+        var maximumWidth = Math.Max(0, layout.Width - 4);
+        var status = $"Brush: '{_brush}'    Position: ({_cursorX},{_cursorY})    {_status}";
+        WriteAt(2, statusY, status.PadRight(maximumWidth), maximumWidth);
     }
 
     private EditorLayout CalculateLayout()
