@@ -10,6 +10,10 @@ namespace KaoszRubin.UI;
 
 public sealed partial class ConsoleRenderer
 {
+    /// <summary>
+    /// Renders the right-hand character sheet, detail pages, party rows, and portrait using cached row state.
+    /// </summary>
+    /// <remarks>Input dispatch remains the caller's responsibility; opening a detail page does not itself filter keys.</remarks>
     public sealed class CharacterSheetRenderer
     {
         private const int CharacterSheetHeaderLine = 1;
@@ -22,6 +26,7 @@ public sealed partial class ConsoleRenderer
         private const int CharacterSheetPartyMembersStartLine = 41;
         private const int CharacterSheetPartyMemberRows = 4;
         private const int CharacterSheetReservedMessageLine = 39;
+        /// <summary>The zero-based row reserved for party formation status.</summary>
         public const int CharacterSheetControlsLine = 40;
 
         private enum SheetSelectionKind { Weapon, Armor, MagicItem, Backpack, PartyMember }
@@ -51,6 +56,7 @@ public sealed partial class ConsoleRenderer
         private PartyFormationSnapshot? _formation;
         private LiveCharacter? _displayedCharacter;
 
+        /// <summary>Creates a character-sheet renderer sharing the owner's console surface and party state.</summary>
         internal CharacterSheetRenderer(ConsoleRenderer owner, Party party)
         {
             _owner = owner;
@@ -59,21 +65,22 @@ public sealed partial class ConsoleRenderer
 
         /// <summary>
         /// Gets the character currently displayed on the right panel.
-        /// Use this when an external flow needs the active character-sheet context.
+        /// Falls back to the party leader when no character has been displayed.
         /// </summary>
+        /// <exception cref="InvalidOperationException">Neither a displayed character nor a party leader is available.</exception>
         public LiveCharacter DisplayedCharacter =>
             _displayedCharacter ?? _party.Leader ?? throw new InvalidOperationException("Nincs megjeleníthető karakter.");
 
         /// <summary>
         /// Gets whether the spell info page is currently open.
-        /// Use this to gate input handling while spell detail mode is active.
         /// </summary>
+        /// <remarks>Callers must keep F-key quick-slot assignment available while disabling item-only actions.</remarks>
         public bool IsSpellInfoPageOpen => _owner._spellInfoCharacter is not null;
 
         /// <summary>
         /// Gets whether an item inspection page is currently open.
-        /// Use this to restrict actions to inspection-specific keys while the page is visible.
         /// </summary>
+        /// <remarks>Callers must restrict input to the exit actions: Esc, I, or Enter.</remarks>
         public bool IsItemInspectionPageOpen => _itemInspectionPanel is not null;
 
         /// <summary>
@@ -84,7 +91,7 @@ public sealed partial class ConsoleRenderer
 
         /// <summary>
         /// Refreshes the right panel for the current display context.
-        /// Use this when underlying data changed and the currently visible character sheet should be redrawn.
+        /// Preserves open detail pages and does nothing when neither a displayed character nor a party member exists.
         /// </summary>
         public void RefreshCharacterSheet()
         {
@@ -98,6 +105,7 @@ public sealed partial class ConsoleRenderer
         /// Refreshes the right panel using a fallback character when no display character is set.
         /// Use this after character state updates when spell info and inspection overlays should be preserved.
         /// </summary>
+        /// <param name="character">The fallback when the displayed character is no longer a party member or temporary follower.</param>
         public void RefreshCharacterSheet(LiveCharacter character)
         {
             if (_owner._spellInfoCharacter is not null)
@@ -122,6 +130,7 @@ public sealed partial class ConsoleRenderer
         /// Updates only the gold row in the character sheet.
         /// Use this for lightweight UI refresh after transactions that only change currency.
         /// </summary>
+        /// <param name="character">The character whose gold is written, regardless of the current display selection.</param>
         public void UpdateGoldInCharacterSheet(LiveCharacter character)
         {
             var goldLine = CharacterSheetPanel.BuildGoldLine(character);
@@ -145,6 +154,7 @@ public sealed partial class ConsoleRenderer
         /// Sets focus visual state for character sheet controls.
         /// Use this when toggling between movement/input mode and character-sheet input mode.
         /// </summary>
+        /// <param name="focused">Whether to highlight the two sheet header rows as focused.</param>
         public void SetCharacterSheetFocused(bool focused)
         {
             _characterSheetFocused = focused;
@@ -156,6 +166,8 @@ public sealed partial class ConsoleRenderer
         /// Moves the current character-sheet selection up or down.
         /// Use positive values to move forward and negative values to move backward.
         /// </summary>
+        /// <param name="direction">The selection offset, normally 1 or -1; zero leaves the selection unchanged.</param>
+        /// <remarks>Navigation wraps through inventory and party rows and is ignored during item inspection.</remarks>
         public void MoveCharacterSheetSelection(int direction)
         {
             if (_itemInspectionPanel is not null) return;
@@ -176,6 +188,8 @@ public sealed partial class ConsoleRenderer
         /// Switches the displayed party member on the character sheet.
         /// Use this for left/right navigation between members while preserving per-character selection.
         /// </summary>
+        /// <param name="direction">The character offset, normally 1 or -1; zero leaves the display unchanged.</param>
+        /// <remarks>Cycles through party members and temporary followers; ignored during item inspection.</remarks>
         public void MoveDisplayedPartyMember(int direction)
         {
             if (_itemInspectionPanel is not null) return;
@@ -194,6 +208,9 @@ public sealed partial class ConsoleRenderer
         /// Draws the spell information page for a character.
         /// Use this when opening spell details or when spell selection index changes.
         /// </summary>
+        /// <param name="character">The character whose known spells are ordered by level and then name.</param>
+        /// <param name="selectedIndex">The requested spell index, clamped to the available list.</param>
+        /// <remarks>Replaces item inspection and clears unused rows through the portrait panel's bottom edge.</remarks>
         public void DrawSpellInfoPage(LiveCharacter character, int selectedIndex)
         {
             _itemInspectionPanel = null;
@@ -215,6 +232,7 @@ public sealed partial class ConsoleRenderer
         /// Gets the currently selected spell from the spell info page.
         /// Use this to map Enter/F-key actions to the selected spell.
         /// </summary>
+        /// <returns>The selected known spell, or null when the page is closed or its index has no spell.</returns>
         public SpellDefinition? GetSelectedSpellInfo()
         {
             if (_owner._spellInfoCharacter is null) return null;
@@ -236,6 +254,8 @@ public sealed partial class ConsoleRenderer
         /// Moves the selected row on the spell info page.
         /// Use positive/negative direction values for down/up navigation.
         /// </summary>
+        /// <param name="direction">The spell offset, normally 1 or -1; zero leaves the selection unchanged.</param>
+        /// <remarks>Wraps the selection and does nothing when the page is closed or the character has no known spells.</remarks>
         public void MoveSpellInfoSelection(int direction)
         {
             if (_owner._spellInfoCharacter is null || direction == 0 || _owner._spellInfoCharacter.KnownSpells.Count == 0) return;
@@ -261,6 +281,8 @@ public sealed partial class ConsoleRenderer
         /// Draws an item inspection panel on the right side.
         /// Use this when inspecting an identified or unidentified inventory item.
         /// </summary>
+        /// <param name="lines">Panel rows with unique row numbers; omitted rows are cleared.</param>
+        /// <remarks>Closes spell info. The caller must allow only Esc, I, or Enter to exit inspection.</remarks>
         public void DrawItemInspectionPage(IReadOnlyList<CharacterSheetPanelLine> lines)
         {
             _owner._spellInfoCharacter = null;
@@ -292,6 +314,8 @@ public sealed partial class ConsoleRenderer
         /// Returns the inventory slot currently selected on the character sheet.
         /// Use this before drop/use/move/split actions to resolve the target slot.
         /// </summary>
+        /// <returns>The selected slot, or null when no character or inventory row is selected.</returns>
+        /// <remarks>This lookup does not gate actions; callers must reject item actions while either detail page is open.</remarks>
         public InventorySlotReference? GetSelectedInventorySlot()
         {
             if (_displayedCharacter is null || _activeSheetSelection is not { } selection) return null;
@@ -312,6 +336,7 @@ public sealed partial class ConsoleRenderer
         /// Returns the party member currently selected in the party section.
         /// Use this for member-specific actions such as dismissal or behavior display.
         /// </summary>
+        /// <returns>The selected party member, or null when the selection is not a valid party row.</returns>
         public LiveCharacter? GetSelectedPartyMember()
         {
             if (_activeSheetSelection is not { Kind: SheetSelectionKind.PartyMember } selection) return null;
@@ -373,6 +398,7 @@ public sealed partial class ConsoleRenderer
         /// Stores and renders current formation status text on the controls row.
         /// Use this whenever formation state/facing/layout changes.
         /// </summary>
+        /// <remarks>The state is stored while a detail page is open, but that page is not overwritten.</remarks>
         public void SetFormationStatus(PartyFormationSnapshot formation)
         {
             _formation = formation;
@@ -393,6 +419,7 @@ public sealed partial class ConsoleRenderer
         /// Formats formation state into the controls-row text.
         /// Use this helper when any UI needs a consistent formation label.
         /// </summary>
+        /// <returns>A label containing the facing arrow, formation state, and locked layout when applicable.</returns>
         public static string FormationStatusText(PartyFormationSnapshot formation)
         {
             var arrow = formation.Facing switch
@@ -416,6 +443,8 @@ public sealed partial class ConsoleRenderer
         /// Draws detailed battle action text on the right panel.
         /// Use this in non-quick battles when new action details become available.
         /// </summary>
+        /// <param name="details">The action details to display, or null for the panel's empty state.</param>
+        /// <remarks>Changing the action ID resets paging; rendering is deferred while spell info is open.</remarks>
         public void DrawBattleDetails(BattleActionDetails? details)
         {
             if (_owner._battleDetails?.Id != details?.Id) _owner._battleDetailsPage = 0;
@@ -441,8 +470,10 @@ public sealed partial class ConsoleRenderer
 
         /// <summary>
         /// Draws the full character sheet for one character into the right panel.
-        /// Use this as the primary render entry point for character sheet state changes.
+        /// Clears the panel when the character changes; otherwise writes only changed cached rows.
         /// </summary>
+        /// <param name="character">The character to display and retain as the active sheet context.</param>
+        /// <remarks>Use RefreshCharacterSheet to preserve an open spell info or item inspection page.</remarks>
         public void DrawCharacterSheet(LiveCharacter character)
         {
             var fullRedraw = _lastCharacterSheetCharacterId != character.Id;
@@ -521,6 +552,10 @@ public sealed partial class ConsoleRenderer
         /// Draws the portrait panel next to the message log.
         /// Use this after character/enemy context changes that affect portrait or portrait color.
         /// </summary>
+        /// <remarks>
+        /// Prioritizes the acting character, then the battle enemy, then the displayed character.
+        /// The panel stays bottom-aligned with the message log as the console height changes.
+        /// </remarks>
         public void DrawPicturePanel()
         {
             var actingCharacter = _owner._battleActive ? _owner._battleActingCharacter : null;
@@ -568,6 +603,9 @@ public sealed partial class ConsoleRenderer
         /// Writes a single colored line to the right panel with default black background.
         /// Use this for lightweight row output when only foreground color varies.
         /// </summary>
+        /// <param name="y">The zero-based console row.</param>
+        /// <param name="text">The text, clipped and padded to the current right-panel display width.</param>
+        /// <param name="foregroundColor">The text color.</param>
         public void WriteSheetLine(int y, string text, ConsoleColor foregroundColor) =>
             WriteSheetLine(y, text, foregroundColor, ConsoleColor.Black);
 
@@ -585,6 +623,7 @@ public sealed partial class ConsoleRenderer
             _lastPicturePanelState = null;
         }
 
+        /// <summary>Invalidates all row and portrait snapshots before the owner rebuilds the console surface.</summary>
         internal void InvalidateForSurfaceRebuild() => InvalidateCharacterSheetCache();
 
         /// <summary>
@@ -746,6 +785,8 @@ public sealed partial class ConsoleRenderer
                 BattleCommandPanel.TruncateToDisplayWidth(" - " + character.Name, width - titleWidth));
         }
 
+        /// <summary>Updates only the exploration clock segment in the world header without redrawing the rest of the row.</summary>
+        /// <remarks>Does nothing when a detail page is open, no character is displayed, or the indicator is absent.</remarks>
         public void RefreshExplorationClockLine()
         {
             if (_owner._spellInfoCharacter is not null || _itemInspectionPanel is not null ||
@@ -920,7 +961,7 @@ public sealed partial class ConsoleRenderer
 
         /// <summary>
         /// Builds navigation entries for the current character sheet.
-        /// Use this to map keyboard movement to selectable rows.
+        /// Includes inventory slots followed by up to four party rows; temporary followers have no selectable entries.
         /// </summary>
         private List<SheetSelectionEntry> BuildSheetSelections(LiveCharacter character)
         {

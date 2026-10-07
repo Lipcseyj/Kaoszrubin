@@ -4,37 +4,68 @@ using KaoszRubin.Domain.Inventory;
 
 namespace KaoszRubin.UI;
 
+/// <summary>Egy inventory-hely típusa és a típuson belüli, nullától induló indexe.</summary>
 public readonly record struct InventorySlotAddress(InventorySlotKind Kind, int Index);
 
+/// <summary>Egy karakterlap-sor szövege, pozíciója és megjelenítési adatai.</summary>
+/// <param name="Row">A sor nullától induló konzolpozíciója.</param>
+/// <param name="Text">A sor alapértelmezett szövege.</param>
+/// <param name="Color">Az alapértelmezett előtérszín.</param>
+/// <param name="InventorySlot">A sorhoz tartozó inventory-hely, ha van.</param>
+/// <param name="Background">A sor háttérszíne.</param>
+/// <param name="ColoredSuffix">Az alapszöveg után külön színnel megjelenített szöveg.</param>
+/// <param name="ColoredSuffixColor">A kiegészítő szöveg előtérszíne.</param>
+/// <param name="ExtendsToDivider">Jelzi, hogy a sor a kibővített, elválasztóig tartó területet használja.</param>
+/// <param name="Segments">A szegmentált megjelenítéshez használható színezett szövegrészek.</param>
+/// <param name="ColoredTextStart">A más színű szövegvég kezdőindexe a Text értékében; -1 esetén nincs színváltás.</param>
+/// <param name="ColoredTextColor">A Text színezett végének előtérszíne.</param>
 public sealed record CharacterSheetPanelLine(int Row, string Text, ConsoleColor Color,
     InventorySlotAddress? InventorySlot = null, ConsoleColor Background = ConsoleColor.Black,
     string ColoredSuffix = "", ConsoleColor ColoredSuffixColor = ConsoleColor.White,
     bool ExtendsToDivider = false, IReadOnlyList<TextSegment>? Segments = null,
     int ColoredTextStart = -1, ConsoleColor ColoredTextColor = ConsoleColor.White);
 
+/// <summary>A parti-státuszsor külön színezhető azonosító-, életerő- és mánarészei.</summary>
+/// <param name="Identity">A kijelölés, osztályjel, név és szint szövege.</param>
+/// <param name="IdentityColor">Az azonosító rész előtérszíne.</param>
+/// <param name="Vitality">Az életerő vagy a halott állapot szövege.</param>
+/// <param name="VitalityColor">Az életerő rész előtérszíne.</param>
+/// <param name="Mana">A mánaszöveg; mána nélküli karakter esetén üres.</param>
+/// <param name="ManaColor">A mána rész előtérszíne.</param>
+/// <param name="InvertedNameStart">Az Identity inverz színű részének kezdőindexe; -1 esetén nincs inverz rész.</param>
 public sealed record PartyStatusLine(string Identity, ConsoleColor IdentityColor,
     string Vitality, ConsoleColor VitalityColor, string Mana, ConsoleColor ManaColor,
     int InvertedNameStart = -1)
 {
+    /// <summary>A külön színezhető részek összefűzött, formázatlan szövege.</summary>
     public string Text => Identity + Vitality + Mana;
 }
 
+/// <summary>Az aktuális és maximális életerő, valamint az opcionális mána külön színezhető szövege.</summary>
+/// <param name="Vitality">Az életerő szövege.</param>
+/// <param name="VitalityColor">Az életerő előtérszíne.</param>
+/// <param name="Mana">A mána szövege; mána nélküli karakter esetén üres.</param>
+/// <param name="ManaColor">A mána előtérszíne.</param>
 public sealed record CharacterResourceLine(string Vitality, ConsoleColor VitalityColor,
     string Mana, ConsoleColor ManaColor)
 {
+    /// <summary>Az életerő és mána összefűzött, formázatlan szövege.</summary>
     public string Text => Vitality + Mana;
 }
 
 /// <summary>A host és a vendég azonos karakterlap- és inventory-sorelrendezése.</summary>
 public static class CharacterSheetPanel
 {
+    /// <summary>A karakterlap alapértelmezett és minimális formázási szélessége.</summary>
     public const int Width = 27;
     private const int PartyStatusNameColumnWidth = 13;
     private const int PartyStatusLevelColumnWidth = 2;
     private const int PartyStatusHpColumnWidth = 6;
     private const int ResourceIconStep = 10;
 
+    /// <summary>Legalább Width hosszúságú, szóközökkel kitöltött sort készít.</summary>
     public static string BlankLineForWidth(int width) => new(' ', Math.Max(Width, width));
+    /// <summary>Az osztályjelek alapértelmezett avatarkészletét megadó, betöltött játékbeállítások.</summary>
     public static readonly GameSettings? _gameSettings = null;
 
     static CharacterSheetPanel()
@@ -45,8 +76,11 @@ public static class CharacterSheetPanel
     /// <summary>
     /// A karakterosztály azonosítóját egy rövid, egybetűs glyph-re alakítja,
     /// amely a parti-státuszsor elején jelenik meg.
-    /// Ismeretlen osztály esetén "?" jelet ad vissza.
+    /// Rúnát vagy betűt használ a választott avatarkészlettől függően.
+    /// Ismeretlen osztály vagy elérhetetlen alapbeállítás esetén "?" jelet ad vissza.
     /// </summary>
+    /// <param name="characterClassId">A karakterosztály azonosítója.</param>
+    /// <param name="partyAvatar">A használandó avatarkészlet; null esetén a betöltött beállítás érvényes.</param>
     public static string CharacterClassGlyph(string characterClassId, PartyAvatarSet? partyAvatar = null)
     {
         if (partyAvatar == null)
@@ -84,9 +118,11 @@ public static class CharacterSheetPanel
             };
     }
 
+    /// <summary>A megadott avatarkészlet osztályjelét adja vissza a térképi megjelenítéshez.</summary>
     public static string PartyAvatarGlyph(string characterClassId, PartyAvatarSet avatarSet) =>
         CharacterClassGlyph(characterClassId, avatarSet);
 
+    /// <summary>A karakter aranyát a karakterlap 9. sorára formázza.</summary>
     public static CharacterSheetPanelLine BuildGoldLine(LiveCharacter character)
     {
         return new CharacterSheetPanelLine(9, $"Arany: {character.Gold} {ConsoleRenderer.MoneyIcon}", ConsoleColor.Yellow);
@@ -151,7 +187,8 @@ public static class CharacterSheetPanel
     /// <summary>
     /// A parti-listában megjelenő egy soros karakterstátuszt építi fel.
     /// Kezeli a kijelölt marker, osztály-jel, névrövidítés, halott állapot,
-    /// valamint az életerő és mána százalékos megjelenítésének és színezésének logikáját.
+    /// valamint az életerő és mána aktuális értékeinek megjelenítését.
+    /// Az erőforrások színét a százalékos állapot határozza meg; a vezér neve és szintje inverz színt kap.
     /// </summary>
     private static PartyStatusLine BuildPartyStatus(string name, string classId, int level, int currentVitality,
         int maximumVitality, int currentMana, int maximumMana, bool isAlive, bool usesMana,
@@ -200,7 +237,7 @@ public static class CharacterSheetPanel
 
     /// <summary>
     /// A kapott szöveget legfeljebb a megadott hosszig vágja vissza.
-    /// A minimális visszaadott hossz 1 karakter, így a megjelenítés sosem lesz üres.
+    /// A hosszkorlát legalább 1; az üres bemenet továbbra is üres marad.
     /// </summary>
     private static string Shorten(string value, int maximumLength) =>
         value[..Math.Min(value.Length, Math.Max(1, maximumLength))];
@@ -210,6 +247,17 @@ public static class CharacterSheetPanel
     /// A metódus először snapshot/projekció objektumokat hoz létre, majd a
     /// snapshot alapú Build overloadot hívja a tényleges panelsorok összeállítására.
     /// </summary>
+    /// <param name="character">A megjelenítendő élő karakter.</param>
+    /// <param name="experienceByLevel">A szintenkénti tapasztalati küszöbértékek.</param>
+    /// <param name="mazeLevel">A labirintusszint, amely a fejlécet és a látásmódosítót meghatározza.</param>
+    /// <param name="goldenKeyCount">A megszerzett aranykulcsok száma.</param>
+    /// <param name="bossCount">Az aranykulcsok célértéke.</param>
+    /// <param name="isPartyLeader">Jelzi, hogy a karakter a parti vezére.</param>
+    /// <param name="isTemporaryFollower">Jelzi, hogy a karakter ideiglenes követő.</param>
+    /// <param name="width">A formázási szélesség; legalább Width érvényesül.</param>
+    /// <param name="combatStatusIcons">A karakter állapotikonjaihoz hozzáadott, ismétlés nélkül megjelenő harci ikonok.</param>
+    /// <param name="explorationClockIndicator">A fejléc opcionális időjelzője.</param>
+    /// <returns>Fix sorpozíciókkal ellátott paneladatok; az erőforrássort a renderer tölti ki.</returns>
     public static IReadOnlyList<CharacterSheetPanelLine> Build(LiveCharacter character,
         IReadOnlyDictionary<int, int> experienceByLevel, int mazeLevel, int goldenKeyCount, int bossCount,
         bool isPartyLeader = false, bool isTemporaryFollower = false, int width = Width,
@@ -237,10 +285,18 @@ public static class CharacterSheetPanel
     /// Session snapshot alapján felépíti a teljes karakterlap panel minden sorát,
     /// beleértve az alapadatokat, statokat, erőforrásokat, állapotokat, osztályfejlesztéseket
     /// és az inventory külön blokkjait fix sorpozíciókkal.
-    /// ColoredSuffix: külön jobb oldali szövegrész, amit a WriteSheetLine() a saját secondX pozíciójára tesz. 
-    /// ColoredTextStart: ugyanazon Text stringen belül mondja meg, hogy honnantól váltson másik színre.
-    /// Nincs külön pozicionálás.
+    /// A külön színű kiegészítő szöveget és szövegvéget a panelsor megjelenítési adatai írják le.
     /// </summary>
+    /// <param name="character">Karakterlap- és inventory-projekcióval rendelkező session snapshot.</param>
+    /// <param name="mazeLevel">A fejlécben megjelenített labirintusszint.</param>
+    /// <param name="goldenKeyCount">A megszerzett aranykulcsok száma.</param>
+    /// <param name="bossCount">Az aranykulcsok célértéke.</param>
+    /// <param name="isPartyLeader">Jelzi, hogy a karakter a parti vezére.</param>
+    /// <param name="width">A formázási szélesség; legalább Width érvényesül.</param>
+    /// <param name="explorationClockIndicator">A fejléc opcionális időjelzője.</param>
+    /// <returns>A karakterlap sorai, az 5. soron az erőforrás-megjelenítés helyőrzőjével.</returns>
+    /// <exception cref="ArgumentNullException">A character null.</exception>
+    /// <exception cref="ArgumentException">Hiányzik a karakterlap- vagy inventory-projekció.</exception>
     public static IReadOnlyList<CharacterSheetPanelLine> Build(SessionCharacterSnapshot character,
         int mazeLevel, int goldenKeyCount, int bossCount, bool isPartyLeader = false, int width = Width,
         string explorationClockIndicator = "")
@@ -304,6 +360,8 @@ public static class CharacterSheetPanel
         return lines;
     }
 
+    /// <summary>A labirintusszintet, kulcsokat és opcionális időjelzőt a 0. sorra formázza.</summary>
+    /// <remarks>A teljes vagy rövid fejlécet a legszélesebb időjelzővel számolt terminálcellaszélesség alapján választja.</remarks>
     public static CharacterSheetPanelLine BuildWorldHeaderLine(int mazeLevel, int goldenKeyCount, int bossCount,
         string explorationClockIndicator, int width = Width)
     {
@@ -319,7 +377,7 @@ public static class CharacterSheetPanel
             ConsoleColor.Green);
     }
 
-    /// <summary>Adds the two-row character-sheet focus marker without changing panel geometry.</summary>
+    /// <summary>Egy fejlécsor elé fókuszjelzőt tesz, és beállítja a fókuszhoz tartozó hátteret.</summary>
     internal static CharacterSheetPanelLine WithFocusMarker(CharacterSheetPanelLine line, bool focused,
         int width = Width)
     {
@@ -370,12 +428,14 @@ public static class CharacterSheetPanel
                 new InventorySlotAddress(InventorySlotKind.Backpack, index)));
     }
 
+    /// <summary>Az üres hátizsákhelyet szürkíti, a foglalt helyet normál szürkével jelöli.</summary>
     private static ConsoleColor BackpackSlotColor(InventoryItemSnapshot? item)
     {
         if (item is null) return ConsoleColor.DarkGray;
         return ConsoleColor.Gray;
     }
 
+    /// <summary>Az üres varázstárgyhelyet szürkíti, a foglalt helyet ciánnal jelöli.</summary>
     private static ConsoleColor MagicItemSlotColor(InventoryItemSnapshot? item)
     {
         if (item is null) return ConsoleColor.DarkGray;
@@ -400,12 +460,14 @@ public static class CharacterSheetPanel
         : (item.MaximumCharges > 0 ? $"{item.Name} ({item.Charges}/{item.MaximumCharges})" : item.Name) +
           (item.Quantity > 1 ? $" ×{item.Quantity}" : string.Empty);
 
+    /// <summary>Inventory-sort készít, amelyben a címke és a tartósság szerint színezett tárgynév különválik.</summary>
     private static CharacterSheetPanelLine DurableInventoryLine(int row, string label,
         InventorySlotSnapshot slot, InventorySlotKind kind, int index, ConsoleColor labelColor) =>
         new(row, $"{label}: {ItemName(slot.Item)}", labelColor,
             new InventorySlotAddress(kind, index), ColoredTextStart: $"{label}: ".Length,
             ColoredTextColor: DurabilityColor(slot.Item));
 
+    /// <summary>A felszerelés állapotához előtérszínt rendel; üres helyhez sötétszürkét ad.</summary>
     private static ConsoleColor DurabilityColor(InventoryItemSnapshot? item) => item is null
         ? ConsoleColor.DarkGray
         : EquipmentDurabilityRules.Condition(item.MaximumDurability, item.DurabilityDamage) switch

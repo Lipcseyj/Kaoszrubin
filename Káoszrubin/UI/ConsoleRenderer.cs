@@ -16,30 +16,58 @@ using System.Text;
 
 namespace KaoszRubin.UI;
 
+/// <summary>Az egyedi NPC további szerepe a labirintusból való távozás után.</summary>
 public enum UniqueNpcDepartureChoice { JoinParty, RemainFollower, WaitAtInn }
 
+/// <summary>Egy kiválasztott varázslat, a varázslója és az opcionális tárgyalapú forrása.</summary>
+/// <param name="Spell">A kiválasztott varázslat.</param>
+/// <param name="Caster">A varázsló karakter.</param>
+/// <param name="CastingItem">A használt tekercs vagy pálca; null esetén memorizált varázslat.</param>
+/// <param name="CastingItemSlotIndex">A forrástárgy nullától induló varázstárgyhely-indexe, ha van.</param>
 public sealed record SpellCastSelection(SpellDefinition Spell, LiveCharacter Caster,
     MagicItemDefinition? CastingItem = null, int? CastingItemSlotIndex = null);
+/// <summary>Az egyedi NPC beszélgetésében választott válasz következményei.</summary>
+/// <param name="FriendlinessChange">A viszony értékének kért változása.</param>
+/// <param name="FollowRequested">Jelzi, hogy a válasz követést kér.</param>
+/// <param name="ChoiceIndex">A válasz nullától induló indexe; -1 esetén nem történt választás.</param>
 public sealed record UniqueNpcConversationResult(int FriendlinessChange, bool FollowRequested, int ChoiceIndex);
 
+/// <summary>A konzolos játéktér, karakterlap, üzenetnapló és párbeszédablakok állapottartó megjelenítője.</summary>
+/// <remarks>A rajzolás mellett egyes modális képernyők billentyűbevitelre is várnak; a nem blokkoló API-k nem olvasnak billentyűt.</remarks>
 public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfieldConsoleOutput
 {
+    /// <summary>A jobb oldali karakterlap és részletoldalak megjelenítője.</summary>
     public CharacterSheetRenderer CharacterSheet { get; }
 
+    /// <summary>A középre igazított ablak rajzolása előtt értesített opcionális megosztási callback.</summary>
+    /// <remarks>A callback a keretszélességet, a színezett tartalomsorokat és az opcionális ablaktípust kapja.</remarks>
     public Action<int, IReadOnlyList<(string Text, ConsoleColor Color)>, FramedWindow?>?
         SharedWindowPresented { get; set; }
+    /// <summary>A játéktér szélessége konzoloszlopokban, a jobb oldali keret nélkül.</summary>
     public const int PlayfieldWidth = 170;
+    /// <summary>A játéktér magassága konzolsorokban; az alsó keret sorpozíciója is ez.</summary>
     public const int PlayfieldHeight = 44;
+    /// <summary>Az alapelrendezésben, köztük az 1080p-s konfigurációban látható naplósorok száma.</summary>
     public const int StandardMessageLogLineCount = 7;
+    /// <summary>A legalább 1200 képpont magas kijelzőkhöz javasolt további naplósorok száma.</summary>
     public const int TallDisplayExtraMessageLines = 4;
+    /// <summary>A magas kijelzőelrendezés alsó magasságküszöbe képpontban.</summary>
     public const int TallDisplayMinimumPixelHeight = 1200;
+    /// <summary>A jelenlegi konzolmagasságba illeszkedő naplósorok száma, legalább az alapérték.</summary>
     public static int MessageLogLineCount => MessageLogLineCountForWindowHeight(SafeConsoleWindowHeight());
+    /// <summary>A memóriában megőrzött naplósorok felső korlátja.</summary>
     public const int MessageLogBufferLineCount = 200;
+    /// <summary>A játéktér, az alsó keret és a látható napló együttes sorszáma.</summary>
     public static int ScreenRowCount => PlayfieldHeight + MessageLogLineCount + 1;
+    /// <summary>A pénz ikonja, a Windows-verzióhoz igazított kompatibilis változattal.</summary>
     public static string MoneyIcon { get; } = IsWindows11OrLater() ? "🪙" : "💰";
+    /// <summary>A varázspálca ikonja, régebbi rendszereken alternatív jellel.</summary>
     public static string WandIcon { get; } = IsWindows11OrLater() ? "🪄" : "✨";
+    /// <summary>A fizikai sebzéscsökkentés verziófüggő állapotikonja.</summary>
     public static string DamageReductionIcon { get; } = IsWindows11OrLater() ? "🪨" : "💥🛡️";
+    /// <summary>A páncéljavítás verziófüggő szolgáltatásikonja.</summary>
     public static string ArmorRepairIcon { get; } = IsWindows11OrLater() ? "\U0001faa1" : "🔨🛡️";
+    /// <summary>A megtántorodott harci résztvevők kiemelő háttérszíne.</summary>
     public const ConsoleColor StaggerBackgroundColor = ConsoleColor.DarkMagenta;
     private const int RightBorderX = PlayfieldWidth;
     private const int BottomBorderY = PlayfieldHeight;
@@ -47,7 +75,9 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
     private static int MessageLineCount => MessageLogLineCount;
     private const int MessageWidth = 164;
     private const int PicturePanelHeight = 5;
+    /// <summary>A portré alsó keretsora, a látható üzenetnapló aljához igazítva.</summary>
     private static int PicturePanelBottom => BottomBorderY + MessageLineCount;
+    /// <summary>A portré felső keretsora; magasabb ablakban az alsó kerettel együtt lefelé tolódik.</summary>
     private static int PicturePanelTop => PicturePanelBottom - PicturePanelHeight - 1;
     private const int CenteredFrameHorizontalPadding = 2;
     private const int FrameBorderWidth = 2;
@@ -78,6 +108,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
     internal const int InnRumorFrameWidth = 108;
     private const int InnRumorTextWidth = 100;
     internal const int WorldNpcRecruitmentFrameWidth = 72;
+    /// <summary>A világbeli NPC-ablak szövegszélessége a keret belső margói nélkül.</summary>
     public const int WorldNpcRecruitmentTextWidth = WorldNpcRecruitmentFrameWidth -
                                                       CenteredFrameHorizontalPadding * FrameBorderWidth;
     private const int DetailNextLineOffset = 1;
@@ -95,7 +126,8 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
     private static int RightSheetWidthForWindow() =>
         RightSheetWidthForViewport(SafeConsoleWindowWidth());
 
-    // Az utolsó termináloszlopba írás automatikus sortörést okozhat, ezért azt szabadon hagyjuk.
+    /// <summary>A jobb panel szélességét számolja ki, legalább az alapértékkel.</summary>
+    /// <remarks>Az utolsó termináloszlopot szabadon hagyja az automatikus sortörés elkerülésére, ha a nézet elég széles.</remarks>
     internal static int RightSheetWidthForViewport(int windowWidth) =>
         Math.Max(RightSheetWidth, windowWidth - RightSheetX - 1);
 
@@ -153,6 +185,11 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
 
     #region Initialization and session state
 
+    /// <summary>Létrehozza a közös konzolfelületet használó megjelenítőket és a megjelenítési állapotot.</summary>
+    /// <param name="gameData">A megjelenítéshez szükséges játékadatok és varázslatdefiníciók.</param>
+    /// <param name="party">A megjelenített parti.</param>
+    /// <param name="temporaryFollowers">Az aktuális ideiglenes követők lekérdezése; null esetén nincs követő.</param>
+    /// <param name="settings">Megjelenítési beállítások; null esetén új alapbeállítások készülnek.</param>
     public ConsoleRenderer(GameDataCatalog gameData, Party party,
         Func<IReadOnlyList<LiveCharacter>>? temporaryFollowers = null, GameSettings? settings = null)
     {
@@ -169,20 +206,27 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         return OperatingSystem.IsWindows() && version.Major >= 10 && version.Build >= 22000;
     }
 
+    /// <summary>A monitor képpontmagasságából javasolt naplósorszámot adja vissza.</summary>
+    /// <remarks>1080p esetén az alapérték, legalább 1200 képpontnál négy további sor jár; a tényleges rajzolás a konzolmagasságot használja.</remarks>
     public static int MessageLogLineCountForMonitorHeight(int pixelHeight) =>
         StandardMessageLogLineCount + (pixelHeight >= TallDisplayMinimumPixelHeight
             ? TallDisplayExtraMessageLines
             : 0);
 
+    /// <summary>A konzol alapelrendezésen felüli minden sorát további látható naplósorként használja.</summary>
+    /// <param name="windowHeight">A konzolablak magassága sorokban, nem képpontokban.</param>
+    /// <returns>Legalább StandardMessageLogLineCount sor.</returns>
     public static int MessageLogLineCountForWindowHeight(int windowHeight)
     {
         var extraRows = Math.Max(0, windowHeight - ScreenRowCountForMessageLogLineCount(StandardMessageLogLineCount));
         return StandardMessageLogLineCount + extraRows;
     }
 
+    /// <summary>A megadott naplósorszámhoz szükséges teljes képernyőmagasságot számolja ki.</summary>
     public static int ScreenRowCountForMessageLogLineCount(int messageLogLineCount) =>
         PlayfieldHeight + messageLogLineCount + 1;
 
+    /// <summary>Lekéri a konzolmagasságot; sikertelen lekérdezésnél az alapelrendezés magasságát adja.</summary>
     private static int SafeConsoleWindowHeight()
     {
         try
@@ -195,6 +239,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         }
     }
 
+    /// <summary>Lekéri a konzolszélességet; sikertelen lekérdezésnél az alap jobb panelhez elegendő értéket adja.</summary>
     private static int SafeConsoleWindowWidth()
     {
         try
@@ -207,8 +252,10 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         }
     }
 
+    /// <summary>Tárolja az aranykulcsok számát a nulla és a bossok száma közé korlátozva; nem rajzol újra.</summary>
     public void SetGoldenKeyCount(int count) => _goldenKeyCount = Math.Clamp(count, 0, MonsterIds.Bosses.Count);
 
+    /// <summary>Tárolja a felfedezés időjelzőjét, és változás esetén frissíti annak fejlécszegmensét.</summary>
     public void SetExplorationClockIndicator(string indicator)
     {
         if (_explorationClockIndicator == indicator) return;
@@ -229,6 +276,8 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         DrawPlayer(playerPosition);
     }
 
+    /// <summary>Ajtóbetörési megerősítést kér, majd helyreállítja a lefedett játékteret.</summary>
+    /// <returns>True I, Y vagy Enter esetén; false N vagy Esc esetén. A betörést nem hajtja végre.</returns>
     public bool DrawDoorSmashChoice(LiveCharacter leader, LiveCharacter thief, Maze maze,
         FogOfWar fogOfWar, Position playerPosition)
     {
@@ -260,6 +309,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         }
     }
 
+    /// <summary>Megjeleníti a boss bemutatkozását, Enterre vár, majd helyreállítja a játékteret.</summary>
     public void DrawBossIntroduction(EnemyDefinition boss, string chapterTitle, IReadOnlyList<string> speech,
         Maze maze, FogOfWar fogOfWar, Position playerPosition)
     {
@@ -285,6 +335,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         RestoreSpellCastingOverlay();
     }
 
+    /// <summary>Történetablakot jelenít meg, Enterre vár, majd bezárja az ablakot.</summary>
     public void DrawStoryOverlay(string title, string subtitle, IReadOnlyList<string> paragraphs,
         Maze maze, FogOfWar fogOfWar, Position playerPosition)
     {
@@ -293,6 +344,8 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         CloseStoryOverlay();
     }
 
+    /// <summary>Billentyűolvasás nélkül megnyitja a történetablakot, megőrizve a lefedett hátteret.</summary>
+    /// <remarks>A hívó zárja be az ablakot a CloseStoryOverlay metódussal.</remarks>
     public void ShowStoryOverlay(string title, string subtitle, IReadOnlyList<string> paragraphs,
         Maze maze, FogOfWar fogOfWar, Position playerPosition,
         NarrativeKind kind = NarrativeKind.CampaignIntroduction, BossPresentationSnapshot? boss = null)
@@ -304,6 +357,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
             FramedWindow.Storyline);
     }
 
+    /// <summary>Bezárja a történetablakot a közös overlay-háttér helyreállításával.</summary>
     public void CloseStoryOverlay() => RestoreSpellCastingOverlay();
 
     /// <summary>
@@ -337,6 +391,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         DrawPlayer(player.Position);
     }
 
+    /// <summary>Törli a harci kijelöléseket és állapotokat, bezárja a parancspanelt, és frissíti a karakterlapot.</summary>
     public void RestoreAfterBattle()
     {
         _battleActive = false;
@@ -411,9 +466,11 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
             DrawMapCell(maze, fogOfWar, currentPosition);
     }
 
+    /// <summary>Jelzi, hogy a mező aktuális láthatóság vagy fejlesztői felfedés alapján újrarajzolható-e mozgáskor.</summary>
     internal static bool ShouldDrawEnemyMovementCell(FogOfWar fogOfWar, Position position) =>
         fogOfWar.IsCurrentlyVisible(position) || fogOfWar.IsDeveloperRevealActive;
 
+    /// <summary>Frissíti a partitag mozgásával érintett és felfedett mezőket, majd újrarajzolja a vezért.</summary>
     public void DrawPartyMemberMovement(Maze maze, FogOfWar fogOfWar, Position previousPosition,
         Position currentPosition, IReadOnlyList<Position> newlyRevealed, Position playerPosition)
     {
@@ -465,6 +522,8 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         DrawPlayer(playerPosition);
     }
 
+    /// <summary>A látható útvonalmezőkön irányjelző lövedéket animál, majd helyreállítja az érintett mezőket.</summary>
+    /// <remarks>A rajzolás mezőnként rövid várakozással blokkolja a hívót.</remarks>
     public void AnimateExplorationProjectile(Maze maze, FogOfWar fogOfWar, Position playerPosition,
         IReadOnlyList<Position> path, Direction direction)
     {
@@ -546,6 +605,8 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         _battleFocusPositions.UnionWith(focused);
     }
 
+    /// <summary>Frissíti a megtántorodás és barbár düh megjelenítési állapotát, az érintett mezőket és karakterlaprészeket.</summary>
+    /// <remarks>A domain állapotát nem módosítja; változatlan azonosítóhalmazok esetén nem rajzol újra.</remarks>
     public void UpdateBattleConditions(Maze maze, FogOfWar fogOfWar, Position playerPosition,
         IEnumerable<CharacterId> staggeredCharacterIds, IEnumerable<WorldEntityId> staggeredEnemyIds,
         IEnumerable<CharacterId> ragingCharacterIds)
@@ -585,6 +646,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         CharacterSheet.DrawPicturePanel();
     }
 
+    /// <summary>A megjelenítő által nyilvántartott megtántorodás és barbár düh ikonjait adja vissza.</summary>
     internal IReadOnlyList<string> CombatStatusIconsFor(LiveCharacter character)
     {
         var icons = new List<string>(2);
@@ -615,6 +677,8 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         DrawBattleMessage($"Csata kezdődik! Ellenfél: {enemy.Name}");
     }
 
+    /// <summary>Az aktuális taktikai cselekvőre váltja a portrét, ha a karakter- vagy ellenségkontextus megváltozott.</summary>
+    /// <remarks>Két null érték esetén nem módosítja a meglévő kontextust.</remarks>
     public void DrawTacticalBattleActor(LiveCharacter? character, Enemy? enemy)
     {
         if (character is null && enemy is null) return;
@@ -624,6 +688,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         CharacterSheet.DrawPicturePanel();
     }
 
+    /// <summary>Gyorsbillentyű-kiemeléssel kirajzolja a harci parancssort; üres szövegnél bezárja a panelt.</summary>
     public void DrawBattleCommandPanel(string text)
     {
         if (string.IsNullOrWhiteSpace(text))
@@ -639,8 +704,11 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         DrawBattleCommandPanelWithHighlighting(segments);
     }
 
+    /// <summary>A következő parancssorhoz körszámot tárol; null esetén nem jelenik meg körfejléc.</summary>
     public void SetBattleCommandPanelRound(int? round) => _battleCommandPanelRound = round;
 
+    /// <summary>Középre igazított, színezett szegmensekből rajzol parancssort az opcionális körfejléccel.</summary>
+    /// <remarks>A túl hosszú összefűzött szöveget csonkolja, és egységes előtérszínnel írja ki.</remarks>
     public void DrawBattleCommandPanelWithHighlighting(IReadOnlyList<TextSegment> segments)
     {
         // Prepare segments, optionally prepending the round header if present
@@ -698,6 +766,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
             : $"+{result.GainedExperience} XP.",
         result.LeveledUp ? ConsoleColor.Magenta : ConsoleColor.Cyan);
 
+    /// <summary>A tapasztalat elosztását naplózza, szintlépés esetén kiemelt színnel.</summary>
     public void DrawExperienceDistribution(string distribution, bool anyLevelUp) =>
         DrawBattleMessage($"XP elosztás: {distribution}.", anyLevelUp ? ConsoleColor.Magenta : ConsoleColor.Cyan);
 
@@ -735,10 +804,12 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         DrawBattleMessage(message ?? FormatBattleResultMessage(result, enemy));
     }
 
+    /// <summary>A győzelem vagy vereség alapüzenetét formázza; vereségnél az utolsó eseményt is hozzáfűzi.</summary>
     public static string FormatBattleResultMessage(BattleResult result, Enemy enemy) => result.PlayerWon
         ? $"GYŐZELEM 🏆: {enemy.Name} elesett."
         : $"Elestél {result.Rounds} kör után. {result.Events.LastOrDefault() ?? string.Empty}";
 
+    /// <summary>Egy ellenfél legyőzését a körszámmal, erőforrásveszteségekkel és új állapotikonokkal összegzi.</summary>
     public static string FormatBattleVictorySummary(BattleResult result, Enemy enemy, int vitalityLost,
         int manaLost, IEnumerable<string> gainedStatusIcons, int needLoss)
     {
@@ -749,6 +820,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
                $"🍖-{needLoss}💧-{needLoss}";
     }
 
+    /// <summary>Az automatikus párharc győzelmét veszteségekkel, varázslatszámmal és szerzett XP-vel formázza.</summary>
     public static string FormatAutoBattleVictorySummary(BattleResult result, string fighterName, Enemy enemy,
         int vitalityLost, int manaLost, IEnumerable<string> gainedStatusIcons, int needLoss,
         int spellsCast, int experience)
@@ -761,6 +833,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
                $"🍖-{needLoss}💧-{needLoss}{spells}✨{experience}XP";
     }
 
+    /// <summary>Az automatikus párharc vereségét veszteségekkel és az ellenfél megmaradt életerejével formázza.</summary>
     public static string FormatAutoBattleDefeatSummary(BattleResult result, string fighterName, Enemy enemy,
         int vitalityLost, int manaLost, IEnumerable<string> gainedStatusIcons, int needLoss, int spellsCast)
     {
@@ -771,6 +844,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
                $"🍖-{needLoss}💧-{needLoss}{spells}👹{enemy.CurrentHitPoints}HP";
     }
 
+    /// <summary>A jóváírt öléseket gyilkos és ellenféltípus szerint csoportosítva, összesített XP-vel formázza.</summary>
     public static string FormatQuickBattleKillSummary(IEnumerable<BattleKill> kills)
     {
         var entries = kills.ToArray();
@@ -787,6 +861,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         return $"Szerzett XP: {totalExperience}. {killText}";
     }
 
+    /// <summary>A taktikai győzelmet ciklus-, akció- és ölésszámmal, XP-vel és karakterenkénti öléslistával összegzi.</summary>
     public static string FormatBattleVictorySummary(bool automatic, int cycles, int actions,
         IEnumerable<BattleKill> kills)
     {
@@ -807,6 +882,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         return string.IsNullOrEmpty(killerText) ? result : $"{result} {killerText}.";
     }
 
+    /// <summary>A visszavonulást ciklus-, akció- és ölésszámmal, valamint a már szerzett XP-vel formázza.</summary>
     public static string FormatBattleRetreatSummary(int cycles, int actions,
         IEnumerable<BattleKill> kills)
     {
@@ -815,6 +891,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
                $"☠ {entries.Length} 🎖 {entries.Sum(entry => entry.AwardedExperience)} XP.";
     }
 
+    /// <summary>Karakterenként összegzi az elesést, erőforrásveszteségeket, állapotokat és varázslatokat, majd a közös szükségletveszteséget.</summary>
     public static string FormatBattleResourceSummary(IEnumerable<BattleCharacterResult> results,
         int cycles)
     {
@@ -851,6 +928,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         DrawGameOverFrame(lines);
     }
 
+    /// <summary>A coop vendég halálképernyőjét rajzolja ki, és billentyűleütésre vár.</summary>
     public static void DrawCoopGuestGameOver(string characterName)
     {
         ScreenBurnEffect.Play();
@@ -868,8 +946,10 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         ]);
     }
 
+    /// <summary>Lejátssza a teljes képernyős égéseffektet.</summary>
     public void PlayScreenBurnEffect() => ScreenBurnEffect.Play();
 
+    /// <summary>A társ elvesztését jelző képernyőt mutatja, billentyűre vár, majd törli a színcache-t.</summary>
     public void DrawCompanionDeath(string characterName)
     {
         DrawGameOverFrame(
@@ -887,6 +967,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         ResetColorCache();
     }
 
+    /// <summary>Törli a konzolt, középre rajzolja a halálképernyő sorait, és egy billentyűleütésig vár.</summary>
     private static void DrawGameOverFrame(IReadOnlyList<string> lines)
     {
         Console.ResetColor();
@@ -916,6 +997,8 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         Console.ResetColor();
     }
 
+    /// <summary>Szintfüggő háttérrel megjeleníti a pályateljesítés és a túlélők jutalmainak összegzését.</summary>
+    /// <remarks>Nem olvas billentyűt; a folytatás kezelését a hívó végzi.</remarks>
     public void DrawLevelCompletionScreen(LevelCompletionSnapshot completion)
     {
         ResetColorCache();
@@ -931,6 +1014,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
 
     #region Inn and commerce UI
 
+    /// <summary>A pályateljesítés jutalmait, túlélőit és elesett karaktereit színezett ablaksorokká alakítja.</summary>
     internal static IReadOnlyList<(string Text, ConsoleColor Color)> BuildLevelCompletionLines(
         LevelCompletionSnapshot completion)
     {
@@ -970,6 +1054,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         return lines;
     }
 
+    /// <summary>Összeállítja a fogadó menüsorait, a kijelölést és az opcionális vezérhez kötött letiltásokat.</summary>
     internal static IReadOnlyList<(string Text, ConsoleColor Color)> BuildInnMenuLines(int partyCount,
         int partyGold, IReadOnlyList<InnMenuOptionSnapshot> options, int selectedIndex, string artisanNotice,
         bool disableLeaderOnly, string innName = "Vándorcsillag", int mazeLevel = 1)
@@ -1002,6 +1087,8 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         return lines;
     }
 
+    /// <summary>A kereskedő vagy javító kínálatának látható oldalát, részleteit és vezérlősorait állítja össze.</summary>
+    /// <remarks>Nem hajt végre tranzakciót. Nem üres kínálatnál a selectedIndex érvényes, nullától induló index legyen.</remarks>
     public static IReadOnlyList<(string Text, ConsoleColor Color)> BuildInnVendorLines(
         InnVendorSnapshot vendor, InnMarketMode mode,
         IReadOnlyList<(InventoryItemSnapshot Item, int Price, string OwnerName)> sellOffers,
@@ -1078,6 +1165,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         return lines;
     }
 
+    /// <summary>A fogadói tranzakciót a szereplő, tárgy, ár és érintett tulajdonos feltüntetésével formázza.</summary>
     internal static string FormatInnTransaction(InnTransactionSnapshot transaction) => transaction.Kind switch
     {
         InnTransactionKind.Purchase => $"🏰 {transaction.ActorName} megvette: {transaction.ItemName} " +
@@ -1089,6 +1177,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         _ => $"🏰 {transaction.ActorName}: {transaction.ItemName}"
     };
 
+    /// <summary>A vándormágus szolgáltatásmenüjét készíti el kijelölési és letiltási színekkel.</summary>
     internal static IReadOnlyList<(string Text, ConsoleColor Color)> BuildWanderingMageMenuLines(int partyGold,
         IReadOnlyList<(string Label, string Description, bool Disabled)> options, int selectedIndex, string message)
     {
@@ -1113,6 +1202,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         return lines;
     }
 
+    /// <summary>A pletyka bekezdéseit és beágyazott sortöréseit a fogadói kerethez tördeli, lapozási lábléccel.</summary>
     internal static IReadOnlyList<(string Text, ConsoleColor Color)> BuildInnRumorLines(
         InnRumorSnapshot rumor, int selectedIndex, int rumorCount, string innName, string? notice = null)
     {
@@ -1150,6 +1240,8 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         _ => "📦"
     };
 
+    /// <summary>Helyreállítja a fogadói menü hátterét, szükség esetén újrarajzolva a bal oldali felületet.</summary>
+    /// <remarks>A jobb oldali karakterlapot és az üzenetnaplót nem törli.</remarks>
     public void ClearInnMenuScreen()
     {
         EnsureInnSurface();
@@ -1168,6 +1260,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         }
     }
 
+    /// <summary>Elindítja a fogadói felület életciklusát háttérrel, karakterlappal és naplóval.</summary>
     public void BeginInnSurface(LiveCharacter leader, string innName, int mazeLevel)
     {
         _innSurfaceLeader = leader;
@@ -1178,6 +1271,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         CharacterSheet.SetCharacterSheetFocused(false);
     }
 
+    /// <summary>Elengedi a fogadói háttérmentést és a felülethez tárolt vezér- és méretadatokat.</summary>
     public void EndInnSurface()
     {
         _innWindowBackground?.Dispose();
@@ -1187,6 +1281,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         _innSurfaceHeight = 0;
     }
 
+    /// <summary>Aktív fogadói felület esetén ablakméret-változáskor újraépíti a hátteret.</summary>
     private void EnsureInnSurface()
     {
         if (_innSurfaceLeader is null) return;
@@ -1194,6 +1289,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         RebuildInnSurface();
     }
 
+    /// <summary>Újrarajzolja és menti a fogadói felületet, érvénytelenítve a korábbi karakterlap-cache-t.</summary>
     private void RebuildInnSurface()
     {
         if (_innSurfaceLeader is null) return;
@@ -1218,6 +1314,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
             region.Width, region.Height, ResetColorCache);
     }
 
+    /// <summary>Kirajzolja a fogadó főmenüjét a megadott kijelöléssel, arannyal és szolgáltatásokkal.</summary>
     public void DrawInnMenuScreen(LiveCharacter leader, int partyCount, int selectedIndex,
         IReadOnlyList<InnMenuOptionSnapshot> options, string artisanNotice, string innName, int mazeLevel)
     {
@@ -1226,6 +1323,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
             selectedIndex, artisanNotice, disableLeaderOnly: false, innName, mazeLevel), FramedWindow.Inn);
     }
 
+    /// <summary>Csak a korábbi és új menüpont címét és többsoros leírását frissíti.</summary>
     public void UpdateInnMenuSelection(IReadOnlyList<InnMenuOptionSnapshot> options,
         int previousIndex, int selectedIndex)
     {
@@ -1258,6 +1356,8 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
     private static string[] SplitMenuDescriptionLines(string? description) =>
         (description ?? string.Empty).Replace("\r", string.Empty).Split('\n');
 
+    /// <summary>A titkos raktár belépődíjának megerősítését kéri a díj levonása nélkül.</summary>
+    /// <returns>True Enter esetén; false Esc esetén.</returns>
     public bool ConfirmInnSecretStashAccess(int cost)
     {
         ClearInnMenuScreen();
@@ -1279,6 +1379,8 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         }
     }
 
+    /// <summary>A lakoma megadott személyenkénti és teljes díjának megerősítését kéri fizetés nélkül.</summary>
+    /// <returns>True Enter esetén; false Esc esetén.</returns>
     public bool ConfirmInnFeast(int perPerson, int personCount, int totalCost)
     {
         ClearInnMenuScreen();
@@ -1300,6 +1402,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         }
     }
 
+    /// <summary>Jelzi, hogy a fogadóban már nem lehet újra pihenni, és Enterre vár.</summary>
     public void DrawInnRestUnavailableScreen()
     {
         ClearInnMenuScreen();
@@ -1316,6 +1419,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         while (Console.ReadKey(intercept: true).Key != ConsoleKey.Enter) { }
     }
 
+    /// <summary>A fogadó vételi vagy eladási oldalát rajzolja, az eladott tárgyak azonosítási állapotát megőrizve.</summary>
     public void DrawInnMarketScreen(LiveCharacter leader, InnMarketMode mode,
         IReadOnlyList<InnStockOffer> stock, IReadOnlyList<InnSellOffer> sellOffers,
         int selectedIndex, int freeBackpackSlots, string message, string innName)
@@ -1357,6 +1461,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
             leader.Gold, freeBackpackSlots, message, innName), FramedWindow.Inn);
     }
 
+    /// <summary>A titkos raktár lapozott kínálatát és a kijelölt tárgy leírását jeleníti meg.</summary>
     public void DrawInnSecretStashScreen(LiveCharacter leader, IReadOnlyList<InnStockOffer> stock,
         int selectedIndex, int freeBackpackSlots, string message)
     {
@@ -1389,6 +1494,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         DrawCenteredFrame(InnMarketFrameWidth, lines, FramedWindow.Inn);
     }
 
+    /// <summary>A cím alapján kiválasztott fogadói szakember csak vásárlásra szolgáló kínálatát rajzolja.</summary>
     public void DrawInnSpecialistScreen(string title, LiveCharacter leader, IReadOnlyList<InnStockOffer> stock,
         int selectedIndex, int freeBackpackSlots, string message, string innName)
     {
@@ -1404,6 +1510,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
             leader.Gold, freeBackpackSlots, message, innName), FramedWindow.Inn);
     }
 
+    /// <summary>A javító ajánlatait, a közös aranyat és az aktuális visszajelzést jeleníti meg.</summary>
     public void DrawInnRepairScreen(InnVendorSnapshot vendor, int partyGold, int selectedIndex,
         string message, string innName)
     {
@@ -1412,12 +1519,14 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
             partyGold, 0, message, innName), FramedWindow.Inn);
     }
 
+    /// <summary>Tárgydefinícióból alap kínálati snapshotot készít teljes varázstöltettel és maximális tartóssággal.</summary>
     private static InventoryItemSnapshot ToInventoryItemSnapshot(IItemDefinition item) => new(item.Id, item.Name,
         item.Category, item.Rarity, item is MagicItemDefinition magic ? magic.MaximumCharges : 0,
         item is MagicItemDefinition magicItem ? magicItem.MaximumCharges : 0,
         item is WeaponDefinition { IsTwoHanded: true }, item.Description, item.BasePrice, item.MagicPower,
         MaximumDurability: EquipmentDurabilityRules.MaximumDurability(item));
 
+    /// <summary>A vándormágus szolgáltatásait és az aktuális kijelölést rajzolja letiltott menüpontok nélkül.</summary>
     public void DrawWanderingMageMenu(LiveCharacter leader, IReadOnlyList<(string Label, string Description)> options,
         int selectedIndex, string message)
     {
@@ -1427,6 +1536,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
             selectedIndex, message), FramedWindow.Inn);
     }
 
+    /// <summary>A pálcafeltöltési jelölteket tulajdonossal, díjjal és feltöltés utáni töltetszámmal jeleníti meg.</summary>
     public void DrawWandRechargeScreen(LiveCharacter leader,
         IReadOnlyList<(string Owner, string Item, int Price, int Charges)> wands, int selectedIndex, string message)
     {
@@ -1453,6 +1563,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         DrawCenteredFrame(InnMenuFrameWidth, lines, FramedWindow.Inn);
     }
 
+    /// <summary>Az azonosításra felkínált tárgyakat ismert nevükkel, aurájukkal és szolgáltatási díjukkal rajzolja.</summary>
     public void DrawMagicItemIdentificationScreen(LiveCharacter leader,
         IReadOnlyList<(string Owner, string Item, string Aura, int Price)> items,
         int selectedIndex, string message)
@@ -1480,6 +1591,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         DrawCenteredFrame(InnMarketFrameWidth, lines, FramedWindow.Inn);
     }
 
+    /// <summary>Az átoktörésre felkínált tárgyakat, átokadatokat és díjakat jeleníti meg.</summary>
     public void DrawCurseRemovalScreen(LiveCharacter leader,
         IReadOnlyList<(string Owner, string Item, string Curse, int Strength, int Price)> items,
         int selectedIndex, string message)
@@ -1507,6 +1619,8 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         DrawCenteredFrame(InnMarketFrameWidth, lines, FramedWindow.Inn);
     }
 
+    /// <summary>Frissíti a piaci kijelölést és leírást; oldalváltáskor az egész látható kínálatot újraírja.</summary>
+    /// <remarks>Mindkét indexnek a választott vételi vagy eladási listában érvényesnek kell lennie.</remarks>
     public void UpdateInnMarketSelection(InnMarketMode mode, IReadOnlyList<InnStockOffer> stock,
         IReadOnlyList<InnSellOffer> sellOffers, int previousIndex, int selectedIndex)
     {
@@ -1539,6 +1653,8 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         UpdateCenteredFrameLines(InnMarketFrameWidth, InnMarketFrameLineCount, updates, FramedWindow.Inn);
     }
 
+    /// <summary>A csak vásárlási kínálat kijelölését, látható oldalát és tárgyleírását frissíti.</summary>
+    /// <remarks>Mindkét indexnek érvényes kínálati indexnek kell lennie.</remarks>
     public void UpdateInnBuyOnlySelection(IReadOnlyList<InnStockOffer> stock, int previousIndex, int selectedIndex)
     {
         var previousPageStart = InnMarketPageStart(stock.Count, previousIndex);
@@ -1562,6 +1678,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         UpdateCenteredFrameLines(InnMarketFrameWidth, InnMarketFrameLineCount, updates, FramedWindow.Inn);
     }
 
+    /// <summary>A kifizetett lakomát karakterenként véletlenszerű hangulatszöveggel mutatja be, majd Enterre vár.</summary>
     public void DrawFeastWindow(List<string> partyMembers, int totalCost)
     {
         ClearInnMenuScreen();
@@ -1625,6 +1742,8 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         while (Console.ReadKey(intercept: true).Key != ConsoleKey.Enter) { }
     }
 
+    /// <summary>A zsoldosjelölteket, áraikat és a kijelölt jelölt felszerelését jeleníti meg.</summary>
+    /// <remarks>A jelöltlista nem lehet üres, a selectedIndex érvényes index legyen; felvételt nem hajt végre.</remarks>
     public void DrawInnRecruitmentScreen(IReadOnlyList<LiveCharacter> candidates,
         IReadOnlyDictionary<LiveCharacter, int> prices, int selectedIndex,
         IReadOnlyList<LiveCharacter> party, int leaderGold, string message, string innName)
@@ -1660,6 +1779,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         DrawCenteredFrame(InnRecruitmentFrameWidth, lines, FramedWindow.Inn);
     }
 
+    /// <summary>A megtelt parti lecserélhető tagjait és a végleges csere figyelmeztetését rajzolja.</summary>
     public void DrawInnReplacementScreen(LiveCharacter recruit, IReadOnlyList<LiveCharacter> replaceable,
         int selectedIndex, string? notice = null)
     {
@@ -1684,6 +1804,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         DrawCenteredFrame(InnReplacementFrameWidth, lines, FramedWindow.Inn);
     }
 
+    /// <summary>A korábbi és új zsoldosjelölt kiemelését, valamint az új jelölt részleteit frissíti.</summary>
     public void UpdateInnRecruitmentSelection(IReadOnlyList<LiveCharacter> candidates,
         IReadOnlyDictionary<LiveCharacter, int> prices, int previousIndex, int selectedIndex)
     {
@@ -1706,6 +1827,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
             updates, FramedWindow.Inn);
     }
 
+    /// <summary>Csak a korábbi és új cserére kijelölt partitag sorát írja újra.</summary>
     public void UpdateInnReplacementSelection(IReadOnlyList<LiveCharacter> replaceable,
         int previousIndex, int selectedIndex)
     {
@@ -1720,6 +1842,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
             updates, FramedWindow.Inn);
     }
 
+    /// <summary>A fogadó kiválasztott pletykáját lapozási lábléccel és opcionális értesítéssel jeleníti meg.</summary>
     public void DrawInnRumorScreen(InnRumor rumor, int selectedIndex, int rumorCount, string innName, string? notice = null)
     {
         ClearInnMenuScreen();
@@ -1728,6 +1851,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
             FramedWindow.Inn);
     }
 
+    /// <summary>A szöveget szóhatáron tördeli; túl hosszú szó esetén a megadott karakterszélességnél vágja el.</summary>
     private static IEnumerable<string> WrapText(string text, int maximumWidth)
     {
         var remaining = text;
@@ -1754,8 +1878,11 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         text.Length <= maximumLength ? text : text[..Math.Max(TruncationEllipsisReserve, maximumLength - TruncationEllipsisReserve)] + "…";
     /// <summary>Fejlesztői üzenetek gyors megjelenítésére szolgál (battle message panelre).</summary>
     public void DrawDeveloperMessage(string message) => DrawBattleMessage(message);
+    /// <summary>Ajtóinterakcióhoz tartozó színezett üzenetet ír az üzenetnaplóba.</summary>
     public void DrawDoorMessage(string message, ConsoleColor color = ConsoleColor.DarkYellow) => DrawBattleMessage(message, color);
 
+    /// <summary>Blokkoló számbevitellel érvényes célpályát kér, majd helyreállítja az overlay hátterét.</summary>
+    /// <returns>A választott pályaszám 1 és maximumLevel között; Esc esetén null.</returns>
     public int? DrawDeveloperLevelTeleportPrompt(int currentLevel, int maximumLevel,
         Maze maze, FogOfWar fogOfWar, Position playerPosition)
     {
@@ -1806,6 +1933,8 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         }
     }
 
+    /// <summary>Billentyűkkel állítható partiszintet és ellenfélcsoport-méreteket kér a fejlesztői harci teszthez.</summary>
+    /// <returns>Az Enterrel jóváhagyott opciók; Esc esetén null. A tesztpályát nem hozza létre.</returns>
     public DeveloperBattleTestOptions? DrawDeveloperBattleTestSetup(int currentPartyLevel,
         int maximumPartyLevel, Maze maze, FogOfWar fogOfWar, Position playerPosition)
     {
@@ -1860,6 +1989,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
     /// Szintlépés képernyő: összegzi a kapott bónuszokat, és ha vannak tehetség-ajánlatok,
     /// megjeleníti őket választásra.
     /// </summary>
+    /// <returns>A képernyőn kiválasztott tehetségek; a karakterhez rendelést a hívó végzi.</returns>
     public IReadOnlyList<PerkDefinition> DrawLevelUpScreen(LiveCharacter character, LevelUpResult result, IReadOnlyList<PerkOffer> perkOffers)
     {
         var selectedPerks = new List<PerkDefinition>();
@@ -1874,6 +2004,8 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         return selectedPerks;
     }
 
+    /// <summary>Nyílbillentyűs specializációválasztást kér, és Enterre visszaadja a választott definíciót.</summary>
+    /// <exception cref="ArgumentException">A choices lista üres.</exception>
     public ClassSpecializationDefinition DrawSpecializationChoice(LiveCharacter character,
         IReadOnlyList<ClassSpecializationDefinition> choices)
     {
@@ -1907,6 +2039,8 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         }
     }
 
+    /// <summary>A megadott mérföldkő osztályképesség-fejlesztései közül Enterrel jóváhagyott választást kér.</summary>
+    /// <exception cref="ArgumentException">A choices lista üres.</exception>
     public ClassFeatureUpgradeDefinition DrawClassFeatureUpgradeChoice(LiveCharacter character,
         IReadOnlyList<ClassFeatureUpgradeDefinition> choices, int milestone)
     {
@@ -1940,6 +2074,8 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         }
     }
 
+    /// <summary>Képességnövelési választást kér, és Enterre visszaadja a választott képesség azonosítóját.</summary>
+    /// <exception cref="ArgumentException">A choices lista üres.</exception>
     public string DrawAbilityIncreaseChoice(LiveCharacter character,
         IReadOnlyList<(string Id, string Name, string Description)> choices, int milestone)
     {
@@ -1973,6 +2109,8 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         }
     }
 
+    /// <summary>Fegyverjártassági választást kér, és Enterre visszaadja a választott opció azonosítóját.</summary>
+    /// <exception cref="ArgumentException">A choices lista üres.</exception>
     public string DrawWeaponProficiencyChoice(LiveCharacter character,
         IReadOnlyList<(string Id, string Name, string Description)> choices, int milestone)
     {
@@ -2006,6 +2144,8 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         }
     }
 
+    /// <summary>Új varázslat kiválasztását kéri a megadott tanulási lépéshez, a karakter módosítása nélkül.</summary>
+    /// <remarks>A choices lista nem lehet üres; fel/le választás és Enter jóváhagyás támogatott.</remarks>
     public SpellDefinition DrawSpellLearningScreen(LiveCharacter character,
         IReadOnlyList<SpellDefinition> choices, int learnedNumber, int learnedTotal)
     {
@@ -2035,6 +2175,9 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         }
     }
 
+    /// <summary>A memorizálási kapacitásig engedi kijelölni az ismert varázslatokat, majd Enterre visszaadja a listát.</summary>
+    /// <returns>A kijelölt varázslatok szint és név szerint rendezve; ismert varázslat nélkül üres lista.</returns>
+    /// <remarks>A Space váltja a kijelölést; a tényleges memorizálást a hívó alkalmazza.</remarks>
     public IReadOnlyList<SpellDefinition> DrawSpellPreparationScreen(LiveCharacter character)
     {
         var spells = character.KnownSpells.OrderBy(spell => spell.Level).ThenBy(spell => spell.Name).ToList();
@@ -2076,6 +2219,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         }
     }
 
+    /// <summary>Csak a megadott varázslattanulási vagy memorizálási sorokat írja újra a keret díszítéseihez igazítva.</summary>
     private void UpdateMagicProgressionLines(int width,
         IReadOnlyList<(string Text, ConsoleColor Color)> lines, IEnumerable<int> indices,
         FramedWindow window)
@@ -2095,6 +2239,9 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         }
     }
 
+    /// <summary>Blokkoló választást kér memorizált vagy tárgyból használható varázslatok és varázslók között.</summary>
+    /// <returns>Az Enterrel választott varázslat és forrása; Esc esetén null.</returns>
+    /// <remarks>A casters lista és kezdőindex legyen érvényes. Nem hajt végre varázslást; visszatérés után a hívó állítja helyre az overlayt.</remarks>
     public SpellCastSelection? DrawSpellCastingScreen(IReadOnlyList<LiveCharacter> casters, int casterIndex, bool inCombat,
         Maze maze, FogOfWar fogOfWar, Func<LiveCharacter, Position> casterPosition, Action? showHelp = null)
     {
@@ -2176,6 +2323,8 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         }
     }
 
+    /// <summary>Helyreállítja a közös overlay alatti mentett konzolhátteret, és elengedi a háttérmentést.</summary>
+    /// <param name="preserveDeferredMapChanges">True esetén megőrzi az overlay alatt elhalasztott mezőfrissítéseket későbbi rajzoláshoz.</param>
     public void RestoreSpellCastingOverlay(bool preserveDeferredMapChanges = false)
     {
         if (_spellCastingOverlaySnapshot is null)
@@ -2196,6 +2345,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         if (!preserveDeferredMapChanges) _spellCastingOverlayDirtyCells.Clear();
     }
 
+    /// <summary>Bezárja az overlayt, majd az aktuális térképállapotból újrarajzolja az alatta megváltozott mezőket.</summary>
     public void RestoreSpellCastingOverlay(Maze maze, FogOfWar fogOfWar, Position playerPosition)
     {
         RestoreSpellCastingOverlay(preserveDeferredMapChanges: true);
@@ -2205,6 +2355,8 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         DrawMapCellsChanged(maze, fogOfWar, playerPosition, changedPositions);
     }
 
+    /// <summary>A használati környezethez illő memorizált varázslatokat és töltettel rendelkező tekercs-/pálcaforrásokat gyűjti össze.</summary>
+    /// <remarks>Szint, név és forrás szerint rendez; a mana elegendőségét nem szűri, a varázslás feltételeit a hívó ellenőrzi.</remarks>
     public IReadOnlyList<SpellCastSelection> SpellCastingChoices(LiveCharacter character, bool inCombat) =>
         character.MemorizedSpells
             .Where(spell => !spell.EnemyOnly && (inCombat ? spell.CanUseInCombat : spell.CanUseDuringExploration))
@@ -2220,6 +2372,8 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
             .OrderBy(entry => entry.Spell.Level).ThenBy(entry => entry.Spell.Name)
             .ThenBy(entry => entry.CastingItem is not null).ToArray();
 
+    /// <summary>Billentyűolvasás nélkül rajzol varázslatválasztót, a kijelölést korlátozva és a vezér pozícióját kerülve.</summary>
+    /// <remarks>A hívó kezeli a navigációt, jóváhagyást és az overlay helyreállítását.</remarks>
     public void DrawNonBlockingSpellSelector(IReadOnlyList<LiveCharacter> casters, int casterIndex, bool inCombat,
         int selectedIndex, Maze maze, FogOfWar fogOfWar, Position leaderPosition)
     {
@@ -2251,6 +2405,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
             FramedWindow.SpellSelector, leaderPosition);
     }
 
+    /// <summary>Elmenti a közös overlay hátterét, kirajzolja az ablakot, és frissíti a rajta kívüli elhalasztott mezőket.</summary>
     private void DrawSpellCastingOverlay(int frameWidth, IReadOnlyList<(string Text, ConsoleColor Color)> lines,
         Maze maze, FogOfWar fogOfWar, Position playerPosition, FramedWindow? framedWindow = null,
         Position? avoidPosition = null)
@@ -2306,6 +2461,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         RedrawDeferredMapCellsOutsideOverlay(maze, fogOfWar, playerPosition);
     }
 
+    /// <summary>Újrarajzolja és kiveszi a várólistából az overlay által már nem fedett térképmezőket.</summary>
     private void RedrawDeferredMapCellsOutsideOverlay(Maze maze, FogOfWar fogOfWar, Position playerPosition)
     {
         foreach (var position in _spellCastingOverlayDirtyCells
@@ -2394,6 +2550,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         return SaveCenteredFrameBackground(frameWidth, lines.Count, window);
     }
 
+    /// <summary>A keret origóját az aktív fogadói felülethez vagy a játéktérhez középre igazítja.</summary>
     private (int Left, int Top) CenteredFrameOrigin(int width, int height, FramedWindow? window = null)
     {
         if (window == FramedWindow.Inn && _innSurfaceLeader is not null)
@@ -2401,10 +2558,12 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         return GameplayFrameOrigin(width, height);
     }
 
+    /// <summary>A játéktér közepéhez számol keretorigót, nem negatív bal és legalább 1-es felső koordinátával.</summary>
     internal static (int Left, int Top) GameplayFrameOrigin(int width, int height) =>
         (Math.Max(0, (PlayfieldWidth - width) / FrameBorderWidth),
             Math.Max(MinimumCenteredFrameTop, (PlayfieldHeight - height) / FrameBorderWidth));
 
+    /// <summary>Értesíti az ablakmegosztást, majd a beállított keretstílussal, margókkal és díszítésekkel rajzol.</summary>
     private void DrawCenteredFrame(int frameWidth, IReadOnlyList<(string Text, ConsoleColor Color)> lines, FramedWindow? framedWindow = null)
     {
         SharedWindowPresented?.Invoke(frameWidth, lines, framedWindow);
@@ -2450,6 +2609,8 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
 
     #region NPC interaction and story dialogs
 
+    /// <summary>A világbeli NPC adatait, párbeszédét és küldetéseit mutatja, majd csatlakozási vagy továbblépési választ kér.</summary>
+    /// <returns>A megengedett Enter vagy Esc művelet eredménye; a parti összetételét nem módosítja.</returns>
     public WorldNpcInteractionResult DrawWorldNpcRecruitment(WorldNpc npc,
         bool canJoin, IReadOnlyList<NpcQuestUiEntry> npcQuestUiEntries, string? dialogueOverride = null)
     {
@@ -2533,10 +2694,12 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         }
     }
 
+    /// <summary>A csatlakozási lehetőséghez illő NPC-ablak gyorsbillentyűszövegét adja vissza.</summary>
     internal static string WorldNpcRecruitmentActions(bool canJoin) => canJoin
         ? "Enter: csatlakozzon ingyen   Esc: most nem"
         : "Enter / Esc: tovább";
 
+    /// <summary>Az Enter/Esc billentyűt NPC-interakcióra képezi; más billentyűre null értéket ad.</summary>
     internal static WorldNpcInteractionResult? WorldNpcRecruitmentResult(ConsoleKey key, bool canJoin) =>
         key switch
         {
@@ -2546,6 +2709,8 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
             _ => null
         };
 
+    /// <summary>Elira beszélgetési szakaszához tartozó számozott választ kéri, és visszaadja annak viszony- és követési következményeit.</summary>
+    /// <remarks>A lezárt beszélgetés Enterre folytatható; a metódus nem alkalmazza a visszaadott változásokat.</remarks>
     public UniqueNpcConversationResult DrawUniqueNpcConversation(WorldNpc npc)
     {
         using var background = SaveCenteredFrameBackground(78, 22, FramedWindow.QuestOffer);
@@ -2609,6 +2774,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         }
     }
 
+    /// <summary>Megjeleníti az egyedi NPC bemutatkozását, és Enterre vár, megőrizve az ablak alatti hátteret.</summary>
     public void DrawUniqueNpcIntroduction(WorldNpc npc)
     {
         using var background = SaveCenteredFrameBackground(78, 22, FramedWindow.QuestOffer);
@@ -2627,6 +2793,9 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         while (Console.ReadKey(intercept: true).Key != ConsoleKey.Enter) { }
     }
 
+    /// <summary>Az egyedi NPC történetéhez számozott választ kér az opcionális beszélgetési előzményekkel.</summary>
+    /// <returns>A számbillentyűvel választott opció nullától induló indexe.</returns>
+    /// <remarks>Az 1–9 billentyűk és numerikus megfelelőik támogatottak; a prompt függőleges vonalai bekezdéshatárok.</remarks>
     public int DrawUniqueNpcStoryChoice(WorldNpc npc, string prompt, IReadOnlyList<string> choices,
         IReadOnlyList<string>? transcript = null)
     {
@@ -2665,6 +2834,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         }
     }
 
+    /// <summary>A beszélgetés utolsó legfeljebb tizenkét bejegyzését jeleníti meg, majd Enterre vár.</summary>
     public void DrawUniqueNpcStoryResponse(WorldNpc npc, IReadOnlyList<string> transcript)
     {
         var lines = new List<(string Text, ConsoleColor Color)>
@@ -2687,6 +2857,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         while (Console.ReadKey(intercept: true).Key != ConsoleKey.Enter) { }
     }
 
+    /// <summary>Az egyedi NPC által felkínált küldetéseket és XP-jutalmakat általános ablakban mutatja, majd Enterre vár.</summary>
     public void DrawGenericUniqueNpcQuestOffer(WorldNpc npc, IReadOnlyList<QuestPresentationSnapshot> quests)
     {
         var lines = new List<(string Text, ConsoleColor Color)>
@@ -2708,6 +2879,8 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         while (Console.ReadKey(intercept: true).Key != ConsoleKey.Enter) { }
     }
 
+    /// <summary>A küldetés leadásának megerősítését kéri a küldetésállapot módosítása nélkül.</summary>
+    /// <returns>True Enter esetén; false Esc esetén.</returns>
     public bool ConfirmQuestTurnIn(string npcName, QuestPresentationSnapshot quest)
     {
         var lines = QuestTurnInWindow.Build(npcName, quest);
@@ -2723,6 +2896,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         }
     }
 
+    /// <summary>Elira saját bevezetőszövegével mutatja a felkínált küldetéseket, majd Enterre vár.</summary>
     public void DrawUniqueNpcQuestOffer(WorldNpc npc, IReadOnlyList<QuestPresentationSnapshot> quests)
     {
         ResetColorCache();
@@ -2750,6 +2924,8 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         while (Console.ReadKey(intercept: true).Key != ConsoleKey.Enter) { }
     }
 
+    /// <summary>Választást kér az NPC partiba vétele, követőként megtartása vagy fogadóban várakoztatása között.</summary>
+    /// <remarks>Csatlakozás csak szabad partihely esetén választható; Esc a követőként megtartást jelenti.</remarks>
     public UniqueNpcDepartureChoice ChooseUniqueNpcDeparture(WorldNpc npc, bool partyHasRoom)
     {
         var lines = new List<(string Text, ConsoleColor Color)>
@@ -2785,6 +2961,9 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
 
     #region Inn helpers and incremental updates
 
+    /// <summary>Átképezhető karaktert és fejlődési csoportot választat, ellenőrzi a megadott aranyat, majd megerősítést kér.</summary>
+    /// <returns>A jóváhagyott karakter és csoport; megszakítás vagy jelölt hiánya esetén null.</returns>
+    /// <remarks>Nem von le aranyat, és nem módosítja a fejlődési döntéseket; ezeket a hívó alkalmazza.</remarks>
     public (LiveCharacter Character, ProgressionRetrainingKind Kind)? DrawProgressionRetrainingScreen(
         IReadOnlyList<LiveCharacter> party, int partyGold)
     {
@@ -2891,6 +3070,8 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         _ => string.Empty
     };
 
+    /// <summary>A mérföldkő taktikai diszciplínái közül nyilakkal és Enterrel kiválasztott definíciót adja vissza.</summary>
+    /// <exception cref="ArgumentException">A choices lista üres.</exception>
     public TacticalDisciplineDefinition DrawTacticalDisciplineChoice(LiveCharacter character,
         IReadOnlyList<TacticalDisciplineDefinition> choices, int milestone)
     {
@@ -2934,6 +3115,8 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         _ => behavior.ToString()
     };
 
+    /// <summary>Billentyűolvasás nélkül kirajzolja a parti pihenési összegzését a megadott lábléccel.</summary>
+    /// <remarks>A fogadón kívül elmenti és védi az ablak alatti térképterületet a bezárásig.</remarks>
     public void DrawRestSummaryScreen(PartyRestSnapshot rest, string footer, ConsoleColor footerColor)
     {
         var lines = RestSummaryWindow.Build(rest, footer, footerColor);
@@ -2952,6 +3135,8 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         DrawCenteredFrame(RestSummaryWindow.Width, lines, FramedWindow.Inn);
     }
 
+    /// <summary>Helyreállítja a térkép feletti pihenésablak hátterét és az elhalasztott mezőfrissítéseket.</summary>
+    /// <remarks>Mentett térképi pihenésablak nélkül nem végez műveletet.</remarks>
     public void ClearRestSummaryScreen(Maze maze, FogOfWar fogOfWar, Position playerPosition)
     {
         if (_restSummaryBackground is null) return;
@@ -2974,11 +3159,13 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         DrawPlayer(playerPosition);
     }
 
+    /// <summary>A kijelölés köré igazított kínálati oldal kezdőindexét számolja, a lista határai közé korlátozva.</summary>
     private static int InnMarketPageStart(int entryCount, int selectedIndex)
     {
         return entryCount == 0 ? 0 : Math.Clamp(selectedIndex - InnMarketPageSize / FrameBorderWidth, 0, Math.Max(0, entryCount - InnMarketPageSize));
     }
 
+    /// <summary>A kínálati névhez egynél nagyobb kötegméretet és készletdarabszámot fűz.</summary>
     internal static string FormatInnOfferName(string name, int quantity, int stockCount = 1) =>
         name + (quantity > 1 ? $" ×{quantity}" : string.Empty) +
         (stockCount > 1 ? $"  [készlet: {stockCount}]" : string.Empty);
@@ -3013,6 +3200,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
     private static string InnReplacementLine(LiveCharacter member, bool selected) =>
         $"{(selected ? "▶" : " ")} {member.Name,-13} {member.CharacterClass.Name,-10} L{member.Level,2}  HP {member.CurrentVitality}/{member.MaximumVitality}";
 
+    /// <summary>A megadott nullától induló tartalomsorokat törli és újraírja a meglévő középre igazított kereten belül.</summary>
     private void UpdateCenteredFrameLines(int frameWidth, int lineCount,
         IEnumerable<(int Index, string Text, ConsoleColor Color)> updates, FramedWindow? framedWindow = null)
     {
@@ -3036,7 +3224,8 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
 
     /// <summary>
     /// Battle/message panelre egy új bejegyzést ír: a hosszú üzeneteket megtöri, és
-    /// az utolsó N (MessageLineCount) bejegyzést jeleníti meg a képernyő alsó részén.
+    /// az utolsó látható naplósorokat jeleníti meg a képernyő alsó részén.
+    /// Korlátozza a puffer méretét, és a görgetést visszaállítja a legújabb bejegyzésekhez.
     /// </summary>
     private void DrawBattleMessage(string message, ConsoleColor color = ConsoleColor.Gray)
     {
@@ -3046,6 +3235,8 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         RenderMessageLog();
     }
 
+    /// <summary>A görgetett naplót és az ideiglenes célzási szöveget a naplóterületre rajzolja.</summary>
+    /// <param name="displayedLines">Pozitív értéknél ennyi alsó sort ír; egyébként a teljes látható naplóterületet használja.</param>
     private void RenderMessageLog(int displayedLines = 0)
     {
         var messages = _targetingPromptLines is null
@@ -3069,6 +3260,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         }
     }
 
+    /// <summary>A tabulátorokat szóközökkel a következő, megadott karakterszélességű tabulátorpozícióig bővíti.</summary>
     private static string ExpandTabs(string text, int tabWidth = 18)
     {
         if (!text.Contains('\t')) return text;
@@ -3114,6 +3306,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
 
     #region Low-level drawing and color helpers
 
+    /// <summary>Megosztott ablakot rajzol, az előző háttérmentést elengedve és az új ablak hátterét mentve.</summary>
     public void DrawReplicatedWindow(int width, IReadOnlyList<(string Text, ConsoleColor Color)> lines,
     FramedWindow window)
     {
@@ -3122,12 +3315,14 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         DrawCenteredFrame(width, lines, window);
     }
 
+    /// <summary>Elengedi a megosztott ablak háttér-helyreállítóját, és törli az aktív ablak állapotát.</summary>
     public void ClearReplicatedWindow()
     {
         _replicatedWindowBackground?.Dispose();
         _replicatedWindowBackground = null;
     }
 
+    /// <summary>A napló navigációs szabályai szerint módosítja a görgetést, majd újrarajzolja a látható sorokat.</summary>
     public void NavigateMessageLog(MessageLogNavigation navigation)
     {
         _messageLogScrollOffset = MessageLogNavigationRules.CalculateOffset(
@@ -3135,6 +3330,8 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         RenderMessageLog();
     }
 
+    /// <summary>Időzített varázslathatás-animációt regisztrál, és kirajzolja az első állapotát.</summary>
+    /// <remarks>Nem várja meg az animáció végét. Nulla időtartam vagy átirányított konzolkimenet esetén nem indít effektet.</remarks>
     public void PlaySpellImpact(Maze maze, FogOfWar fogOfWar, Position playerPosition,
         SpellDefinition spell, Position casterPosition, Position target, IReadOnlyList<Position> enemyTargets,
         IReadOnlyList<SpellImpactTrackedTargetSnapshot>? trackedTargets = null,
@@ -3161,6 +3358,8 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         UpdateSpellImpacts(maze, fogOfWar, playerPosition);
     }
 
+    /// <summary>Lejáratja és frissíti a varázslathatásokat, követett célpontokat és viharterületeket, helyreállítva a felszabadult mezőket.</summary>
+    /// <remarks>Overlay vagy megosztott ablak alatt nem rajzol effektet; átmeneti konzolhibánál a következő frissítés folytathatja.</remarks>
     public void UpdateSpellImpacts(Maze maze, FogOfWar fogOfWar, Position playerPosition)
     {
         if (Console.IsOutputRedirected) return;
@@ -3241,6 +3440,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         }
     }
 
+    /// <summary>Karakterazonosítókat térképpozíciókra képez, a vezérhez a megadott játékospozíciót rendelve.</summary>
     private Dictionary<CharacterId, Position> MazeCharacterPositions(Maze maze, Position playerPosition)
     {
         var positions = maze.PartyMembers.ToDictionary(member => member.Character.Id, member => member.Position);
@@ -3248,6 +3448,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         return positions;
     }
 
+    /// <summary>A még jelen lévő követett karakterek és ellenségek aktuális pozícióit oldja fel.</summary>
     private IEnumerable<Position> ResolveSpellImpactPositions(Maze maze, Position playerPosition,
         IEnumerable<SpellImpactTrackedTargetSnapshot> targets)
     {
@@ -3260,6 +3461,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
                 yield return enemyPosition;
     }
 
+    /// <summary>Az aktuális térképmezőt a játékos és a harci fókusz figyelembevételével állítja helyre.</summary>
     private void DrawCurrentMapCell(Maze maze, FogOfWar fogOfWar, Position position, Position playerPosition)
     {
         Console.SetCursorPosition(position.X, position.Y);
@@ -3272,6 +3474,8 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         WriteRuneWithColor(visual.Rune, visual.ForegroundColor, visual.BackgroundColor);
     }
 
+    /// <summary>Helyreállítja az előző célmezőt, érvényesség szerint színezett célkurzort rajzol, és ideiglenes célzási szöveget mutat.</summary>
+    /// <remarks>A célzási szöveg nem kerül a tartós üzenetnaplóba.</remarks>
     public void DrawSpellTargetCursor(Maze maze, FogOfWar fogOfWar, Position playerPosition,
         Position? previousPosition, Position position, bool valid, string prompt)
     {
@@ -3288,6 +3492,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         RenderMessageLog();
     }
 
+    /// <summary>Eltávolítja az ideiglenes célzási szöveget, és a térkép újrarajzolásával megszünteti a célkurzort.</summary>
     public void FinishSpellTargeting(Maze maze, FogOfWar fogOfWar, Position playerPosition)
     {
         _targetingPromptLines = null;
@@ -3295,11 +3500,14 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         DrawMapVisibilityChanged(maze, fogOfWar, playerPosition);
     }
 
+    /// <summary>Inventory-művelethez tartozó színezett visszajelzést ír a közös naplóba.</summary>
     public void DrawInventoryMessage(string message, ConsoleColor color = ConsoleColor.Cyan) => DrawBattleMessage(message, color);
+    /// <summary>NPC-harc összegzését írja a közös naplóba a megadott színnel.</summary>
     public void DrawNpcBattleSummary(string message, ConsoleColor color) => DrawBattleMessage(message, color);
 
     /// <summary>
     /// Megadott mező kirajzolása a kurzor mozgatásával, majd a megfelelő Rune kiírásával.
+    /// Pihenésablak vagy közös overlay alatt a frissítést elhalasztja az ablak bezárásáig.
     /// </summary>
     private void DrawMapCell(Maze maze, FogOfWar fogOfWar, Position position)
     {
@@ -3319,6 +3527,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         DrawMapRune(maze, fogOfWar, position);
     }
 
+    /// <summary>Jelzi, hogy a mező a közös varázslat-/történet-overlay mentett téglalapján belül van-e.</summary>
     private bool IsCoveredBySpellCastingOverlay(Position position) =>
         _spellCastingOverlayBounds is { } bounds &&
         position.X >= bounds.Left && position.X < bounds.Left + bounds.Width &&
@@ -3333,6 +3542,8 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         WriteRuneWithColor(visual.Rune, visual.ForegroundColor, visual.BackgroundColor);
     }
 
+    /// <summary>A láthatóság, szereplők, objektumok, terep és aurák alapján meghatározza a mező jelét és színeit.</summary>
+    /// <remarks>A megadott játékospozíció elsőbbséget élvez; a metódus csak megjelenítési adatot készít, nem ír a konzolra.</remarks>
     private MapCellVisual GetMapCellVisual(Maze maze, FogOfWar fogOfWar, Position position, Position? playerPosition)
     {
         if (playerPosition == position)
@@ -3380,6 +3591,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
                 : ConsoleColor.Black);
     }
 
+    /// <summary>A varázslat céltípusát magyar megjelenítési névre képezi, ismeretlen értéknél általános célpontnévvel.</summary>
     public static string SpellTargetName(SpellTargetType targetType) => targetType switch
     {
         SpellTargetType.Self => "önmaga",
@@ -3394,7 +3606,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
     };
 
     /// <summary>
-    /// Játékos karakterének kirajzolása: fix szimbólum és szín a kurzor aktuális pozíciójára.
+    /// A vezért a megadott pozícióra rajzolja a beállított osztályjellel, karakterszínnel és jótékony varázslatok aurahátterével.
     /// </summary>
     private void DrawPlayer(Position position)
     {
@@ -3406,11 +3618,13 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         WriteRuneWithColor(symbol, character.Color, aura ?? ConsoleColor.Black);
     }
 
+    /// <summary>A karakter térképi osztályjelét a megjelenítő avatarkészletéből választja ki.</summary>
     private string PartyAvatarGlyph(LiveCharacter character) =>
         CharacterSheetPanel.PartyAvatarGlyph(character.CharacterClass.Id, _settings.PartyAvatars);
 
     /// <summary>
     /// Egyszerű segéd: kiír egy tetszőleges szöveget adott X,Y koordinátára a konzolon.
+    /// A pufferszélességnél csonkol, az érvénytelen pozíciókat és átmeneti konzolhibákat figyelmen kívül hagyja.
     /// </summary>
     private static void WriteAt(int x, int y, string text)
     {
@@ -3535,6 +3749,8 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         _currentBackgroundColor = null;
     }
 
+    /// <summary>A karakterlap frissítését delegálja, a nyitott részletoldalakat és az érvényes megjelenített karaktert megőrizve.</summary>
+    /// <param name="character">A karakterlap-megjelenítőnek átadott tartalék karakter.</param>
     public void RefreshCharacterSheet(LiveCharacter character)
     {
         CharacterSheet.RefreshCharacterSheet(character);
