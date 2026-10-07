@@ -13,6 +13,52 @@ internal static partial class Program
             "A portrépaletta nem tartalmaz elég egyedi rajzolókaraktert és a forrás glyphjeit.");
     }
 
+    static void PaletteSettingsRoundTripFavouritesAndNames()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), $"ascii-palette-{Guid.NewGuid():N}");
+        var path = Path.Combine(directory, "palette-settings.json");
+        try
+        {
+            var store = new PaletteSettingsStore(path);
+            var saved = new PaletteSettings
+            {
+                Favourites = ["◆", "λ", "😀"],
+                PageNames = new Dictionary<int, string> { [0] = "Pinned", [2] = "Arrows" }
+            };
+
+            var savedSuccessfully = store.TrySave(saved, out var saveError);
+            var loadedSuccessfully = store.TryLoad(out var loaded, out var loadError);
+
+            Assert(savedSuccessfully && loadedSuccessfully && saveError is null && loadError is null &&
+                   loaded.Favourites.SequenceEqual(saved.Favourites, StringComparer.Ordinal) &&
+                   loaded.PageNames.Count == 2 && loaded.PageNames[0] == "Pinned" && loaded.PageNames[2] == "Arrows",
+                "A palettabeállítások nem őrizték meg a kedvenceket és az oldalelnevezéseket.");
+        }
+        finally
+        {
+            if (Directory.Exists(directory))
+                Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    static void PaletteSettingsRejectMalformedJsonWithoutThrowing()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"ascii-palette-{Guid.NewGuid():N}.json");
+        try
+        {
+            File.WriteAllText(path, "{ invalid json");
+            var loadedSuccessfully = new PaletteSettingsStore(path).TryLoad(out var settings, out var error);
+
+            Assert(!loadedSuccessfully && !string.IsNullOrWhiteSpace(error) &&
+                   settings.Favourites.Count == 0 && settings.PageNames.Count == 0,
+                "A hibás palettabeállítás nem biztonságos üres beállításokra esett vissza.");
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
     static void AsciiPortraitSourceParsesDictionaries()
     {
         var source = new AsciiPortraitSource();

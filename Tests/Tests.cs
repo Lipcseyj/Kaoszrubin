@@ -424,6 +424,8 @@ internal static partial class Program
     ("Az in-memory transport végigviszi a coop protokollfolyamot", () =>
         InMemoryTransportRunsProtocolFlow().GetAwaiter().GetResult()),
     ("A portrépaletta összegyűjti az egyedi Unicode-karaktereket", PortraitPaletteCollectsAllUniqueUnicodeRunes),
+    ("A palettabeállítás megőrzi a kedvenceket és az oldalelnevezéseket", PaletteSettingsRoundTripFavouritesAndNames),
+    ("A hibás palettabeállítás biztonságosan elutasítható", PaletteSettingsRejectMalformedJsonWithoutThrowing),
     ("Az ASCII portréforrás mindkét szótárat és raw stringet beolvassa", AsciiPortraitSourceParsesDictionaries),
     ("Az ASCII portréfrissítés csak a kiválasztott bejegyzést módosítja", AsciiPortraitSourceUpdatesOneEntry),
     ("Az ASCII portrémentés új bejegyzést illeszt a kiválasztott szótárba", AsciiPortraitSourceInsertsEntry),

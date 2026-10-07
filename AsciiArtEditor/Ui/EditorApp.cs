@@ -19,12 +19,16 @@ public sealed class EditorApp
     private const ushort MouseEventType = 0x0002;
     private const uint LeftButtonPressed = 0x0001;
     private const uint RightButtonPressed = 0x0002;
+    private const uint ControlKeyPressed = 0x000C;
     private const uint MouseMoved = 0x0001;
 
     private readonly string _sourcePath;
     private readonly AsciiPortraitSource _source;
     private readonly Dictionary<string, string> _portraits;
     private readonly string[] _palette;
+    private readonly PaletteSettingsStore _paletteSettingsStore;
+    private readonly PaletteSettings _paletteSettings;
+    private readonly string? _paletteSettingsLoadError;
     private (PortraitDictionary Dictionary, PortraitSourceEntry Entry)[] _portraitEntries = [];
     private int _portraitIndex;
     private PortraitDictionary? _selectedDictionary;
@@ -37,9 +41,13 @@ public sealed class EditorApp
     private int _cursorY;
     private int _mouseHoverX = -1;
     private int _mouseHoverY = -1;
+    private bool _leftMouseButtonDown;
+    private bool _rightMouseButtonDown;
     private string _brush = " ";
     private int _paletteIndex;
     private int _palettePage;
+    private int _paletteRangePage = -1;
+    private int _paletteRangeStart = -1;
     private string _status = "";
 
     private bool IsPortraitMode => _canvasWidth == PortraitWidth && _canvasHeight == PortraitHeight;
@@ -57,6 +65,13 @@ public sealed class EditorApp
             .ToArray();
         _palette = PortraitPalette.Collect(_portraitEntries.Select(item => item.Entry.Content))
             .ToArray();
+        _paletteSettingsStore = new PaletteSettingsStore();
+        if (!_paletteSettingsStore.TryLoad(out _paletteSettings, out _paletteSettingsLoadError))
+            _paletteSettings = new PaletteSettings();
+        _paletteSettings.Favourites = _paletteSettings.Favourites
+            .Where(glyph => Array.IndexOf(_palette, glyph) >= 0)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
         _paletteIndex = Array.IndexOf(_palette, "█");
         if (_paletteIndex < 0)
             _paletteIndex = 0;
@@ -69,6 +84,8 @@ public sealed class EditorApp
             SelectPortrait(0, redraw: false);
         else
             StartNewPortrait();
+        if (_paletteSettingsLoadError is not null)
+            _status = $"Palette settings could not be loaded: {_paletteSettingsLoadError}";
 
         var originalCursorVisible = Console.CursorVisible;
         var inputHandle = IntPtr.Zero;
@@ -97,7 +114,7 @@ public sealed class EditorApp
             }
             else
             {
-                _status = "Mouse unavailable; use arrows, P, Space/D, E, Delete, S, C. ";
+                _status = "Mouse unavailable; palette pinning and ranges require mouse input.";
                 RunKeyboardInput();
             }
         }
@@ -148,8 +165,12 @@ public sealed class EditorApp
                 var mouse = record.MouseEvent;
                 var leftButtonDown = (mouse.ButtonState & LeftButtonPressed) != 0;
                 var rightButtonDown = (mouse.ButtonState & RightButtonPressed) != 0;
-                if (leftButtonDown || rightButtonDown || (mouse.EventFlags & MouseMoved) != 0)
-                    HandleMouse(mouse.Position.X, mouse.Position.Y, leftButtonDown, rightButtonDown);
+                var leftButtonClicked = leftButtonDown && !_leftMouseButtonDown;
+                var rightButtonClicked = rightButtonDown && !_rightMouseButtonDown;
+                _leftMouseButtonDown = leftButtonDown;
+                _rightMouseButtonDown = rightButtonDown;
+                HandleMouse(mouse.Position.X, mouse.Position.Y, leftButtonDown, rightButtonDown,
+                    leftButtonClicked, rightButtonClicked, (mouse.ControlKeyState & ControlKeyPressed) != 0);
 
                 continue;
             }
@@ -198,6 +219,7 @@ public sealed class EditorApp
                 break;
             case ConsoleKey.C:
             case ConsoleKey.N:
+            case ConsoleKey.R:
                 DrawAll();
                 break;
             case ConsoleKey.Delete:
@@ -272,6 +294,9 @@ public sealed class EditorApp
             case ConsoleKey.N:
                 StartNewPortrait();
                 break;
+            case ConsoleKey.R:
+                RenamePalettePage();
+                break;
             case ConsoleKey.Delete:
                 ClearCanvas();
                 break;
@@ -339,7 +364,8 @@ public sealed class EditorApp
         _status = "Canvas cleared.";
     }
 
-    private void HandleMouse(int x, int y, bool leftButtonDown, bool rightButtonDown)
+    private void HandleMouse(int x, int y, bool leftButtonDown, bool rightButtonDown,
+        bool leftButtonClicked, bool rightButtonClicked, bool controlPressed)
     {
         var layout = CalculateLayout();
         var canvasLeft = layout.CanvasFrameX + 1;
@@ -387,23 +413,143 @@ public sealed class EditorApp
         if (x >= layout.PaletteItemsLeft && paletteColumn < layout.PaletteColumns &&
             paletteRow >= 0 && paletteRow < layout.PaletteRows)
         {
-            var index = _palettePage * layout.PalettePageSize + paletteRow * layout.PaletteColumns + paletteColumn;
-            if (index >= _palette.Length || index == _paletteIndex)
+            var localIndex = paletteRow * layout.PaletteColumns + paletteColumn;
+            var glyph = GetPaletteGlyph(layout, _palettePage, localIndex);
+            if (glyph is null)
                 return;
 
-            var previousIndex = _paletteIndex;
-            SelectPaletteGlyph(index);
-            DrawPaletteTile(layout, previousIndex);
-            DrawPaletteTile(layout, index);
+            if (controlPressed && leftButtonClicked)
+            {
+                MarkPaletteRangeStart(layout, localIndex, glyph);
+                return;
+            }
+
+            if (controlPressed && rightButtonClicked)
+            {
+                CompletePaletteRange(layout, localIndex);
+                return;
+            }
+
+            if (rightButtonClicked && !controlPressed)
+            {
+                ToggleFavourite(layout, glyph);
+                return;
+            }
+
+            if (!leftButtonClicked || controlPressed || glyph == _brush)
+                return;
+
+            var previousLocalIndex = FindGlyphOnPage(layout, _brush);
+            SelectPaletteGlyph(glyph);
+            DrawPaletteTile(layout, previousLocalIndex);
+            DrawPaletteTile(layout, localIndex);
             DrawStatus(layout);
         }
+    }
+
+    private void MarkPaletteRangeStart(EditorLayout layout, int localIndex, string glyph)
+    {
+        var previousPage = _paletteRangePage;
+        var previousStart = _paletteRangeStart;
+        _paletteRangePage = _palettePage;
+        _paletteRangeStart = localIndex;
+        if (previousPage == _palettePage && previousStart >= 0 && previousStart != localIndex)
+            DrawPaletteTile(layout, previousStart);
+
+        _status = $"Range starts at '{glyph}'. Ctrl+right-click the end glyph.";
+        DrawPaletteTile(layout, localIndex);
+        DrawStatus(layout);
+    }
+
+    private void CompletePaletteRange(EditorLayout layout, int localIndex)
+    {
+        if (_paletteRangeStart < 0)
+        {
+            _status = "Mark a range start with Ctrl+left-click first.";
+            DrawStatus(layout);
+            return;
+        }
+
+        if (_paletteRangePage != _palettePage)
+        {
+            _paletteRangePage = -1;
+            _paletteRangeStart = -1;
+            _status = "Palette range canceled: start and end must be on the same page.";
+            DrawStatus(layout);
+            return;
+        }
+
+        var start = Math.Min(_paletteRangeStart, localIndex);
+        var end = Math.Max(_paletteRangeStart, localIndex);
+        var glyphs = Enumerable.Range(start, end - start + 1)
+            .Select(index => GetPaletteGlyph(layout, _palettePage, index))
+            .Where(glyph => glyph is not null)
+            .Cast<string>()
+            .ToArray();
+        var previousStart = _paletteRangeStart;
+        _paletteRangePage = -1;
+        _paletteRangeStart = -1;
+
+        if (_palettePage == 0)
+        {
+            var removed = _paletteSettings.Favourites.RemoveAll(glyph => glyphs.Contains(glyph, StringComparer.Ordinal));
+            SavePaletteSettings($"Unpinned {removed} glyph(s) from favourites.");
+            DrawPalettePanel(layout);
+        }
+        else
+        {
+            var available = Math.Max(0, layout.PalettePageSize - _paletteSettings.Favourites.Count);
+            var candidates = glyphs
+                .Where(glyph => !_paletteSettings.Favourites.Contains(glyph, StringComparer.Ordinal))
+                .ToArray();
+            var additions = candidates.Take(available).ToArray();
+            _paletteSettings.Favourites.AddRange(additions);
+            SavePaletteSettings(additions.Length < candidates.Length
+                ? $"Pinned {additions.Length} glyph(s); Favourites is full."
+                : $"Pinned {additions.Length} glyph(s) to favourites.");
+            DrawPaletteTile(layout, previousStart);
+        }
+
+        DrawStatus(layout);
+    }
+
+    private void ToggleFavourite(EditorLayout layout, string glyph)
+    {
+        if (_palettePage == 0)
+        {
+            _paletteSettings.Favourites.Remove(glyph);
+            SavePaletteSettings($"Unpinned '{glyph}' from favourites.");
+            DrawPalettePanel(layout);
+        }
+        else if (_paletteSettings.Favourites.Contains(glyph, StringComparer.Ordinal))
+        {
+            _status = $"'{glyph}' is already pinned.";
+        }
+        else if (_paletteSettings.Favourites.Count >= layout.PalettePageSize)
+        {
+            _status = "Favourites page is full.";
+        }
+        else
+        {
+            _paletteSettings.Favourites.Add(glyph);
+            SavePaletteSettings($"Pinned '{glyph}' to favourites.");
+        }
+
+        DrawStatus(layout);
     }
 
     private void SelectPaletteGlyph(int index)
     {
         _paletteIndex = index;
         _brush = _palette[index];
-        _palettePage = _paletteIndex / CalculateLayout().PalettePageSize;
+        _palettePage = 1 + _paletteIndex / CalculateLayout().PalettePageSize;
+        _status = $"Brush selected: '{_brush}'";
+    }
+
+    private void SelectPaletteGlyph(string glyph)
+    {
+        _brush = glyph;
+        _paletteIndex = Array.IndexOf(_palette, glyph);
         _status = $"Brush selected: '{_brush}'";
     }
 
@@ -426,11 +572,10 @@ public sealed class EditorApp
         Console.ResetColor();
     }
 
-    private void DrawPaletteTile(EditorLayout layout, int index)
+    private void DrawPaletteTile(EditorLayout layout, int localIndex)
     {
-        var pageStart = _palettePage * layout.PalettePageSize;
-        var localIndex = index - pageStart;
-        if (index < 0 || index >= _palette.Length || localIndex < 0 || localIndex >= layout.PalettePageSize)
+        var glyph = GetPaletteGlyph(layout, _palettePage, localIndex);
+        if (glyph is null)
             return;
 
         var row = localIndex / layout.PaletteColumns;
@@ -441,9 +586,63 @@ public sealed class EditorApp
             return;
 
         Console.SetCursorPosition(x, y);
-        Console.BackgroundColor = index == _paletteIndex ? ConsoleColor.DarkGreen : ConsoleColor.Black;
-        Console.Write($" {_palette[index]}  ");
+        Console.BackgroundColor = _paletteRangePage == _palettePage && localIndex == _paletteRangeStart
+            ? ConsoleColor.DarkYellow
+            : glyph == _brush ? ConsoleColor.DarkGreen : ConsoleColor.Black;
+        Console.Write($" {glyph}  ");
         Console.ResetColor();
+    }
+
+    private string? GetPaletteGlyph(EditorLayout layout, int page, int localIndex)
+    {
+        if (localIndex < 0 || localIndex >= layout.PalettePageSize)
+            return null;
+
+        if (page == 0)
+            return localIndex < _paletteSettings.Favourites.Count
+                ? _paletteSettings.Favourites[localIndex]
+                : null;
+
+        var index = (page - 1) * layout.PalettePageSize + localIndex;
+        return index < _palette.Length ? _palette[index] : null;
+    }
+
+    private int FindGlyphOnPage(EditorLayout layout, string glyph)
+    {
+        for (var localIndex = 0; localIndex < layout.PalettePageSize; localIndex++)
+        {
+            if (GetPaletteGlyph(layout, _palettePage, localIndex) == glyph)
+                return localIndex;
+        }
+
+        return -1;
+    }
+
+    private void RenamePalettePage()
+    {
+        var currentName = GetPalettePageName(_palettePage);
+        Prompt($"Palette page name [{currentName}]: ");
+        var name = Console.ReadLine()?.Trim();
+        if (string.IsNullOrEmpty(name))
+        {
+            _status = "Palette rename canceled.";
+            return;
+        }
+
+        _paletteSettings.PageNames[_palettePage] = name;
+        SavePaletteSettings($"Palette page renamed to {name}.");
+    }
+
+    private string GetPalettePageName(int page) =>
+        _paletteSettings.PageNames.TryGetValue(page, out var name) && !string.IsNullOrWhiteSpace(name)
+            ? name
+            : page == 0 ? "Favourites" : $"Palette {page}";
+
+    private void SavePaletteSettings(string successStatus)
+    {
+        _status = _paletteSettingsStore.TrySave(_paletteSettings, out var error)
+            ? successStatus
+            : $"Palette settings could not be saved: {error}";
     }
 
     private void ChangeCanvasSize()
@@ -600,7 +799,7 @@ public sealed class EditorApp
         if (clear)
             Console.Clear();
         WriteAt(2, 0, "ASCII PORTRAIT EDITOR", layout.Width - 4);
-        WriteAt(2, 1, "Arrows move | Shift+Left/Right switch portrait | Space/D draw | E erase | Delete clear | P glyph | PgUp/PgDn palette | S save | C resize | N new | Esc/Q quit",
+        WriteAt(2, 1, "Arrows move | Shift+Left/Right portrait | Space/D draw | E erase | Del clear | P glyph | PgUp/PgDn palette | R rename | RMB pin/unpin | Ctrl+LMB/RMB range | S save | C resize | N new | Esc/Q quit",
             layout.Width - 4);
 
         for (var y = 2; y < layout.Height - 2; y++)
@@ -641,26 +840,29 @@ public sealed class EditorApp
         DrawFrame(layout.PaletteFrameX, layout.PaletteFrameY, layout.PaletteFrameWidth, layout.PaletteFrameHeight);
         var pageCount = layout.PalettePageCount;
         WriteAt(layout.PaletteFrameX + 2, layout.PaletteFrameY,
-            $" Palette {_palettePage + 1}/{pageCount} ", layout.PaletteFrameWidth - 4);
+            $" {GetPalettePageName(_palettePage)} {_palettePage + 1}/{pageCount} ", layout.PaletteFrameWidth - 4);
         for (var row = 0; row < layout.PaletteRows; row++)
         {
             var y = layout.PaletteItemsTop + row;
             for (var column = 0; column < layout.PaletteColumns; column++)
             {
-                var index = _palettePage * layout.PalettePageSize + row * layout.PaletteColumns + column;
+                var localIndex = row * layout.PaletteColumns + column;
                 var x = layout.PaletteItemsLeft + column * PaletteCellWidth;
                 if (x + PaletteCellWidth >= layout.Width - 1 || y >= layout.Height - 1)
                     continue;
 
-                if (index >= _palette.Length)
+                var glyph = GetPaletteGlyph(layout, _palettePage, localIndex);
+                if (glyph is null)
                 {
                     WriteAt(x, y, new string(' ', PaletteCellWidth), PaletteCellWidth);
                     continue;
                 }
 
                 Console.SetCursorPosition(x, y);
-                Console.BackgroundColor = index == _paletteIndex ? ConsoleColor.DarkGreen : ConsoleColor.Black;
-                Console.Write($" {_palette[index]}  ");
+                Console.BackgroundColor = _paletteRangePage == _palettePage && localIndex == _paletteRangeStart
+                    ? ConsoleColor.DarkYellow
+                    : glyph == _brush ? ConsoleColor.DarkGreen : ConsoleColor.Black;
+                Console.Write($" {glyph}  ");
                 Console.ResetColor();
             }
         }
@@ -697,7 +899,6 @@ public sealed class EditorApp
         var paletteColumns = Math.Max(1, (paletteFrameWidth - 2) / PaletteCellWidth);
         var paletteRows = Math.Max(1, paletteFrameHeight - 4);
         var palettePageSize = paletteColumns * paletteRows;
-
         return new EditorLayout(width, height, splitX,
             canvasFrameX, canvasFrameY, canvasFrameWidth, canvasFrameHeight,
             paletteFrameX, paletteFrameY, paletteFrameWidth, paletteFrameHeight,
@@ -750,7 +951,7 @@ public sealed class EditorApp
     {
         public int PaletteItemsLeft => PaletteFrameX + 1;
         public int PaletteItemsTop => PaletteFrameY + 3;
-        public int PalettePageCount => Math.Max(1, (PaletteLength + PalettePageSize - 1) / PalettePageSize);
+        public int PalettePageCount => 1 + Math.Max(1, (PaletteLength + PalettePageSize - 1) / PalettePageSize);
     }
 
     private static string[,] CreateCanvas(int width, int height)
