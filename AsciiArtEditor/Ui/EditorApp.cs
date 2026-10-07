@@ -8,6 +8,8 @@ namespace AsciiArtEditor.Ui;
 
 public sealed class EditorApp
 {
+    private const int PortraitWidth = 17;
+    private const int PortraitHeight = 5;
     private const int PaletteCellWidth = 4;
     private const int StdInputHandle = -10;
     private const uint EnableMouseInput = 0x0010;
@@ -28,9 +30,9 @@ public sealed class EditorApp
     private PortraitDictionary? _selectedDictionary;
     private string? _selectedKeyExpression;
     private string? _proposedKeyExpression;
-    private int _canvasWidth = 17;
-    private int _canvasHeight = 5;
-    private string[,] _cells = CreateCanvas(17, 5);
+    private int _canvasWidth = PortraitWidth;
+    private int _canvasHeight = PortraitHeight;
+    private string[,] _cells = CreateCanvas(PortraitWidth, PortraitHeight);
     private int _cursorX;
     private int _cursorY;
     private int _mouseHoverX = -1;
@@ -39,6 +41,9 @@ public sealed class EditorApp
     private int _paletteIndex;
     private int _palettePage;
     private string _status = "";
+
+    private bool IsPortraitMode => _canvasWidth == PortraitWidth && _canvasHeight == PortraitHeight;
+    private string ModeName => IsPortraitMode ? "Portrait" : "Art";
 
     public EditorApp(string sourcePath, AsciiPortraitSource source, Dictionary<string, string> portraits)
     {
@@ -92,7 +97,7 @@ public sealed class EditorApp
             }
             else
             {
-                _status = "Mouse unavailable; use arrows, P, Space/D, E, S, C. ";
+                _status = "Mouse unavailable; use arrows, P, Space/D, E, Delete, S, C. ";
                 RunKeyboardInput();
             }
         }
@@ -195,6 +200,10 @@ public sealed class EditorApp
             case ConsoleKey.N:
                 DrawAll();
                 break;
+            case ConsoleKey.Delete:
+                DrawCanvasPanel(layout);
+                DrawStatus(layout);
+                break;
             case ConsoleKey.S:
                 DrawAll();
                 break;
@@ -263,6 +272,9 @@ public sealed class EditorApp
             case ConsoleKey.N:
                 StartNewPortrait();
                 break;
+            case ConsoleKey.Delete:
+                ClearCanvas();
+                break;
             case ConsoleKey.PageUp:
                 _palettePage = Math.Max(0, _palettePage - 1);
                 break;
@@ -310,12 +322,21 @@ public sealed class EditorApp
         _selectedDictionary = null;
         _selectedKeyExpression = null;
         _proposedKeyExpression = null;
-        _canvasWidth = 17;
-        _canvasHeight = 5;
+        _canvasWidth = PortraitWidth;
+        _canvasHeight = PortraitHeight;
         _cells = CreateCanvas(_canvasWidth, _canvasHeight);
         _cursorX = 0;
         _cursorY = 0;
         _status = "New portrait. Save with S and choose the target dictionary and key. ";
+    }
+
+    private void ClearCanvas()
+    {
+        for (var y = 0; y < _canvasHeight; y++)
+            for (var x = 0; x < _canvasWidth; x++)
+                _cells[x, y] = " ";
+
+        _status = "Canvas cleared.";
     }
 
     private void HandleMouse(int x, int y, bool leftButtonDown, bool rightButtonDown)
@@ -427,6 +448,7 @@ public sealed class EditorApp
 
     private void ChangeCanvasSize()
     {
+        var previousLayout = CalculateLayout();
         Prompt("New width: ");
         if (!int.TryParse(Console.ReadLine(), out var width))
             return;
@@ -436,11 +458,15 @@ public sealed class EditorApp
 
         width = Math.Clamp(width, 1, 80);
         height = Math.Clamp(height, 1, 40);
+        if (width == _canvasWidth && height == _canvasHeight)
+            return;
+
         var resized = CreateCanvas(width, height);
         for (var y = 0; y < Math.Min(height, _canvasHeight); y++)
             for (var x = 0; x < Math.Min(width, _canvasWidth); x++)
                 resized[x, y] = _cells[x, y];
 
+        ClearCanvasPanel(previousLayout);
         _canvasWidth = width;
         _canvasHeight = height;
         _cells = resized;
@@ -450,9 +476,9 @@ public sealed class EditorApp
 
     private void SaveCurrent()
     {
-        if (_canvasWidth > 17 || _canvasHeight > 5)
+        if (!IsPortraitMode)
         {
-            _status = "Cannot save: game portraits are limited to 17 columns by 5 rows.";
+            SaveArt();
             return;
         }
 
@@ -483,16 +509,7 @@ public sealed class EditorApp
             }
         }
 
-        var lines = new List<string>(_canvasHeight);
-        for (var y = 0; y < _canvasHeight; y++)
-        {
-            var line = "";
-            for (var x = 0; x < _canvasWidth; x++)
-                line += _cells[x, y];
-            lines.Add(line.TrimEnd());
-        }
-
-        var result = _source.SavePortraitInFile(_sourcePath, dictionary.Value, keyExpression, string.Join("\n", lines));
+        var result = _source.SavePortraitInFile(_sourcePath, dictionary.Value, keyExpression, GetCanvasContent());
         if (!result.Success)
         {
             _status = $"Save failed: {result.Error}";
@@ -507,6 +524,41 @@ public sealed class EditorApp
             item.Dictionary == dictionary &&
             string.Equals(item.Entry.KeyExpression, keyExpression, StringComparison.Ordinal));
         _status = result.Inserted ? "Portrait inserted." : "Portrait updated.";
+    }
+
+    private void SaveArt()
+    {
+        Prompt("Art file name: ");
+        var path = Console.ReadLine();
+        if (string.IsNullOrEmpty(path))
+        {
+            _status = "Art save canceled: a file name is required.";
+            return;
+        }
+
+        try
+        {
+            File.WriteAllText(path, GetCanvasContent());
+            _status = $"Art saved to {path}.";
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        {
+            _status = $"Art save failed: {ex.Message}";
+        }
+    }
+
+    private string GetCanvasContent()
+    {
+        var lines = new string[_canvasHeight];
+        for (var y = 0; y < _canvasHeight; y++)
+        {
+            var line = "";
+            for (var x = 0; x < _canvasWidth; x++)
+                line += _cells[x, y];
+            lines[y] = line.TrimEnd();
+        }
+
+        return string.Join('\n', lines);
     }
 
     private void RefreshPortraitEntries()
@@ -548,7 +600,7 @@ public sealed class EditorApp
         if (clear)
             Console.Clear();
         WriteAt(2, 0, "ASCII PORTRAIT EDITOR", layout.Width - 4);
-        WriteAt(2, 1, "Arrows move | Shift+Left/Right switch portrait | Space/D draw | E erase | P glyph | PgUp/PgDn palette | S save | C resize | N new | Esc/Q quit",
+        WriteAt(2, 1, "Arrows move | Shift+Left/Right switch portrait | Space/D draw | E erase | Delete clear | P glyph | PgUp/PgDn palette | S save | C resize | N new | Esc/Q quit",
             layout.Width - 4);
 
         for (var y = 2; y < layout.Height - 2; y++)
@@ -625,7 +677,7 @@ public sealed class EditorApp
     {
         var statusY = Math.Max(2, layout.Height - 2);
         var maximumWidth = Math.Max(0, layout.Width - 4);
-        var status = $"Brush: '{_brush}'    Position: ({_cursorX},{_cursorY})    {_status}";
+        var status = $"Mode: {ModeName}    Brush: '{_brush}'    Position: ({_cursorX},{_cursorY})    {_status}";
         WriteAt(2, statusY, status.PadRight(maximumWidth), maximumWidth);
     }
 
