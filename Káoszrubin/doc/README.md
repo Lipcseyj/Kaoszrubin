@@ -7,30 +7,33 @@
 
 ## Tartalom
 
-- [Áttekintés](#áttekintés)
-- [Indítási és fő adatfolyam](#indítási-és-fő-adatfolyam)
-- [Projektfelépítés](#projektfelépítés)
-- [Adatmodell és CSV](#adatmodell-és-game-datacsv)
-- [Karakter létrehozása és fejlődése](#karakter-létrehozása-és-fejlődése)
-- [Játékhurok és időmodell](#játékhurok)
+- [Áttekintés](#attekintes)
+- [Indítási és fő adatfolyam](#inditasi-es-fo-adatfolyam)
+- [Projektfelépítés](#projektfelepites)
+- [Adatmodell és CSV](#adatmodell-es-csv)
+- [Karakter létrehozása és fejlődése](#karakter-letrehozasa-es-fejlodese)
+- [Játékhurok és időmodell](#jatekhurok)
 - [Parti](#parti)
-- [Labirintusgenerálás](#labirintusgenerálás)
-- [Pályavége és fogadó](#pályavége-és-fogadó)
-- [Szörnyek](#szörnyek-erőssége-és-képességei)
-- [Látómező és köd](#látómező-és-köd)
+- [Labirintusgenerálás](#labirintusgeneralas)
+- [Pályavége és fogadó](#palyavege-es-fogado)
+- [Szörnyek](#szornyek)
+- [Látómező és köd](#latomezo-es-kod)
 - [Taktikai harc](#csata-algoritmusa)
-- [Ellenséges AI](#ellenséges-ai)
-- [Megjelenítés](#megjelenítés)
-- [Mentés](#mentés)
-- [Függőségek és állapotkezelés](#függőségek-és-állapotkezelés)
-- [Adatbővítés](#adatbővítés)
-- [Csapdák](#csapdák)
-- [Fegyverek és sebzéstípusok](#fegyverek-sebzéstípusok-és-tartalékfegyver)
-- [Session-események](#session-események)
+- [Ellenséges AI](#ellenseges-ai)
+- [Megjelenítés](#megjelenites)
+- [Mentés](#mentes)
+- [Függőségek és állapotkezelés](#fuggosegek-es-allapotkezeles)
+- [Adatbővítés](#adatbovites)
+- [Csapdák](#csapdak)
+- [Fegyverek és sebzéstípusok](#fegyverek-sebzestipusok-es-tartalekfegyver)
+- [Session-események](#session-esemenyek)
 
-Kapcsolódó részletes leírások: [coop](coop-design.md), [erdei generálás](forest-generation.md),
-[küldetésrendszer](quest-readme.md), [küldetésládák](quest-chests.md),
-[speciális szobák](room-placement.md), [ellenséges varázslók](EnemyCasters.md).
+*Kapcsolódó részletes leírások:*
+
+- [coop](coop-design-readme.md)
+- [erdei generálás](forest-generation-readme.md)
+- [térkép szerkesztő](../Tools/MapEditor/map-editor-readme.md)
+- [küldetésrendszer](quest-readme.md)
 
 ## Ténylegesen működő fejlesztői funkciók
 
@@ -52,6 +55,8 @@ Az alábbi rejtett gyorsbillentyűk közvetlenül be vannak kötve a játék fő
 - `Ctrl+Alt+T`: paraméterezhető harci tesztpálya létrehozása. A vezér mellé azonos szintű Mágus, Pap és Lovag kerül alapfelszereléssel és véletlenül memorizált, szintjükön elérhető varázslatokkal. A felső térfélen legfeljebb 8, egyenként legfeljebb 12 fős, helyben várakozó ellenségcsoport áll; mindegyik mellett egy jelölőláda látható. A pálya kezdetben teljesen felfedett, a köd `Ctrl+Shift+U`-val kapcsolható vissza.
 
 A két rögzített osztályszett magasabb szintű, véletlenül generált karakterei három felszerelt varázstárgyat és pontosan egy kulcsot kapnak. A kulcs számára telt hátizsáknál az utolsó véletlen tárgy helye szabadul fel. A Mágus, Pap és Lovag egy pálcát, egy számukra használható tekercset és egy passzív gyűrűt vagy amulettet visel. A Harcos, Barbár és Tolvaj tekercs helyett egy második pálcát kap, így a tekercsek normál kasztkorlátozása változatlan marad.
+
+<a id="attekintes"></a>
 
 ## Áttekintés
 
@@ -113,6 +118,8 @@ A megoldás fő felelősségi területei:
 - **harc:** több résztvevős taktikai körök, mozgás, közelharc, lövészet, varázslás és kasztakciók;
 - **megjelenítés:** közvetlen, részleges konzolfrissítés.
 
+<a id="inditasi-es-fo-adatfolyam"></a>
+
 ## Indítási és fő adatfolyam
 
 ```text
@@ -138,6 +145,8 @@ Az indítás menete:
 4. A `MainMenu` betölti a `karakterek.json` állományt, ha létezik.
 5. A felhasználó karaktert készíthet, választhat vagy törölhet, illetve játékot indíthat.
 6. A `Game` minden labirintusszinthez új világot, játékospozíciót és ködállapotot hoz létre, de ugyanazt a `LiveCharacter` példányt használja tovább.
+
+<a id="projektfelepites"></a>
 
 ## Projektfelépítés
 
@@ -319,6 +328,8 @@ helyi / távoli szándék
   → ClientSessionStore → WorldDeltaReducer → CoopGuestScreen
 ```
 
+<a id="adatmodell-es-csv"></a>
+
 ## Adatmodell és `game-data.csv`
 
 A CSV `#` karakterrel kezdődő szekciókból áll. A betöltő az ékezeteket és kis-/nagybetűket figyelmen kívül hagyva azonosítja a szekcióneveket. A jelenlegi szekciók:
@@ -347,6 +358,8 @@ A sorok közötti kapcsolatok szöveges azonosítókon alapulnak, például `C00
 A `#Base XP pálya végén` szekció egyetlen nemnegatív egész számot tartalmaz. A `GameDataCatalog.BaseLevelCompletionExperience` kötelező értékként kapja meg; hiánya vagy negatív értéke betöltési hibát okoz.
 
 Az `game-data.csv` a projektfájl beállítása miatt fordításkor a kimeneti könyvtárba másolódik. A program futáskor ezt a másolatot olvassa, nem feltétlenül a forráskönyvtárban lévő fájlt.
+
+<a id="karakter-letrehozasa-es-fejlodese"></a>
 
 ## Karakter létrehozása és fejlődése
 
@@ -458,6 +471,8 @@ Az állapotok az `game-data.csv` `#Állapotok` szekciójának `StatusDefinition`
 | 🩸 Vérzés | saját támadási kör végén 1d3 közvetlen sebzés, négy aktiválódás után elmúlik |
 
 Az Éhes és Szomjas állapot származtatott: 30 vagy alacsonyabb élelem-, illetve vízszintnél automatikusan aktív, magasabb értéknél megszűnik. A többi állapot hátralévő aktiválódásszámmal együtt mentődik. Az ismételt mérgezés vagy vérzés nem halmozódik, hanem visszaállítja az állapot teljes CSV-s időtartamát. Az ellenméreg, gyógyfüves orvosság és kötés továbbra is azonnal eltávolítja a megfelelő állapotot. A karakterlap az állapotok neve helyett a CSV-s emojikat mutatja.
+
+<a id="jatekhurok"></a>
 
 ## Játékhurok
 
@@ -586,6 +601,8 @@ tíz terhelési pont egy további élelem- és két vízpontot fogyaszt.
 
 A szintléptető fejlesztői gyorsbillentyű `Ctrl+Alt+S`; ugyanazt a fejlődési útvonalat használja,
 mint a normál XP-jóváírás.
+
+<a id="parti"></a>
 
 ## Parti
 
@@ -871,6 +888,8 @@ A rejtett `Ctrl+Shift+Y` fejlesztői gyorsbillentyű Harcos–Mágus–Lovag, a 
 
 A rejtett `Ctrl+Shift+Í` fejlesztői gyorsbillentyű — ha van szabad hely — pontosan egy új NPC-t ad a partihoz. A karakter 1. szintű marad és kizárólag az osztály `#Osztály kezdőfelszerelés` CSV-s szabálya szerinti alapfelszerelést kapja; véletlen magasabb szintet és extra felszerelést nem.
 
+<a id="labirintusgeneralas"></a>
+
 ## Labirintusgenerálás
 
 A generátor kezdetben falakkal tölti fel a pályát, majd rekurzív mélységi bejárással összefüggő folyosóhálózatot vés ki egy ötlépéses logikai rácson. A csomópontok két cella szélesek; az összekötő folyosók a konfigurált valószínűséggel kétcellásak.
@@ -885,6 +904,8 @@ Ezután a generátor:
 6. üres, járható cellákon ládákat és konfigurált ellenfeleket helyez el.
 
 A kezdőterem védett: más szoba fala nem írhatja felül, és nem kerülhet bele láda vagy ellenfél. A 3×3-as járható belső teret külön falburok veszi körül, a korábban kivésett folyosókapcsolatok helyén ajtókkal. A vezető a terem középső celláján áll, ezért egyik oldalán sem kezd közvetlenül fal mellett. A legfeljebb három társ elsőként a távolabbi sarokcellákat foglalja el, így nem zárják körül a vezetőt.
+
+<a id="palyavege-es-fogado"></a>
 
 ## Pályavége és fogadó
 
@@ -973,6 +994,8 @@ a **21. szinten** Kael-Zhur, a Káoszsárkány őrzi a tizenkettedik kulcsot.
 A finálé kijárata csak az összes kulcs birtokában aktiválható, és fogadó/új generálás helyett
 a XV., befejező fejezetet indítja. A finálé méltatja az életben maradt partitagokat és lezárja a futamot.
 A végső sorszám egyetlen kódbeli forrása a `MazeLevelConfigurations.FinalLevel`.
+
+<a id="szornyek"></a>
 
 ## Szörnyek erőssége és képességei
 
@@ -1065,6 +1088,8 @@ A műveletet kezdeményező emberi karakter saját pozíciója és jogosultsága
 Küldetésajtóhoz külön, típusos questhozzáférés tartozhat; egy lezárt questkaput a normál kulcs/erőpróba
 nem helyettesít. Lásd [QuestDoorAccessService](../Application/Quests/QuestDoorAccessService.cs).
 
+<a id="latomezo-es-kod"></a>
+
 ## Látómező és köd
 
 ### Felfedezettség, aktuális látótér és észlelés
@@ -1139,6 +1164,8 @@ A [SpellAreaFootprint](../Domain/Magic/SpellAreaFootprint.cs) kizárja a takaró
 és a fal mögötti cellákat. Ugyanezt a területet használja a sebzés és az effekt;
 a területi sebzés baráti tüzet is okozhat. A lánc nem falon át ugráló, kerülőutat kereső villám:
 a [ApplyChainDamage](../Domain/Magic/SpellExecutionService.cs) az első cél körüli jelölteket szűri.
+
+<a id="csata-algoritmusa"></a>
 
 ## Csata algoritmusa
 
@@ -1261,6 +1288,8 @@ A vezető végleges veresége játék végét okozza. A világba visszatérés �
 Az ellenfél definíciója változatlan adat. A játékos támadásának számítása egy külön `EnemyDefenseSnapshot` objektumban tartja a csata során változó HP-t és az adott támadáshoz módosított védelmi adatokat, majd a maradék HP-t visszaírja az `Enemy.CurrentHitPoints` értékébe. Az ellenfél támadása közvetlenül az `Enemy` példányt kapja, ezért a definíció mellett a futásidejű varázshatásokat, képességtölteteket és lehűléseket is ugyanabból a forrásból olvassa. A játékos HP-ja közvetlenül a `LiveCharacter` objektumon változik.
 
 
+<a id="ellenseges-ai"></a>
+
 ## Ellenséges AI
 
 ### Ellenség varázsló AI
@@ -1344,6 +1373,8 @@ Az aktív blokkalakzat elölről védi a hátsó sor tagját, ha az előtte áll
 
 A több célpontot érintő fegyvereknél a fenti sorrend adja az elsődleges célpontot, majd a támadás alakja szerint kerülnek mellé továbbiak. A **tölcsér alakú támadás kivétel**: azt az irányt keresi, amelyik a legtöbb karaktert éri el. A szörnyek képességei és varázslatai saját célzási szabályokat használnak. [Többcélú és tölcsér támadások](../Combat/TacticalBattleCoordinator.cs)
 
+<a id="megjelenites"></a>
+
 ## Megjelenítés
 
 A `ConsoleRenderer` a pályát, karakterlapot, ASCII-képpanelt és naplót jeleníti meg.
@@ -1364,6 +1395,8 @@ A `Shift+F1` a fő játékhurokban, karakterlapfókuszban, varázsválasztás/c�
 A karakterlap a faj és osztály alatt egy-egy sort tart fenn a tehetségeknek és az aktív állapotoknak. Az `Áll:` sor a negatív állapotok CSV-s ikonjai mellett a fenti buffemojikat is megjeleníti, hogy a hatás a súgó jelmagyarázata alapján azonosítható legyen. Ha a nevek együtt nem férnek el a 27 karakteres panelen, minden elem azonos rendelkezésre álló hosszra rövidül, így az összes aktív bejegyzés látható marad.
 
 A pálya mérete a renderer játékterének méretéből származik, ezért a generálás és a konzolelrendezés jelenleg közvetetten össze van kötve.
+
+<a id="mentes"></a>
 
 ## Mentés
 
@@ -1391,6 +1424,8 @@ A játék közbeni `F9` előbb visszateszi az esetleg kézben tartott inventoryt
 - a felfedezett ködmezőket, partiparancsot, valamint a szétszóródás, ellenfélmozgás és szükségletfogyás hátralévő idejét.
 
 A főmenü mentésválasztója időrendben listázza a `.save` fájlokat a főkarakter nevével, a pályaszámmal és a mentés idejével. Betöltéskor a statikus definíciók továbbra is az aktuális `GameDataCatalog` elemeiből oldódnak fel. A mentési séma verziózott; ismeretlen verzió vagy sérült állomány hibaüzenettel visszautasításra kerül.
+
+<a id="fuggosegek-es-allapotkezeles"></a>
 
 ## Függőségek és állapotkezelés
 
@@ -1443,6 +1478,8 @@ Fontos állapotélettartamok:
 Van futtatható regressziós tesztprojekt, működő papi és lovagi varázslás, valamint 1–35 közötti
 mentésmigráció; ezek nem hiányzó vagy későbbre tervezett funkciók.
 
+
+<a id="adatbovites"></a>
 
 ## Adatbővítés
 
@@ -1515,6 +1552,8 @@ a 33→34 mentésmigráció a régi 6–21. sorszámokat 7–22-re helyezi.
 Források: [pályakonfiguráció](../World/MazeLevelConfiguration.cs),
 [mentésmigráció](../Data/GameSaveService.cs), [erdőgenerálás](forest-generation.md).
 
+<a id="csapdak"></a>
+
 ## Csapdák
 
 A `#Csapdák` CSV-fejezet definiálja a csapdatípusok hatását, nehézségét, valamint a sikeres
@@ -1544,6 +1583,8 @@ a későbbi pályán pedig ugyanaz a kampányhoz kötött karakter térhet vissz
 `MegbízóTávozikLeadásUtán` mezője `igen` értékkel a jutalomösszegzés után eltávolítja a megbízót
 az aktuális pályáról, miközben a karaktere és a viszonya megmarad. Az NPCQ042 ezt használja Merionnál.
 
+<a id="partiparancsok"></a>
+
 ## Partiparancsok
 
 A leader felfedezés közben három, egymást kizáró tartós NPC-parancsot adhat: `H` Megállj,
@@ -1572,6 +1613,8 @@ fájlban találhatók. Egyedi karakterhez a
 
 Hívási területek: [világindítás](../Application/Game.World.cs),
 [fogadó](../Application/InnController.cs), [fejlesztői eszközök](../Application/Game.DeveloperTools.cs).
+
+<a id="fegyverek-sebzestipusok-es-tartalekfegyver"></a>
 
 ## Fegyverek, sebzéstípusok és tartalékfegyver
 
@@ -1653,6 +1696,8 @@ További módosítók:
 - Az eredmény legfeljebb 100%.
 Ha a szörny saját fegyvere is elvihető, arra előbb külön dobás történik. Ennek alapja 30%, szintén módosítja a kereső Intelligenciája, kasztja és faja. Ha a saját fegyver kiesik, abban a keresésben a felszerelési tábla már nem dob.
 Ezért például a „Vörös sárkány — 90%” nem 90% Legendás esélyt jelent, hanem 90%-os alap felszereléstábla-esélyt. A Legendás tárgy tényleges esélye ennek csak egy része, mert a játék a teljes engedélyezett Varázs–Legendás készletből választ.
+
+<a id="session-esemenyek"></a>
 
 ## Session-események
 
