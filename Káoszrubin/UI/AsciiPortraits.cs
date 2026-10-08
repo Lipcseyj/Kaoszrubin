@@ -21,11 +21,11 @@ public static class AsciiPortraits
                 """),
             [CharacterClassIds.Barbár] = Portrait(
                 """
-                  ▄██▀██▄  ◢█╬█◣
-                 ▐▓ ò╲ó ▓▌  ▀╬▀
-                ▄▓▓╲▟█▙╱▓▓▄  ║
-                ▐╲╱▓╲▼╱▓╲╱▌══╣
-                 ╰▙╱═◆═╲▟╯   ║
+                    ╭━━╮  Đ
+                    (òó) / 
+                   /|##|/▲ 
+                    |  |
+                   /_/\_\
                 """),
             // C003 - Lovag
             [CharacterClassIds.Lovag] = Portrait(
@@ -69,11 +69,11 @@ public static class AsciiPortraits
            // E001 - Óriáspatkány
            [MonsterIds.Óriáspatkány] = Portrait(
                """
-                  ╭─╮▄▓▓▓▄
-                ╭─╯◦╰▓▒▒▒▓╲  ╭╮
-               ╱◉ ▄╱▒░▒░▒▒▓╲ ╵│
-               ●═╤╯╲▓▓▓▓▓▓╱╰──╯
-                 ╵  └┴┘└┴┘
+                    ___
+                 __/o  \_
+                /  ___   \___
+                \_/   \__    ~
+                       /_/
                """),
 
            // E002 - Kobold
