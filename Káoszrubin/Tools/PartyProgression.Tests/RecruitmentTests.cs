@@ -34,7 +34,9 @@ internal static class RecruitmentTests
         ("A vendég hat tagot, széles formát és a második támogatás fogadói állapotát kapja", SixthReplication),
         ("Az F öt és hat taggal körbejárja a két nagy formát, az üres hely megmarad", WideEditor),
         ("Teli hatos parti és elavult ajánlat nem használhatja újra a második támogatást", SixthFullParty),
-        ("A 9–10. kampánypálya generált területein mindkét nagy alakzat elhelyezhető", SixthCampaignLayouts)
+        ("A 9–10. kampánypálya generált területein mindkét nagy alakzat elhelyezhető", SixthCampaignLayouts),
+        ("A támogatott toborzás teljes leírása tördelve elfér a fogadói menüben", MenuDescriptionLayout),
+        ("Toborzás után a panel lapozás nélkül megjeleníti az új partitagot", RecruitmentPanelRefresh)
     ];
 
     private static void Check(bool value, string message) { if (!value) throw new InvalidOperationException(message); }
@@ -436,6 +438,69 @@ internal static class RecruitmentTests
             !inn.TryRecruit(inn.RecruitmentOffers()[0].CharacterId, inn.Revision, null, out _) &&
             roster.Party.Members.Count == 6 && roster.Party.Leader.Gold == gold &&
             roster.Party.AvailableRecruitmentGrants.Count == 0, "Hetedik tag vagy ismételt ingyenes felvétel sikerült.");
+    }
+
+    public static void MenuDescriptionLayout()
+    {
+        var (inn, _) = SixthInn();
+        var description = (string)Invoke(inn, "RecruitmentStatus");
+        var options = new InnMenuOptionSnapshot[]
+        {
+            new(InnMenuOptionKind.Recruit, "Zsoldosok toborzása — támogatással", description),
+            new(InnMenuOptionKind.Leave, "Indulás", "A parti elhagyja a fogadót.")
+        };
+        foreach (var guest in new[] { false, true })
+        {
+            var lines = ConsoleRenderer.BuildInnMenuLines(5, 2000, options, 0, "", guest, partyCapacity: 6);
+            var descriptionLines = lines.Where(line => line.Text.StartsWith("     ")).TakeWhile(line =>
+                !line.Text.Contains("A parti elhagyja")).ToArray();
+            Check(descriptionLines.Length >= 2 && descriptionLines.All(line =>
+                BattleCommandPanel.DisplayWidth(line.Text) <= ConsoleRenderer.InnMenuFrameWidth -
+                    2 * WindowFrameCatalog.ContentPadding(WindowFrameConfiguration.For(FramedWindow.Inn))),
+                "A leírás kilóg a helyi vagy vendégmenüből.");
+            Check(string.Join(" ", descriptionLines.Select(line => line.Text.Trim())) == description,
+                "A tördelés elhagyta a támogatás vagy halasztás leírását.");
+            var split = typeof(ConsoleRenderer).GetMethod("SplitMenuDescriptionLines", BindingFlags.NonPublic | BindingFlags.Static)!;
+            var rows = (string[])split.Invoke(null, [description])!;
+            Check(rows.SequenceEqual(descriptionLines.Select(line => line.Text.TrimStart())),
+                "A részleges kijelölésfrissítés más sorokat használ.");
+        }
+    }
+
+    public static void RecruitmentPanelRefresh()
+    {
+        foreach (var supported in new[] { true, false })
+        {
+            var (inn, roster) = SixthInn();
+            var renderer = (ConsoleRenderer)inn.GetType().GetField("_renderer", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(inn)!;
+            if (!supported)
+            {
+                var dummy = Character("Korábbi támogatás");
+                Check(roster.Party.TryAddWithRecruitmentGrant(dummy, PartyExpansionMilestone.SixthMember), "Hiányzó támogatás.");
+                roster.Party.Remove(dummy);
+                roster.Party.Leader!.AddGold(100_000);
+            }
+            var output = new StringWriter();
+            var original = Console.Out;
+            try
+            {
+                Console.SetOut(output);
+                SetField(renderer.CharacterSheet, "_displayedCharacter", roster.Party.Members[1]);
+                Invoke(renderer.CharacterSheet, "DrawPartyStatusRows", roster.Party.Members[1]);
+                var displayed = renderer.CharacterSheet.DisplayedCharacter;
+                var offer = inn.RecruitmentOffers()[0];
+                Check(inn.TryRecruit(offer.CharacterId, inn.Revision, null, out _), "A tesztfelvétel sikertelen.");
+                var rows = (System.Collections.IDictionary)renderer.CharacterSheet.GetType()
+                    .GetField("_lastPartyStatusRows", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(renderer.CharacterSheet)!;
+                var last = rows[ConsoleRenderer.CharacterSheetRenderer.CharacterSheetPartyMembersStartLine + 5]!;
+                var status = (PartyStatusLine)last.GetType().GetProperty("Status")!.GetValue(last)!;
+                var recruit = roster.Party.Members.Single(member => member.Id == offer.CharacterId);
+                Check(status.Identity == CharacterSheetPanel.BuildPartyStatus(recruit, false, false).Identity &&
+                    renderer.CharacterSheet.DisplayedCharacter == displayed,
+                    "Az új társ státuszsora nem frissült azonnal, vagy megváltozott a megjelenített karakter.");
+            }
+            finally { Console.SetOut(original); output.Dispose(); }
+        }
     }
 
     public static void CampaignLayouts() => CheckCampaignLayouts(6, 8, 5, [PartyFormationShape.Column2x3]);

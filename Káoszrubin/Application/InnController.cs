@@ -1786,6 +1786,8 @@ internal sealed partial class InnController
         string inventoryOwnerName, bool announceOnHost = false)
     {
         _renderer.CharacterSheet.UpdateGoldInCharacterSheet(_partyLeader);
+        if (kind == InnTransactionKind.Recruitment)
+            _renderer.CharacterSheet.RefreshPartyStatusRows();
         var transaction = new InnTransactionSnapshot(++_transactionSequence, kind, actorName, itemName, price,
             inventoryOwnerName);
         _playGlobalSound(SoundEffect.Item);

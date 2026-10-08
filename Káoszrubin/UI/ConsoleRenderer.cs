@@ -1363,7 +1363,9 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
     }
 
     private static string[] SplitMenuDescriptionLines(string? description) =>
-        (description ?? string.Empty).Replace("\r", string.Empty).Split('\n');
+        (description ?? string.Empty).Replace("\r", string.Empty).Split('\n')
+            .SelectMany(line => WrapText(line, InnMenuFrameWidth - 2 * WindowFrameCatalog.ContentPadding(
+                WindowFrameConfiguration.For(FramedWindow.Inn)) - 5)).ToArray();
 
     /// <summary>A titkos raktár belépődíjának megerősítését kéri a díj levonása nélkül.</summary>
     /// <returns>True Enter esetén; false Esc esetén.</returns>

@@ -383,6 +383,19 @@ public sealed partial class ConsoleRenderer
             DrawInventorySlotRows(_displayedCharacter, panelLines);
         }
 
+        /// <summary>Refreshes the party list immediately after recruitment, preserving the displayed character and detail pages.</summary>
+        public void RefreshPartyStatusRows()
+        {
+            if (_displayedCharacter is null || _itemInspectionPanel is not null ||
+                _owner._spellInfoCharacter is not null) return;
+            if (!SheetCharacters().Contains(_displayedCharacter))
+            {
+                RefreshCharacterSheet(_party.Leader!);
+                return;
+            }
+            DrawPartyStatusRows(_displayedCharacter);
+        }
+
         /// <summary>
         /// Refreshes battle-sensitive rows (status icons, resources, party status).
         /// Use this after damage, healing, mana use, or status effect changes in battle.
