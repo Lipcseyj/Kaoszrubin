@@ -999,8 +999,8 @@ public sealed class EditorApp
 
     private void DrawCanvasPanel(EditorLayout layout)
     {
-        DrawFrame(layout.CanvasFrameX, layout.CanvasFrameY, layout.CanvasFrameWidth, layout.CanvasFrameHeight);
-        WriteAt(layout.CanvasFrameX + 2, layout.CanvasFrameY, " Canvas ", layout.CanvasFrameWidth - 4);
+        DrawFrame(layout.CanvasFrameX, layout.CanvasFrameY, layout.CanvasFrameWidth, layout.CanvasFrameHeight,
+            " Canvas ");
         for (var y = 0; y < _canvasHeight; y++)
         {
             for (var x = 0; x < _canvasWidth; x++)
@@ -1021,10 +1021,9 @@ public sealed class EditorApp
 
     private void DrawPalettePanel(EditorLayout layout)
     {
-        DrawFrame(layout.PaletteFrameX, layout.PaletteFrameY, layout.PaletteFrameWidth, layout.PaletteFrameHeight);
         var pageCount = layout.PalettePageCount;
-        WriteAt(layout.PaletteFrameX + 2, layout.PaletteFrameY,
-            $" {GetPalettePageName(_palettePage)} {_palettePage + 1}/{pageCount} ", layout.PaletteFrameWidth - 4);
+        DrawFrame(layout.PaletteFrameX, layout.PaletteFrameY, layout.PaletteFrameWidth, layout.PaletteFrameHeight,
+            $" {GetPalettePageName(_palettePage)} {_palettePage + 1}/{pageCount} ");
         for (var row = 0; row < layout.PaletteRows; row++)
         {
             var y = layout.PaletteItemsTop + row;
@@ -1089,12 +1088,16 @@ public sealed class EditorApp
             paletteColumns, paletteRows, palettePageSize, _palette.Length);
     }
 
-    private static void DrawFrame(int x, int y, int width, int height)
+    private static void DrawFrame(int x, int y, int width, int height, string title)
     {
         if (width < 2 || height < 2)
             return;
 
-        WriteAt(x, y, $"┌{new string('─', Math.Max(0, width - 2))}┐", width);
+        var topBorder = $"┌{new string('─', width - 2)}┐".ToCharArray();
+        var titleLength = Math.Min(title.Length, Math.Max(0, width - 4));
+        if (titleLength > 0)
+            title.CopyTo(0, topBorder, 2, titleLength);
+        WriteAt(x, y, new string(topBorder), width);
         WriteAt(x, y + height - 1, $"└{new string('─', Math.Max(0, width - 2))}┘", width);
         for (var row = 1; row < height - 1; row++)
         {
