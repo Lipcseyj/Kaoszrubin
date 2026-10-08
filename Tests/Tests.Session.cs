@@ -288,6 +288,36 @@ internal static partial class Program
                binding.CampaignId == campaignId, "A karakter kampánykötése elveszett mentéskor.");
     }
 
+    static void LoadedGamePreservesOtherLocalCharacters()
+    {
+        var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
+        var service = new CharacterSaveService(Path.Combine(Path.GetTempPath(), "unused-roster-merge.json"), data);
+        var leader = CreateCharacter("Régi vezér");
+        var guest = CreateCharacter("Vendég");
+        var later = CreateCharacter("Új társ");
+        var oldGuest = new LiveCharacter("Régi vendég", guest.Race, guest.CharacterClass,
+            guest.Abilities, guest.MaximumVitality, guest.MaximumMana, guest.VitalityBonus,
+            guest.ManaBonus, id: guest.Id);
+        var loaded = new CharacterRoster();
+        loaded.Add(leader);
+        loaded.Add(oldGuest);
+        loaded.Select(leader);
+        var local = new CharacterRoster();
+        local.Add(leader);
+        local.Add(guest);
+        local.Add(later);
+        local.BindCampaign(guest, Guid.NewGuid(), 2);
+        loaded.PreserveCharactersOutsidePartyFrom(local);
+        var restored = service.Deserialize(service.Serialize(loaded));
+        Assert(restored.SelectedCharacter?.Id == leader.Id &&
+               restored.Characters.Count == 3 &&
+               restored.Characters.Single(character => character.Id == guest.Id).Name == guest.Name &&
+               restored.Characters.Any(character => character.Id == later.Id) &&
+               restored.CampaignOf(restored.Characters.Single(character => character.Id == guest.Id))?.CampaignId ==
+               local.CampaignOf(guest)?.CampaignId,
+            "A régi mentés felülírta vagy eltüntette a helyi karaktereket.");
+    }
+
     static void CharacterHistorySurvivesSerialization()
     {
         var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));

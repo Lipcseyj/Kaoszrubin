@@ -385,9 +385,14 @@ public sealed class MainMenu
                 Console.ReadKey(intercept: true);
                 return;
             }
+            var localRoster = _characterRoster;
             _characterRoster = latest.Roster;
-            new Game(_gameData, _characterRoster, _characterRoster.SelectedCharacter!, _gameSaveService,
-                _backgroundMusicPlayer, latest.State, gameSettings: _musicSettings).Run();
+            try
+            {
+                new Game(_gameData, _characterRoster, _characterRoster.SelectedCharacter!, _gameSaveService,
+                    _backgroundMusicPlayer, latest.State, gameSettings: _musicSettings).Run();
+            }
+            finally { _characterRoster.PreserveCharactersOutsidePartyFrom(localRoster); }
             return;
         }
 
@@ -788,14 +793,19 @@ public sealed class MainMenu
                             loadAsCoopHost = modeKey == ConsoleKey.C;
                             if (!loadAsCoopHost && modeKey != ConsoleKey.S) break;
                         }
-                        if (loadAsCoopHost)
-                            StartHostedLoadedGame(loaded);
-                        else
+                        var localRoster = _characterRoster;
+                        try
                         {
-                            _characterRoster = loaded.Roster;
-                            new Game(_gameData, _characterRoster, _characterRoster.SelectedCharacter!,
-                                _gameSaveService, _backgroundMusicPlayer, loaded.State, gameSettings: _musicSettings).Run();
+                            if (loadAsCoopHost)
+                                StartHostedLoadedGame(loaded);
+                            else
+                            {
+                                _characterRoster = loaded.Roster;
+                                new Game(_gameData, _characterRoster, _characterRoster.SelectedCharacter!,
+                                    _gameSaveService, _backgroundMusicPlayer, loaded.State, gameSettings: _musicSettings).Run();
+                            }
                         }
+                        finally { _characterRoster.PreserveCharactersOutsidePartyFrom(localRoster); }
                         return;
                     }
                     catch (Exception exception) when (exception is IOException or JsonException or InvalidOperationException or

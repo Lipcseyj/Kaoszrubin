@@ -50,6 +50,25 @@ public sealed class CharacterRoster
         return true;
     }
 
+    /// <summary>A régebbi játékmentés betöltése nem írhatja felül a többi helyi karaktert.</summary>
+    public void PreserveCharactersOutsidePartyFrom(CharacterRoster localRoster)
+    {
+        ArgumentNullException.ThrowIfNull(localRoster);
+        if (ReferenceEquals(this, localRoster)) return;
+        var partyIds = Party.Members.Select(member => member.Id).ToHashSet();
+        foreach (var localCharacter in localRoster.Characters)
+        {
+            if (partyIds.Contains(localCharacter.Id)) continue;
+            var savedIndex = _characters.FindIndex(character => character.Id == localCharacter.Id);
+            if (savedIndex < 0) _characters.Add(localCharacter);
+            else _characters[savedIndex] = localCharacter;
+            if (localRoster._campaigns.TryGetValue(localCharacter.Id, out var binding))
+                _campaigns[localCharacter.Id] = binding;
+            else
+                _campaigns.Remove(localCharacter.Id);
+        }
+    }
+
     public void Clear()
     {
         _characters.Clear();

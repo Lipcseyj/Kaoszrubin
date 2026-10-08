@@ -670,6 +670,21 @@ public static class MazeLevelConfigurations
                     Encounters.LeaderHorde(leaderId: MonsterIds.Lidércfarkas, followerId: MonsterIds.Farkas, groups: Amount.Few, followers: Amount.Band) with { AreaId = "WINDLESS_GLADE" },
                     Encounters.Horde(enemyId: MonsterIds.Óriásdenevér, groups: Amount.Pair, size: Amount.Pack)
                 ],
+                //QuestRoomIds = ["RAVENS_LOOT_ROOM", "ORC_TRIBE_ROOM"],
+                //SpecialRoomPlacements = new Dictionary<string, SpecialRoomPlacement>
+                //{
+                //    ["RAVENS_LOOT_ROOM"] = SpecialRoomPlacement.MiddleRoute,
+                //    ["ORC_TRIBE_ROOM"] = SpecialRoomPlacement.SideBranch
+                //},
+                //QuestChestPlacements = new Dictionary<string, Domain.Quests.QuestChestId>
+                //{
+                //    ["RAVENS_LOOT_ROOM"] = Domain.Quests.QuestChestId.RavensLootChest,
+                //    ["ORC_TRIBE_ROOM"] = Domain.Quests.QuestChestId.OrcTribeChest   
+                //},
+                //QuestDoorRequirements = new Dictionary<string, Domain.Quests.QuestId>
+                //{
+
+                //},
             },
             [7] = new()
             {
