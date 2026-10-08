@@ -533,6 +533,8 @@ public sealed partial class Game : ISessionCommandHandler
         GameSettingsService? gameSettings = null)
     {
         CharacterRoster = characterRoster;
+        if (loadedState is null) CharacterRoster.Party.StartNewCampaign();
+        else CharacterRoster.Party.MergeCampaignProgression(loadedState.PartyCampaignProgression);
         PartyLeader = selectedCharacter;
         _gameData = gameData;
         _gameSaveService = gameSaveService;

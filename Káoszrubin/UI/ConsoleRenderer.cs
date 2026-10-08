@@ -1057,13 +1057,14 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
     /// <summary>Összeállítja a fogadó menüsorait, a kijelölést és az opcionális vezérhez kötött letiltásokat.</summary>
     internal static IReadOnlyList<(string Text, ConsoleColor Color)> BuildInnMenuLines(int partyCount,
         int partyGold, IReadOnlyList<InnMenuOptionSnapshot> options, int selectedIndex, string artisanNotice,
-        bool disableLeaderOnly, string innName = "Vándorcsillag", int mazeLevel = 1)
+        bool disableLeaderOnly, string innName = "Vándorcsillag", int mazeLevel = 1,
+        int partyCapacity = PartyCapacityRules.InitialCapacity)
     {
         var lines = new List<(string Text, ConsoleColor Color)>
         {
             ($"🏰🍺  {innName} fogadója, {mazeLevel}. szint  🍺🏰", ConsoleColor.Yellow),
             (string.Empty, ConsoleColor.Gray),
-            ($"Parti: {partyCount}/{Party.MaximumSize} fő     {MoneyIcon} Arany: {partyGold}", ConsoleColor.Cyan),
+            ($"Parti: {partyCount}/{partyCapacity} fő     {MoneyIcon} Arany: {partyGold}", ConsoleColor.Cyan),
             (ClipMarketText(artisanNotice, InnMenuFrameWidth - 6), ConsoleColor.DarkYellow),
             (string.Empty, ConsoleColor.Gray)
         };
@@ -1320,7 +1321,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
     {
         ClearInnMenuScreen();
         DrawCenteredFrame(InnMenuFrameWidth, BuildInnMenuLines(partyCount, leader.Gold, options,
-            selectedIndex, artisanNotice, disableLeaderOnly: false, innName, mazeLevel), FramedWindow.Inn);
+            selectedIndex, artisanNotice, disableLeaderOnly: false, innName, mazeLevel, _party.Capacity), FramedWindow.Inn);
     }
 
     /// <summary>Csak a korábbi és új menüpont címét és többsoros leírását frissíti.</summary>
@@ -1753,7 +1754,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         {
             ($"🏰🍺  {innName} FOGADÓ ZSOLDOSAI  ⚔️✨", ConsoleColor.Yellow),
             (string.Empty, ConsoleColor.Gray),
-            ($"Parti: {party.Count}/{Party.MaximumSize} fő     {MoneyIcon} Arany: {leaderGold}", ConsoleColor.Cyan),
+            ($"Parti: {party.Count}/{_party.Capacity} fő     {MoneyIcon} Arany: {leaderGold}", ConsoleColor.Cyan),
             ("────────────────────────────────────────────────────────────────────────────────────────────", ConsoleColor.DarkMagenta)
         };
         for (var index = 0; index < candidates.Count; index++)
@@ -1773,7 +1774,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         lines.Add(($"Fegyver: {weapons}  |  Páncél: {shown.Armor?.Name ?? "nincs"}", ConsoleColor.Gray));
         lines.Add(($"Hátizsák: {string.Join(", ", shown.Backpack.Where(item => item is not null).Select(item => item!.Name))}", ConsoleColor.DarkCyan));
         lines.Add((ClipMarketText(message, InnMarketTextWidth), ConsoleColor.Magenta));
-        lines.Add((party.Count >= Party.MaximumSize
+        lines.Add((party.Count >= _party.Capacity
             ? "↑/↓ választás   Enter felvétel és társ lecserélése   Esc vissza a fogadóba"
             : "↑/↓ választás   Enter felvétel   Esc vissza a fogadóba", ConsoleColor.White));
         DrawCenteredFrame(InnRecruitmentFrameWidth, lines, FramedWindow.Inn);

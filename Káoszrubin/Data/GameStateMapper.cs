@@ -113,6 +113,7 @@ internal sealed class GameStateMapper
 
         return new GameSaveData
         {
+            PartyCampaignProgression = _characterRoster.Party.CampaignProgression,
             MainCharacterName = _selectedCharacter.Name,
             MazeLevel = mazeLevel,
             CollectedBossKeyIds = collectedBossKeyIds.ToList(),
@@ -147,6 +148,7 @@ internal sealed class GameStateMapper
 
     public RestoredGameState Restore(GameSaveData state, bool skipDepartedNpcCharacters = false)
     {
+        _characterRoster.Party.MergeCampaignProgression(state.PartyCampaignProgression);
         if (state.Maze.TileCodePoints.Count != state.Maze.Width * state.Maze.Height)
             throw new InvalidOperationException("A mentett térképrács mérete érvénytelen.");
 

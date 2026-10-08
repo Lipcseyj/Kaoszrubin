@@ -25,6 +25,7 @@ public sealed class GameSaveService
     {
         Directory.CreateDirectory(_saveDirectory);
         state.Version = GameSaveFormat.CurrentVersion;
+        state.PartyCampaignProgression = roster.Party.CampaignProgression;
         state.SavedAt = DateTimeOffset.Now;
         state.RosterJson = _characterSaveService.Serialize(roster);
         var safeName = string.Concat(state.MainCharacterName.Select(character =>
@@ -39,7 +40,7 @@ public sealed class GameSaveService
     {
         var state = DeserializeAndMigrate(File.ReadAllText(path));
         if (string.IsNullOrWhiteSpace(state.RosterJson)) throw new InvalidOperationException("A mentés nem tartalmaz karakteradatokat.");
-        var roster = _characterSaveService.Deserialize(state.RosterJson);
+        var roster = _characterSaveService.Deserialize(state.RosterJson, state.PartyCampaignProgression);
         if (roster.SelectedCharacter is null) throw new InvalidOperationException("A mentés nem tartalmaz érvényes főkaraktert.");
         return new LoadedGameSave(path, roster, state);
     }
@@ -50,6 +51,7 @@ public sealed class GameSaveService
         var path = Path.GetFullPath(loaded.Path);
         if (!File.Exists(path)) throw new FileNotFoundException("A szerkesztendő mentés nem található.", path);
         loaded.State.Version = GameSaveFormat.CurrentVersion;
+        loaded.State.PartyCampaignProgression = loaded.Roster.Party.CampaignProgression;
         loaded.State.RosterJson = _characterSaveService.Serialize(loaded.Roster);
         var backupPath = path + $".pre-edit-{DateTime.Now:yyyyMMdd_HHmmss_fff}.bak";
         var temporaryPath = path + $".{Guid.NewGuid():N}.tmp";
@@ -116,7 +118,7 @@ public sealed class GameSaveService
 public static class GameSaveFormat
 {
     public const int OldestSupportedVersion = 1;
-    public const int CurrentVersion = 35;
+    public const int CurrentVersion = 36;
 
     public static GameSaveData MigrateToCurrent(GameSaveData state)
     {
@@ -163,10 +165,32 @@ public static class GameSaveFormat
                 32 => MigrateVersion32To33(state),
                 33 => MigrateVersion33To34(state),
                 34 => MigrateVersion34To35(state),
+                35 => MigrateVersion35To36(state),
                 _ => throw new InvalidOperationException($"Hiányzó mentésmigráció a(z) {state.Version}. verzióhoz.")
             };
         }
+        if (state.SuspendedCampaign is { } suspended)
+        {
+            MigrateToCurrent(suspended);
+            // Egy kampányhoz tartozó pillanatképek ugyanazt a monoton előrehaladást hordozzák.
+            state.PartyCampaignProgression = PartyCampaignProgressionSnapshot.Merge(
+                state.PartyCampaignProgression, suspended.PartyCampaignProgression);
+            suspended.PartyCampaignProgression = state.PartyCampaignProgression;
+        }
+        return state;
+    }
+
+    private static GameSaveData MigrateVersion35To36(GameSaveData state)
+    {
         if (state.SuspendedCampaign is { } suspended) MigrateToCurrent(suspended);
+        // Csak a régi formátumban becsüljük a teljesítést a kampánypályából.
+        // Questhelyszín nehézsége és új mentés fejlesztői ugrása nem feloldás.
+        var highestCompletedLevel = state.LocationKind == AdventureLocationKind.Campaign
+            ? Math.Max(0, state.MazeLevel - 1)
+            : state.SuspendedCampaign?.PartyCampaignProgression.HighestCompletedCampaignLevel ?? 0;
+        state.PartyCampaignProgression = PartyCampaignProgressionSnapshot.Merge(
+            new(highestCompletedLevel), state.SuspendedCampaign?.PartyCampaignProgression);
+        state.Version = 36;
         return state;
     }
 
@@ -479,6 +503,7 @@ public sealed class GameSaveData
     public int Version { get; set; } = GameSaveFormat.CurrentVersion;
     public DateTimeOffset SavedAt { get; set; }
     public Guid CampaignId { get; set; }
+    public PartyCampaignProgressionSnapshot PartyCampaignProgression { get; set; } = new();
     public string MainCharacterName { get; set; } = string.Empty;
     public string RosterJson { get; set; } = string.Empty;
     public int MazeLevel { get; set; } = 1;

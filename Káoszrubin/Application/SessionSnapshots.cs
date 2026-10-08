@@ -10,7 +10,7 @@ namespace KaoszRubin.Application;
 /// <summary>A hálózati szerződés jelenlegi verziója. Inkompatibilis DTO-változáskor növelendő.</summary>
 public static class SessionProtocol
 {
-    public const int Version = 102;
+    public const int Version = 103;
 }
 
 /// <summary>A host doménállapotától leválasztott, JSON-nal továbbítható teljes session-kép.</summary>
@@ -36,7 +36,9 @@ public sealed record SessionSnapshot(int ProtocolVersion, long SnapshotSequence,
     string ExplorationClockIndicator = "⌛⏸",
     IReadOnlyList<SessionSpellImpactSnapshot>? SpellImpacts = null,
     DungeonMapSnapshot? DungeonMap = null,
-    IReadOnlyList<SessionProjectileSnapshot>? Projectiles = null);
+    IReadOnlyList<SessionProjectileSnapshot>? Projectiles = null,
+    int PartyCapacity = PartyCapacityRules.InitialCapacity,
+    PartyCampaignProgressionSnapshot? PartyCampaignProgression = null);
 
 /// <summary>
 /// Egy játékos személyes, nem replikált tartalmú böngészőablaka. A többi kliens csak azt látja,
@@ -163,7 +165,8 @@ public sealed record InnSnapshot(long Revision, int PartyGold, IReadOnlyList<Inn
     IReadOnlyList<InnSellPriceSnapshot> SellPrices,
     IReadOnlyList<InnMenuOptionSnapshot>? MenuOptions = null, string ArtisanNotice = "",
     int PartyCount = 0, int PartyFreeBackpackSlots = 0,
-    LevelCompletionSnapshot? LevelCompletion = null, string InnName = "", int MazeLevel = 0);
+    LevelCompletionSnapshot? LevelCompletion = null, string InnName = "", int MazeLevel = 0,
+    int PartyCapacity = PartyCapacityRules.InitialCapacity);
 
 public sealed record InnSellPriceSnapshot(string ItemDefinitionId, int Price, Guid InstanceId = default);
 

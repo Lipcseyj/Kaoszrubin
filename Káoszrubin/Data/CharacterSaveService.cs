@@ -13,11 +13,13 @@ public sealed class CharacterSaveService
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
     private readonly string _filePath;
     private readonly GameDataCatalog _gameData;
+    private readonly PartyCapacityRules _capacityRules;
 
-    public CharacterSaveService(string filePath, GameDataCatalog gameData)
+    public CharacterSaveService(string filePath, GameDataCatalog gameData, PartyCapacityRules? capacityRules = null)
     {
         _filePath = filePath;
         _gameData = gameData;
+        _capacityRules = capacityRules ?? PartyCapacityRules.Current;
     }
 
     public CharacterRoster Load()
@@ -26,9 +28,10 @@ public sealed class CharacterSaveService
         return Deserialize(File.ReadAllText(_filePath));
     }
 
-    public CharacterRoster Deserialize(string json)
+    public CharacterRoster Deserialize(string json, PartyCampaignProgressionSnapshot? campaignProgression = null)
     {
-        var roster = new CharacterRoster();
+        var roster = new CharacterRoster(_capacityRules);
+        roster.Party.MergeCampaignProgression(campaignProgression);
         var savedRoster = JsonSerializer.Deserialize<RosterSaveData>(json, JsonOptions) ?? new RosterSaveData();
         foreach (var savedCharacter in savedRoster.Characters)
             roster.Add(CreateLiveCharacter(savedCharacter));

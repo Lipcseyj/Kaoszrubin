@@ -245,3 +245,8 @@ Mérjük a játékos által meghozott döntések számát, körszámot és tény
 Kiinduló cél: a hatfős csapat legalább két eltérő felállása legyen használható, és mindkét nagy alakzatnak legyen helyzeti előnye. A harmadik sor tagjai ne töltsék rendszeresen a köreik többségét hasznos akció nélkül. A játékos által kezelt, egyszerű találkozások időtartama lehetőleg ne nőjön 20%-nál többet; ez előzetes cél, nem mért eredmény. A bonyolult főcsaták lehetnek hosszabbak, ha több valódi döntést adnak.
 
 A bővítés akkor sikeres, ha az ötödik és hatodik társ érkezése érezhető jutalom, és később a csapat összetétele, a terep és az alakzat együtt határozza meg a jó megoldást.
+
+# Kiegészítések:
+1. a pályákat épp újrabalanszolom, a 8. pályánál járok. Ezért is jó most a 6 fős party bevezetése, mert a következő pályákra tudok tenni több ellenséget és küldetést, tehát már az új szabályokhoz fogom folytatni a balanszolást.
+2. A partystátusz jelzőt egyel lejebb kell tenni,(mert kell majd hely +hátizsákslotoknak) és még így is ki fog férni rá a 6 karakter, kiszámoltam. Az alakzat kijelzést is reformáljuk meg az alakzattal együtt, ne a partystátusz felett legyen hanem alatta.
+   És nem kell szövegesen jelenzni, hanem használjunk egy kis ikonrendszert, ami jelzi a sorokat és a karakterek helyét. Pl van olyan Braile karakter, ami 2x3 pontból áll. 

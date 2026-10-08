@@ -104,7 +104,7 @@ internal sealed class InnController
             CreateSellPriceSnapshots(),
             _menuOptions, _artisanNotice, _characterRoster.Party.Members.Count,
             _characterRoster.Party.Members.Sum(character => character.Backpack.Count(item => item is null)),
-            _levelCompletion, _innName, _innLevel);
+            _levelCompletion, _innName, _innLevel, _characterRoster.Party.Capacity);
     }
 
     public bool TryPurchase(InnVendorKind vendor, int offerIndex, long expectedRevision,
@@ -436,6 +436,7 @@ internal sealed class InnController
         var results = _characterRoster.Party.Members
             .Select(character => new LevelCompletionResult(character, _awardExperience(character, reward)))
             .ToList();
+        _characterRoster.Party.RecordCampaignLevelCompletion(completedLevel);
         return new LevelCompletionOutcome(results, fallenCharacters);
     }
 
@@ -1000,7 +1001,7 @@ internal sealed class InnController
                 continue;
             }
             LiveCharacter? replaced = null;
-            if (_characterRoster.Party.Members.Count >= Party.MaximumSize)
+            if (_characterRoster.Party.IsFull)
             {
                 var replaceable = _characterRoster.Party.Members.Skip(1).ToList();
                 var replacementIndex = ChoosePartyMemberToReplace(recruit, replaceable);
@@ -1010,12 +1011,19 @@ internal sealed class InnController
                     continue;
                 }
                 replaced = replaceable[replacementIndex.Value];
-                _characterRoster.Remove(replaced);
             }
 
+            var joined = replaced is null
+                ? _characterRoster.Party.Add(recruit)
+                : _characterRoster.Party.TryReplaceCompanion(replaced, recruit);
+            if (!joined)
+            {
+                message = "A parti időközben megváltozott; válassz újra.";
+                continue;
+            }
+            if (replaced is not null) _characterRoster.Remove(replaced);
             _partyLeader.SpendGold(price);
             if (!_characterRoster.Characters.Contains(recruit)) _characterRoster.Add(recruit);
-            _characterRoster.Party.Add(recruit);
             recruit.SetNpcJoinOrigin(_innLevel, _innName);
             _specialRecruitAccepted(recruit);
             candidates.RemoveAt(selectedIndex);

@@ -845,7 +845,7 @@ public sealed partial class Game
 
         if (follower.Friendliness >= 10)
         {
-            var hasRoom = CharacterRoster.Party.Members.Count < Party.MaximumSize;
+            var hasRoom = !CharacterRoster.Party.IsFull;
             switch (_renderer.ChooseUniqueNpcDeparture(follower, hasRoom))
             {
                 case UniqueNpcDepartureChoice.JoinParty when CharacterRoster.Party.Add(follower.Character):

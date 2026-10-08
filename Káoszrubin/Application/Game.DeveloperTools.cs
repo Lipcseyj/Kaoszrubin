@@ -471,9 +471,9 @@ public sealed partial class Game
 
     private void FillPartyForDevelopment(IReadOnlyList<string> characterClassIds, string setName)
     {
-        if (CharacterRoster.Party.Members.Count >= Party.MaximumSize)
+        if (CharacterRoster.Party.IsFull)
         {
-            _renderer.DrawDeveloperMessage("Fejlesztői mód: a parti már teljes (4/4). ");
+            _renderer.DrawDeveloperMessage($"Fejlesztői mód: a parti már teljes ({CharacterRoster.Party.Members.Count}/{CharacterRoster.Party.Capacity}).");
             return;
         }
 
@@ -481,11 +481,11 @@ public sealed partial class Game
         var added = new List<LiveCharacter>();
         foreach (var characterClassId in characterClassIds)
         {
-            if (CharacterRoster.Party.Members.Count >= Party.MaximumSize) break;
+            if (CharacterRoster.Party.IsFull) break;
             var member = generator.GenerateDevelopmentCharacter(_gameData.GetCharacterClass(characterClassId),
                 CharacterRoster.Characters.Select(character => character.Name).ToList());
+            if (!CharacterRoster.Party.Add(member)) break;
             CharacterRoster.Add(member);
-            CharacterRoster.Party.Add(member);
             added.Add(member);
         }
         PlacePartyMembersNear(_player.Position);
@@ -498,17 +498,17 @@ public sealed partial class Game
 
     private void AddLevelOnePartyMemberForDevelopment()
     {
-        if (CharacterRoster.Party.Members.Count >= Party.MaximumSize)
+        if (CharacterRoster.Party.IsFull)
         {
-            _renderer.DrawDeveloperMessage("Fejlesztői mód: a parti már teljes (4/4). ");
+            _renderer.DrawDeveloperMessage($"Fejlesztői mód: a parti már teljes ({CharacterRoster.Party.Members.Count}/{CharacterRoster.Party.Capacity}).");
             return;
         }
 
         var generator = new RandomCharacterGenerator(_gameData, _random);
         var member = generator.GenerateLevelOneTestCharacter(
             CharacterRoster.Characters.Select(character => character.Name).ToList());
+        if (!CharacterRoster.Party.Add(member)) return;
         CharacterRoster.Add(member);
-        CharacterRoster.Party.Add(member);
         PlacePartyMembersNear(_player.Position);
         foreach (var avatar in _maze.PartyMembers) RevealFor(avatar.Character, avatar.Position);
         _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);

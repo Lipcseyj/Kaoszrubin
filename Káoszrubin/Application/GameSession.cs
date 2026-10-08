@@ -240,7 +240,8 @@ public sealed class GameSession
             var controls = _party.Members.Select(character => _controls[character.Id]).ToArray();
             return new SessionSnapshot(SessionProtocol.Version, ++_snapshotSequence, _eventSequence, Phase,
                 HostPlayerId, _party.Leader!.Id, context.MazeLevel, context.LevelName, party, controls, context.Battle,
-                context.World, PartyGold: partyGold);
+                context.World, PartyGold: partyGold, PartyCapacity: _party.Capacity,
+                PartyCampaignProgression: _party.CampaignProgression);
         }
     }
 
