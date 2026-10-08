@@ -122,6 +122,21 @@ internal static class FormationTests
     }
     public static void ShapeAvailability()
     {
+        var members = Members().Take(4).ToArray();
+        var square = PartyFormationRules.CreateDefault(members.Select(member => member.Id), members[0].Id);
+        Check(FormationEditor.CycleShape(square, 4, 4) == square &&
+            FormationEditor.ShapeChangeHint(4, 4).Contains("ötödik partihely"),
+            "A zárolt formaváltásnak meg kell őriznie az alakzatot és jeleznie kell a feloldás feltételét.");
+        var column = FormationEditor.CycleShape(square, 5, 4);
+        Check(column.Shape == PartyFormationShape.Column2x3 &&
+            column.Slots.OfType<CharacterId>().ToHashSet().SetEquals(members.Select(member => member.Id)) &&
+            FormationEditor.CycleShape(column, 5, 4).Shape == PartyFormationShape.Block2x2 &&
+            FormationEditor.ShapeChangeHint(5, 4) == string.Empty,
+            "Az F-hez tartozó váltás nem járja körbe a feloldott formákat, vagy elveszít egy tagot.");
+        var five = Formation(Members().Take(5).ToArray());
+        Check(FormationEditor.CycleShape(five, 5, 5) == five &&
+            FormationEditor.ShapeChangeHint(5, 5).Contains("hatodik partihely"),
+            "Öt tagnál a széles forma feloldásának feltételét kell jelezni.");
         Check(FormationEditor.AvailableShapes(4, 4).SequenceEqual([PartyFormationShape.Block2x2]) &&
             FormationEditor.AvailableShapes(5, 5).SequenceEqual([PartyFormationShape.Column2x3]) &&
             FormationEditor.AvailableShapes(6, 5).SequenceEqual([PartyFormationShape.Column2x3, PartyFormationShape.Wide3x2]),

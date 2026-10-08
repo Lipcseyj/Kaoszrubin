@@ -21,6 +21,7 @@ public static class FormationEditor
     {
         var slots = formation.Slots.ToArray();
         var shape = formation.Shape;
+        var shapeChangeHint = ShapeChangeHint(partyCapacity, party.Count);
         var tactics = currentTactics.ToDictionary(pair => pair.Key, pair => pair.Value);
         var movementProfiles = party.Where(member => npcControlledCharacters.Contains(member.Id))
             .ToDictionary(member => member.Id, member => member.NpcBehavior ?? NpcBehavior.Defensive);
@@ -34,18 +35,18 @@ public static class FormationEditor
         while (true)
         {
             presentationChanged?.Invoke(width,
-                BuildFormationPresentation(party, slots, cursor, pickedUp, tactics, movementProfiles, shape, formation.Facing),
+                BuildFormationPresentation(party, slots, cursor, pickedUp, tactics, movementProfiles, shape, formation.Facing, shapeChangeHint),
                 FramedWindow.FormationEditor);
-            Draw(party, slots, cursor, pickedUp, tactics, movementProfiles, left, top, width, height, shape, formation.Facing);
+            Draw(party, slots, cursor, pickedUp, tactics, movementProfiles, left, top, width, height, shape, formation.Facing, shapeChangeHint);
             var key = Console.ReadKey(intercept: true).Key;
             if (key == ConsoleKey.Escape) return new Result(slots, tactics, movementProfiles, shape);
             if (key == ConsoleKey.F)
             {
-                var choices = AvailableShapes(partyCapacity, party.Count);
-                var next = choices[(Array.IndexOf(choices, shape) + 1) % choices.Length];
-                var preview = PartyFormationRules.WithShape(PartyFormationRules.WithSlots(formation with { Shape = shape }, slots), next);
+                var current = PartyFormationRules.WithSlots(formation with { Shape = shape }, slots);
+                var preview = CycleShape(current, partyCapacity, party.Count);
+                if (preview.Shape == shape) continue;
                 slots = preview.Slots.ToArray();
-                shape = next;
+                shape = preview.Shape;
                 cursor = Math.Min(cursor, slots.Length - 1);
                 pickedUp = null;
                 continue;
@@ -91,7 +92,7 @@ public static class FormationEditor
     private static IReadOnlyList<(string Text, ConsoleColor Color)> BuildFormationPresentation(
         IReadOnlyList<LiveCharacter> party, IReadOnlyList<CharacterId?> slots, int cursor, int? pickedUp,
         IReadOnlyDictionary<CharacterId, NpcSpellcasterTactics> tactics,
-        IReadOnlyDictionary<CharacterId, NpcBehavior> movementProfiles, PartyFormationShape shape, Direction facing)
+        IReadOnlyDictionary<CharacterId, NpcBehavior> movementProfiles, PartyFormationShape shape, Direction facing, string shapeChangeHint)
     {
         var lines = new List<(string Text, ConsoleColor Color)>
         {
@@ -100,6 +101,7 @@ public static class FormationEditor
             ("A host az egész csapat alakzatát szerkeszti — read-only nézet.", ConsoleColor.Cyan),
             (string.Empty, ConsoleColor.Gray),
             ($"{PartyFormationRules.ShapeName(shape)}  {FacingLabel(facing)}", ConsoleColor.Cyan),
+            (shapeChangeHint, ConsoleColor.DarkYellow),
             (string.Empty, ConsoleColor.Gray)
         };
         var positionNames = Enumerable.Range(0, slots.Count).Select(index => SlotLabel(shape, index)).ToArray();
@@ -133,7 +135,7 @@ public static class FormationEditor
     private static void Draw(IReadOnlyList<LiveCharacter> party, IReadOnlyList<CharacterId?> slots,
         int cursor, int? pickedUp, IReadOnlyDictionary<CharacterId, NpcSpellcasterTactics> tactics,
         IReadOnlyDictionary<CharacterId, NpcBehavior> movementProfiles,
-        int left, int top, int width, int height, PartyFormationShape shape, Direction facing)
+        int left, int top, int width, int height, PartyFormationShape shape, Direction facing, string shapeChangeHint)
     {
         DrawEmptyWindow(left, top, width, height);
 
@@ -141,7 +143,8 @@ public static class FormationEditor
         WriteCentered(left, top + 3, width,
             "Nyilak: helyválasztás   Enter/Space: felemelés és csere", ConsoleColor.Gray);
         WriteCentered(left, top + 4, width,
-            "F: alakzatforma   P: mozgásprofil   T: varázstaktika   Esc: mentés és vissza", ConsoleColor.DarkYellow);
+            $"{(shapeChangeHint.Length == 0 ? "F: formaváltás" : "F: váltás zárolva")}   P: mozgásprofil   T: varázstaktika   Esc: mentés és vissza", ConsoleColor.DarkYellow);
+        WriteCentered(left, top + 5, width, shapeChangeHint, ConsoleColor.DarkYellow);
         WriteCentered(left, top + 6, width, PartyFormationRules.ShapeName(shape), ConsoleColor.Cyan);
         WriteCentered(left, top + 7, width, FacingLabel(facing), ConsoleColor.Cyan);
 
@@ -205,6 +208,22 @@ public static class FormationEditor
             PartyFormationShape.Wide3x2 => capacity >= 6,
             _ => false
         }).ToArray();
+
+    public static string ShapeChangeHint(int capacity, int memberCount)
+    {
+        if (AvailableShapes(capacity, memberCount).Length > 1) return string.Empty;
+        return capacity < 5
+            ? "A 2×3-as forma az ötödik partihely feloldásától választható."
+            : "Öt főhöz a 2×3 kell; a széles 3×2 a hatodik partihely feloldásától választható.";
+    }
+
+    public static PartyFormationSnapshot CycleShape(PartyFormationSnapshot formation, int capacity, int memberCount)
+    {
+        var choices = AvailableShapes(capacity, memberCount);
+        if (choices.Length <= 1) return formation;
+        var next = choices[(Array.IndexOf(choices, formation.Shape) + 1) % choices.Length];
+        return PartyFormationRules.WithShape(formation, next);
+    }
 
     public static string SlotLabel(PartyFormationShape shape, int index)
     {
