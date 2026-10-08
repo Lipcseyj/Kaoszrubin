@@ -52,6 +52,9 @@ public sealed class EditorApp
     private int _palettePage;
     private int _paletteRangePage = -1;
     private int _paletteRangeStart = -1;
+    private string? _draggedFavourite;
+    private EditorLayout _favouriteDragLayout;
+    private bool _favouriteDragCanceled;
     private string _status = "";
 
     private bool IsPortraitMode => _canvasWidth == PortraitWidth && _canvasHeight == PortraitHeight;
@@ -119,7 +122,7 @@ public sealed class EditorApp
             }
             else
             {
-                _status = "Mouse unavailable; palette pinning and ranges require mouse input.";
+                _status = "Mouse unavailable; palette pinning, reordering and ranges require mouse input.";
                 RunKeyboardInput();
             }
         }
@@ -150,6 +153,9 @@ public sealed class EditorApp
             {
                 if (record.KeyDown == 0)
                     continue;
+
+                if (_draggedFavourite is not null)
+                    _favouriteDragCanceled = true;
 
                 if (record.VirtualKeyCode == (ushort)ConsoleKey.Escape || record.UnicodeChar is 'q' or 'Q')
                     return;
@@ -432,6 +438,14 @@ public sealed class EditorApp
             DrawCanvasCell(layout, _mouseHoverX, _mouseHoverY);
         }
 
+        var localIndex = GetPaletteLocalIndex(layout, x, y);
+        if (_draggedFavourite is not null)
+        {
+            HandleFavouriteDrag(layout, localIndex, leftButtonDown, rightButtonDown,
+                middleButtonClicked, controlPressed);
+            return;
+        }
+
         if (!leftButtonDown && !rightButtonDown && !middleButtonClicked)
             return;
 
@@ -466,12 +480,8 @@ public sealed class EditorApp
             return;
         }
 
-        var paletteColumn = (x - layout.PaletteItemsLeft) / PaletteCellWidth;
-        var paletteRow = y - layout.PaletteItemsTop;
-        if (x >= layout.PaletteItemsLeft && paletteColumn < layout.PaletteColumns &&
-            paletteRow >= 0 && paletteRow < layout.PaletteRows)
+        if (localIndex >= 0)
         {
-            var localIndex = paletteRow * layout.PaletteColumns + paletteColumn;
             var glyph = GetPaletteGlyph(layout, _palettePage, localIndex);
             if (glyph is null)
                 return;
@@ -503,6 +513,13 @@ public sealed class EditorApp
                 return;
             }
 
+            if (_palettePage == 0 && leftButtonClicked && !controlPressed && !rightButtonDown)
+            {
+                _draggedFavourite = glyph;
+                _favouriteDragLayout = layout;
+                _favouriteDragCanceled = false;
+            }
+
             if (!leftButtonClicked || controlPressed || glyph == _brush)
                 return;
 
@@ -512,6 +529,59 @@ public sealed class EditorApp
             DrawPaletteTile(layout, localIndex);
             DrawStatus(layout);
         }
+    }
+
+    private static int GetPaletteLocalIndex(EditorLayout layout, int x, int y)
+    {
+        var offsetX = x - layout.PaletteItemsLeft;
+        var row = y - layout.PaletteItemsTop;
+        if (offsetX < 0 || offsetX >= layout.PaletteColumns * PaletteCellWidth ||
+            row < 0 || row >= layout.PaletteRows)
+            return -1;
+
+        return row * layout.PaletteColumns + offsetX / PaletteCellWidth;
+    }
+
+    private void HandleFavouriteDrag(EditorLayout layout, int localIndex, bool leftButtonDown,
+        bool rightButtonDown, bool middleButtonClicked, bool controlPressed)
+    {
+        if (_palettePage != 0 || layout != _favouriteDragLayout ||
+            rightButtonDown || middleButtonClicked || controlPressed)
+            _favouriteDragCanceled = true;
+
+        if (leftButtonDown)
+        {
+            if (!_favouriteDragCanceled)
+            {
+                _status = $"Dragging '{_draggedFavourite}'; release on a favourites tile to move it.";
+                DrawStatus(layout);
+            }
+            return;
+        }
+
+        var glyph = _draggedFavourite!;
+        _draggedFavourite = null;
+        if (_favouriteDragCanceled || localIndex < 0)
+        {
+            _status = "Favourites drag canceled.";
+            DrawStatus(layout);
+            return;
+        }
+
+        var sourceIndex = _paletteSettings.Favourites.IndexOf(glyph);
+        var targetIndex = Math.Min(localIndex, _paletteSettings.Favourites.Count - 1);
+        if (!_paletteSettings.MoveFavourite(sourceIndex, targetIndex))
+        {
+            _status = $"Brush selected: '{_brush}'";
+            DrawStatus(layout);
+            return;
+        }
+
+        _paletteRangePage = -1;
+        _paletteRangeStart = -1;
+        SavePaletteSettings($"Moved '{glyph}' to favourites position {targetIndex + 1}.");
+        DrawPalettePanel(layout);
+        DrawStatus(layout);
     }
 
     private void MarkPaletteRangeStart(EditorLayout layout, int localIndex, string glyph)
@@ -866,7 +936,7 @@ public sealed class EditorApp
         if (clear)
             Console.Clear();
         WriteAt(2, 0, $"ASCII PORTRAIT EDITOR — Set {_portraitSet}", layout.Width - 4);
-        WriteAt(2, 1, "F2 set | Arrows move | Shift+Left/Right portrait | Space/D draw | E erase | Del clear | P glyph | PgUp/PgDn palette | R rename | MMB pick/copy | RMB pin/unpin | Ctrl+LMB/RMB range | S save | C resize | N new | Esc/Q quit",
+        WriteAt(2, 1, "F2 set | Arrows move | Shift+Left/Right portrait | Space/D draw | E erase | Del clear | P glyph | PgUp/PgDn palette | R rename | LMB drag favourites | MMB pick/copy | RMB pin/unpin | Ctrl+LMB/RMB range | S save | C resize | N new | Esc/Q quit",
             layout.Width - 4);
 
         for (var y = 2; y < layout.Height - 2; y++)

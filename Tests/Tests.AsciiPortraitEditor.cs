@@ -26,6 +26,8 @@ internal static partial class Program
                 PageNames = new Dictionary<int, string> { [0] = "Pinned", [2] = "Arrows" }
             };
 
+            Assert(saved.MoveFavourite(0, 2) && saved.Favourites.SequenceEqual(["λ", "😀", "◆"]),
+                "A kedvencek átrendezése nem a célpozícióra helyezte a glyph-et.");
             var savedSuccessfully = store.TrySave(saved, out var saveError);
             var loadedSuccessfully = store.TryLoad(out var loaded, out var loadError);
 
@@ -39,6 +41,35 @@ internal static partial class Program
             if (Directory.Exists(directory))
                 Directory.Delete(directory, recursive: true);
         }
+    }
+
+    static void PaletteSettingsMovesFavouritesInBothDirections()
+    {
+        var settings = new PaletteSettings { Favourites = ["◆", "λ", "😀", "█"] };
+        Assert(settings.MoveFavourite(0, 2) && settings.Favourites.SequenceEqual(["λ", "😀", "◆", "█"]),
+            "Az előre mozgatás nem őrizte meg a köztes kedvencek sorrendjét.");
+        Assert(settings.MoveFavourite(2, 0) && settings.Favourites.SequenceEqual(["◆", "λ", "😀", "█"]),
+            "A visszafelé mozgatás nem állította helyre a kedvencek sorrendjét.");
+        Assert(settings.MoveFavourite(1, 2) && settings.Favourites.SequenceEqual(["◆", "😀", "λ", "█"]),
+            "A szomszédos pozícióra mozgatás hibás.");
+        Assert(settings.MoveFavourite(0, 3) && settings.Favourites.SequenceEqual(["😀", "λ", "█", "◆"]),
+            "Az utolsó pozícióra mozgatás hibás.");
+        Assert(settings.Favourites.Distinct(StringComparer.Ordinal).Count() == 4,
+            "Az átrendezés elveszített vagy megkettőzött egy kedvencet.");
+    }
+
+    static void PaletteSettingsRejectsInvalidFavouriteMoves()
+    {
+        var settings = new PaletteSettings { Favourites = ["◆", "λ", "😀"] };
+        Assert(!settings.MoveFavourite(-1, 0) && !settings.MoveFavourite(3, 0) &&
+               !settings.MoveFavourite(0, -1) && !settings.MoveFavourite(0, 3) &&
+               !settings.MoveFavourite(1, 1) && settings.Favourites.SequenceEqual(["◆", "λ", "😀"]),
+            "Az érvénytelen vagy változatlan mozgatás módosította a kedvenceket.");
+        Assert(!new PaletteSettings().MoveFavourite(0, 0),
+            "Az üres kedvenclista elfogadott egy mozgatást.");
+        var single = new PaletteSettings { Favourites = ["◆"] };
+        Assert(!single.MoveFavourite(0, 0) && single.Favourites.SequenceEqual(["◆"]),
+            "Az egyetlen kedvenc mozgatása módosította a listát.");
     }
 
     static void PaletteSettingsRejectMalformedJsonWithoutThrowing()

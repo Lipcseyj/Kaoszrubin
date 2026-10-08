@@ -6,6 +6,18 @@ public sealed class PaletteSettings
 {
     public List<string> Favourites { get; set; } = [];
     public Dictionary<int, string> PageNames { get; set; } = [];
+
+    public bool MoveFavourite(int sourceIndex, int targetIndex)
+    {
+        if (sourceIndex < 0 || sourceIndex >= Favourites.Count ||
+            targetIndex < 0 || targetIndex >= Favourites.Count || sourceIndex == targetIndex)
+            return false;
+
+        var glyph = Favourites[sourceIndex];
+        Favourites.RemoveAt(sourceIndex);
+        Favourites.Insert(targetIndex, glyph);
+        return true;
+    }
 }
 
 public sealed class PaletteSettingsStore

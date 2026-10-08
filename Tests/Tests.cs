@@ -425,6 +425,8 @@ internal static partial class Program
         InMemoryTransportRunsProtocolFlow().GetAwaiter().GetResult()),
     ("A portrépaletta összegyűjti az egyedi Unicode-karaktereket", PortraitPaletteCollectsAllUniqueUnicodeRunes),
     ("A palettabeállítás megőrzi a kedvenceket és az oldalelnevezéseket", PaletteSettingsRoundTripFavouritesAndNames),
+    ("A palettabeállítás mindkét irányban átrendezi a kedvenceket", PaletteSettingsMovesFavouritesInBothDirections),
+    ("A palettabeállítás elutasítja az érvénytelen kedvencmozgatásokat", PaletteSettingsRejectsInvalidFavouriteMoves),
     ("A hibás palettabeállítás biztonságosan elutasítható", PaletteSettingsRejectMalformedJsonWithoutThrowing),
     ("Az ASCII portrészettek mentése független", AsciiPortraitSetsSaveIndependently),
     ("Az ASCII portrészett választása mentődik és azonnal érvényesül", AsciiPortraitSetSettingPersistsAndApplies),
