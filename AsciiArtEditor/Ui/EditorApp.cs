@@ -19,6 +19,7 @@ public sealed class EditorApp
     private const ushort MouseEventType = 0x0002;
     private const uint LeftButtonPressed = 0x0001;
     private const uint RightButtonPressed = 0x0002;
+    private const uint MiddleButtonPressed = 0x0004;
     private const uint ControlKeyPressed = 0x000C;
     private const uint MouseMoved = 0x0001;
 
@@ -45,6 +46,7 @@ public sealed class EditorApp
     private int _mouseHoverY = -1;
     private bool _leftMouseButtonDown;
     private bool _rightMouseButtonDown;
+    private bool _middleMouseButtonDown;
     private string _brush = " ";
     private int _paletteIndex;
     private int _palettePage;
@@ -168,12 +170,16 @@ public sealed class EditorApp
                 var mouse = record.MouseEvent;
                 var leftButtonDown = (mouse.ButtonState & LeftButtonPressed) != 0;
                 var rightButtonDown = (mouse.ButtonState & RightButtonPressed) != 0;
+                var middleButtonDown = (mouse.ButtonState & MiddleButtonPressed) != 0;
                 var leftButtonClicked = leftButtonDown && !_leftMouseButtonDown;
                 var rightButtonClicked = rightButtonDown && !_rightMouseButtonDown;
+                var middleButtonClicked = middleButtonDown && !_middleMouseButtonDown;
                 _leftMouseButtonDown = leftButtonDown;
                 _rightMouseButtonDown = rightButtonDown;
+                _middleMouseButtonDown = middleButtonDown;
                 HandleMouse(mouse.Position.X, mouse.Position.Y, leftButtonDown, rightButtonDown,
-                    leftButtonClicked, rightButtonClicked, (mouse.ControlKeyState & ControlKeyPressed) != 0);
+                    leftButtonClicked, rightButtonClicked, middleButtonClicked,
+                    (mouse.ControlKeyState & ControlKeyPressed) != 0);
 
                 continue;
             }
@@ -407,7 +413,7 @@ public sealed class EditorApp
     }
 
     private void HandleMouse(int x, int y, bool leftButtonDown, bool rightButtonDown,
-        bool leftButtonClicked, bool rightButtonClicked, bool controlPressed)
+        bool leftButtonClicked, bool rightButtonClicked, bool middleButtonClicked, bool controlPressed)
     {
         var layout = CalculateLayout();
         var canvasLeft = layout.CanvasFrameX + 1;
@@ -426,11 +432,21 @@ public sealed class EditorApp
             DrawCanvasCell(layout, _mouseHoverX, _mouseHoverY);
         }
 
-        if (!leftButtonDown && !rightButtonDown)
+        if (!leftButtonDown && !rightButtonDown && !middleButtonClicked)
             return;
 
         if (isOverCanvas)
         {
+            if (middleButtonClicked)
+            {
+                var previousLocalIndex = FindGlyphOnPage(layout, _brush);
+                SelectPaletteGlyph(_cells[newHoverX, newHoverY]);
+                DrawPaletteTile(layout, previousLocalIndex);
+                DrawPaletteTile(layout, FindGlyphOnPage(layout, _brush));
+                DrawStatus(layout);
+                return;
+            }
+
             var oldCursorX = _cursorX;
             var oldCursorY = _cursorY;
             var newCursorX = newHoverX;
@@ -459,6 +475,15 @@ public sealed class EditorApp
             var glyph = GetPaletteGlyph(layout, _palettePage, localIndex);
             if (glyph is null)
                 return;
+
+            if (middleButtonClicked)
+            {
+                _status = WindowsClipboard.TryCopy(glyph, out var error)
+                    ? $"Copied '{glyph}' to clipboard."
+                    : $"Could not copy glyph to clipboard: {error}";
+                DrawStatus(layout);
+                return;
+            }
 
             if (controlPressed && leftButtonClicked)
             {
@@ -841,7 +866,7 @@ public sealed class EditorApp
         if (clear)
             Console.Clear();
         WriteAt(2, 0, $"ASCII PORTRAIT EDITOR — Set {_portraitSet}", layout.Width - 4);
-        WriteAt(2, 1, "F2 set | Arrows move | Shift+Left/Right portrait | Space/D draw | E erase | Del clear | P glyph | PgUp/PgDn palette | R rename | RMB pin/unpin | Ctrl+LMB/RMB range | S save | C resize | N new | Esc/Q quit",
+        WriteAt(2, 1, "F2 set | Arrows move | Shift+Left/Right portrait | Space/D draw | E erase | Del clear | P glyph | PgUp/PgDn palette | R rename | MMB pick/copy | RMB pin/unpin | Ctrl+LMB/RMB range | S save | C resize | N new | Esc/Q quit",
             layout.Width - 4);
 
         for (var y = 2; y < layout.Height - 2; y++)
