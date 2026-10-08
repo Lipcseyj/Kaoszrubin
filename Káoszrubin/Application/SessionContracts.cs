@@ -156,14 +156,16 @@ public enum BattleActionKind
     PrepareRearLeft,
     PrepareRearRight,
     DisbandFormation,
-    ResumeBattle
+    ResumeBattle,
+    PrepareFormationMember,
+    SwapFormationRows
 }
 
 /// <summary>A kliens választása, nem kész sebzés- vagy dobáseredmény.</summary>
 public sealed record BattleActionCommand(PlayerId SenderId, long CommandId, CharacterId CharacterId,
     BattleId BattleId, long TurnId, BattleActionKind Action, string? SpellId = null,
     int? CastingItemSlotIndex = null, Position? Target = null,
-    WorldEntityId? TargetEnemyId = null, int? BackpackIndex = null)
+    WorldEntityId? TargetEnemyId = null, int? BackpackIndex = null, CharacterId? TargetCharacterId = null)
     : GameCommand(SenderId, CommandId, CharacterId);
 
 public sealed record CastExplorationSpellCommand(PlayerId SenderId, long CommandId, CharacterId CharacterId,

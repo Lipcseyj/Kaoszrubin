@@ -363,7 +363,12 @@ public sealed partial class Game : ISessionCommandHandler
             ActionDetails: _lastBattleActionDetails,
             TurnUndeadTargetEnemyId: prompt.TurnUndeadTargetEnemyId,
             ActionTargets: prompt.ActionTargets,
-            PhysicalAttackLabel: PhysicalAttackLabel(prompt.ActingCharacter));
+            PhysicalAttackLabel: PhysicalAttackLabel(prompt.ActingCharacter),
+            FormationTargets: battle.PreparationTargets().Select(member => new BattleFormationTargetSnapshot(
+                BattleActionKind.PrepareFormationMember, member.Id, member.Name))
+                .Concat(prompt.ActingCharacter is null ? [] : battle.RowSwapTargets(prompt.ActingCharacter)
+                    .Select(member => new BattleFormationTargetSnapshot(BattleActionKind.SwapFormationRows, member.Id, member.Name)))
+                .ToArray());
     }
 
     private BattlePromptState CreateBattlePromptState(BattleEncounter battle)

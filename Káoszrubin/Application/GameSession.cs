@@ -668,8 +668,12 @@ public sealed class GameSession
         return false;
     }
 
-    private static bool HasValidBattleActionShape(BattleActionCommand command) => command.Action switch
+    private static bool HasValidBattleActionShape(BattleActionCommand command) =>
+        (command.TargetCharacterId is null || command.Action is BattleActionKind.PrepareFormationMember or BattleActionKind.SwapFormationRows) && command.Action switch
     {
+        BattleActionKind.PrepareFormationMember or BattleActionKind.SwapFormationRows =>
+            command.TargetCharacterId is not null && command.SpellId is null && command.CastingItemSlotIndex is null &&
+            command.Target is null && command.TargetEnemyId is null && command.BackpackIndex is null,
         BattleActionKind.ResumeBattle or BattleActionKind.AdvanceEnemyTurn or BattleActionKind.Retreat or
         BattleActionKind.SwapToRear or BattleActionKind.PrepareRearLeft or
         BattleActionKind.PrepareRearRight or BattleActionKind.DisbandFormation or

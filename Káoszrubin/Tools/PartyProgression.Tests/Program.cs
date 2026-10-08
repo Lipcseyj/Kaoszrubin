@@ -30,12 +30,13 @@ var tests = new (string Name, Action Run)[]
     ("A 2x2 régi slotbeosztása migrációkor változatlan", LegacyFormation)
 };
 var failures = 0;
-foreach (var (name, run) in tests)
+foreach (var (name, run) in tests.Concat(FormationTests.Cases))
 {
     try { run(); Console.WriteLine($"PASS {name}"); }
     catch (Exception error) { failures++; Console.WriteLine($"FAIL {name}: {error}"); }
 }
-Console.WriteLine($"{tests.Length - failures}/{tests.Length} teszt sikeres.");
+var totalTests = tests.Length + FormationTests.Cases.Count();
+Console.WriteLine($"{totalTests - failures}/{totalTests} teszt sikeres.");
 return failures == 0 ? 0 : 1;
 
 static PartyCapacityRules EnabledRules() => new() { ExpandedPartyEnabled = true };
@@ -185,7 +186,7 @@ static void LegacyMigration()
         var save = GameSaveFormat.MigrateToCurrent(new GameSaveData { Version = 35, MazeLevel = level });
         var party = new Party(EnabledRules());
         party.MergeCampaignProgression(save.PartyCampaignProgression);
-        Check(save.Version == 36 && party.Capacity == expected, $"Hibás migráció a(z) {level}. pályán.");
+        Check(save.Version == GameSaveFormat.CurrentVersion && party.Capacity == expected, $"Hibás migráció a(z) {level}. pályán.");
         var before = JsonSerializer.Serialize(save.PartyCampaignProgression);
         GameSaveFormat.MigrateToCurrent(save);
         Check(JsonSerializer.Serialize(save.PartyCampaignProgression) == before, "A migráció nem idempotens.");
@@ -267,7 +268,7 @@ static void SaveRoundTrip()
         Check(loaded.Roster.Party.Capacity == 6 && loaded.Roster.Party.AvailableRecruitmentGrants.SequenceEqual([PartyExpansionMilestone.SixthMember]) &&
             loaded.Roster.Party.PendingUnlockPresentations.SequenceEqual([PartyExpansionMilestone.SixthMember]), "A jutalomállapot visszaállítása hibás.");
         var migratedJson = JsonSerializer.Serialize(loaded.State);
-        Check(GameSaveFormat.MigrateToCurrent(JsonSerializer.Deserialize<GameSaveData>(migratedJson)!).Version == 36,
+        Check(GameSaveFormat.MigrateToCurrent(JsonSerializer.Deserialize<GameSaveData>(migratedJson)!).Version == GameSaveFormat.CurrentVersion,
             "Az új mentés JSON roundtripja hibás.");
     }
     finally
@@ -284,7 +285,7 @@ static void SessionRoundTrip()
     var session = new GameSession(party, party.Leader!);
     var snapshot = session.CreateSnapshot(new(9, "Teszt", new Dictionary<CharacterId, Position>()));
     var restored = JsonSerializer.Deserialize<SessionSnapshot>(JsonSerializer.Serialize(snapshot))!;
-    Check(restored.ProtocolVersion == 103 && restored.PartyCapacity == 6 && restored.Party.Count == 5 &&
+    Check(restored.ProtocolVersion == SessionProtocol.Version && restored.PartyCapacity == 6 && restored.Party.Count == 5 &&
         restored.PartyCampaignProgression!.HighestCompletedCampaignLevel == 8 &&
         restored.PartyCampaignProgression.PresentedUnlocks!.Contains(PartyExpansionMilestone.FifthMember),
         "A kapacitás vagy kampányállapot hiányzik a replikációból.");

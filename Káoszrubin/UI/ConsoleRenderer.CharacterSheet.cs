@@ -1,4 +1,4 @@
-﻿using KaoszRubin.Combat;
+using KaoszRubin.Combat;
 using KaoszRubin.Domain.Characters;
 using KaoszRubin.Domain.Combat;
 using KaoszRubin.Domain.Inventory;
@@ -23,11 +23,11 @@ public sealed partial class ConsoleRenderer
         private const int CharacterSheetWeaponsHeadingLine = 17;
         private const int CharacterSheetMagicItemsHeadingLine = 22;
         private const int CharacterSheetBackpackHeadingLine = 26;
-        private const int CharacterSheetPartyMembersStartLine = 41;
-        private const int CharacterSheetPartyMemberRows = 4;
+        public const int CharacterSheetPartyMembersStartLine = PartyFormationDisplay.PartyStartRow;
+        public const int CharacterSheetPartyMemberRows = PartyFormationDisplay.PartyRows;
         private const int CharacterSheetReservedMessageLine = 39;
         /// <summary>The zero-based row reserved for party formation status.</summary>
-        public const int CharacterSheetControlsLine = 40;
+        public const int CharacterSheetControlsLine = PartyFormationDisplay.FormationRow;
 
         private enum SheetSelectionKind { Weapon, Armor, MagicItem, Backpack, PartyMember }
         private readonly record struct SheetSelectionKey(SheetSelectionKind Kind, int Index);
@@ -223,7 +223,7 @@ public sealed partial class ConsoleRenderer
                 info, selectedIndex, _characterSheetFocused, RightSheetWidthForWindow()).ToDictionary(line => line.Row);
             for (var row = 0; row <= PicturePanelBottom; row++)
                 if (panelLines.TryGetValue(row, out var line))
-                    WriteSheetLine(line.Row, line.Text, line.Color, line.Background);
+                    WriteCharacterSheetPanelLine(line);
                 else
                     WriteSheetLine(row, string.Empty, ConsoleColor.Gray);
         }
@@ -290,7 +290,7 @@ public sealed partial class ConsoleRenderer
             var panelLines = lines.ToDictionary(line => line.Row);
             for (var row = 0; row <= PicturePanelBottom; row++)
                 if (panelLines.TryGetValue(row, out var line))
-                    WriteSheetLine(line.Row, line.Text, line.Color, line.Background);
+                    WriteCharacterSheetPanelLine(line);
                 else
                     WriteSheetLine(row, string.Empty, ConsoleColor.Gray);
         }
@@ -407,11 +407,12 @@ public sealed partial class ConsoleRenderer
 
             var line = new CharacterSheetPanelLine(CharacterSheetControlsLine,
                 FormationStatusText(formation),
-                formation.State == PartyFormationState.Locked ? ConsoleColor.Green : ConsoleColor.DarkCyan);
+                formation.State == PartyFormationState.Locked ? ConsoleColor.Green : ConsoleColor.DarkCyan,
+                Segments: PartyFormationDisplay.Segments(formation, _party.Members.ToDictionary(member => member.Id, member => member.Color)));
             if (_lastCharacterSheetLines.TryGetValue(CharacterSheetControlsLine, out var previous) &&
                 SheetLineEquals(previous, line)) return;
 
-            WriteSheetLine(line.Row, line.Text, line.Color, line.Background);
+            WriteCharacterSheetPanelLine(line);
             _lastCharacterSheetLines[CharacterSheetControlsLine] = line;
         }
 
@@ -420,24 +421,7 @@ public sealed partial class ConsoleRenderer
         /// Use this helper when any UI needs a consistent formation label.
         /// </summary>
         /// <returns>A label containing the facing arrow, formation state, and locked layout when applicable.</returns>
-        public static string FormationStatusText(PartyFormationSnapshot formation)
-        {
-            var arrow = formation.Facing switch
-            {
-                Direction.Up => "↑",
-                Direction.Right => "→",
-                Direction.Down => "↓",
-                _ => "←"
-            };
-            var state = formation.State switch
-            {
-                PartyFormationState.Assembling => "összeáll",
-                PartyFormationState.Locked when formation.Layout == PartyFormationLayout.SingleFile => "zárt · libasor",
-                PartyFormationState.Locked => "zárt · 2×2",
-                _ => "feloszlatva"
-            };
-            return $"ALAKZAT {arrow}  {state}";
-        }
+        public static string FormationStatusText(PartyFormationSnapshot formation) => PartyFormationDisplay.Text(formation);
 
         /// <summary>
         /// Draws detailed battle action text on the right panel.
@@ -536,11 +520,13 @@ public sealed partial class ConsoleRenderer
 
             var controlsLine = new CharacterSheetPanelLine(CharacterSheetControlsLine,
                 _formation is null ? string.Empty : FormationStatusText(_formation),
-                _formation?.State == PartyFormationState.Locked ? ConsoleColor.Green : ConsoleColor.DarkCyan);
+                _formation?.State == PartyFormationState.Locked ? ConsoleColor.Green : ConsoleColor.DarkCyan,
+                Segments: _formation is null ? null : PartyFormationDisplay.Segments(_formation,
+                    _party.Members.ToDictionary(member => member.Id, member => member.Color)));
             if (fullRedraw || !_lastCharacterSheetLines.TryGetValue(CharacterSheetControlsLine, out var oldControls) ||
                 !SheetLineEquals(oldControls, controlsLine))
             {
-                WriteSheetLine(controlsLine.Row, controlsLine.Text, controlsLine.Color, controlsLine.Background);
+                WriteCharacterSheetPanelLine(controlsLine);
                 _lastCharacterSheetLines[CharacterSheetControlsLine] = controlsLine;
             }
 
@@ -669,7 +655,21 @@ public sealed partial class ConsoleRenderer
             SetColors(ConsoleColor.DarkCyan, ConsoleColor.Black);
             WriteAt(RightBorderX, line.Row, "│ ");
 
-            if (line.ColoredTextStart >= 0)
+            if (line.Segments is { } segments)
+            {
+                WriteSheetLine(line.Row, string.Empty, line.Color, line.Background);
+                var offset = 0;
+                var width = RightSheetWidthForWindow();
+                foreach (var segment in segments)
+                {
+                    var text = BattleCommandPanel.TruncateToDisplayWidth(segment.Text, width - offset);
+                    SetColors(segment.Color ?? line.Color, line.Background);
+                    WriteAt(RightSheetX + offset, line.Row, text);
+                    offset += BattleCommandPanel.DisplayWidth(text);
+                    if (offset >= width) break;
+                }
+            }
+            else if (line.ColoredTextStart >= 0)
             {
                 WriteSheetLineWithColoredTail(
                     line.Row,
@@ -855,7 +855,21 @@ public sealed partial class ConsoleRenderer
                 if (_lastInventoryRows.TryGetValue(line.Row, out var previous) &&
                     previous.Background == state.Background && SheetLineEquals(previous.Line, state.Line))
                     continue;
-                if (line.ColoredTextStart >= 0)
+                if (line.Segments is { } segments)
+            {
+                WriteSheetLine(line.Row, string.Empty, line.Color, line.Background);
+                var offset = 0;
+                var width = RightSheetWidthForWindow();
+                foreach (var segment in segments)
+                {
+                    var text = BattleCommandPanel.TruncateToDisplayWidth(segment.Text, width - offset);
+                    SetColors(segment.Color ?? line.Color, line.Background);
+                    WriteAt(RightSheetX + offset, line.Row, text);
+                    offset += BattleCommandPanel.DisplayWidth(text);
+                    if (offset >= width) break;
+                }
+            }
+            else if (line.ColoredTextStart >= 0)
                     WriteSheetLineWithColoredTail(line.Row, line.Text, line.ColoredTextStart,
                         line.Color, line.ColoredTextColor, background);
                 else
@@ -871,6 +885,8 @@ public sealed partial class ConsoleRenderer
         private void DrawPartyStatusRows(LiveCharacter displayedCharacter)
         {
             var partyMembers = _party.Members.Take(CharacterSheetPartyMemberRows).ToList();
+            WriteSheetLine(PartyFormationDisplay.PartyHeadingRow, $"Parti: {partyMembers.Count}/{_party.Capacity}",
+                ConsoleColor.Cyan, ConsoleColor.Black);
 
             for (var index = 0; index < CharacterSheetPartyMemberRows; index++)
             {
@@ -879,13 +895,14 @@ public sealed partial class ConsoleRenderer
                 if (index >= partyMembers.Count)
                 {
                     var emptyState = new PartyStatusRowState(
-                        Status: null,
+                        Status: new PartyStatusLine(PartyFormationDisplay.EmptySlotText(index, _party.Capacity), ConsoleColor.DarkGray,
+                            string.Empty, ConsoleColor.Gray, string.Empty, ConsoleColor.Gray),
                         Background: ConsoleColor.Black);
 
                     if (_lastPartyStatusRows.TryGetValue(row, out var previous) && previous == emptyState)
                         continue;
 
-                    FillPartyStatusRowBackground(row, ConsoleColor.Black);
+                    DrawPartyStatusLine(row, emptyState.Status!, ConsoleColor.Black);
                     _lastPartyStatusRows[row] = emptyState;
                     continue;
                 }
@@ -961,7 +978,7 @@ public sealed partial class ConsoleRenderer
 
         /// <summary>
         /// Builds navigation entries for the current character sheet.
-        /// Includes inventory slots followed by up to four party rows; temporary followers have no selectable entries.
+        /// Includes inventory slots followed by up to six party rows; temporary followers have no selectable entries.
         /// </summary>
         private List<SheetSelectionEntry> BuildSheetSelections(LiveCharacter character)
         {

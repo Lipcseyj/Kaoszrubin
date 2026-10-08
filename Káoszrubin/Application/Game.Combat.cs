@@ -672,6 +672,13 @@ public sealed partial class Game
                 PresentBattleEntries([new BattleLogEntry($"{character.Name}: fegyvercsere → {character.AttackWeapon?.Name}.{weaponSwapStatus}", BattleLogKind.Information)]);
                 AdvanceBattleTurn(battle);
                 break;
+            case BattleActionKind.SwapFormationRows:
+                if (!TryExecuteSwapToRear(battle, character, out var rowSwapError, command.TargetCharacterId))
+                {
+                    RejectBattleAction(command, rowSwapError);
+                    return;
+                }
+                break;
             case BattleActionKind.SwapToRear:
                 if (!TryExecuteSwapToRear(battle, character, out var swapError))
                 {
@@ -679,12 +686,15 @@ public sealed partial class Game
                     return;
                 }
                 break;
+            case BattleActionKind.PrepareFormationMember:
             case BattleActionKind.PrepareRearLeft:
             case BattleActionKind.PrepareRearRight:
                 var preparationSlot = command.Action == BattleActionKind.PrepareRearLeft
                     ? FormationSlot.RearLeft
                     : FormationSlot.RearRight;
-                if (!battle.TryOrderRearCombatPreparation(preparationSlot, out var preparingCharacter))
+                var preparationId = command.Action == BattleActionKind.PrepareFormationMember
+                    ? command.TargetCharacterId : battle.Formation?.CharacterAt(preparationSlot);
+                if (preparationId is not { } idToPrepare || !battle.TryOrderCombatPreparation(idToPrepare, out var preparingCharacter))
                 {
                     RejectBattleAction(command, "A kijelölt hátsó alakzathelyen nincs harcra készíthető társ.");
                     return;

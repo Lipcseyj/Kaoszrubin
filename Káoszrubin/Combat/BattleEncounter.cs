@@ -227,65 +227,70 @@ public sealed class BattleEncounter
         return null;
     }
 
-    public bool IsFrontRow(LiveCharacter character) => FormationSlotFor(character) is
-        FormationSlot.FrontLeft or FormationSlot.FrontRight;
+    public bool IsFrontRow(LiveCharacter character) => FormationSlotFor(character) is { } slot &&
+        PartyFormationRules.RowOf(Formation!, (int)slot) == 0;
 
-    public bool IsRearRow(LiveCharacter character) => FormationSlotFor(character) is
-        FormationSlot.RearLeft or FormationSlot.RearRight;
+    // Minden első sor mögötti tag támogató; a slot neve nem határozza meg a szerepét.
+    public bool IsRearRow(LiveCharacter character) => FormationSlotFor(character) is { } slot &&
+        PartyFormationRules.RowOf(Formation!, (int)slot) > 0;
 
     public bool TryOrderRearCombatPreparation(FormationSlot slot, out LiveCharacter? character)
     {
-        character = slot is FormationSlot.RearLeft or FormationSlot.RearRight
-            ? CharacterInSlot(slot)
-            : null;
-        if (!HasProtectiveFormation || character is not { IsAlive: true }) return false;
+        character = CharacterInSlot(slot);
+        return character is not null && TryOrderCombatPreparation(character.Id, out character);
+    }
+
+    public IReadOnlyList<LiveCharacter> PreparationTargets() => HasProtectiveFormation
+        ? _characters.Values.Where(character => character.IsAlive && IsRearRow(character) &&
+            !IsEngaged(character) && !IsCharacterStaggered(character)).ToArray() : [];
+
+    public bool TryOrderCombatPreparation(CharacterId id, out LiveCharacter? character)
+    {
+        character = PreparationTargets().FirstOrDefault(member => member.Id == id);
+        if (character is null) return false;
         _rearCombatPreparationOrders.Add(character.Id);
         return true;
     }
 
     public bool ShouldPrioritizeRearSelfBuff(LiveCharacter character)
     {
-        if (HasProtectiveFormation && IsRearRow(character))
+        if (HasProtectiveFormation && IsRearRow(character) && !IsEngaged(character))
             return _rearCombatPreparationOrders.Contains(character.Id);
         _rearCombatPreparationOrders.Remove(character.Id);
         return false;
     }
 
     public bool CanUseItem(LiveCharacter character, MiscItemDefinition item) =>
-        item.UsableInCombat && !IsEngaged(character) &&
-        (!HasProtectiveFormation || IsRearRow(character));
+        item.UsableInCombat && !IsEngaged(character) && (!HasProtectiveFormation || IsRearRow(character));
 
-    public LiveCharacter? RearPartnerOf(LiveCharacter character) => FormationSlotFor(character) switch
-    {
-        FormationSlot.FrontLeft => CharacterInSlot(FormationSlot.RearLeft),
-        FormationSlot.FrontRight => CharacterInSlot(FormationSlot.RearRight),
-        _ => null
-    };
+    public LiveCharacter? RearPartnerOf(LiveCharacter character) => AdjacentRowPartner(character, 1);
+    public LiveCharacter? FrontPartnerOf(LiveCharacter character) => AdjacentRowPartner(character, -1);
 
-    public LiveCharacter? FrontPartnerOf(LiveCharacter character) => FormationSlotFor(character) switch
+    private LiveCharacter? AdjacentRowPartner(LiveCharacter character, int rowDelta)
     {
-        FormationSlot.RearLeft => CharacterInSlot(FormationSlot.FrontLeft),
-        FormationSlot.RearRight => CharacterInSlot(FormationSlot.FrontRight),
-        _ => null
-    };
+        if (FormationSlotFor(character) is not { } slot || Formation is not { } formation ||
+            PartyFormationRules.AdjacentRowSlot(formation, (int)slot, rowDelta) is not { } index) return null;
+        return CharacterInSlot((FormationSlot)index);
+    }
+
+    private bool IsPartnerInPlace(LiveCharacter character, LiveCharacter partner, int rowDelta)
+    {
+        if (Formation is not { } formation || Turns.Find(CombatantId.ForCharacter(character.Id)) is null ||
+            Turns.Find(CombatantId.ForCharacter(partner.Id)) is null) return false;
+        var forward = PartyFormationRules.ForwardOffset(formation.Facing);
+        var expected = new Position(PositionOf(character).X - forward.X * rowDelta,
+            PositionOf(character).Y - forward.Y * rowDelta);
+        return PositionOf(partner) == expected;
+    }
 
     public bool IsProtectedRearTarget(LiveCharacter character, Position attackerPosition)
     {
-        if (!HasProtectiveFormation || !character.IsAlive || !IsRearRow(character) ||
-            FrontPartnerOf(character) is not { IsAlive: true } protector || Formation is not { } formation)
-            return false;
-        var rearPosition = Turns.Find(CombatantId.ForCharacter(character.Id))?.Position;
-        if (rearPosition is null || Turns.Find(CombatantId.ForCharacter(protector.Id)) is null) return false;
-        var forward = formation.Facing switch
-        {
-            Direction.Up => new Position(0, -1),
-            Direction.Right => new Position(1, 0),
-            Direction.Down => new Position(0, 1),
-            _ => new Position(-1, 0)
-        };
-        var attackerDelta = new Position(attackerPosition.X - rearPosition.Value.X,
-            attackerPosition.Y - rearPosition.Value.Y);
-        return attackerDelta.X * forward.X + attackerDelta.Y * forward.Y > 0;
+        if (!HasProtectiveFormation || !character.IsAlive || !IsRearRow(character) || IsEngaged(character) ||
+            FrontPartnerOf(character) is not { IsAlive: true } protector || IsCharacterStaggered(protector) ||
+            !IsPartnerInPlace(character, protector, -1) || Formation is not { } formation) return false;
+        var forward = PartyFormationRules.ForwardOffset(formation.Facing);
+        var rear = PositionOf(character);
+        return (attackerPosition.X - rear.X) * forward.X + (attackerPosition.Y - rear.Y) * forward.Y > 0;
     }
 
     public IReadOnlyList<Enemy> RearFormationEnemiesInReach(LiveCharacter character)
@@ -314,8 +319,14 @@ public sealed class BattleEncounter
     public IReadOnlyList<Enemy> RearFormationEngagedEnemies(LiveCharacter character)
     {
         if (!HasProtectiveFormation || !IsRearRow(character) ||
-            FrontPartnerOf(character) is not { IsAlive: true } front) return [];
-        return EngagedEnemies(front);
+            FrontPartnerOf(character) is not { IsAlive: true } front ||
+            !IsPartnerInPlace(character, front, -1)) return [];
+        // A közvetlen társ mögül legfeljebb két mezőre érhető el az ellenfél.
+        var origin = PositionOf(character);
+        return EngagedEnemies(front).Where(enemy =>
+                Math.Max(Math.Abs(origin.X - enemy.Position.X), Math.Abs(origin.Y - enemy.Position.Y)) <= 2 &&
+                TacticalDistance.IsMeleeAdjacent(PositionOf(front), enemy.Position))
+            .ToArray();
     }
 
     public Position PositionOf(LiveCharacter character) =>
@@ -469,36 +480,45 @@ public sealed class BattleEncounter
         foreach (var (character, position) in destinations) UpdatePosition(character, position);
     }
 
-    public bool TrySwapToRear(LiveCharacter front, out LiveCharacter? rear,
-        out Position frontPosition, out Position rearPosition, out int transferredEngagements)
-    {
-        rear = RearPartnerOf(front);
-        frontPosition = default;
-        rearPosition = default;
-        transferredEngagements = 0;
-        if (!HasProtectiveFormation || rear is not { IsAlive: true } || Formation is not { } formation) return false;
-        var frontParticipant = Turns.Find(CombatantId.ForCharacter(front.Id));
-        var rearParticipant = Turns.Find(CombatantId.ForCharacter(rear.Id));
-        if (frontParticipant is null || rearParticipant is null) return false;
-        frontPosition = frontParticipant.Position;
-        rearPosition = rearParticipant.Position;
-        var slots = formation.Slots.ToArray();
-        var frontIndex = Array.IndexOf(slots, front.Id);
-        var rearIndex = Array.IndexOf(slots, rear.Id);
-        if (frontIndex < 0 || rearIndex < 0) return false;
-        (slots[frontIndex], slots[rearIndex]) = (slots[rearIndex], slots[frontIndex]);
-        Formation = PartyFormationRules.WithSlots(formation, slots) with { State = PartyFormationState.Locked };
-        _rearCombatPreparationOrders.Remove(rear.Id);
-        UpdatePosition(front, rearPosition);
-        UpdatePosition(rear, frontPosition);
+    public IReadOnlyList<LiveCharacter> RowSwapTargets(LiveCharacter actor) =>
+        HasProtectiveFormation && actor.IsAlive && !IsCharacterStaggered(actor)
+            ? new[] { FrontPartnerOf(actor), RearPartnerOf(actor) }.OfType<LiveCharacter>()
+                .Where(partner => partner.IsAlive && !IsCharacterStaggered(partner) &&
+                    IsPartnerInPlace(actor, partner, partner == RearPartnerOf(actor) ? 1 : -1)).ToArray()
+            : [];
 
-        var transferred = _engagements.Where(pair => pair.CharacterId == front.Id).ToArray();
-        foreach (var engagement in transferred)
-        {
-            _engagements.Remove(engagement);
-            _engagements.Add((rear.Id, engagement.EnemyId));
-        }
-        transferredEngagements = transferred.Length;
+    public bool TrySwapToRear(LiveCharacter front, out LiveCharacter? rear,
+        out Position frontPosition, out Position rearPosition, out int transferredEngagements) =>
+        TrySwapAdjacentRows(front, RearPartnerOf(front)?.Id, out rear, out frontPosition, out rearPosition,
+            out transferredEngagements);
+
+    public bool TrySwapAdjacentRows(LiveCharacter actor, CharacterId? targetId, out LiveCharacter? partner,
+        out Position actorPosition, out Position partnerPosition, out int transferredEngagements)
+    {
+        partner = RowSwapTargets(actor).FirstOrDefault(candidate => candidate.Id == targetId);
+        actorPosition = partnerPosition = default;
+        transferredEngagements = 0;
+        if (partner is null || Formation is not { } formation) return false;
+        actorPosition = PositionOf(actor);
+        partnerPosition = PositionOf(partner);
+        var slots = formation.Slots.ToArray();
+        var actorIndex = Array.IndexOf(slots, actor.Id);
+        var partnerIndex = Array.IndexOf(slots, partner.Id);
+        (slots[actorIndex], slots[partnerIndex]) = (slots[partnerIndex], slots[actorIndex]);
+        Formation = PartyFormationRules.WithSlots(formation, slots) with { State = PartyFormationState.Locked };
+        _rearCombatPreparationOrders.Remove(actor.Id);
+        _rearCombatPreparationOrders.Remove(partner.Id);
+        UpdatePosition(actor, partnerPosition);
+        UpdatePosition(partner, actorPosition);
+        // A lekötések a két mezőhöz tartoznak: egyik csereirány sem ad ingyenes kilépést.
+        var actorEngagements = _engagements.Where(pair => pair.CharacterId == actor.Id).ToArray();
+        var partnerId = partner.Id;
+        var partnerEngagements = _engagements.Where(pair => pair.CharacterId == partnerId).ToArray();
+        foreach (var engagement in actorEngagements) _engagements.Remove(engagement);
+        foreach (var engagement in partnerEngagements) _engagements.Remove(engagement);
+        foreach (var engagement in actorEngagements) _engagements.Add((partner.Id, engagement.EnemyId));
+        foreach (var engagement in partnerEngagements) _engagements.Add((actor.Id, engagement.EnemyId));
+        transferredEngagements = actorEngagements.Length + partnerEngagements.Length;
         return true;
     }
 

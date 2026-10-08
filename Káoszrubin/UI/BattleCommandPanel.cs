@@ -81,6 +81,8 @@ public sealed class BattleCommandPanel
         var compact = actionSet.Contains(BattleActionKind.DisbandFormation);
         var commands = new List<string>();
         if (actionSet.Contains(BattleActionKind.SwapToRear)) commands.Add(compact ? "H: ↩" : "H: hátra!");
+        if (actionSet.Contains(BattleActionKind.SwapFormationRows)) commands.Add("H: ⇅ társ" );
+        if (actionSet.Contains(BattleActionKind.PrepareFormationMember)) commands.Add("K: ⚔ társ" );
         if (actionSet.Contains(BattleActionKind.SwapWeapon)) commands.Add(compact ? "C: ⇄" : "C: fegyvercsere");
         if (actionSet.Contains(BattleActionKind.PrepareRearLeft)) commands.Add("B: ↙⚔");
         if (actionSet.Contains(BattleActionKind.PrepareRearRight)) commands.Add("J: ↘⚔");

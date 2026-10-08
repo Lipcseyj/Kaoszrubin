@@ -118,7 +118,7 @@ public sealed class GameSaveService
 public static class GameSaveFormat
 {
     public const int OldestSupportedVersion = 1;
-    public const int CurrentVersion = 36;
+    public const int CurrentVersion = 37;
 
     public static GameSaveData MigrateToCurrent(GameSaveData state)
     {
@@ -166,6 +166,7 @@ public static class GameSaveFormat
                 33 => MigrateVersion33To34(state),
                 34 => MigrateVersion34To35(state),
                 35 => MigrateVersion35To36(state),
+                36 => MigrateVersion36To37(state),
                 _ => throw new InvalidOperationException($"Hiányzó mentésmigráció a(z) {state.Version}. verzióhoz.")
             };
         }
@@ -180,6 +181,14 @@ public static class GameSaveFormat
         return state;
     }
 
+    private static GameSaveData MigrateVersion36To37(GameSaveData state)
+    {
+        // A régi négy slot eredeti sorrendben, üres új helyekkel marad 2×2-es.
+        if (state.Formation is { } formation)
+            state.Formation = formation with { Shape = PartyFormationShape.Block2x2, ReserveLeft = null, ReserveRight = null };
+        state.Version = 37;
+        return state;
+    }
     private static GameSaveData MigrateVersion35To36(GameSaveData state)
     {
         if (state.SuspendedCampaign is { } suspended) MigrateToCurrent(suspended);

@@ -42,6 +42,9 @@ public sealed class CoopGuestScreen
     private long _inventorySourceRevision;
     private bool _battleSpellMenuOpen;
     private bool _battleItemMenuOpen;
+    private BattleActionKind? _formationTargetAction;
+    private long _formationTargetTurnId;
+    private BattleId? _formationTargetBattleId;
     private int _battleSpellSelection;
     private BattleSpellOption? _targetedBattleSpell;
     private Position? _spellTargetCursor;
@@ -684,9 +687,20 @@ public sealed class CoopGuestScreen
                 command = new BattleActionCommand(client.PlayerId!.Value, client.NextCommandId(), characterId,
                     battle.BattleId, battle.TurnId, BattleActionKind.Move, Target: target);
             }
+            else if (key == ConsoleKey.K && battle.AllowedActions.Contains(BattleActionKind.PrepareFormationMember) ||
+                     key == ConsoleKey.H && battle.AllowedActions.Contains(BattleActionKind.SwapFormationRows))
+            {
+                _formationTargetAction = key == ConsoleKey.K ? BattleActionKind.PrepareFormationMember : BattleActionKind.SwapFormationRows;
+                _formationTargetTurnId = battle.TurnId;
+                _formationTargetBattleId = battle.BattleId;
+                _battleItemMenuOpen = true;
+                Interlocked.Exchange(ref _redrawRequested, 1);
+                return;
+            }
             else if (key == ConsoleKey.U && battle.AllowedActions.Contains(BattleActionKind.UseItem) &&
                      battle.ItemOptions is { Count: > 0 })
             {
+                _formationTargetAction = null;
                 _battleItemMenuOpen = true;
                 Interlocked.Exchange(ref _redrawRequested, 1);
                 return;
@@ -1172,6 +1186,25 @@ public sealed class CoopGuestScreen
     private GameCommand? HandleBattleItemMenuInput(CoopSignalRClient client, CharacterId characterId,
         SessionSnapshot snapshot, ConsoleKey key)
     {
+        if (_formationTargetAction is { } formationAction)
+        {
+            var targets = snapshot.Battle?.FormationTargets?.Where(target => target.Action == formationAction).ToArray() ?? [];
+            var selected = NumberKey(key) - 1;
+            if (key == ConsoleKey.Escape || snapshot.Battle is null || snapshot.Battle.TurnId != _formationTargetTurnId ||
+                snapshot.Battle.BattleId != _formationTargetBattleId || snapshot.Battle.ActingCharacterId != characterId)
+            {
+                _formationTargetAction = null;
+                _battleItemMenuOpen = false;
+                Interlocked.Exchange(ref _redrawRequested, 1);
+                return null;
+            }
+            if (selected < 0 || selected >= targets.Length) return null;
+            _formationTargetAction = null;
+            _battleItemMenuOpen = false;
+            Interlocked.Exchange(ref _redrawRequested, 1);
+            return new BattleActionCommand(client.PlayerId!.Value, client.NextCommandId(), characterId,
+                snapshot.Battle.BattleId, snapshot.Battle.TurnId, formationAction, TargetCharacterId: targets[selected].CharacterId);
+        }
         if (key == ConsoleKey.Escape)
         {
             _battleItemMenuOpen = false;
@@ -1987,14 +2020,14 @@ public sealed class CoopGuestScreen
                 panel[y] = new GuestTextLine(string.Empty, ConsoleColor.Gray, ConsoleColor.Black);
         }
 
-        var partyMembers = _spellInfoOpen || _itemInspectionPanel is not null ? [] : snapshot.Party.Take(4).ToArray();
+        var partyMembers = _spellInfoOpen || _itemInspectionPanel is not null ? [] : snapshot.Party.Where(member => !member.IsTemporaryFollower).Take(Party.MaximumSize).ToArray();
         for (var index = 0; index < partyMembers.Length; index++)
         {
             var member = partyMembers[index];
-            if (41 + index < panel.Length)
+            if (PartyFormationDisplay.PartyStartRow + index < panel.Length)
             {
-                panel[41 + index] = new GuestTextLine(string.Empty, ConsoleColor.Gray, ConsoleColor.Black);
-                partyStatuses[41 + index] = CharacterSheetPanel.BuildPartyStatus(member,
+                panel[PartyFormationDisplay.PartyStartRow + index] = new GuestTextLine(string.Empty, ConsoleColor.Gray, ConsoleColor.Black);
+                partyStatuses[PartyFormationDisplay.PartyStartRow + index] = CharacterSheetPanel.BuildPartyStatus(member,
                     member.CharacterId == (_inventoryOpen
                         ? _displayedCharacterId ?? selected.CharacterId
                         : selected.CharacterId),
@@ -2002,13 +2035,26 @@ public sealed class CoopGuestScreen
             }
         }
 
-        if (!stillControlled && panel.Length > 41)
-            panel[41] = new GuestTextLine("Megfigyelő mód", ConsoleColor.DarkYellow, ConsoleColor.Black);
+        if (!stillControlled && panel.Length > PartyFormationDisplay.PartyHeadingRow)
+            panel[PartyFormationDisplay.PartyHeadingRow] = new GuestTextLine("Megfigyelő mód", ConsoleColor.DarkYellow, ConsoleColor.Black);
 
-        if (!_spellInfoOpen && _itemInspectionPanel is null && snapshot.Formation is { } formation && panel.Length > 40)
-            panel[40] = new GuestTextLine(ConsoleRenderer.CharacterSheetRenderer.FormationStatusText(formation),
-                formation.State == PartyFormationState.Locked ? ConsoleColor.Green : ConsoleColor.DarkCyan,
-                ConsoleColor.Black);
+        if (!_spellInfoOpen && _itemInspectionPanel is null)
+        {
+            if (panel.Length > PartyFormationDisplay.PartyHeadingRow && stillControlled)
+                panel[PartyFormationDisplay.PartyHeadingRow] = new GuestTextLine($"Parti: {partyMembers.Length}/{snapshot.PartyCapacity}",
+                    ConsoleColor.Cyan, ConsoleColor.Black);
+            for (var index = partyMembers.Length; index < Party.MaximumSize; index++)
+            {
+                var row = PartyFormationDisplay.PartyStartRow + index;
+                if (row < panel.Length) panel[row] = new GuestTextLine(PartyFormationDisplay.EmptySlotText(index, snapshot.PartyCapacity),
+                    ConsoleColor.DarkGray, ConsoleColor.Black);
+            }
+            if (snapshot.Formation is { } formation && panel.Length > PartyFormationDisplay.FormationRow)
+                panel[PartyFormationDisplay.FormationRow] = new GuestTextLine(PartyFormationDisplay.Text(formation),
+                    formation.State == PartyFormationState.Locked ? ConsoleColor.Green : ConsoleColor.DarkCyan,
+                    ConsoleColor.Black, Segments: PartyFormationDisplay.Segments(formation,
+                        snapshot.Party.ToDictionary(member => member.CharacterId, member => member.Color)));
+        }
 
         var currentActor = snapshot.Battle is { IsQuickBattle: false, Participants: { } participants }
             ? participants.FirstOrDefault(participant => participant.IsCurrent) : null;
@@ -2657,6 +2703,25 @@ public sealed class CoopGuestScreen
         SessionCharacterSnapshot? own)
     {
         if (!_battleItemMenuOpen) return;
+        if (_formationTargetAction is { } formationAction)
+        {
+            var targets = snapshot.Battle?.FormationTargets?.Where(target => target.Action == formationAction).ToArray() ?? [];
+            if (own is null || snapshot.Battle?.TurnId != _formationTargetTurnId ||
+                snapshot.Battle?.BattleId != _formationTargetBattleId || snapshot.Battle?.ActingCharacterId != own.CharacterId || targets.Length == 0)
+            {
+                _formationTargetAction = null;
+                _battleItemMenuOpen = false;
+                return;
+            }
+            var targetLines = new List<(string Text, ConsoleColor Color)>
+            {
+                (formationAction == BattleActionKind.PrepareFormationMember ? "FELKÉSZÍTÉS — CÉLSZEMÉLY" : "HELYCSERE — CÉLSZEMÉLY", ConsoleColor.Yellow)
+            };
+            targetLines.AddRange(targets.Select((target, index) => ($"{index + 1}. {target.Name}", ConsoleColor.Cyan)));
+            targetLines.Add(("1–6 választ   Esc mégse", ConsoleColor.Green));
+            DrawGuestOverlay(grid, targetLines, ConsoleColor.Magenta, 58, FramedWindow.FormationEditor);
+            return;
+        }
         var battle = snapshot.Battle;
         var options = battle?.ItemOptions?.Take(9).ToArray() ?? [];
         if (battle is null || own is null || battle.ActingCharacterId != own.CharacterId || options.Length == 0)
