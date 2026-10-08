@@ -137,9 +137,7 @@ public sealed class Party
 
     public void Clear() { lock (_gate) _members.Clear(); }
 
-    private int CurrentCapacity() => _capacityRules.ExpandedPartyEnabled
-        ? _capacityRules.UnlockedCapacity(_campaignProgression.HighestCompletedCampaignLevel)
-        : PartyCapacityRules.InitialCapacity;
+    private int CurrentCapacity() => _capacityRules.Capacity(_campaignProgression.HighestCompletedCampaignLevel);
 
     private bool TryAdd(LiveCharacter character)
     {
@@ -151,7 +149,7 @@ public sealed class Party
     private PartyExpansionMilestone[] AvailableMilestones(IReadOnlyList<PartyExpansionMilestone>? used) =>
         _capacityRules.ExpandedPartyEnabled
             ? Enum.GetValues<PartyExpansionMilestone>().Where(milestone =>
-                _capacityRules.IsUnlocked(milestone, _campaignProgression.HighestCompletedCampaignLevel) &&
+                _capacityRules.IsEnabled(milestone) && _capacityRules.IsUnlocked(milestone, _campaignProgression.HighestCompletedCampaignLevel) &&
                 !(used ?? []).Contains(milestone)).ToArray()
             : [];
 }

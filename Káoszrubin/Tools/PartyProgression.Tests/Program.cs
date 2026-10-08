@@ -30,12 +30,12 @@ var tests = new (string Name, Action Run)[]
     ("A 2x2 régi slotbeosztása migrációkor változatlan", LegacyFormation)
 };
 var failures = 0;
-foreach (var (name, run) in tests.Concat(FormationTests.Cases))
+foreach (var (name, run) in tests.Concat(FormationTests.Cases).Concat(RecruitmentTests.Cases))
 {
     try { run(); Console.WriteLine($"PASS {name}"); }
     catch (Exception error) { failures++; Console.WriteLine($"FAIL {name}: {error}"); }
 }
-var totalTests = tests.Length + FormationTests.Cases.Count();
+var totalTests = tests.Length + FormationTests.Cases.Count() + RecruitmentTests.Cases.Count();
 Console.WriteLine($"{totalTests - failures}/{totalTests} teszt sikeres.");
 return failures == 0 ? 0 : 1;
 
@@ -85,7 +85,7 @@ static void ConfigurableThresholds()
 }
 static void DisabledExpansion()
 {
-    var party = new Party();
+    var party = new Party(new PartyCapacityRules { ExpandedPartyEnabled = false });
     party.RecordCampaignLevelCompletion(8);
     Check(Party.MaximumSize == 6 && party.Capacity == 4 && party.UnlockedCapacity == 6 &&
         party.AvailableRecruitmentGrants.Count == 0 && party.PendingUnlockPresentations.Count == 0,

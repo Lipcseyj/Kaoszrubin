@@ -8,7 +8,7 @@ using System.Numerics;
 
 namespace KaoszRubin.Application;
 
-internal sealed class InnController
+internal sealed partial class InnController
 {
     public enum DepartureChoice { NextLevel, ReturnExpedition }
     internal const ConsoleKey StateChangedKey = ConsoleKey.F24;
@@ -51,6 +51,8 @@ internal sealed class InnController
     private readonly Func<IReadOnlyList<LiveCharacter>> _temporaryFollowers;
     private readonly Func<IReadOnlyList<LiveCharacter>> _specialRecruitCandidates;
     private readonly Action<LiveCharacter> _specialRecruitAccepted;
+    private readonly Func<LiveCharacter, int, int?> _specialRecruitmentPrice;
+    private readonly HashSet<CharacterId> _normalRecruitIds = [];
     private readonly Action<string, string, Action> _runHostWindow;
 
     internal long Revision => _revision;
@@ -81,6 +83,7 @@ internal sealed class InnController
         _temporaryFollowers = temporaryFollowers ?? (() => []);
         _specialRecruitCandidates = specialRecruitCandidates ?? (() => []);
         _specialRecruitAccepted = specialRecruitAccepted ?? (_ => { });
+        _specialRecruitmentPrice = specialRecruitmentPrice ?? ((_, _) => null);
         _runHostWindow = runHostWindow ?? ((_, _, action) => action());
     }
 
@@ -104,7 +107,8 @@ internal sealed class InnController
             CreateSellPriceSnapshots(),
             _menuOptions, _artisanNotice, _characterRoster.Party.Members.Count,
             _characterRoster.Party.Members.Sum(character => character.Backpack.Count(item => item is null)),
-            _levelCompletion, _innName, _innLevel, _characterRoster.Party.Capacity);
+            _levelCompletion, _innName, _innLevel, _characterRoster.Party.Capacity,
+            RecruitmentOffers(), _characterRoster.Party.AvailableRecruitmentGrants);
     }
 
     public bool TryPurchase(InnVendorKind vendor, int offerIndex, long expectedRevision,
@@ -229,6 +233,8 @@ internal sealed class InnController
         _revision++;
         _renderer.DrawLevelCompletionScreen(_levelCompletion);
         while (_readKey().Key is not (ConsoleKey.Enter or ConsoleKey.Spacebar)) { }
+        foreach (var unlock in _levelCompletion.PartyExpansions ?? [])
+            _characterRoster.Party.TryMarkUnlockPresented(unlock.Milestone);
         _levelCompletion = null;
         _revision++;
         onCompletionDismissed?.Invoke();
@@ -260,32 +266,7 @@ internal sealed class InnController
         foreach (var item in AllGameItems().Where(item => DiscountedBuybackItemIds.Contains(item.Id)))
             _buybackPrices[item.Id] = Math.Max(1, item.BasePrice * _random.Next(20, 36) / 100);
 
-        // Build mercenary (recruitment) pool once when entering the inn
-        _recruitCandidates = new List<LiveCharacter>();
-        _recruitmentPrices = new Dictionary<LiveCharacter, int>();
-        {
-            var generator = new RandomCharacterGenerator(_gameData, _random);
-            var candidateCount = _random.Next(1, 4);
-            var classes = _gameData.CharacterClasses.OrderBy(_ => _random.Next()).Take(candidateCount).ToList();
-            var usedNames = _characterRoster.Characters.Select(character => character.Name).ToList();
-            foreach (var characterClass in classes)
-            {
-                var candidate = generator.GenerateMercenary(characterClass, _partyLeader.Level,
-                    usedNames.Concat(_recruitCandidates.Select(character => character.Name)).ToList(),
-                    completedLevel, allowWhiteColor: true);
-                _recruitCandidates.Add(candidate);
-            }
-            foreach (var candidate in _recruitCandidates)
-            {
-                _recruitmentPrices[candidate] = RecruitmentPrice(candidate, completedLevel);
-            }
-            foreach (var candidate in _specialRecruitCandidates().Where(candidate =>
-                         !_characterRoster.Party.Members.Contains(candidate) && !_recruitCandidates.Contains(candidate)))
-            {
-                _recruitCandidates.Add(candidate);
-                _recruitmentPrices[candidate] = RecruitmentPrice(candidate, completedLevel);
-            }
-        }
+        InitializeRecruitment(completedLevel);
 
         _rumors.Clear();
         _transactions.Clear();
@@ -330,7 +311,7 @@ internal sealed class InnController
         }
         if (wanderingMagePresent) options.Add(new(InnMenuOptionKind.WanderingMage, "🧙 Vándormágus", "Varázspálcák feltöltése, különleges portéka, azonosítás és tárgyátkok megtörése.", InnVendorKind.WanderingMage));
         if (bowyerPresent) options.Add(new(InnMenuOptionKind.Bowyer, "🏹 Íjkészítő mester", "Íjak, íjpuskák, nyilak és íjpuskalövedékek, csak vásárlásra.", InnVendorKind.Bowyer));
-        options.Add(new(InnMenuOptionKind.Recruit, "⚔️ Zsoldosok toborzása", "Új partitagok felfogadása.", LeaderOnly: true));
+        options.Add(RecruitmentMenuOption());
         options.Add(new(InnMenuOptionKind.Retraining, "🏛️ Veterán kiképző",
             "Osztályképességek, taktikai diszciplínák vagy fegyverjártasságok fizetős újraosztása.",
             LeaderOnly: true));
@@ -356,6 +337,7 @@ internal sealed class InnController
             {
                 if (redraw)
                 {
+                    options = (_menuOptions ?? []).ToList();
                     _renderer.DrawInnMenuScreen(_partyLeader, _characterRoster.Party.Members.Count, selectedIndex,
                         options, menuNotice, _innName, _innLevel);
                     redraw = false;
@@ -400,7 +382,9 @@ internal sealed class InnController
                         _vendorStocks.GetValueOrDefault(InnVendorKind.WanderingMage) ?? []); break;
                     case InnMenuOptionKind.Bowyer: RunSpecialistMarket("🏹 ÍJKÉSZÍTŐ MESTER",
                         _vendorStocks.GetValueOrDefault(InnVendorKind.Bowyer) ?? []); break;
-                    case InnMenuOptionKind.Recruit: RunInnRecruitment(); break;
+                    case InnMenuOptionKind.Recruit:
+                        _runHostWindow("Zsoldosok toborzása", "A vezető társakat választ a fogadóban…", RunInnRecruitment);
+                        break;
                     case InnMenuOptionKind.Retraining: RunInnRetraining(); break;
                     case InnMenuOptionKind.Feast: RunInnFeast(completedLevel); break;
                     case InnMenuOptionKind.Rumors: RunInnRumors(); break;
@@ -426,7 +410,8 @@ internal sealed class InnController
                 result.Experience.CurrentLevel, result.Character.CurrentVitality, result.Character.MaximumVitality,
                 result.Character.CurrentMana, result.Character.MaximumMana, result.Character.UsesMana)).ToArray(),
             completion.FallenCharacters.Select(character => new LevelCompletionFallenSnapshot(character.Name,
-                character.CharacterClass.Name)).ToArray());
+                character.CharacterClass.Name)).ToArray(),
+            PartyExpansionPresentation.Pending(_characterRoster.Party));
 
     private LevelCompletionOutcome CompleteLevelAtInn(int completedLevel)
     {
@@ -952,93 +937,69 @@ internal sealed class InnController
 
     private void RunInnRecruitment()
     {
-        var candidates = _recruitCandidates ?? new List<LiveCharacter>();
-        var recruitmentPrices = _recruitmentPrices ?? candidates.ToDictionary(candidate => candidate,
-            candidate => RecruitmentPrice(candidate, _innLevel));
-
+        var candidates = _recruitCandidates ?? [];
         var selectedIndex = 0;
-        var message = "A fogadós bemutatja az utazásra kész zsoldosokat.";
+        var message = RecruitmentStatus();
         var redraw = true;
         while (candidates.Count > 0)
         {
             selectedIndex = Math.Clamp(selectedIndex, 0, candidates.Count - 1);
             if (redraw)
             {
-                _renderer.DrawInnRecruitmentScreen(candidates, recruitmentPrices, selectedIndex,
-                    _characterRoster.Party.Members, _partyLeader.Gold, message, _innName);
+                var offers = RecruitmentOffers().ToDictionary(offer => offer.CharacterId);
+                _renderer.DrawInnRecruitmentScreen(candidates, candidates.ToDictionary(candidate => candidate,
+                        candidate => offers[candidate.Id].Price), selectedIndex,
+                    _characterRoster.Party.Members, _partyLeader.Gold, message, _innName,
+                    offers.Values.Where(offer => offer.RecruitmentGrant is not null).Select(offer => offer.CharacterId).ToHashSet(),
+                    _characterRoster.Party.AvailableRecruitmentGrants.Count);
                 redraw = false;
             }
             var key = _readKey().Key;
             if (key == StateChangedKey)
             {
-                message = ConsumeHostTransactionMessages(message);
+                message = ConsumeHostTransactionMessages(RecruitmentStatus());
                 redraw = true;
                 continue;
             }
             if (key == ConsoleKey.Escape) return;
-            if (key == ConsoleKey.UpArrow)
+            if (key is ConsoleKey.UpArrow or ConsoleKey.DownArrow)
             {
-                var previousIndex = selectedIndex;
-                selectedIndex = (selectedIndex - 1 + candidates.Count) % candidates.Count;
-                _renderer.UpdateInnRecruitmentSelection(candidates, recruitmentPrices, previousIndex, selectedIndex);
-                continue;
-            }
-            if (key == ConsoleKey.DownArrow)
-            {
-                var previousIndex = selectedIndex;
-                selectedIndex = (selectedIndex + 1) % candidates.Count;
-                _renderer.UpdateInnRecruitmentSelection(candidates, recruitmentPrices, previousIndex, selectedIndex);
+                selectedIndex = (selectedIndex + (key == ConsoleKey.UpArrow ? -1 : 1) + candidates.Count) % candidates.Count;
+                redraw = true;
                 continue;
             }
             if (key != ConsoleKey.Enter) continue;
             redraw = true;
-
             var recruit = candidates[selectedIndex];
-            var price = recruitmentPrices[recruit];
+            var revision = _revision;
+            var price = RecruitmentOffers().First(offer => offer.CharacterId == recruit.Id).Price;
             if (_partyLeader.Gold < price)
             {
                 message = $"{ConsoleRenderer.MoneyIcon} Nincs elég aranyad: {price - _partyLeader.Gold} arany hiányzik {recruit.Name} felbérléséhez.";
                 continue;
             }
-            LiveCharacter? replaced = null;
+            CharacterId? replacedId = null;
             if (_characterRoster.Party.IsFull)
             {
                 var replaceable = _characterRoster.Party.Members.Skip(1).ToList();
                 var replacementIndex = ChoosePartyMemberToReplace(recruit, replaceable);
                 if (replacementIndex is null)
                 {
-                    message = "A toborzást megszakítottad; választhatsz másik jelöltet.";
+                    message = "A toborzást megszakítottad; a támogatás és az arany megmaradt.";
                     continue;
                 }
-                replaced = replaceable[replacementIndex.Value];
+                replacedId = replaceable[replacementIndex.Value].Id;
             }
-
-            var joined = replaced is null
-                ? _characterRoster.Party.Add(recruit)
-                : _characterRoster.Party.TryReplaceCompanion(replaced, recruit);
-            if (!joined)
-            {
-                message = "A parti időközben megváltozott; válassz újra.";
-                continue;
-            }
-            if (replaced is not null) _characterRoster.Remove(replaced);
-            _partyLeader.SpendGold(price);
-            if (!_characterRoster.Characters.Contains(recruit)) _characterRoster.Add(recruit);
-            recruit.SetNpcJoinOrigin(_innLevel, _innName);
-            _specialRecruitAccepted(recruit);
-            candidates.RemoveAt(selectedIndex);
-            recruitmentPrices.Remove(recruit);
-            message = replaced is null
-                ? $"✅ {recruit.Name} csatlakozott a partihoz{FormatRecruitmentPricePaid(price)}."
-                : $"✅ {recruit.Name} átvette {replaced.Name} helyét{FormatRecruitmentPricePaid(price)}; a régi társ végleg távozott.";
+            TryRecruit(recruit.Id, revision, replacedId, out message);
         }
+        ReportMessage(message);
     }
-
     private static string FormatRecruitmentPricePaid(int price) => price == 0
         ? " ingyen"
         : $" {price} aranyért";
 
     private int RecruitmentPrice(LiveCharacter candidate, int completedLevel) =>
+        _specialRecruitmentPrice(candidate, completedLevel) ??
         RecruitmentRules.Price(candidate.Level, _partyLeader.Level, completedLevel, _random.Next(50, 151));
 
     private int? ChoosePartyMemberToReplace(LiveCharacter recruit, IReadOnlyList<LiveCharacter> replaceable)

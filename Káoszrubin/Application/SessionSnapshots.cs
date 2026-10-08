@@ -10,7 +10,7 @@ namespace KaoszRubin.Application;
 /// <summary>A hálózati szerződés jelenlegi verziója. Inkompatibilis DTO-változáskor növelendő.</summary>
 public static class SessionProtocol
 {
-    public const int Version = 104;
+    public const int Version = 105;
 }
 
 /// <summary>A host doménállapotától leválasztott, JSON-nal továbbítható teljes session-kép.</summary>
@@ -152,7 +152,14 @@ public sealed record InnMenuOptionSnapshot(InnMenuOptionKind Kind, string Label,
 
 public sealed record LevelCompletionSnapshot(Guid CompletionId, int CompletedLevel, int BaseExperience,
     IReadOnlyList<LevelCompletionCharacterSnapshot> Survivors,
-    IReadOnlyList<LevelCompletionFallenSnapshot> FallenCharacters);
+    IReadOnlyList<LevelCompletionFallenSnapshot> FallenCharacters,
+    IReadOnlyList<PartyExpansionPresentationSnapshot>? PartyExpansions = null);
+
+public sealed record PartyExpansionPresentationSnapshot(PartyExpansionMilestone Milestone, int Capacity,
+    string Title, IReadOnlyList<string> Lines);
+
+public sealed record InnRecruitSnapshot(CharacterId CharacterId, string Name, string CharacterClassName,
+    int Level, ConsoleColor Color, int Price, PartyExpansionMilestone? RecruitmentGrant = null);
 
 public sealed record LevelCompletionCharacterSnapshot(string Name, ConsoleColor Color, int GainedExperience,
     int PreviousLevel, int CurrentLevel, int CurrentVitality, int MaximumVitality,
@@ -166,13 +173,15 @@ public sealed record InnSnapshot(long Revision, int PartyGold, IReadOnlyList<Inn
     IReadOnlyList<InnMenuOptionSnapshot>? MenuOptions = null, string ArtisanNotice = "",
     int PartyCount = 0, int PartyFreeBackpackSlots = 0,
     LevelCompletionSnapshot? LevelCompletion = null, string InnName = "", int MazeLevel = 0,
-    int PartyCapacity = PartyCapacityRules.InitialCapacity);
+    int PartyCapacity = PartyCapacityRules.InitialCapacity,
+    IReadOnlyList<InnRecruitSnapshot>? Recruits = null,
+    IReadOnlyList<PartyExpansionMilestone>? RecruitmentGrants = null);
 
 public sealed record InnSellPriceSnapshot(string ItemDefinitionId, int Price, Guid InstanceId = default);
 
 public sealed record InnRumorSnapshot(string Title, IReadOnlyList<string> Lines, ConsoleColor Color);
 
-public enum InnTransactionKind { Purchase, Sale, Service }
+public enum InnTransactionKind { Purchase, Sale, Service, Recruitment }
 
 public sealed record InnTransactionSnapshot(long Sequence, InnTransactionKind Kind, string ActorName,
     string ItemName, int Price, string InventoryOwnerName);

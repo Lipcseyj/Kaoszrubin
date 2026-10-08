@@ -1045,6 +1045,12 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
             foreach (var fallen in completion.FallenCharacters)
                 lines.Add(($"† {fallen.Name} ({fallen.CharacterClassName})", ConsoleColor.DarkRed));
         }
+        foreach (var expansion in completion.PartyExpansions ?? [])
+        {
+            lines.Add((string.Empty, ConsoleColor.Gray));
+            lines.Add(($"🎖️ {expansion.Title}", ConsoleColor.Yellow));
+            lines.AddRange(expansion.Lines.Select(text => (text, ConsoleColor.Cyan)));
+        }
         lines.AddRange([
             (string.Empty, ConsoleColor.Gray),
             (" A fogadó kereskedői már várnak a portékáikkal...", ConsoleColor.Magenta),
@@ -1175,6 +1181,8 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
                                    $"({transaction.Price} arany) ← {transaction.InventoryOwnerName}",
         InnTransactionKind.Service => $"🏰 {transaction.ActorName} fizetett: {transaction.ItemName} " +
                                       $"({transaction.Price} arany)",
+        InnTransactionKind.Recruitment => $"🏰 {transaction.ItemName} csatlakozott " +
+                                         (transaction.Price == 0 ? "ingyen." : $"{transaction.Price} aranyért."),
         _ => $"🏰 {transaction.ActorName}: {transaction.ItemName}"
     };
 
@@ -1747,14 +1755,24 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
     /// <remarks>A jelöltlista nem lehet üres, a selectedIndex érvényes index legyen; felvételt nem hajt végre.</remarks>
     public void DrawInnRecruitmentScreen(IReadOnlyList<LiveCharacter> candidates,
         IReadOnlyDictionary<LiveCharacter, int> prices, int selectedIndex,
-        IReadOnlyList<LiveCharacter> party, int leaderGold, string message, string innName)
+        IReadOnlyList<LiveCharacter> party, int leaderGold, string message, string innName,
+        IReadOnlySet<CharacterId>? supportedRecruitIds = null, int recruitmentGrants = 0)
     {
         ClearInnMenuScreen();
+        DrawCenteredFrame(InnRecruitmentFrameWidth, BuildInnRecruitmentLines(candidates, prices, selectedIndex,
+            party, leaderGold, message, innName, _party.Capacity, supportedRecruitIds, recruitmentGrants), FramedWindow.Inn);
+    }
+    internal static IReadOnlyList<(string Text, ConsoleColor Color)> BuildInnRecruitmentLines(IReadOnlyList<LiveCharacter> candidates,
+        IReadOnlyDictionary<LiveCharacter, int> prices, int selectedIndex,
+        IReadOnlyList<LiveCharacter> party, int leaderGold, string message, string innName, int partyCapacity,
+        IReadOnlySet<CharacterId>? supportedRecruitIds = null, int recruitmentGrants = 0)
+    {
+        var grantText = recruitmentGrants > 0 ? $"    🎖 {recruitmentGrants} támogatás" : string.Empty;
         var lines = new List<(string Text, ConsoleColor Color)>
         {
             ($"🏰🍺  {innName} FOGADÓ ZSOLDOSAI  ⚔️✨", ConsoleColor.Yellow),
             (string.Empty, ConsoleColor.Gray),
-            ($"Parti: {party.Count}/{_party.Capacity} fő     {MoneyIcon} Arany: {leaderGold}", ConsoleColor.Cyan),
+            ($"Parti: {party.Count}/{partyCapacity} fő     {MoneyIcon} Arany: {leaderGold}{grantText}", ConsoleColor.Cyan),
             ("────────────────────────────────────────────────────────────────────────────────────────────", ConsoleColor.DarkMagenta)
         };
         for (var index = 0; index < candidates.Count; index++)
@@ -1762,7 +1780,8 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
             var candidate = candidates[index];
             var selected = index == selectedIndex;
             var mana = candidate.UsesMana ? $"  MP {candidate.MaximumMana}" : string.Empty;
-            var price = prices[candidate] == 0 ? "INGYEN" : $"{prices[candidate]} {MoneyIcon}";
+            var price = supportedRecruitIds?.Contains(candidate.Id) == true ? "TÁMOGATÁSSAL INGYEN" :
+                prices[candidate] == 0 ? "INGYEN" : $"{prices[candidate]} {MoneyIcon}";
             lines.Add(($"{(selected ? "▶" : " ")} {candidate.Name,-13}  {candidate.Race.Name,-10} {candidate.CharacterClass.Name,-10} L{candidate.Level,2}  HP {candidate.MaximumVitality}{mana}  {price}",
                 selected ? ConsoleColor.White : candidate.Color));
         }
@@ -1774,10 +1793,10 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         lines.Add(($"Fegyver: {weapons}  |  Páncél: {shown.Armor?.Name ?? "nincs"}", ConsoleColor.Gray));
         lines.Add(($"Hátizsák: {string.Join(", ", shown.Backpack.Where(item => item is not null).Select(item => item!.Name))}", ConsoleColor.DarkCyan));
         lines.Add((ClipMarketText(message, InnMarketTextWidth), ConsoleColor.Magenta));
-        lines.Add((party.Count >= _party.Capacity
+        lines.Add((party.Count >= partyCapacity
             ? "↑/↓ választás   Enter felvétel és társ lecserélése   Esc vissza a fogadóba"
             : "↑/↓ választás   Enter felvétel   Esc vissza a fogadóba", ConsoleColor.White));
-        DrawCenteredFrame(InnRecruitmentFrameWidth, lines, FramedWindow.Inn);
+        return lines;
     }
 
     /// <summary>A megtelt parti lecserélhető tagjait és a végleges csere figyelmeztetését rajzolja.</summary>

@@ -22,14 +22,17 @@ public sealed record PartyCampaignProgressionSnapshot(
 public sealed record PartyCapacityRules
 {
     public const int InitialCapacity = 4;
-    // Az alakzat, harc és felület bővítéséig az új helyek még nem használhatók.
-    public static PartyCapacityRules Current { get; } = new();
+    // A harmadik ütem az ötödik helyet kapcsolja be; a hatodik külön szállítási ütem.
+    public static PartyCapacityRules Current { get; } = new() { ExpandedPartyEnabled = true, MaximumEnabledCapacity = 5 };
     public bool ExpandedPartyEnabled { get; init; }
+    public int MaximumEnabledCapacity { get; init; } = Party.MaximumSize;
     public int FifthMemberCompletedLevel { get; init; } = 5;
     public int SixthMemberCompletedLevel { get; init; } = 8;
 
     public void Validate()
     {
+        if (MaximumEnabledCapacity < InitialCapacity || MaximumEnabledCapacity > Party.MaximumSize)
+            throw new ArgumentOutOfRangeException(nameof(MaximumEnabledCapacity));
         if (FifthMemberCompletedLevel < 1 || SixthMemberCompletedLevel <= FifthMemberCompletedLevel)
             throw new ArgumentException("A partihelyek kampányküszöbei pozitívak és növekvők legyenek.");
     }
@@ -37,6 +40,16 @@ public sealed record PartyCapacityRules
     public int UnlockedCapacity(int highestCompletedCampaignLevel) =>
         highestCompletedCampaignLevel >= SixthMemberCompletedLevel ? Party.MaximumSize :
         highestCompletedCampaignLevel >= FifthMemberCompletedLevel ? 5 : InitialCapacity;
+
+    public int Capacity(int highestCompletedCampaignLevel) => ExpandedPartyEnabled
+        ? Math.Min(MaximumEnabledCapacity, UnlockedCapacity(highestCompletedCampaignLevel)) : InitialCapacity;
+
+    public bool IsEnabled(PartyExpansionMilestone milestone) => ExpandedPartyEnabled && milestone switch
+    {
+        PartyExpansionMilestone.FifthMember => MaximumEnabledCapacity >= 5,
+        PartyExpansionMilestone.SixthMember => MaximumEnabledCapacity >= 6,
+        _ => false
+    };
 
     public bool IsUnlocked(PartyExpansionMilestone milestone, int highestCompletedCampaignLevel) =>
         milestone switch
