@@ -936,10 +936,20 @@ public sealed class EditorApp
         if (clear)
             Console.Clear();
         WriteAt(2, 0, $"ASCII PORTRAIT EDITOR — Set {_portraitSet}", layout.Width - 4);
-        WriteAt(2, 1, "F2 set | Arrows move | Shift+Left/Right portrait | Space/D draw | E erase | Del clear | P glyph | PgUp/PgDn palette | R rename | LMB drag favourites | MMB pick/copy | RMB pin/unpin | Ctrl+LMB/RMB range | S save | C resize | N new | Esc/Q quit",
-            layout.Width - 4);
+        DrawHotkeyRow(1, layout.Width - 4,
+        [
+            ("F2", "switch portrait set"), ("Arrows", "move"), ("Shift+Left/Right", "switch portrait"),
+            ("Space/D", "draw"), ("E", "erase"), ("Del", "clear"),
+            ("PgUp/PgDn", "page"), ("R", "rename palette page"), ("S", "save art"),
+            ("C", "resize canvas"), ("N", "new art"), ("Esc/Q", "quit")
+        ]);
+        DrawHotkeyRow(2, layout.Width - 4,
+        [
+            ("LMB", "draw / drag favourites"), ("RMB", "erase / pin/unpin"),
+            ("MMB", "pick / copy glyph"), ("Ctrl+LMB/RMB", "range"), ("LMB drag", "reorder favourites")
+        ]);
 
-        for (var y = 2; y < layout.Height - 2; y++)
+        for (var y = 3; y < layout.Height - 2; y++)
             WriteAt(layout.SplitX, y, "│", 1);
 
         DrawCanvasPanel(layout);
@@ -947,7 +957,44 @@ public sealed class EditorApp
         DrawStatus(layout);
 
         if (layout.Width < _canvasWidth + 5 || layout.Height < _canvasHeight + 8)
-            WriteAt(2, Math.Min(2, layout.Height - 1), "Enlarge the terminal to see both framed panels.", layout.Width - 4);
+            WriteAt(2, Math.Min(3, layout.Height - 1), "Enlarge the terminal to see both framed panels.", layout.Width - 4);
+    }
+
+    private static void DrawHotkeyRow(int y, int maximumWidth, (string Key, string Description)[] hotkeys)
+    {
+        if (maximumWidth <= 0)
+            return;
+
+        var originalColor = Console.ForegroundColor;
+        var x = 2;
+        var right = x + maximumWidth;
+        try
+        {
+            Console.ForegroundColor = ConsoleColor.Gray;
+            WriteAt(x, y, new string(' ', maximumWidth), maximumWidth);
+            foreach (var (key, description) in hotkeys)
+            {
+                if (x > 2)
+                {
+                    Console.ForegroundColor = ConsoleColor.Gray;
+                    WriteAt(x, y, " | ", right - x);
+                    x += 3;
+                }
+
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                WriteAt(x, y, key, right - x);
+                x += key.Length;
+                Console.ForegroundColor = ConsoleColor.Gray;
+                WriteAt(x, y, $" {description}", right - x);
+                x += description.Length + 1;
+                if (x >= right)
+                    break;
+            }
+        }
+        finally
+        {
+            Console.ForegroundColor = originalColor;
+        }
     }
 
     private void DrawCanvasPanel(EditorLayout layout)
@@ -1031,10 +1078,10 @@ public sealed class EditorApp
         var canvasFrameY = Math.Max(3, (height - canvasFrameHeight) / 2);
         var paletteFrameX = Math.Min(width - 1, splitX + 1);
         var paletteFrameWidth = Math.Max(3, width - paletteFrameX - 1);
-        var paletteFrameY = 2;
-        var paletteFrameHeight = Math.Max(3, height - 4);
+        var paletteFrameY = 3;
+        var paletteFrameHeight = Math.Max(3, height - 5);
         var paletteColumns = Math.Max(1, (paletteFrameWidth - 2) / PaletteCellWidth);
-        var paletteRows = Math.Max(1, paletteFrameHeight - 4);
+        var paletteRows = Math.Max(1, paletteFrameHeight - 3);
         var palettePageSize = paletteColumns * paletteRows;
         return new EditorLayout(width, height, splitX,
             canvasFrameX, canvasFrameY, canvasFrameWidth, canvasFrameHeight,
@@ -1087,7 +1134,7 @@ public sealed class EditorApp
         int PaletteLength)
     {
         public int PaletteItemsLeft => PaletteFrameX + 1;
-        public int PaletteItemsTop => PaletteFrameY + 3;
+        public int PaletteItemsTop => PaletteFrameY + 2;
         public int PalettePageCount => 1 + Math.Max(1, (PaletteLength + PalettePageSize - 1) / PalettePageSize);
     }
 
