@@ -40,7 +40,8 @@ public sealed class GameSaveService
     {
         var state = DeserializeAndMigrate(File.ReadAllText(path));
         if (string.IsNullOrWhiteSpace(state.RosterJson)) throw new InvalidOperationException("A mentés nem tartalmaz karakteradatokat.");
-        var roster = _characterSaveService.Deserialize(state.RosterJson, state.PartyCampaignProgression);
+        var roster = _characterSaveService.Deserialize(state.RosterJson, state.PartyCampaignProgression,
+            developerBattleTest: state.LocationId == DeveloperBattleTestScenarioBuilder.LocationId);
         if (roster.SelectedCharacter is null) throw new InvalidOperationException("A mentés nem tartalmaz érvényes főkaraktert.");
         return new LoadedGameSave(path, roster, state);
     }

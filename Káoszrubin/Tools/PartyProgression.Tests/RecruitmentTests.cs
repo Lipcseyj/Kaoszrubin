@@ -36,7 +36,12 @@ internal static class RecruitmentTests
         ("Teli hatos parti és elavult ajánlat nem használhatja újra a második támogatást", SixthFullParty),
         ("A 9–10. kampánypálya generált területein mindkét nagy alakzat elhelyezhető", SixthCampaignLayouts),
         ("A támogatott toborzás teljes leírása tördelve elfér a fogadói menüben", MenuDescriptionLayout),
-        ("Toborzás után a panel lapozás nélkül megjeleníti az új partitagot", RecruitmentPanelRefresh)
+        ("Toborzás után a panel lapozás nélkül megjeleníti az új partitagot", RecruitmentPanelRefresh),
+        ("A fogadó alapellátása a feloldott kapacitással nő, a prémiumkészlet változatlan", SupplyScaling),
+        ("A tesztgenerátor 4/5/6 tagot és a választott járható induló alakzatot készíti", DeveloperPartyLayouts),
+        ("A tesztparti nem old fel kampányjutalmat, és normál visszaállításkor megszűnik az eltérés", DeveloperCapacity),
+        ("A harci tesztparti mentése hat tagot őriz meg, a normál kampány korlátja megmarad", DeveloperSave),
+        ("Az érvénytelen tesztlétszám és túl kicsi alakzat elutasítható", DeveloperOptions)
     ];
 
     private static void Check(bool value, string message) { if (!value) throw new InvalidOperationException(message); }
@@ -500,6 +505,127 @@ internal static class RecruitmentTests
                     "Az új társ státuszsora nem frissült azonnal, vagy megváltozott a megjelenített karakter.");
             }
             finally { Console.SetOut(original); output.Dispose(); }
+        }
+    }
+
+    private static Dictionary<string, int> StockCounts(InnController inn, string method, params object[] arguments)
+    {
+        var stock = (System.Collections.IEnumerable)inn.GetType().GetMethods(BindingFlags.NonPublic | BindingFlags.Instance)
+            .Single(value => value.Name == method && value.GetParameters().Length == arguments.Length).Invoke(inn, arguments)!;
+        return stock.Cast<object>().GroupBy(offer => ((IItemDefinition)offer.GetType().GetProperty("Item")!.GetValue(offer)!).Id)
+            .ToDictionary(group => group.Key, group => group.Sum(offer =>
+                (int)offer.GetType().GetProperty("StockCount")!.GetValue(offer)!));
+    }
+
+    public static void SupplyScaling()
+    {
+        var baselineRoster = Fixture(completed: 4).Roster;
+        var baselineMarket = StockCounts(Controller(baselineRoster, 471), "CreateMerchantStock", 8);
+        var baselineMedicine = StockCounts(Controller(baselineRoster, 471), "CreateWitcherStock", 8);
+        var baselinePremium = StockCounts(Controller(baselineRoster, 471), "CreateMerchantStock", 8, 8, 1.0, true, true, true);
+        foreach (var (completed, capacity) in new[] { (5, 5), (8, 6) })
+        {
+            var roster = Fixture(completed: completed).Roster; // Four actual members, unlocked capacity determines supply.
+            var market = StockCounts(Controller(roster, 471), "CreateMerchantStock", 8);
+            foreach (var (id, count) in new[] { ("T001", 4), ("T002", 8), ("T004", 2), ("T005", 2) })
+                Check(market[id] - baselineMarket[id] == (count * capacity + 3) / 4 - count, "Hibás élelem/víz szorzó.");
+            Check(baselineMarket.Where(pair => pair.Key is not ("T001" or "T002" or "T004" or "T005"))
+                .All(pair => market.GetValueOrDefault(pair.Key) == pair.Value), "Felszerelés vagy ritka készlet is megsokszorozódott.");
+            var medicines = StockCounts(Controller(roster, 471), "CreateWitcherStock", 8);
+            foreach (var pair in baselineMedicine)
+                Check(medicines[pair.Key] == (pair.Key is "T011" or "T012" or "T014" or "T018" or "T019"
+                    ? (pair.Value * capacity + 3) / 4 : pair.Value), "Hibás alapgyógyszer- vagy prémiumital-mennyiség.");
+            var premium = StockCounts(Controller(roster, 471), "CreateMerchantStock", 8, 8, 1.0, true, true, true);
+            Check(premium.Count == baselinePremium.Count && baselinePremium.All(pair => premium[pair.Key] == pair.Value),
+                "A titkos raktár készlete is nőtt.");
+        }
+    }
+
+    public static void DeveloperPartyLayouts()
+    {
+        foreach (var leaderClass in Catalog.CharacterClasses)
+        foreach (var size in new[] { 4, 5, 6 })
+        foreach (var shape in Enum.GetValues<PartyFormationShape>().Where(shape => size == 4 || shape != PartyFormationShape.Block2x2))
+        {
+            var leader = Character($"Teszt{size}{shape}{leaderClass.Id}", 8, leaderClass.Id);
+            var options = new DeveloperBattleTestOptions(8, 2, 3, size, shape);
+            var companions = DeveloperBattleTestPartyBuilder.CreateCompanions(Catalog, options, leader, [leader.Name],
+                new Random(options.RandomSeed));
+            var members = companions.Prepend(leader).ToArray();
+            Check(members.Length == size && members.Select(member => member.CharacterClass.Id).Distinct().Count() == size &&
+                companions.All(member => member.Level == 8 && member.ActiveWeapons.Any(weapon => weapon is not null)),
+                "A tesztparti létszáma, kasztja vagy szinthez igazított felszerelése hibás.");
+            var scenario = DeveloperBattleTestScenarioBuilder.Create(ConsoleRenderer.PlayfieldWidth, ConsoleRenderer.PlayfieldHeight,
+                options, Catalog.Enemies, new Random(options.RandomSeed), 30);
+            var formation = PartyFormationRules.WithShape(PartyFormationRules.CreateDefault(members.Select(member => member.Id),
+                leader.Id, Direction.Up), shape);
+            var positions = PartyFormationRules.Positions(formation, leader.Id, scenario.LeaderPosition);
+            Check(positions.Count == size && positions.Values.Distinct().Count() == size &&
+                positions.Values.All(position => scenario.Maze.Rooms.Single().Contains(position) &&
+                    scenario.Maze.IsWalkable(position) && scenario.Maze.GetObjectAt(position) is null),
+                "Az induló tesztalakzat falba vagy foglalt mezőre kerül.");
+            var baseline = DeveloperBattleTestScenarioBuilder.Create(ConsoleRenderer.PlayfieldWidth, ConsoleRenderer.PlayfieldHeight,
+                new(8, 2, 3), Catalog.Enemies, new Random(options.RandomSeed), 30);
+            Check(scenario.Maze.Enemies.Select(enemy => (enemy.Position, enemy.Name, enemy.CurrentHitPoints))
+                .SequenceEqual(baseline.Maze.Enemies.Select(enemy => (enemy.Position, enemy.Name, enemy.CurrentHitPoints))),
+                "Azonos mag mellett a parti létszáma megváltoztatta az ellenfeleket.");
+        }
+    }
+
+    public static void DeveloperCapacity()
+    {
+        var leader = Character("Tesztvezér");
+        var companions = Catalog.CharacterClasses.Where(value => value.Id != leader.CharacterClass.Id)
+            .Select(value => Character(value.Id, 8, value.Id)).ToArray();
+        var party = new Party(); party.SetLeader(leader);
+        party.RestoreForDeveloperTest(leader, companions, 6);
+        Check(party.Capacity == 6 && party.Members.Count == 6 && party.UnlockedCapacity == 4 &&
+            party.CampaignProgression.HighestCompletedCampaignLevel == 0 && party.AvailableRecruitmentGrants.Count == 0 &&
+            !party.Add(Character("Hetedik")), "A tesztparti kampányjutalmat adott vagy túlcsordult.");
+        party.Restore(leader, companions);
+        Check(party.Capacity == 4 && party.Members.Count == 4, "Normál visszaállításkor megmaradt a tesztkapacitás.");
+        party.RestoreForDeveloperTest(leader, companions.Take(3), 4);
+        party.StartNewCampaign(); party.RecordCampaignLevelCompletion(8);
+        Check(party.Capacity == 6, "Új kampányban megmaradt a négyfős tesztkapacitás.");
+    }
+
+    public static void DeveloperSave()
+    {
+        var roster = new CharacterRoster(); var leader = Character("Mentett teszt"); roster.Add(leader); roster.Select(leader);
+        var options = new DeveloperBattleTestOptions(8, 2, 3, 6, PartyFormationShape.Wide3x2);
+        var companions = DeveloperBattleTestPartyBuilder.CreateCompanions(Catalog, options, leader, [leader.Name], new(42));
+        foreach (var member in companions) roster.Add(member);
+        roster.Party.RestoreForDeveloperTest(leader, companions, 6);
+        var directory = Path.Combine(Path.GetTempPath(), $"party-dev-{Guid.NewGuid():N}");
+        try
+        {
+            var characters = new CharacterSaveService(Path.Combine(directory, "characters.json"), Catalog);
+            var saves = new GameSaveService(directory, characters);
+            var path = saves.Save(new GameSaveData { MainCharacterName = leader.Name, MazeLevel = 8,
+                LocationId = DeveloperBattleTestScenarioBuilder.LocationId }, roster);
+            var loaded = saves.Load(path);
+            Check(loaded.Roster.Party.Members.Count == 6 && loaded.Roster.Party.Capacity == 6 &&
+                loaded.Roster.Party.UnlockedCapacity == 4 && loaded.Roster.Party.AvailableRecruitmentGrants.Count == 0,
+                "Tesztmentésből elvesztek tagok vagy kampányjutalom keletkezett.");
+            var normal = characters.Deserialize(characters.Serialize(roster), roster.Party.CampaignProgression);
+            Check(normal.Party.Members.Count == 4 && normal.Party.Capacity == 4, "Normál karakterbetöltés megkerülte a kampánykorlátot.");
+        }
+        finally
+        {
+            Check(Path.GetFullPath(directory).StartsWith(Path.GetFullPath(Path.GetTempPath()), StringComparison.OrdinalIgnoreCase),
+                "A tesztkönyvtár az ideiglenes gyökéren kívülre mutat.");
+            if (Directory.Exists(directory)) Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    public static void DeveloperOptions()
+    {
+        foreach (var options in new DeveloperBattleTestOptions[] { new(8, 2, 3, 3), new(8, 2, 3, 7),
+            new(8, 2, 3, 6, PartyFormationShape.Block2x2), new(8, 2, 3, 5, (PartyFormationShape)123), new(8, 2, 3, RandomSeed: -1) })
+        {
+            var rejected = false;
+            try { options.Validate(30); } catch (ArgumentOutOfRangeException) { rejected = true; }
+            Check(rejected, "Érvénytelen tesztbeállítás elfogadva.");
         }
     }
 

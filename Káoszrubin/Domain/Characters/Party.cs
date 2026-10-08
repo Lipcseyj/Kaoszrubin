@@ -8,6 +8,7 @@ public sealed class Party
     private readonly List<LiveCharacter> _members = [];
     private readonly PartyCapacityRules _capacityRules;
     private PartyCampaignProgressionSnapshot _campaignProgression = new();
+    private int? _developerCapacity;
 
     public Party(PartyCapacityRules? capacityRules = null)
     {
@@ -42,6 +43,7 @@ public sealed class Party
         {
             if (_members.Count > PartyCapacityRules.InitialCapacity)
                 throw new InvalidOperationException("Új kampány legfeljebb négyfős csapattal indítható.");
+            _developerCapacity = null;
             _campaignProgression = new();
         }
     }
@@ -95,6 +97,7 @@ public sealed class Party
         ArgumentNullException.ThrowIfNull(leader);
         lock (_gate)
         {
+            _developerCapacity = null;
             _members.Clear();
             _members.Add(leader);
         }
@@ -128,6 +131,7 @@ public sealed class Party
         ArgumentNullException.ThrowIfNull(members);
         lock (_gate)
         {
+            _developerCapacity = null;
             var restored = members.Prepend(leader).DistinctBy(member => member.Id)
                 .Take(CurrentCapacity()).ToArray();
             _members.Clear();
@@ -135,9 +139,25 @@ public sealed class Party
         }
     }
 
-    public void Clear() { lock (_gate) _members.Clear(); }
+    /// <summary>Isolated developer roster override; never completes a campaign milestone or grants recruitment rewards.</summary>
+    internal void RestoreForDeveloperTest(LiveCharacter leader, IEnumerable<LiveCharacter> companions, int capacity)
+    {
+        ArgumentNullException.ThrowIfNull(leader);
+        ArgumentNullException.ThrowIfNull(companions);
+        if (capacity is < 4 or > MaximumSize) throw new ArgumentOutOfRangeException(nameof(capacity));
+        var members = companions.Prepend(leader).DistinctBy(member => member.Id).ToArray();
+        if (members.Length != capacity) throw new ArgumentException("A tesztparti létszáma eltér a beállítástól.");
+        lock (_gate)
+        {
+            _developerCapacity = capacity;
+            _members.Clear();
+            _members.AddRange(members);
+        }
+    }
 
-    private int CurrentCapacity() => _capacityRules.Capacity(_campaignProgression.HighestCompletedCampaignLevel);
+    public void Clear() { lock (_gate) { _members.Clear(); _developerCapacity = null; } }
+
+    private int CurrentCapacity() => _developerCapacity ?? _capacityRules.Capacity(_campaignProgression.HighestCompletedCampaignLevel);
 
     private bool TryAdd(LiveCharacter character)
     {

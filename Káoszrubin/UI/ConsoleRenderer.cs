@@ -1962,23 +1962,28 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
     {
         _spellCastingOverlaySnapshot = null;
         var selected = 0;
-        var values = new[] { Math.Clamp(currentPartyLevel, 1, maximumPartyLevel), 3, 4 };
-        var minimums = new[] { currentPartyLevel, 1, 1 };
+        var values = new[] { Math.Clamp(currentPartyLevel, 1, maximumPartyLevel), 3, 4, 4, 0, 4201 };
+        var minimums = new[] { currentPartyLevel, 1, 1, 4, 0, 0 };
         var maximums = new[] { maximumPartyLevel, DeveloperBattleTestOptions.MaximumEnemyGroupCount,
-            DeveloperBattleTestOptions.MaximumEnemiesPerGroup };
-        var labels = new[] { "Parti cél-szintje", "Ellenségcsoportok", "Ellenségek csoportonként" };
+            DeveloperBattleTestOptions.MaximumEnemiesPerGroup, Party.MaximumSize, 2, 999999 };
+        var labels = new[] { "Parti cél-szintje", "Ellenségcsoportok", "Ellenségek csoportonként", "Parti létszáma", "Alakzat", "Térképmag" };
         while (true)
         {
             var lines = new List<(string Text, ConsoleColor Color)>
             {
                 ("🧪⚔  HARCI TESZTPÁLYA  ⚔🧪", ConsoleColor.Magenta),
-                ("A jelenlegi vezér megmarad; a régi társakat Mágus, Pap és Lovag váltja.", ConsoleColor.Cyan),
+                ("A vezér megmarad; 4, 5 vagy 6 fős tesztparti választható eltérő kasztú társakkal.", ConsoleColor.Cyan),
                 ("A választott szint nem lehet alacsonyabb a vezér jelenlegi szintjénél.", ConsoleColor.DarkYellow),
                 (string.Empty, ConsoleColor.Gray)
             };
+            minimums[4] = values[3] > 4 ? 1 : 0;
+            values[4] = Math.Max(minimums[4], values[4]);
             for (var index = 0; index < labels.Length; index++)
-                lines.Add(($"{(index == selected ? "▶" : " ")} {labels[index],-27}: {values[index],2}",
+            {
+                var value = index == 4 ? PartyFormationRules.ShapeName((PartyFormationShape)values[index]) : values[index].ToString();
+                lines.Add(($"{(index == selected ? "▶" : " ")} {labels[index],-27}: {value}",
                     index == selected ? ConsoleColor.Yellow : ConsoleColor.Gray));
+            }
             lines.Add((string.Empty, ConsoleColor.Gray));
             lines.Add(("↑/↓ mező   ←/→ érték   Enter létrehozás   Esc mégsem", ConsoleColor.Green));
             DrawSpellCastingOverlay(82, lines, maze, fogOfWar, playerPosition);
@@ -1995,7 +2000,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
                     break;
                 case ConsoleKey.Enter:
                     RestoreSpellCastingOverlay();
-                    return new DeveloperBattleTestOptions(values[0], values[1], values[2]);
+                    return new DeveloperBattleTestOptions(values[0], values[1], values[2], values[3], (PartyFormationShape)values[4], values[5]);
                 case ConsoleKey.Escape:
                     RestoreSpellCastingOverlay();
                     return null;

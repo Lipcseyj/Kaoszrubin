@@ -1,9 +1,11 @@
 using KaoszRubin.Domain.Combat;
+using KaoszRubin.Domain.Characters;
 using KaoszRubin.World;
 
 namespace KaoszRubin.Application;
 
-public sealed record DeveloperBattleTestOptions(int PartyLevel, int EnemyGroupCount, int EnemiesPerGroup)
+public sealed record DeveloperBattleTestOptions(int PartyLevel, int EnemyGroupCount, int EnemiesPerGroup,
+    int PartySize = 4, PartyFormationShape FormationShape = PartyFormationShape.Block2x2, int RandomSeed = 4201)
 {
     public const int MinimumPartyLevel = 1;
     public const int MaximumEnemyGroupCount = 8;
@@ -11,6 +13,10 @@ public sealed record DeveloperBattleTestOptions(int PartyLevel, int EnemyGroupCo
 
     public void Validate(int maximumPartyLevel)
     {
+        if (RandomSeed < 0) throw new ArgumentOutOfRangeException(nameof(RandomSeed));
+        if (PartySize is < 4 or > Party.MaximumSize) throw new ArgumentOutOfRangeException(nameof(PartySize));
+        if (!Enum.IsDefined(FormationShape) || PartySize > 4 && FormationShape == PartyFormationShape.Block2x2)
+            throw new ArgumentOutOfRangeException(nameof(FormationShape), "A választott alakzatban nincs elég hely.");
         if (PartyLevel < MinimumPartyLevel || PartyLevel > maximumPartyLevel)
             throw new ArgumentOutOfRangeException(nameof(PartyLevel));
         if (EnemyGroupCount is < 1 or > MaximumEnemyGroupCount)
@@ -27,6 +33,7 @@ public sealed record DeveloperBattleTestScenario(Maze Maze, Position LeaderPosit
 /// <summary>Nyílt, ismételhető harci tesztteret épít a kézi AI- és balanszpróbákhoz.</summary>
 public static class DeveloperBattleTestScenarioBuilder
 {
+    public const string LocationId = "DEVELOPER_COMBAT_TEST";
     public const int StartingRoomSize = 4;
     public const int CorridorWidth = 2;
     public const int CorridorLength = 8;
@@ -123,7 +130,7 @@ public static class DeveloperBattleTestScenarioBuilder
 
     private static void BuildLockedStartingRoom(Maze maze, Position leaderPosition)
     {
-        var room = new Room(new Position(leaderPosition.X - 2, leaderPosition.Y - 2),
+        var room = new Room(new Position(leaderPosition.X - 1, leaderPosition.Y - 1),
             StartingRoomSize, StartingRoomSize);
         var left = room.TopLeft.X - 1;
         var right = room.TopLeft.X + room.Width;

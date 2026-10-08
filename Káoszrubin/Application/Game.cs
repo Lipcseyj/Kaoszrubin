@@ -36,7 +36,7 @@ public sealed partial class Game : ISessionCommandHandler
     private const string EliraStoryId = "ELIRA_RESCUE";
     private const string RodericStoryId = "RODERIC_OATH";
     private const string RodericMalrecQuestId = "NPCQ039";
-    private const string DeveloperBattleTestLocationId = "DEVELOPER_COMBAT_TEST";
+    private const string DeveloperBattleTestLocationId = DeveloperBattleTestScenarioBuilder.LocationId;
     private const int RodericPermanentJoinFriendliness = 8;
     private const int ZombieSpeed = 2;
     private const int ZombieMoveIntervalMilliseconds = 700;

@@ -751,6 +751,12 @@ internal sealed partial class InnController
             ? CreateSecretStashSupplies()
             : new[] { "T001", "T001", "T001", "T001", "T004", "T005", "T004", "T005", "T002", "T002", "T002", "T002", "T002", "T002", "T002", "T002", "T025", "T025", MiscItemIds.RepairKit, MiscItemIds.RepairKit };
 
+        if (!includePremiumSupplies && _characterRoster.Party.Capacity > PartyCapacityRules.InitialCapacity)
+            fixedExtras = fixedExtras.GroupBy(itemId => itemId)
+                .SelectMany(group => Enumerable.Repeat(group.Key,
+                    group.Key is "T001" or "T002" or "T004" or "T005"
+                        ? ScaleBasicSupplyCount(group.Count()) : group.Count())).ToArray();
+
         foreach (var itemId in fixedExtras)
         {
             var fixedItem = _gameData.Items.FirstOrDefault(i => string.Equals(i.Id, itemId, StringComparison.OrdinalIgnoreCase));
@@ -1235,8 +1241,16 @@ internal sealed partial class InnController
         AddWitcherExtraStock(allowedItems, stock, completedLevel, 8, "T013");
         AddWitcherExtraStock(allowedItems, stock, completedLevel, 10, "T013");
 
+        var extraSupplies = stock.Where(offer => offer.Item.Id is "T011" or "T012" or "T014" or "T018" or "T019")
+            .GroupBy(offer => offer.Item.Id).SelectMany(group => Enumerable.Repeat(group.First(),
+                ScaleBasicSupplyCount(group.Count()) - group.Count())).ToArray();
+        stock.AddRange(extraSupplies);
         return stock.OrderBy(offer => offer.Price).ToList();
     }
+
+    private int ScaleBasicSupplyCount(int baseCount) =>
+        (baseCount * _characterRoster.Party.Capacity + PartyCapacityRules.InitialCapacity - 1) /
+        PartyCapacityRules.InitialCapacity;
 
     private void AddWitcherExtraStock(IReadOnlyList<MiscItemDefinition> allowedItems, ICollection<InnStockOffer> stock,
         int completedLevel, int minimumLevel, string itemId)

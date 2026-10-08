@@ -48,10 +48,21 @@
 - A meglévő 37-es mentésformátum és 105-ös protokoll már tartalmazza az összes szükséges mezőt; ehhez az ütemhez nincs új adatszerződés. A hatos csapat, a széles forma, a hat slot és a két jutalom állapota a korábbi mentési és replikációs utakon működik.
 - A kampánypályák konfigurációja, ellenfélértékei és XP-szabályai nem változtak; a folyamatban lévő pályabalansz megmaradt.
 
+## Ötödik ütem: ellátás és összehasonlítható harci tesztparti
+
+- A normál kereskedő garantált alap-élelem- és vízkészlete a feloldott kapacitás 4-hez viszonyított arányával nő, típusonként felfelé kerekítve. Például 4 útravaló helyett öt férőhelynél 5, hatnál 6, a 8 kulacs helyett 10, illetve 12 kerül kínálatba. A pillanatnyi élő létszám nem csökkenti ezt.
+- A vajákos kis és normál gyógyitalának, kis varázsitalának, gyógyfüves orvosságának és kötésének készlete ugyanezzel a szorzóval nő. A nagy italok, ritka felszerelések, titkos raktári portéka, fáklyák és javítókészletek mennyisége nem változik. A többlet megvásárolható készlet; a korábbi árképzés és tranzakciók működnek.
+- A fejlesztői harci teszt beállításaiban (Ctrl+Alt+T) választható 4, 5 vagy 6 tag és 2×2, 2×3 vagy 3×2 alakzat. Öt és hat taghoz a 2×2 nem választható. A vezér megmarad, a társak különböző kasztúak, a választott szinten és szinthez igazított felszereléssel készülnek.
+- A tesztparti a kiválasztott alakzatban, felfelé nézve és összeállva indul. A kezdőszoba elhelyezése minden választható rácshoz járható helyet biztosít; a kulcsra zárt szoba és a kétmezős próba-folyosó megmarad.
+- A térképmag beállítható (alapérték 4201). Az ellenfelek külön, ebből a magból induló generálást használnak, ezért a csapatlétszám vagy formaválasztás nem változtatja meg az összehasonlított ellenfélkészletet. A tesztnapló rögzíti a létszámot, alakzatot és magot.
+- A tesztkapacitás külön fejlesztői eltérés: nem jelöl főpályát teljesítettnek, nem ad támogatást vagy feloldási történetet. Normál partivisszaállítás, vezető kiválasztása, törlés és új kampány megszünteti. Tesztpálya-mentés betöltésekor a tárolt taglista megmarad; normál karakterbetöltés továbbra is a kampánykapacitást követi.
+- Öt új regressziós próba ellenőrzi az alapellátás szorzóit és a prémiumkészlet változatlanságát, mind a hat lehetséges vezérkaszttal a 4/5/6 fős generálást és induló rácsot, az azonos magú ellenfélkészletet, a kampányjutalom elkülönítését, a tesztmentést és az érvénytelen opciókat.
+- A korábbi fogadói javításokkal együtt a hosszú menüleírás automatikusan tördelődik, és sikeres toborzás után az új tag státuszsora azonnal frissül.
+
 ## Ellenőrzés
 
 - Játékfordítás: **0 hiba, 0 figyelmeztetés**.
-- Önálló regressziós csomag: **62/62 sikeres**. Kapacitás és támogatások, párhuzamos felvétel, régi/questmentés-migráció, hat tag felszerelésének mentése, mindkét téglalap minden nézési iránnyal és vezérhellyel, üres slot, libasor, előre tervezett forgatás, foglalt/elérhetetlen cél, követő elhelyezése, sorvédelem, hatótáv, sorcsere és lekötésátadás, felkészítés, parancsadatok, ikonok és a panel rajzolási útja.
+- Önálló regressziós csomag: **69/69 sikeres**. Kapacitás és támogatások, párhuzamos felvétel, régi/questmentés-migráció, hat tag felszerelésének mentése, mindkét téglalap minden nézési iránnyal és vezérhellyel, üres slot, libasor, előre tervezett forgatás, foglalt/elérhetetlen cél, követő elhelyezése, sorvédelem, hatótáv, sorcsere és lekötésátadás, felkészítés, parancsadatok, ikonok és a panel rajzolási útja.
 - Meglévő teljes regressziós csomag: **424/424 sikeres**. A korábban javított `ForestTerrainAmbushPlacementIsStable` továbbra is átmegy; a pályabalansz ehhez az ütemhez nem változott.
 - A harmadik ütem 15 további próbája ellenőrzi az éles 5/8-as küszöböket, a korábbi ütemből megőrzött hatos jogosultság érvényesülését, mind a hat kaszt támogatott generálását, a hiányzó kaszt garantálását, a halasztást, a normál és egyedi felvételt, a teli partit és társcserét, a jutalmazási sorrendet, a történetet, a mentést és a coop adatokat.
 - A 6., 7. és 8. pálya tényleges kampánygenerátorával két-két térképmag mellett minden generált terület kezdőterében ellenőriztük az ötfős menetoszlop elhelyezhetőségét és a harmadik sor harci sugarát. A 6. pálya a csomagolt JSON erdőgráfot használta. A pályakonfiguráció és az encounterek balansza nem változott.
