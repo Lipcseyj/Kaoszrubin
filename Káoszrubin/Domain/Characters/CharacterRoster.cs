@@ -10,7 +10,8 @@ public sealed class CharacterRoster
     private readonly List<LiveCharacter> _characters = [];
     private readonly Dictionary<CharacterId, CharacterCampaignBinding> _campaigns = [];
     public IReadOnlyList<LiveCharacter> Characters => _characters;
-    public Party Party { get; } = new();
+    public CharacterRoster(PartyCapacityRules? capacityRules = null) => Party = new(capacityRules);
+    public Party Party { get; }
     public LiveCharacter? SelectedCharacter { get; private set; }
     public CharacterCampaignBinding? CampaignOf(LiveCharacter character) => _campaigns.GetValueOrDefault(character.Id);
     public void BindCampaign(LiveCharacter character, Guid campaignId, int level,

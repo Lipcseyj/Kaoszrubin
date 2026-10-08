@@ -48,17 +48,33 @@ public static class PartyFormationAssemblyPlanner
         if (!targets.TryGetValue(leaderId, out var leaderTarget) || leaderTarget != leaderPosition)
             return new([], "A vezér nincs a kijelölt alakzati helyén.");
 
-        var members = maze.PartyMembers.Where(member => member.Character.IsAlive).ToArray();
-        var selected = targets.Where(pair => pair.Key != leaderId)
+        return PlanCore(maze, leaderPosition, leaderId, targets,
+            maze.PartyMembers.Where(member => member.Character.IsAlive).ToArray(), leaderFixed: true);
+    }
+
+    /// <summary>Minden résztvevő lépésenkénti útját előre tervezi, a mozgó vezért is beleértve.</summary>
+    public static Result PlanRelocation(Maze maze, Position leaderPosition, LiveCharacter leader,
+        IReadOnlyDictionary<CharacterId, Position> targets)
+    {
+        if (!targets.ContainsKey(leader.Id)) return new([], "Hiányzik a vezér célmezője.");
+        var members = maze.PartyMembers.Where(member => member.Character.IsAlive && member.Character.Id != leader.Id)
+            .Prepend(new PartyMemberAvatar(leaderPosition, leader)).ToArray();
+        return PlanCore(maze, leaderPosition, leader.Id, targets, members, leaderFixed: false);
+    }
+
+    private static Result PlanCore(Maze maze, Position leaderPosition, CharacterId leaderId,
+        IReadOnlyDictionary<CharacterId, Position> targets, PartyMemberAvatar[] members, bool leaderFixed)
+    {
+        var selected = targets.Where(pair => !leaderFixed || pair.Key != leaderId)
             .Select(pair => (Index: Array.FindIndex(members, member => member.Character.Id == pair.Key),
                 Target: pair.Value)).ToArray();
         if (selected.Any(entry => entry.Index < 0))
             return new([], "Egy kijelölt partitag nincs ezen a képernyőn.");
         if (targets.Values.Distinct().Count() != targets.Count ||
-            selected.Any(entry => !CanTraverse(maze, entry.Target, leaderPosition)))
+            selected.Any(entry => !CanTraverse(maze, entry.Target, leaderPosition, leaderFixed)))
             return new([], "Az alakzat egyik célmezője nem járható vagy foglalt.");
 
-        var distances = selected.Select(entry => DistancesFrom(maze, entry.Target, leaderPosition)).ToArray();
+        var distances = selected.Select(entry => DistancesFrom(maze, entry.Target, leaderPosition, leaderFixed)).ToArray();
         var start = members.Select(member => member.Position).ToArray();
         if (selected.Where((entry, index) => !distances[index].ContainsKey(start[entry.Index])).Any())
             return new([], "Egy partitag nem tud eljutni a kijelölt helyére.");
@@ -95,7 +111,7 @@ public static class PartyFormationAssemblyPlanner
             {
                 var from = current.Positions[memberIndex];
                 var to = from + direction;
-                if (!CanTraverse(maze, to, leaderPosition)) continue;
+                if (!CanTraverse(maze, to, leaderPosition, leaderFixed)) continue;
                 var otherIndex = Array.IndexOf(current.Positions, to);
                 var next = (Position[])current.Positions.Clone();
                 next[memberIndex] = to;
@@ -113,7 +129,7 @@ public static class PartyFormationAssemblyPlanner
         return new([], "A jelenlegi akadályok mellett az alakzat nem tud összeállni.");
     }
 
-    private static Dictionary<Position, int> DistancesFrom(Maze maze, Position target, Position leaderPosition)
+    private static Dictionary<Position, int> DistancesFrom(Maze maze, Position target, Position leaderPosition, bool leaderFixed)
     {
         var distances = new Dictionary<Position, int> { [target] = 0 };
         var queue = new Queue<Position>();
@@ -122,16 +138,16 @@ public static class PartyFormationAssemblyPlanner
             foreach (var direction in Directions)
             {
                 var next = current + direction;
-                if (distances.ContainsKey(next) || !CanTraverse(maze, next, leaderPosition)) continue;
+                if (distances.ContainsKey(next) || !CanTraverse(maze, next, leaderPosition, leaderFixed)) continue;
                 distances.Add(next, distances[current] + 1);
                 queue.Enqueue(next);
             }
         return distances;
     }
 
-    private static bool CanTraverse(Maze maze, Position position, Position leaderPosition)
+    private static bool CanTraverse(Maze maze, Position position, Position leaderPosition, bool leaderFixed)
     {
-        if (position == leaderPosition || !maze.IsWalkable(position) ||
+        if (leaderFixed && position == leaderPosition || !maze.IsWalkable(position) ||
             maze.GetEnemyAt(position) is not null ||
             maze.GetTrapAt(position) is { State: TrapState.Detected }) return false;
         var occupant = maze.GetObjectAt(position);

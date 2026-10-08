@@ -31,7 +31,7 @@ public sealed class DeveloperBattleLog
             if (!TryOpenNewLog("scenario")) return;
         }
 
-        Append("SCENARIO", $"partyLevel={options.PartyLevel}; groups={options.EnemyGroupCount}; " +
+        Append("SCENARIO", $"partyLevel={options.PartyLevel}; partySize={options.PartySize}; formation={options.FormationShape}; seed={options.RandomSeed}; groups={options.EnemyGroupCount}; " +
                            $"membersPerGroup={options.EnemiesPerGroup}; map={scenario.Maze.Width}x{scenario.Maze.Height}; " +
                            $"leader={FormatPosition(scenario.LeaderPosition)}; corridor={FormatPosition(scenario.CorridorTopLeft)} " +
                            $"size={DeveloperBattleTestScenarioBuilder.CorridorWidth}x{DeveloperBattleTestScenarioBuilder.CorridorLength}");

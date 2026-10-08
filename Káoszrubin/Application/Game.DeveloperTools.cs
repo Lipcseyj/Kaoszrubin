@@ -371,7 +371,8 @@ public sealed partial class Game
             _maze, _fogOfWar, _player.Position);
         if (options is null) return;
 
-        var generator = new RandomCharacterGenerator(_gameData, _random);
+        var testRandom = new Random(options.RandomSeed);
+        var generator = new RandomCharacterGenerator(_gameData, testRandom);
         foreach (var previousCompanion in _developerBattleTestCompanions.ToArray())
             CharacterRoster.Remove(previousCompanion);
         _developerBattleTestCompanions.Clear();
@@ -384,23 +385,19 @@ public sealed partial class Game
         PartyLeader.RestoreMana(Math.Max(0,
             PartyLeader.MaximumMana - PartyLeader.CurrentMana));
 
-        var companions = new List<LiveCharacter>();
-        var testEquipment = RandomCharacterGenerator.EquipmentOptions.Scaled(tierVariance: 0);
-        foreach (var classId in new[] { CharacterClassIds.Mágus, CharacterClassIds.Pap, CharacterClassIds.Lovag })
+        var companions = DeveloperBattleTestPartyBuilder.CreateCompanions(_gameData, options, PartyLeader,
+            CharacterRoster.Characters.Select(character => character.Name), testRandom);
+        foreach (var companion in companions)
         {
-            var companion = generator.GenerateCombatTestCharacter(_gameData.GetCharacterClass(classId),
-                options.PartyLevel, CharacterRoster.Characters.Concat(companions)
-                    .Select(character => character.Name).ToArray(), testEquipment);
             CharacterRoster.Add(companion);
-            companions.Add(companion);
             _developerBattleTestCompanions.Add(companion);
         }
-        CharacterRoster.Party.Restore(PartyLeader, companions);
+        CharacterRoster.Party.RestoreForDeveloperTest(PartyLeader, companions, options.PartySize);
         _session.SetPhase(GameSessionPhase.Exploration);
         _session.SynchronizeParty();
 
         var scenario = DeveloperBattleTestScenarioBuilder.Create(MazeWidth, MazeHeight, options,
-            _gameData.Enemies, _random, maximumLevel,
+            _gameData.Enemies, new Random(options.RandomSeed), maximumLevel,
             CreateEnemyMagicWeaponContext(options.PartyLevel));
         _locationKind = AdventureLocationKind.Campaign;
         _locationId = DeveloperBattleTestLocationId;
@@ -429,10 +426,12 @@ public sealed partial class Game
         _leaderTrail.Clear();
         _leaderTrail.Add(_player.Position);
         _nextPartyMoves.Clear();
-        PlacePartyMembersNear(_player.Position);
-        _formation = PartyFormationRules.CreateDefault(
-            CharacterRoster.Party.Members.Select(member => member.Id), PartyLeader.Id);
-        _formation = PartyFormationRules.WithState(_formation, PartyFormationState.Disbanded);
+        _formation = PartyFormationRules.WithShape(PartyFormationRules.CreateDefault(
+            CharacterRoster.Party.Members.Select(member => member.Id), PartyLeader.Id, _leaderFacing), options.FormationShape);
+        var testPositions = PartyFormationRules.Positions(_formation, PartyLeader.Id, _player.Position);
+        foreach (var companion in companions)
+            _maze.AddPartyMember(new PartyMemberAvatar(testPositions[companion.Id], companion));
+        _formation = PartyFormationRules.WithState(_formation, PartyFormationState.Locked);
         _renderer.CharacterSheet.SetFormationStatus(_formation);
         _session.SetFormationMovementLocked(false);
         _fogOfWar = new FogOfWar(_maze.Width, _maze.Height, CharacterClassRules.BaseVisionRange);
@@ -471,9 +470,9 @@ public sealed partial class Game
 
     private void FillPartyForDevelopment(IReadOnlyList<string> characterClassIds, string setName)
     {
-        if (CharacterRoster.Party.Members.Count >= Party.MaximumSize)
+        if (CharacterRoster.Party.IsFull)
         {
-            _renderer.DrawDeveloperMessage("Fejlesztői mód: a parti már teljes (4/4). ");
+            _renderer.DrawDeveloperMessage($"Fejlesztői mód: a parti már teljes ({CharacterRoster.Party.Members.Count}/{CharacterRoster.Party.Capacity}).");
             return;
         }
 
@@ -481,11 +480,11 @@ public sealed partial class Game
         var added = new List<LiveCharacter>();
         foreach (var characterClassId in characterClassIds)
         {
-            if (CharacterRoster.Party.Members.Count >= Party.MaximumSize) break;
+            if (CharacterRoster.Party.IsFull) break;
             var member = generator.GenerateDevelopmentCharacter(_gameData.GetCharacterClass(characterClassId),
                 CharacterRoster.Characters.Select(character => character.Name).ToList());
+            if (!CharacterRoster.Party.Add(member)) break;
             CharacterRoster.Add(member);
-            CharacterRoster.Party.Add(member);
             added.Add(member);
         }
         PlacePartyMembersNear(_player.Position);
@@ -498,17 +497,17 @@ public sealed partial class Game
 
     private void AddLevelOnePartyMemberForDevelopment()
     {
-        if (CharacterRoster.Party.Members.Count >= Party.MaximumSize)
+        if (CharacterRoster.Party.IsFull)
         {
-            _renderer.DrawDeveloperMessage("Fejlesztői mód: a parti már teljes (4/4). ");
+            _renderer.DrawDeveloperMessage($"Fejlesztői mód: a parti már teljes ({CharacterRoster.Party.Members.Count}/{CharacterRoster.Party.Capacity}).");
             return;
         }
 
         var generator = new RandomCharacterGenerator(_gameData, _random);
         var member = generator.GenerateLevelOneTestCharacter(
             CharacterRoster.Characters.Select(character => character.Name).ToList());
+        if (!CharacterRoster.Party.Add(member)) return;
         CharacterRoster.Add(member);
-        CharacterRoster.Party.Add(member);
         PlacePartyMembersNear(_player.Position);
         foreach (var avatar in _maze.PartyMembers) RevealFor(avatar.Character, avatar.Position);
         _renderer.DrawMapVisibilityChanged(_maze, _fogOfWar, _player.Position);

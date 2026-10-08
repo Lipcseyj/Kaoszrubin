@@ -21,11 +21,13 @@ namespace KaoszRubin.Application;
 public sealed partial class Game
 {
     private Queue<PartyFormationAssemblyPlanner.Step>? _formationAssemblySteps;
+    private IReadOnlyList<PartyFormationAssemblyPlanner.Step>? _plannedFormationTransition;
     private Position _formationAssemblyLeaderPosition;
     private long _formationAssemblyMazeRevision;
 
     private void EditFormation()
     {
+        if (_battleStarted || _activeBattle is { IsCompleted: false }) return;
         NormalizeFormation();
         var result = RunHostWindow("Alakzatszerkesztő",
             "Várunk a vezető alakzati döntéseire…",
@@ -33,8 +35,8 @@ public sealed partial class Game
                 CharacterRoster.Party.Members.Where(member => member.IsAlive).ToArray(),
                 _formation, _npcSpellcasterTactics,
                 CharacterRoster.Party.Members.Where(member => !_session.IsHumanControlled(member.Id))
-                    .Select(member => member.Id).ToHashSet(), CaptureSharedWindowPresentation));
-        _formation = PartyFormationRules.WithSlots(_formation, result.Slots);
+                    .Select(member => member.Id).ToHashSet(), CaptureSharedWindowPresentation, CharacterRoster.Party.Capacity));
+        _formation = PartyFormationRules.WithSlots(_formation with { Shape = result.Shape }, result.Slots);
         _formationAssemblySteps = null;
         _npcSpellcasterTactics.Clear();
         foreach (var pair in result.SpellcasterTactics) _npcSpellcasterTactics[pair.Key] = pair.Value.Normalize();
@@ -105,8 +107,8 @@ public sealed partial class Game
         _partyScatterUntil = null;
         foreach (var member in _maze.PartyMembers) _nextPartyMoves[member] = DateTime.UtcNow;
         AnnouncePartyCommand(placement.Formation.Facing == assembling.Facing
-                ? "ALAKZAT: a partitagok elfoglaljak a beallitott 2x2-es helyuket."
-                : "ALAKZAT: a partitagok elfordulva foglaljak el a jarhato 2x2-es helyet.",
+                ? $"ALAKZAT: a partitagok elfoglalják a beállított {PartyFormationRules.ShapeName(assembling.Shape)} helyeit."
+                : $"ALAKZAT: a partitagok elfordulva foglalják el a járható {PartyFormationRules.ShapeName(assembling.Shape)} helyeit.",
             ConsoleColor.Cyan);
     }
 
@@ -133,10 +135,14 @@ public sealed partial class Game
             _player.Position, rotated.Facing);
         if (!TryPlanFormationPlacement(positions, rotated, out var followerMoves))
         {
-            _renderer.DrawDeveloperMessage("Az alakzat a sajat teruleten sem tud 90 fokot fordulni.");
+            _renderer.DrawDeveloperMessage("Az alakzat nem tud biztonságos útvonalon 90 fokot fordulni.");
             return;
         }
-        ApplyFormationPositions(positions, rotated, followerMoves);
+        if (!ApplyFormationPositions(positions, rotated, followerMoves))
+        {
+            ScheduleFormationMove();
+            return;
+        }
         _leaderFacing = rotated.Facing;
         ScheduleFormationMove();
         AnnouncePartyCommand(clockwise ? "Az alakzat jobbra fordult." : "Az alakzat balra fordult.",
@@ -156,9 +162,13 @@ public sealed partial class Game
                 leaderDestination);
             if (TryPlanFormationPlacement(blockPositions, blockFormation, out var reformFollowerMoves))
             {
-                ApplyFormationPositions(blockPositions, blockFormation, reformFollowerMoves);
+                if (!ApplyFormationPositions(blockPositions, blockFormation, reformFollowerMoves))
+                {
+                    ScheduleFormationMove();
+                    return;
+                }
                 CompleteFormationTravelMove(direction, preserveFormationFacing);
-                AnnouncePartyCommand("A szukuleten tul az alakzat automatikusan visszaallt 2x2-es rendbe.",
+                AnnouncePartyCommand($"A szűkületen túl az alakzat visszaállt: {PartyFormationRules.ShapeName(blockFormation.Shape)}.",
                     ConsoleColor.Green);
                 return;
             }
@@ -240,8 +250,9 @@ public sealed partial class Game
             return true;
         }
         if (!TryPlanFormationPlacement(destinations, formation, out var followerMoves)) return false;
-        ApplyFormationPositions(destinations, formation, followerMoves);
-        CompleteFormationTravelMove(movementDirection, preserveFormationFacing);
+        if (ApplyFormationPositions(destinations, formation, followerMoves))
+            CompleteFormationTravelMove(movementDirection, preserveFormationFacing);
+        else ScheduleFormationMove();
         return true;
     }
 
@@ -272,6 +283,7 @@ public sealed partial class Game
         out IReadOnlyDictionary<PartyMemberAvatar, Position> followerMoves)
     {
         followerMoves = new Dictionary<PartyMemberAvatar, Position>();
+        _plannedFormationTransition = null;
         var followers = _maze.PartyMembers.Where(member => member.IsTemporaryFollower && member.Character.IsAlive)
             .ToArray();
         if (!PartyFormationController.CanFormationOccupy(positions, _maze, FormationAvatar,
@@ -315,6 +327,17 @@ public sealed partial class Game
             planned[follower] = destination.Value;
             used.Add(destination.Value);
         }
+        if (formation.Shape != PartyFormationShape.Block2x2 &&
+            (formation.Facing != _formation.Facing || formation.Layout != _formation.Layout ||
+             positions.Any(pair => CurrentFormationPositions().TryGetValue(pair.Key, out var current) &&
+                 Manhattan(current, pair.Value) > 1)))
+        {
+            var targets = positions.ToDictionary(pair => pair.Key, pair => pair.Value);
+            foreach (var (follower, destination) in planned) targets[follower.Character.Id] = destination;
+            var plan = PartyFormationAssemblyPlanner.PlanRelocation(_maze, _player.Position, PartyLeader, targets);
+            if (!plan.Succeeded) return false;
+            _plannedFormationTransition = plan.Steps;
+        }
         followerMoves = planned;
         return true;
     }
@@ -327,9 +350,41 @@ public sealed partial class Game
                Maze.IsPassableNeutralNpc(occupant);
     }
 
-    private void ApplyFormationPositions(IReadOnlyDictionary<CharacterId, Position> positions,
+    private bool ApplyFormationPositions(IReadOnlyDictionary<CharacterId, Position> positions,
         PartyFormationSnapshot formation, IReadOnlyDictionary<PartyMemberAvatar, Position> followerMoves)
     {
+        if (_plannedFormationTransition is { } steps)
+        {
+            _plannedFormationTransition = null;
+            foreach (var step in steps)
+            {
+                if (!step.Member.Character.IsAlive || step.SwappedMember is { Character.IsAlive: false } ||
+                    !CanEnterTrap(step.Member.Character, step.To) ||
+                    step.SwappedMember is { } blocker && !CanEnterTrap(blocker.Character, step.From))
+                {
+                    StopFormationAssembly("Az út közben felfedezett csapda vagy elesett társ megszakította a mozgást.");
+                    return false;
+                }
+                if (step.Member.Character.Id == PartyLeader.Id) _player.TeleportTo(step.To);
+                else step.Member.MoveTo(step.To);
+                if (step.SwappedMember is { } displaced)
+                {
+                    if (displaced.Character.Id == PartyLeader.Id) _player.TeleportTo(step.From);
+                    else displaced.MoveTo(step.From);
+                }
+                RegisterFormationTransitionMove(step.Member, step.From);
+                if (step.SwappedMember is { } swapped) RegisterFormationTransitionMove(swapped, step.To);
+                if (CharacterRoster.Party.Members.Any(member => positions.ContainsKey(member.Id) && !member.IsAlive) ||
+                    !step.Member.Character.IsAlive || step.SwappedMember is { Character.IsAlive: false })
+                {
+                    StopFormationAssembly("Egy társ elesett az alakzat mozgása közben.");
+                    return false;
+                }
+            }
+            _formation = formation;
+            _renderer.CharacterSheet.SetFormationStatus(_formation);
+            return true;
+        }
         foreach (var (follower, destination) in followerMoves)
             ApplyFollowerEscortMove(follower, destination);
         var previousLeader = _player.Position;
@@ -370,6 +425,22 @@ public sealed partial class Game
             TriggerTrapAt(entry.Avatar.Character, entry.Destination);
         }
         CheckBossDiscoveryAt(leaderRevealed, PartyLeader);
+        return true;
+    }
+
+    private void RegisterFormationTransitionMove(PartyMemberAvatar member, Position previous)
+    {
+        var character = member.Character;
+        var position = character.Id == PartyLeader.Id ? _player.Position : member.Position;
+        RegisterTerrainExplorationStep(character, position);
+        var revealed = RevealFor(character, position, advanceEnemyMemory: true);
+        _renderer.DrawFormationMovement(_maze, _fogOfWar, [previous], [position], revealed, _player.Position,
+            character.Id == PartyLeader.Id && position == _maze.Exit && previous != _maze.Exit &&
+            _dungeonLevel.ActiveArea == _dungeonLevel.ExitArea);
+        PlayCharacterStepSound(character);
+        CheckBossDiscoveryAt(revealed, character);
+        CollectTreasureChest(character, position, shareLootWithParty: character.Id == PartyLeader.Id);
+        TriggerTrapAt(character, position);
     }
 
     private void ScheduleFormationMove()
@@ -845,7 +916,7 @@ public sealed partial class Game
 
         if (follower.Friendliness >= 10)
         {
-            var hasRoom = CharacterRoster.Party.Members.Count < Party.MaximumSize;
+            var hasRoom = !CharacterRoster.Party.IsFull;
             switch (_renderer.ChooseUniqueNpcDeparture(follower, hasRoom))
             {
                 case UniqueNpcDepartureChoice.JoinParty when CharacterRoster.Party.Add(follower.Character):

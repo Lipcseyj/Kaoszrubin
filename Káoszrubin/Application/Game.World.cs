@@ -810,6 +810,7 @@ public sealed partial class Game
         }
 
         PlaySessionSound(SoundEffect.LevelComplete);
+        CharacterRoster.Party.RecordCampaignLevelCompletion(_mazeLevel);
         PlaySessionSound(SoundEffect.Victory);
         _renderer.PlayScreenBurnEffect();
         ShowSynchronizedNarrative(NarrativeKind.CampaignFinale, "GRATULÁLUNK, KULCSHORDOZÓK!",
@@ -1307,7 +1308,7 @@ public sealed partial class Game
         if (avatar?.TemporaryFollower is not { } roderic ||
             !string.Equals(roderic.StoryStateId, "JOIN_ACCEPTED", StringComparison.OrdinalIgnoreCase) &&
             !string.Equals(roderic.StoryStateId, "JOIN_PENDING", StringComparison.OrdinalIgnoreCase)) return false;
-        if (CharacterRoster.Party.Members.Count >= Party.MaximumSize)
+        if (CharacterRoster.Party.IsFull)
         {
             roderic.SetStoryState("JOIN_PENDING");
             _renderer.DrawInventoryMessage(

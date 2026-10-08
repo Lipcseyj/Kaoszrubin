@@ -1,4 +1,5 @@
 using KaoszRubin.Domain.Characters;
+using KaoszRubin.Domain.Inventory;
 
 namespace KaoszRubin.Data;
 
@@ -118,6 +119,22 @@ public sealed partial class RandomCharacterGenerator
             : Math.Clamp(leaderLevel + _random.Next(-3, 4), 1, maximumLevel);
         return GenerateNpcCore(characterClass, targetLevel, usedNames, allowWhiteColor,
             equipment ?? EquipmentOptions.Scaled());
+    }
+
+    /// <summary>A kampánytámogatáshoz pontosan egy szinttel a vezető alatt készít normál zsoldost.</summary>
+    public LiveCharacter GenerateSupportedMercenary(CharacterClassDefinition characterClass, int leaderLevel,
+        IReadOnlyCollection<string> usedNames)
+    {
+        var character = GenerateNpcCore(characterClass, Math.Max(1, leaderLevel - 1),
+            usedNames, allowWhiteColor: true, EquipmentOptions.Scaled());
+        foreach (var effect in new[] { ConsumableEffect.Food, ConsumableEffect.Water })
+        {
+            var supply = _gameData.Items.Where(item => item.Effect == effect &&
+                !SpellcastingRules.IsRestrictedFromTradingAndGeneration(item) && item.Id != MiscItemIds.RawMeat)
+                .OrderBy(item => item.BasePrice).FirstOrDefault();
+            if (supply is not null) character.AddToBackpack(supply);
+        }
+        return character;
     }
 
     /// <summary>

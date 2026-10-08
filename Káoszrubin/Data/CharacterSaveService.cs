@@ -13,11 +13,13 @@ public sealed class CharacterSaveService
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
     private readonly string _filePath;
     private readonly GameDataCatalog _gameData;
+    private readonly PartyCapacityRules _capacityRules;
 
-    public CharacterSaveService(string filePath, GameDataCatalog gameData)
+    public CharacterSaveService(string filePath, GameDataCatalog gameData, PartyCapacityRules? capacityRules = null)
     {
         _filePath = filePath;
         _gameData = gameData;
+        _capacityRules = capacityRules ?? PartyCapacityRules.Current;
     }
 
     public CharacterRoster Load()
@@ -26,9 +28,11 @@ public sealed class CharacterSaveService
         return Deserialize(File.ReadAllText(_filePath));
     }
 
-    public CharacterRoster Deserialize(string json)
+    public CharacterRoster Deserialize(string json, PartyCampaignProgressionSnapshot? campaignProgression = null,
+        bool developerBattleTest = false)
     {
-        var roster = new CharacterRoster();
+        var roster = new CharacterRoster(_capacityRules);
+        roster.Party.MergeCampaignProgression(campaignProgression);
         var savedRoster = JsonSerializer.Deserialize<RosterSaveData>(json, JsonOptions) ?? new RosterSaveData();
         foreach (var savedCharacter in savedRoster.Characters)
             roster.Add(CreateLiveCharacter(savedCharacter));
@@ -43,8 +47,18 @@ public sealed class CharacterSaveService
             roster.Select(roster.Characters[selectedIndex]);
             var partyMembers = savedRoster.PartyMemberIndices
                 .Where(index => index >= 0 && index < roster.Characters.Count)
-                .Select(index => roster.Characters[index]);
-            roster.Party.Restore(roster.Characters[selectedIndex], partyMembers);
+                .Select(index => roster.Characters[index]).DistinctBy(character => character.Id).ToArray();
+            if (developerBattleTest)
+            {
+                var leader = roster.Characters[selectedIndex];
+                var companions = partyMembers.Where(member => member.Id != leader.Id).Take(Party.MaximumSize - 1).ToList();
+                if (companions.Count >= 3)
+                    roster.Party.RestoreForDeveloperTest(leader, companions, companions.Count + 1);
+                else
+                    roster.Party.Restore(leader, companions);
+            }
+            else
+                roster.Party.Restore(roster.Characters[selectedIndex], partyMembers);
         }
 
         return roster;

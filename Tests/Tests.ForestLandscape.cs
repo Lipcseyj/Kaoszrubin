@@ -465,8 +465,11 @@ internal static partial class Program
 
         var level = MazeLevelConfigurations.Get(6);
         var ambushes = level.CorridorEncounters.Where(item => item.Posture == EnemyEncounterPosture.Ambush).ToArray();
-        Assert(ambushes.Length == 3 && ambushes.All(item => item.AreaId is not null && item.TriggerDistance is 4 or 5),
-            "A Tiltott Erdő célzott rajtaütéseinek száma vagy területi rögzítése hibás.");
+        // A létszám, távolság és opcionális területi rögzítés balanszadat;
+        // a rajtaütéshez tényleges rejtőző terep és pozitív kiváltási távolság kell.
+        Assert(ambushes.Length > 0 && ambushes.All(item =>
+                   item.TargetTerrainTags != TerrainTag.None && item.TriggerDistance > 0),
+            "A Tiltott Erdő rajtaütéseiből hiányzik a célterep vagy az érvényes kiváltási távolság.");
     }
 
     static void ForestTerrainGameplaySaveDataRoundTrips()

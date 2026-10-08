@@ -481,10 +481,9 @@ public sealed class TacticalBattleCoordinator
             actions.Add(BattleActionKind.TurnUndead);
         if (selectableTargetCount > 1 && !offensiveActionsBlocked)
             actions.Add(BattleActionKind.SelectTarget);
-        if (!staggered && battle.HasProtectiveFormation && battle.IsFrontRow(character) &&
-            battle.RearPartnerOf(character) is { IsAlive: true } rearPartner &&
-            !battle.IsCharacterStaggered(rearPartner))
-            actions.Add(BattleActionKind.SwapToRear);
+        if (battle.RowSwapTargets(character).Count > 0)
+            actions.Add(battle.Formation?.Shape == PartyFormationShape.Block2x2 && battle.IsFrontRow(character)
+                ? BattleActionKind.SwapToRear : BattleActionKind.SwapFormationRows);
         if (!staggered && !battle.HasStaggeredFormationMember && battle.HasActiveFormation &&
             character == selectedCharacter)
             actions.Add(BattleActionKind.MoveFormation);
@@ -508,11 +507,13 @@ public sealed class TacticalBattleCoordinator
         LiveCharacter selectedCharacter, ICollection<BattleActionKind> actions)
     {
         if (!battle.HasProtectiveFormation || character != selectedCharacter) return;
-        if (battle.Formation?.CharacterAt(FormationSlot.RearLeft) is { } rearLeftId &&
-            battle.Characters.Any(member => member.Id == rearLeftId && member.IsAlive))
+        var targets = battle.PreparationTargets();
+        if (targets.Count == 0) return;
+        actions.Add(BattleActionKind.PrepareFormationMember);
+        if (battle.Formation?.Shape != PartyFormationShape.Block2x2) return;
+        if (targets.Any(member => member.Id == battle.Formation.CharacterAt(FormationSlot.RearLeft)))
             actions.Add(BattleActionKind.PrepareRearLeft);
-        if (battle.Formation?.CharacterAt(FormationSlot.RearRight) is { } rearRightId &&
-            battle.Characters.Any(member => member.Id == rearRightId && member.IsAlive))
+        if (targets.Any(member => member.Id == battle.Formation.CharacterAt(FormationSlot.RearRight)))
             actions.Add(BattleActionKind.PrepareRearRight);
     }
 

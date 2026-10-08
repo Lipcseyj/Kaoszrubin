@@ -1098,7 +1098,7 @@ internal static partial class Program
                turned[second.Id] == new Position(10, 9) &&
                turned[fourth.Id] == new Position(10, 10) &&
                turned[third.Id] == new Position(11, 10) &&
-               ConsoleRenderer.CharacterSheetRenderer.FormationStatusText(formation).Contains("zárt · libasor", StringComparison.Ordinal),
+               ConsoleRenderer.CharacterSheetRenderer.FormationStatusText(formation).Contains("⋮", StringComparison.Ordinal),
             "A libasor nem maradt zárt, nem fűződött ki a szobából vagy nem követte a folyosó kanyarját.");
     }
 

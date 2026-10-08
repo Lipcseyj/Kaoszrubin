@@ -1387,18 +1387,20 @@ public sealed partial class Game
         return true;
     }
 
-    private bool TryExecuteSwapToRear(BattleEncounter battle, LiveCharacter character, out string error)
+    private bool TryExecuteSwapToRear(BattleEncounter battle, LiveCharacter character, out string error, CharacterId? targetCharacterId = null)
     {
+        var partnerId = targetCharacterId ?? battle.RearPartnerOf(character)?.Id;
+        var selectedPartner = battle.Characters.FirstOrDefault(member => member.Id == partnerId);
         if (battle.IsCharacterStaggered(character) ||
-            battle.RearPartnerOf(character) is { } rearPartner && battle.IsCharacterStaggered(rearPartner))
+            selectedPartner is { } partner && battle.IsCharacterStaggered(partner))
         {
             error = "Megingott alakzattag ebben az akcióban nem cserélhet helyet.";
             return false;
         }
-        if (!battle.TrySwapToRear(character, out var rear, out var frontPosition, out var rearPosition,
+        if (!battle.TrySwapAdjacentRows(character, partnerId, out var rear, out var frontPosition, out var rearPosition,
                 out var transferredEngagements) || rear is null)
         {
-            error = "A Hátra! akcióhoz élő társ szükséges közvetlenül a karakter mögött.";
+            error = "A helycseréhez élő, cselekvőképes társ szükséges a közvetlen szomszédos sorban.";
             return false;
         }
         MoveBattleCharacterTo(character, rearPosition);
@@ -1410,9 +1412,9 @@ public sealed partial class Game
         var statusText = _battleSystem.FinishCharacterAction(character, battle.RuntimeFor(character));
         var transferText = transferredEngagements == 0
             ? string.Empty
-            : $" {rear.Name} {transferredEngagements} lekötést átvett.";
+            : $" {transferredEngagements} lekötés a két mezőn maradt.";
         PresentBattleEntries([new BattleLogEntry(
-            $"Hátra! {character.Name} helyet cserél {rear.Name} karakterrel.{transferText}{statusText}",
+            $"{character.Name} helyet cserél {rear.Name} karakterrel.{transferText}{statusText}",
             BattleLogKind.Information)]);
         AdvanceBattleTurn(battle);
         error = string.Empty;

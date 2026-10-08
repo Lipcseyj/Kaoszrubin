@@ -121,6 +121,22 @@ public sealed partial class Game
             SubmitLocalBattleCommand(BattleActionKind.SwapWeapon);
             return;
         }
+        if (key.Key == ConsoleKey.K && allowed.Contains(BattleActionKind.PrepareFormationMember) ||
+            key.Key == ConsoleKey.H && allowed.Contains(BattleActionKind.SwapFormationRows))
+        {
+            var action = key.Key == ConsoleKey.K ? BattleActionKind.PrepareFormationMember : BattleActionKind.SwapFormationRows;
+            var targets = action == BattleActionKind.PrepareFormationMember ? battle.PreparationTargets() : battle.RowSwapTargets(character);
+            _renderer.DrawInventoryMessage("Célszemély: " + string.Join(" | ", targets.Select((member, index) =>
+                $"{index + 1} - {member.Name}")) + " | Esc - mégse", ConsoleColor.Cyan);
+            while (true)
+            {
+                var choice = Console.ReadKey(intercept: true);
+                if (choice.Key == ConsoleKey.Escape) return;
+                if (choice.KeyChar < '1' || choice.KeyChar > '6' || choice.KeyChar - '1' >= targets.Count) continue;
+                SubmitLocalBattleCommand(action, targetCharacterId: targets[choice.KeyChar - '1'].Id);
+                return;
+            }
+        }
         if (key.Key == ConsoleKey.H && allowed.Contains(BattleActionKind.SwapToRear))
         {
             SubmitLocalBattleCommand(BattleActionKind.SwapToRear);
@@ -246,7 +262,7 @@ public sealed partial class Game
         int? castingItemSlotIndex = null,
         Position? target = null,
         WorldEntityId? targetEnemyId = null,
-        int? backpackIndex = null)
+        int? backpackIndex = null, CharacterId? targetCharacterId = null)
     {
         var battleId = _activeBattle?.Id;
         var turnId = _activeBattle?.Turns.TurnId;
@@ -267,7 +283,7 @@ public sealed partial class Game
             castingItemSlotIndex,
             target,
             targetEnemyId,
-            backpackIndex);
+            backpackIndex, targetCharacterId);
 
         var submitted = _session.Submit(command);
 
