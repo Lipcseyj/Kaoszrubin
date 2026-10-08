@@ -932,13 +932,13 @@ public sealed partial class Game
         var roomBuckets = DistributeEncounters(configuration.RoomEncounters.Select(ResolveEncounter), areaIds, _random);
         var corridorBuckets = DistributeEncounters(configuration.CorridorEncounters.Select(ResolveEncounter), areaIds, _random);
         var rolledSettings = configuration.CreateGenerationSettings(_random);
+        var areaSettings = DistributeSpecialRooms(rolledSettings, areaIds, topology.ExitAreaId);
         var forestAreaSeed = layout is ForestMazeLayoutConfiguration ? _random.Next() : 0;
         var areas = new List<DungeonArea>(areaCount);
         for (var index = 0; index < topology.Nodes.Count; index++)
         {
             var node = topology.Nodes[index];
-            var containsLevelExit = string.Equals(node.Id, topology.ExitAreaId, StringComparison.Ordinal);
-            var settings = AreaGenerationSettings(rolledSettings, index, areaCount, containsLevelExit);
+            var settings = areaSettings[index];
             var areaRandom = layout is ForestMazeLayoutConfiguration
                 ? new Random(StableAreaSeed(forestAreaSeed, node.Id))
                 : _random;
@@ -1059,11 +1059,45 @@ public sealed partial class Game
         return result;
     }
 
+    internal static MazeGenerationSettings[] DistributeSpecialRooms(MazeGenerationSettings source,
+        IReadOnlyList<string> areaIds, string exitAreaId)
+    {
+        if (areaIds.Count == 0 || areaIds.Any(string.IsNullOrWhiteSpace) ||
+            areaIds.Distinct(StringComparer.Ordinal).Count() != areaIds.Count ||
+            !areaIds.Contains(exitAreaId, StringComparer.Ordinal))
+            throw new InvalidOperationException("A küldetésszobákhoz érvényes területlista és kijárati terület szükséges.");
+        var roomIds = source.QuestRoomIds.Concat(source.BossRoomIds).ToArray();
+        if (roomIds.Any(string.IsNullOrWhiteSpace) ||
+            roomIds.Distinct(StringComparer.Ordinal).Count() != roomIds.Length ||
+            source.SpecialRoomPlacements.Keys.Concat(source.QuestDoorRequirements.Keys)
+                .Any(id => !roomIds.Contains(id, StringComparer.Ordinal)))
+            throw new InvalidOperationException("Hibás vagy ismétlődő különlegesszoba-azonosító.");
+        var targets = source.QuestRoomIds.ToDictionary(id => id, _ => exitAreaId, StringComparer.Ordinal);
+        foreach (var (roomId, placement) in source.QuestRoomPlacements)
+        {
+            if (!targets.ContainsKey(roomId) || placement is null)
+                throw new InvalidOperationException($"Ismeretlen küldetésszoba-elhelyezés: '{roomId}'.");
+            if (placement.ScreenNumber is { } screen && (screen < 1 || screen > areaIds.Count))
+                throw new InvalidOperationException($"A(z) '{roomId}' képernyőszáma {screen}, de a pályának {areaIds.Count} képernyője van.");
+            if (placement.AreaId is { } areaId && !areaIds.Contains(areaId, StringComparer.Ordinal))
+                throw new InvalidOperationException($"A(z) '{roomId}' ismeretlen területet céloz: '{areaId}'.");
+            if (placement.ScreenNumber is { } number && placement.AreaId is { } id &&
+                !string.Equals(areaIds[number - 1], id, StringComparison.Ordinal))
+                throw new InvalidOperationException($"A(z) '{roomId}' képernyőszáma és AreaId-ja eltérő területet jelöl.");
+            targets[roomId] = placement.AreaId ??
+                (placement.ScreenNumber is { } index ? areaIds[index - 1] : exitAreaId);
+        }
+        return areaIds.Select((areaId, index) => AreaGenerationSettings(source, index, areaIds.Count,
+            targets.Where(pair => pair.Value == areaId).Select(pair => pair.Key).ToArray(),
+            areaId == exitAreaId ? source.BossRoomIds : [])).ToArray();
+    }
+
     private static MazeGenerationSettings AreaGenerationSettings(MazeGenerationSettings source,
-        int areaIndex, int areaCount, bool includeSpecialRooms)
+        int areaIndex, int areaCount, IReadOnlyList<string> questRoomIds, IReadOnlyList<string> bossRoomIds)
     {
         static int Share(int total, int index, int count) => total / count + (index < total % count ? 1 : 0);
-        var specialCount = includeSpecialRooms ? source.QuestRoomIds.Count + source.BossRoomIds.Count : 0;
+        var roomIds = questRoomIds.Concat(bossRoomIds).ToHashSet(StringComparer.Ordinal);
+        var specialCount = roomIds.Count;
         return new MazeGenerationSettings
         {
             DoubleWidthCorridorChance = source.DoubleWidthCorridorChance,
@@ -1076,12 +1110,12 @@ public sealed partial class Game
             WallRune = source.WallRune,
             WallColor = source.WallColor,
             LevelName = areaCount == 1 ? source.LevelName : $"{source.LevelName} — {areaIndex + 1}/{areaCount}",
-            QuestRoomIds = includeSpecialRooms ? source.QuestRoomIds : [],
-            BossRoomIds = includeSpecialRooms ? source.BossRoomIds : [],
-            SpecialRoomPlacements = includeSpecialRooms ? source.SpecialRoomPlacements
-                : new Dictionary<string, SpecialRoomPlacement>(),
-            QuestDoorRequirements = includeSpecialRooms ? source.QuestDoorRequirements
-                : new Dictionary<string, QuestId>()
+            QuestRoomIds = questRoomIds,
+            BossRoomIds = bossRoomIds,
+            SpecialRoomPlacements = source.SpecialRoomPlacements.Where(pair => roomIds.Contains(pair.Key))
+                .ToDictionary(pair => pair.Key, pair => pair.Value),
+            QuestDoorRequirements = source.QuestDoorRequirements.Where(pair => roomIds.Contains(pair.Key))
+                .ToDictionary(pair => pair.Key, pair => pair.Value)
         };
     }
 
@@ -1120,7 +1154,8 @@ public sealed partial class Game
             encounter.TargetTerrainTags,
             encounter.Posture,
             encounter.TriggerDistance);
-        _generator = new MazeGenerator(configuration.CreateGenerationSettings(_random),
+        _generator = new MazeGenerator(DistributeSpecialRooms(configuration.CreateGenerationSettings(_random),
+                ["AREA_1"], "AREA_1")[0],
             configuration.RoomEncounters.Select(ResolveEncounter).ToList(),
             configuration.CorridorEncounters.Select(ResolveEncounter).ToList(), _random,
             CreateEnemyMagicWeaponContext(_difficultyLevel));
@@ -1414,16 +1449,9 @@ public sealed partial class Game
 
     private void PlaceSpecialRoomContent(MazeLevelConfiguration configuration)
     {
-        var active = _dungeonLevel.ActiveArea;
-        var specialArea = _dungeonLevel.Areas.LastOrDefault(area =>
-            configuration.QuestRoomIds.Concat(configuration.BossRoomIds)
-                .Any(id => area.Maze.GetRoomByContentId(id) is not null)) ?? active;
-        _maze = specialArea.Maze;
-        _fogOfWar = specialArea.FogOfWar;
-        QuestChestPlacement.Place(_maze, _gameData, configuration.QuestChestPlacements);
-        PlaceQuestRoomEnemies(configuration);
-        _maze = active.Maze;
-        _fogOfWar = active.FogOfWar;
+        QuestChestPlacement.Place(_dungeonLevel, _gameData, configuration.QuestChestPlacements);
+        QuestRoomEnemyPlacement.Place(_dungeonLevel, _gameData, configuration.QuestRoomEnemyEncounters,
+            _random, CreateEnemyMagicWeaponContext(_difficultyLevel));
     }
 
     private void PlaceTraps(MazeLevelConfiguration configuration, int? requestedCount = null,
@@ -1649,28 +1677,8 @@ public sealed partial class Game
 
     private void PlaceQuestRoomEnemies(MazeLevelConfiguration configuration)
     {
-        foreach (var encounter in configuration.QuestRoomEnemyEncounters)
-        {
-            var room = _maze.GetRoomByContentId(encounter.RoomId) ??
-                throw new InvalidOperationException($"A quest room nem található: '{encounter.RoomId}'.");
-            var center = new Position(room.TopLeft.X + room.Width / 2, room.TopLeft.Y + room.Height / 2);
-            var positions = room.InteriorPositions().Where(position => _maze.IsWalkable(position) &&
-                    _maze.GetObjectAt(position) is null && _maze.GetTrapAt(position) is null &&
-                    _maze.Doors.All(door => Manhattan(door.Position, position) > 1))
-                .OrderBy(position => Manhattan(position, center)).Take(encounter.Count).ToArray();
-            if (positions.Length < encounter.Count)
-                throw new InvalidOperationException($"A(z) '{encounter.RoomId}' quest roomban nincs hely " +
-                                                    $"{encounter.Count} ellenfélnek.");
-            foreach (var position in positions)
-            {
-                var enemy = new ConfiguredEnemy(position, _gameData.GetEnemy(encounter.EnemyId), _random,
-                    magicWeaponContext: CreateEnemyMagicWeaponContext(_difficultyLevel));
-                enemy.ConfigureMovement(EnemyMovementProfile.Stationary, Direction.Right);
-                enemy.ConfigureGroup($"QUEST:{encounter.RoomId}");
-                if (encounter.GuaranteedItemId is { } itemId) enemy.ConfigureGuaranteedLoot([itemId]);
-                _maze.AddEnemy(enemy);
-            }
-        }
+        QuestRoomEnemyPlacement.Place(_maze, _gameData, configuration.QuestRoomEnemyEncounters,
+            _random, CreateEnemyMagicWeaponContext(_difficultyLevel));
     }
 
     private int RollNpcFriendliness(NpcDefinition definition)

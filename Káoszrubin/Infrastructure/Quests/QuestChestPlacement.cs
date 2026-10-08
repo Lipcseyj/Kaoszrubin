@@ -6,6 +6,28 @@ namespace KaoszRubin.Infrastructure.Quests;
 
 public static class QuestChestPlacement
 {
+    internal static DungeonArea FindRoomArea(DungeonLevel level, string roomId)
+    {
+        var areas = level.Areas.Where(area => area.Maze.GetRoomByContentId(roomId) is not null).ToArray();
+        return areas.Length == 1 ? areas[0] : throw new InvalidDataException(
+            $"A(z) '{roomId}' küldetésszoba pontosan egy területen kell szerepeljen; talált: {areas.Length}.");
+    }
+
+    public static void Place(DungeonLevel level, GameDataCatalog data,
+        IReadOnlyDictionary<string, QuestChestId> placements)
+    {
+        var ids = level.Areas.SelectMany(area => area.Maze.TreasureChests)
+            .Where(chest => chest.Definition is not null).Select(chest => chest.Definition!.Id).ToHashSet();
+        foreach (var chestId in placements.Values)
+        {
+            if (!ids.Add(chestId)) throw new InvalidDataException($"A questláda többször szerepel a pályán: {chestId}.");
+            _ = data.GetQuestChest(chestId);
+        }
+        var groups = placements.GroupBy(pair => FindRoomArea(level, pair.Key)).ToArray();
+        foreach (var group in groups)
+            Place(group.Key.Maze, data, group.ToDictionary(pair => pair.Key, pair => pair.Value));
+    }
+
     public static void Place(Maze maze, GameDataCatalog data, IReadOnlyDictionary<string, QuestChestId> placements)
     {
         var occupied = new HashSet<Position>();

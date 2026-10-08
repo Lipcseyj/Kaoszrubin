@@ -56,6 +56,7 @@ internal sealed partial class MapEditorForm
             ("WallColor", "Fal színe", "A fal alapértelmezett konzolszíne.", "ConsoleColor érték, például ConsoleColor.DarkGray."),
             ("DoubleWidthCorridorChance", "Dupla széles folyosó esélye", "0 és 1 közötti arány; klasszikus layoutnál hat.", "Példa: 0.82 = 82%. WideMazeLayout esetén a NarrowingChance szabályozza a szűkületeket."),
             ("QuestRoomIds", "Küldetésszobák azonosítói", "Garantáltan létrejövő különleges szobák.", "Azonosítók listája, például [\"KING_CHEST_ROOM\"]. A többi quest-szobamező ezekre hivatkozhat."),
+            ("QuestRoomPlacements", "Küldetésszobák célterülete", "Szobánként képernyőszám vagy AreaId; üresen a kijárati terület.", "A képernyőszám 1-től indul. AreaId esetén a stabil területazonosítót add meg. Ha mindkettő ki van töltve, ugyanazt a területet kell jelölniük. A szoba a QuestRoomIds listában is szerepeljen."),
             ("BossRoomIds", "Boss-szobák azonosítói", "Garantáltan létrejövő boss-szobák.", "Azonosítók listája, például [\"GOBLIN_CHIEF_ROOM\"]."),
             ("SpecialRoomPlacements", "Különleges szobák helye", "Szobánként főút vagy mellékág választható.", "Szobaazonosítót SpecialRoomPlacement.MiddleRoute vagy SideBranch értékhez rendelő C# szótár."),
             ("QuestChestPlacements", "Küldetésládák helye", "Szobaazonosítót questláda-azonosítóhoz köt.", "A láda azonosítója a game-data.csv Quest ládák szekciójában szerepeljen."),
@@ -63,7 +64,7 @@ internal sealed partial class MapEditorForm
             ("QuestRoomEnemyEncounters", "Garantált szobaellenfelek", "Adott quest- vagy boss-szobába kerülő ellenfelek.", "Példa: [new(\"MALREC_CHAMBER\", MonsterIds.SirMalrec, 1)]."),
         })
         {
-            if (name is "SpecialRoomPlacements" or "QuestChestPlacements" or "QuestDoorRequirements")
+            if (name is "SpecialRoomPlacements" or "QuestChestPlacements" or "QuestDoorRequirements" or "QuestRoomPlacements")
             {
                 var grid = BuildLevelDictionaryGrid(name);
                 RegisterGrid("level." + name, grid);
@@ -107,7 +108,7 @@ internal sealed partial class MapEditorForm
         return outer;
     }
 
-    private static DataGridView BuildLevelDictionaryGrid(string propertyName)
+    internal static DataGridView BuildLevelDictionaryGrid(string propertyName)
     {
         var grid = new DataGridView
         {
@@ -120,6 +121,12 @@ internal sealed partial class MapEditorForm
             RowHeadersWidth = 26
         };
         grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "RoomId", HeaderText = "Szobaazonosító", Width = 185 });
+        if (propertyName == "QuestRoomPlacements")
+        {
+            grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "ScreenNumber", HeaderText = "Képernyő", Width = 70 });
+            grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "AreaId", HeaderText = "AreaId", Width = 140 });
+            return grid;
+        }
         if (propertyName == "SpecialRoomPlacements")
             grid.Columns.Add(new DataGridViewComboBoxColumn
             {
@@ -246,6 +253,12 @@ internal sealed partial class MapEditorForm
                 grid.Rows.Clear();
                 foreach (var (roomId, expression) in EditorSources.DictionaryEntries(EditorSources.Property(block, name)))
                 {
+                    if (name == "QuestRoomPlacements")
+                    {
+                        var placement = QuestRoomPlacementDraft.Parse(expression);
+                        grid.Rows.Add(roomId, placement.ScreenNumber?.ToString() ?? "", placement.AreaId ?? "");
+                        continue;
+                    }
                     var value = name switch
                     {
                         "SpecialRoomPlacements" => expression[(expression.LastIndexOf('.') + 1)..],
@@ -493,6 +506,16 @@ internal sealed partial class MapEditorForm
             foreach (var (name, grid) in _levelDictionaryFields)
             {
                 grid.EndEdit();
+                if (name == "QuestRoomPlacements")
+                {
+                    var placements = ReadQuestRoomPlacementEntries(grid);
+                    var placementLines = placements.Select(pair =>
+                        $"                    [\"{pair.Key.Replace("\\", "\\\\").Replace("\"", "\\\"")}\"] = " +
+                        QuestRoomPlacementDraft.Expression(pair.Value));
+                    values[name] = "new Dictionary<string, QuestRoomPlacementConfiguration>\n                {\n" +
+                        string.Join(",\n", placementLines) + "\n                }";
+                    continue;
+                }
                 var entries = grid.Rows.Cast<DataGridViewRow>().Where(row => !row.IsNewRow)
                     .Select(row => (RoomId: row.Cells["RoomId"].Value?.ToString()?.Trim() ?? "",
                         Value: row.Cells["Value"].Value?.ToString()?.Trim() ?? ""))
@@ -525,6 +548,25 @@ internal sealed partial class MapEditorForm
             UpdateStatus("A pályaadatok mentve. Az előnézethez indítsd újra a szerkesztőt a fordítás után.");
         }
         catch (Exception exception) { MessageBox.Show(this, exception.Message, "Mentési hiba"); }
+    }
+
+    internal static Dictionary<string, QuestRoomPlacementConfiguration> ReadQuestRoomPlacementEntries(DataGridView grid)
+    {
+        var result = new Dictionary<string, QuestRoomPlacementConfiguration>(StringComparer.Ordinal);
+        foreach (var row in grid.Rows.Cast<DataGridViewRow>().Where(row => !row.IsNewRow))
+        {
+            var roomId = row.Cells["RoomId"].Value?.ToString()?.Trim() ?? "";
+            var screen = row.Cells["ScreenNumber"].Value?.ToString()?.Trim() ?? "";
+            var areaId = row.Cells["AreaId"].Value?.ToString()?.Trim() ?? "";
+            if (roomId.Length == 0 && screen.Length == 0 && areaId.Length == 0) continue;
+            if (roomId.Length == 0 || screen.Length > 0 && (!int.TryParse(screen, out var number) || number < 1))
+                throw new InvalidDataException("A küldetésszobához azonosító és pozitív egész képernyőszám szükséges (ha meg van adva).");
+            var placement = new QuestRoomPlacementConfiguration(screen.Length == 0 ? null : int.Parse(screen),
+                areaId.Length == 0 ? null : areaId);
+            if (!result.TryAdd(roomId, placement))
+                throw new InvalidDataException($"Ismétlődő küldetésszoba: '{roomId}'.");
+        }
+        return result;
     }
 
     private void AddCsvRow(string section)

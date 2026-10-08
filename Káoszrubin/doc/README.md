@@ -26,6 +26,7 @@
 - [Adatbővítés](#adatbovites)
 - [Csapdák](#csapdak)
 - [Fegyverek és sebzéstípusok](#fegyverek-sebzestipusok-es-tartalekfegyver)
+- [Varázslatok](#varazslatok)
 - [Session-események](#session-esemenyek)
 
 *Kapcsolódó részletes leírások:*
@@ -34,6 +35,7 @@
 - [erdei generálás](forest-generation-readme.md)
 - [térkép szerkesztő](../Tools/MapEditor/map-editor-readme.md)
 - [küldetésrendszer](quest-readme.md)
+- [küldetésszobák célképernyője és AreaId-ja](quest-room-placement-readme.md)
 
 ## Ténylegesen működő fejlesztői funkciók
 
@@ -1698,6 +1700,96 @@ Ha a szörny saját fegyvere is elvihető, arra előbb külön dobás történik
 Ezért például a „Vörös sárkány — 90%” nem 90% Legendás esélyt jelent, hanem 90%-os alap felszereléstábla-esélyt. A Legendás tárgy tényleges esélye ennek csak egy része, mert a játék a teljes engedélyezett Varázs–Legendás készletből választ.
 
 <a id="session-esemenyek"></a>
+
+## Varázslatok
+
+A jelenlegi forráskód és a [game-data.csv](C:/Dev/Kaoszrubin/Káoszrubin/Data/game-data.csv:923) alapján **8 elsülési animációminta, 4 tartós viharminta, karakteraurák és egy külön Meteorzápor-effekt** van. Ezek a konzolos térkép jeleit, előtér- és háttérszíneit animálják.
+
+**Az elsülési animációk**
+
+A legtöbb effekt megtartja az érintett karakter vagy térképelem jelét, és azt színezi át. Az oszlopok, lángok és örvények az üres mezőkön további karaktereket is megjelenítenek. [Megvalósítás](C:/Dev/Kaoszrubin/Káoszrubin/UI/SpellImpactVisual.cs:20)
+
+| Beállítás | Megjelenés | Jelenlegi használat |
+|---|---|---|
+| `Ripple` | Ismétlődő fehér–világos–sötét pulzálás; területi varázslatnál kifelé futó színhullám. | Az alapértelmezett minta; részletes lista alább. |
+| `Flash` | Erős fehér villanás színes háttéren, majd elsötétedés. | **Jégvihar**: kék, 3,6 mp; **Fénykitörés**: aranybarna, 2,4 mp. |
+| `Bolt` | Gyors, ismétlődő fehér/színes felvillanás az érintett mezőkön. | **Villámvihar**: aranybarna, 3,8 mp; **Savnyíl**: betegzöld, 1,2 mp; **Léleksorvasztás**: árnyszín, 1,6 mp; **Kárhozatvihar**: lila, 4 mp; **Szent csapás**: aranybarna, 1,4 mp. |
+| `Pillars` | Eltolt ritmusban villogó oszlopok; üres mezőkön `│` és `·`. | **Armageddon**: vörös, 4,2 mp; **Szent ítélet**: aranybarna, 3,2 mp; **Isteni harag**: aranybarna, 4 mp. |
+| `FallingFlames` | Szétszórtan felvillanó lángminta; üres mezőkön `✦` és `·`. | **Mennyei tűz**: vörös, 4,5 mp. |
+| `Halo` | Ismétlődő fehér/arany felragyogás, közte fekete háttér. | **Őrangyal**: aranybarna, 4 mp; utána tartós aura is. |
+| `Ward` | Színes védőmező és fehér jel váltakozása. | **Szentély**: aranybarna, 3 mp; utána tartós aura is. |
+| `Vortex` | Térben eltolt villogás; üres mezőkön `╱` és `·` ad örvénylő mintát. | **Lángörvény**: vörös, 2,2 mp; utána külön viharminta. |
+
+A `Bolt` jelenleg a célmezőket villogtatja: nincs hozzá kirajzolt, végigrepülő varázslövedék vagy a célpontokat összekötő villámív.
+
+**A Meteorzápor külön effektje**
+
+A **Meteorzápor (`S011`)** 4,7 másodperces, külön kezelt animációt használ:
+
+- Három kisorsolt becsapódási középpont jelenik meg az érvényes célterületen.
+- Egy becsapódás jele `✹`; ha több meteor ugyanoda esik, szám jelzi a darabszámot.
+- A középpontok 450 ms-os eltolással fehér–vörös villanást kapnak.
+- A sérült környező üres mezőket `▒`, a többi üres célmezőt `·` jelöli; a domináns színek vörös és sárga.
+
+Ez **az `S011` azonosítóhoz kötött kódbeli kivétel**, nem választható általános `BecsapódásMinta`.
+
+**A pályán maradó viharok**
+
+Ezek az elsülési animáció után is megmaradó területek. Mintájuk másodpercenként változik; a szereplők jelei láthatók maradnak, az üres padlómezők kapják a mintakaraktereket. [Megvalósítás](C:/Dev/Kaoszrubin/Káoszrubin/UI/StormZoneVisual.cs:8)
+
+| `ViharMinta` | Megjelenés | Jelenlegi használat és alapidőtartam |
+|---|---|---|
+| `Drift` | Ritkás, sodródó `╱` és `·`, foltos sötét háttér. | Alapértelmezett; jelenleg nincs ezt használó tartós viharvarázslat. |
+| `Rain` | Esőszerű `│` és `·`. | **Jégvihar**: kék, 3 kör; **Dögvészvihar**: betegzöld, 3 kör. |
+| `Crackle` | Széttöredezett villám-/repedésminta: `╱`, `╲`. | **Villámvihar**: aranybarna, 3 kör; **Kárhozatvihar**: lila, 3 kör; **Armageddon**: vörös, 5 kör. |
+| `Embers` | Parázsszerű `✦` és `·`, ritkás sötét háttérfoltok. | **Lángörvény**: aranybarna, 3 kör. |
+
+A Lángörvény jó példa a két szín különválasztására: **az elsülése vörös, a megmaradó parazsa aranybarna**.
+
+**Tartós karakteraurák**
+
+A kedvező aktív varázshatások közül a `Halo` vagy `Ward` mintájú varázslatok **sötét színű hátteret adnak a partitag jele mögé**. Ez állandó háttérszín, nem további pulzáló animáció. [Aurakezelés](C:/Dev/Kaoszrubin/Káoszrubin/UI/SpellAuraVisual.cs:8)
+
+Jelenleg ezt használja az **Őrangyal** — alapból 5 körig, illetve elhasználódásig — és a **Szentély**, alapból 4 körig. Mindkettő sötét aranybarna aurát ad. Több megfelelő aktív varázslatnál az első megtalált aura színe érvényesül. Az ellenségek térképi kirajzolása jelenleg nem használja ezt az aurakezelést.
+
+**A `Ripple` mintát használó többi varázslat**
+
+Az üres `BecsapódásMinta` mező is `Ripple`-t jelent. Az alábbiaknál jelenleg engedélyezett az animáció:
+
+| Szín | Varázslatok |
+|---|---|
+| **Kék — `Blue`** | Mágikus lövedék, Fagyasztó érintés, Láthatatlanság, Arkán páncél, Lassítás, Mágia szétoszlatása, Arkán kataklizma, Erőpajzs, Jégbilincs, Fényvarázslat, Rémkép, Arkán védőháló. |
+| **Vörös — `Red`** | Égő kéz, Lángoló nyíl, Tűzgolyó, Dezintegráció, Lángáldás, Lángoló fegyverzet. |
+| **Aranybarna — `YellowBrown`** | Villámcsapás, Láncvillám, Hasadó villám, Vakítás; Gyógyító érintés, Szent fény, Áldás, Szent pajzs, Gyógyítás, Méregűzés, Feltámasztás, Isteni védelem, Isteni csoda, Betegségűzés, Megtisztítás, Bátorság imája, Tömeges gyógyítás, Igazi feltámasztás, Remény imája, Szent fegyver, Égi bástya, Fegyveráldás, Átoktörés, Tűzoltalom, Lélekpajzs. |
+| **Lila — `Purple`** | Kárhozat nyila, Rémület hulláma, Védelem a gonosztól. |
+| **Betegzöld — `SicklyGreen`** | Kőbőr, Dermesztő átok, Dögvészvihar. |
+| **Árny — `Shadow`** | Sírpenge, Halálosztó fegyverzet, Árnyéktű, Árnyékpajzs, Fekete bilincs, Léleklánc, Fekete nap. |
+| **Vérvörös — `BloodRed`** | Pokoli lehelet, Vérvillám, Pokoltűzgömb. |
+
+A paletták világos/sötét színpárokat jelentenek. A `Blue` konkrétan cián és sötétkék, a `Shadow` szürke és sötétszürke, a `BloodRed` vörös és sötét bíbor. [Színpárok](C:/Dev/Kaoszrubin/Káoszrubin/UI/SpellVisualPalette.cs:7)
+
+**Konfigurálás**
+
+A [Data/game-data.csv](C:/Dev/Kaoszrubin/Káoszrubin/Data/game-data.csv:923) `#Varázslatok` és `#Papi varázslatok` szekcióiban:
+
+| Mező | Mit állít? | Üres mező esetén |
+|---|---|---|
+| `BecsapódásSzín` | Az elsülés palettáját; a fenti hét érték használható. | Arkán: `Blue`; papi: `YellowBrown`. |
+| `BecsapódásIdőMs` | Az elsülési animáció hosszát, ezredmásodpercben. `0` kikapcsolja. | `Area`/`Direction`: 3000 ms; minden más célzás: 1500 ms. |
+| `BecsapódásMinta` | A nyolc elsülési minta egyikét. | `Ripple`. |
+| `ViharMinta` | A tartós terület négy mintájának egyikét. | `Drift`. |
+| `ViharSzín` | A tartós vihar és a karakteraura palettáját. | A `BecsapódásSzín` értéke. |
+| `NaplóEmoji` | A varázslat naplóbeli jelölését. | `✨`. |
+
+Például a Lángörvény vizuális beállításai: `Red`, `2200`, `Vortex`, `Embers`, `YellowBrown`.
+
+**Tartós vihar létrehozásához a vizuális mezők mellett valódi `Storm` hatás is szükséges** a `#Varázshatások` szekcióban, területi vagy irányított célzással és sebzéskockával. A megmaradás hosszát ott az `IdőtartamKör` adja meg. Aurához pedig aktív kedvező varázshatás és `Halo` vagy `Ward` minta kell.
+
+A területi animáció a tényleges hatóterületet követi, a falak és takarások levágják; az egycélpontos effekt követi a mozgó célpontot. Az animáció közben a játék tovább fut, és az effektek a coop megjelenítésben is szerepelnek.
+
+**Jelenleg kikapcsolt elsülési animációk:** Teleportáció, Időmegállítás, Dimenziókapu, Harci gyorsítás, Vérbástya, Sötét litánia, Véráldozat, Vérgyógyítás, Étel és ital teremtése.
+
+Módosítás után újra kell fordítani és indítani a játékot, mert futáskor a kimeneti mappába másolt CSV-t olvassa. A README azon állítása, hogy minden buff és gyógyítás vizuálja ki van kapcsolva, **már elavult**; a fenti lista a jelenlegi kódot és adatokat követi.
 
 ## Session-események
 

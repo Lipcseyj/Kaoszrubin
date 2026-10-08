@@ -132,6 +132,9 @@ public sealed record QuestRoomEnemyEncounterConfiguration(string RoomId, string 
 /// <remarks>A garantált példány beleszámít a pálya <see cref="MazeLevelConfiguration.TrapCount"/> értékébe.</remarks>
 public sealed record GuaranteedTrapConfiguration(string TrapId, int? ScreenNumber = null);
 
+/// <summary>Küldetésszoba célterülete. A képernyőszám 1-től indul; cél nélkül a kijárati terület az alapértelmezés.</summary>
+public sealed record QuestRoomPlacementConfiguration(int? ScreenNumber = null, string? AreaId = null);
+
 /// <summary>
 /// Rövid, olvasható gyármetódusok a leggyakoribb encounter-típusokhoz.
 /// </summary>
@@ -287,6 +290,10 @@ public sealed class MazeLevelConfiguration
     /// <summary>A generátor által garantáltan létrehozandó küldetésszobák tartalomazonosítói.</summary>
     public IReadOnlyList<string> QuestRoomIds { get; init; } = [];
 
+    /// <summary>Küldetésszobánként opcionális képernyőszám vagy stabil AreaId; a főút/mellékág szabály külön megmarad.</summary>
+    public IReadOnlyDictionary<string, QuestRoomPlacementConfiguration> QuestRoomPlacements { get; init; }
+        = new Dictionary<string, QuestRoomPlacementConfiguration>();
+
     /// <summary>Küldetésszoba-azonosítóhoz rendelt konkrét questláda.</summary>
     public IReadOnlyDictionary<string, Domain.Quests.QuestChestId> QuestChestPlacements { get; init; }
         = new Dictionary<string, Domain.Quests.QuestChestId>();
@@ -327,6 +334,7 @@ public sealed class MazeLevelConfiguration
         WallColor = WallColor,
         LevelName = Name,
         QuestRoomIds = QuestRoomIds,
+        QuestRoomPlacements = QuestRoomPlacements,
         BossRoomIds = BossRoomIds,
         SpecialRoomPlacements = SpecialRoomPlacements,
         QuestDoorRequirements = QuestDoorRequirements

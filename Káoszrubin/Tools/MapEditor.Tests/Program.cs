@@ -15,6 +15,7 @@ internal static class Program
         Application.SetCompatibleTextRenderingDefault(false);
         var tests = new (string Name, Action Test)[]
         {
+            ("A questroom célterülete biztonságosan szerkeszthető és körbefordul", QuestRoomPlacementsRoundTrip),
             ("Minden gyári típus és az egyedi csoport oda-vissza alakítható", FactoriesRoundTrip),
             ("Minden kampánytalálkozás veszteség nélkül szerkeszthető", CampaignRoundTrip),
             ("Név szerinti paraméterek, terepek és felülírások megmaradnak", OverridesRoundTrip),
@@ -50,6 +51,46 @@ internal static class Program
 
     private static readonly IReadOnlyDictionary<string, string> Monsters = EncounterDraft.Monsters
         .GroupBy(entry => entry.Value).ToDictionary(group => group.Key, group => group.First().Key);
+    private static void QuestRoomPlacementsRoundTrip()
+    {
+        foreach (var expression in new[] { "new()", "new(ScreenNumber: 2)", "new(AreaId: \"MIDDLE\")",
+                     "new(2, \"MIDDLE\")", "new QuestRoomPlacementConfiguration(null, \"MIDDLE\")",
+                     "new(AreaId: \"A\\\"B\\\\C\", ScreenNumber: 1)" })
+        {
+            var parsed = QuestRoomPlacementDraft.Parse(expression);
+            Assert(QuestRoomPlacementDraft.Parse(QuestRoomPlacementDraft.Expression(parsed)) == parsed,
+                "A szobacél nem fordult körbe: " + expression);
+        }
+        foreach (var expression in new[] { "new(ScreenNumber: 0)", "new(AreaId: \"\")",
+                     "new(ScreenNumber: Evil())", "new(Other: 1)", "new(ScreenNumber: 1, ScreenNumber: 2)",
+                     "new OtherType(1)", "new() { AreaId = \"MIDDLE\" }" })
+        {
+            var rejected = false;
+            try { QuestRoomPlacementDraft.Parse(expression); }
+            catch (FormatException) { rejected = true; }
+            Assert(rejected, "Hibás vagy végrehajtható szobacél elfogadva: " + expression);
+        }
+        using var grid = MapEditorForm.BuildLevelDictionaryGrid("QuestRoomPlacements");
+        grid.Rows.Add("SCREEN_ROOM", "2", "");
+        grid.Rows.Add("AREA_ROOM", "", "MIDDLE");
+        grid.Rows.Add("DEFAULT_ROOM", "", "");
+        var entries = MapEditorForm.ReadQuestRoomPlacementEntries(grid);
+        Assert(entries["SCREEN_ROOM"] == new QuestRoomPlacementConfiguration(2) &&
+               entries["AREA_ROOM"] == new QuestRoomPlacementConfiguration(AreaId: "MIDDLE") &&
+               entries["DEFAULT_ROOM"] == new QuestRoomPlacementConfiguration(), "A célterületi táblázat hibás.");
+        var dictionary = "new Dictionary<string, QuestRoomPlacementConfiguration> { " +
+            string.Join(", ", entries.Select(pair => $"[\"{pair.Key}\"] = {QuestRoomPlacementDraft.Expression(pair.Value)}")) + " }";
+        var source = "[1] = new() {\n Name = \"Teszt\",\n}";
+        var updated = EditorSources.UpdateLevelSource(source, 1, new Dictionary<string, string> { ["QuestRoomPlacements"] = dictionary });
+        var restored = EditorSources.DictionaryEntries(EditorSources.Property(EditorSources.LevelBlock(updated, 1), "QuestRoomPlacements"));
+        Assert(restored.Count == entries.Count && restored.All(pair => QuestRoomPlacementDraft.Parse(pair.Value) == entries[pair.Key]),
+            "A szobacélok nem maradtak meg a pályaforrásban.");
+        grid.Rows.Add("SCREEN_ROOM", "1", "");
+        var duplicateRejected = false;
+        try { MapEditorForm.ReadQuestRoomPlacementEntries(grid); }
+        catch (InvalidDataException) { duplicateRejected = true; }
+        Assert(duplicateRejected, "A táblázat ismétlődő szobaazonosítót fogadott el.");
+    }
     private static EncounterEditorContext Context(bool forest = true, bool rooms = true) => new(forest, rooms, 2,
         ["A", "B"], forest ? [RoomKind.Clearing, RoomKind.Cabin, RoomKind.Manor, RoomKind.Labyrinth] : [RoomKind.Generic],
         Monsters.Keys.ToHashSet(), forest ? new Dictionary<string, IReadOnlyList<RoomKind>>

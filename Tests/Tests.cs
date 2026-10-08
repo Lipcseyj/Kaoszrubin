@@ -5,6 +5,11 @@ internal static partial class Program
         #region test cases
         var tests = new (string Name, Action Run)[]
         {
+    ("Questroom célterület: képernyőszám, AreaId és helyi szabályok", QuestRoomAreaPlacementTests.QuestRoomAreaTargetsAndLocalRules),
+    ("Questroom célterület: hibás és ütköző célok elutasítása", QuestRoomAreaPlacementTests.QuestRoomAreaRejectsInvalidTargets),
+    ("Questroom célterület: széles és explicit erdei generálás", QuestRoomAreaPlacementTests.QuestRoomAreaWideAndForestGeneration),
+    ("Questroom célterület: a ládák és ellenfelek követik a szobát", QuestRoomAreaPlacementTests.QuestRoomAreaContentsFollowRooms),
+    ("Questroom célterület: ládavalidáció külön képernyők között", QuestRoomAreaPlacementTests.QuestRoomAreaChestValidationAcrossScreens),
     ("A coop szimuláció négy 30-as szintű, teljesen felszerelt karaktert indít", CoopFixtureTests.FourLevelThirtyCharactersCarryRequestedSupplies),
     ("A questláda CSV-je célzott objective-ot és ellenőrzött tartalmat ad", QuestChestTests.CsvResolvesChestAndObjective),
     ("Csak az első ládanyitás ad progresst, a kipakolás nem", QuestChestTests.FirstOpeningCountsButEmptyingDoesNot),

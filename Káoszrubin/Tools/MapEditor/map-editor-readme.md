@@ -29,6 +29,12 @@ képernyő között hozható létre vagy törölhető él.
 
 ## Találkozások szerkesztése
 
+A **Labirintus pálya** fülön a **Küldetésszobák célterülete** táblázat szobánkénti
+képernyőszámot vagy stabil AreaId-t is támogat. A szoba a `QuestRoomIds` listában szerepeljen.
+Üres cél esetén a kijárati területet használja; a láda, garantált ellenfelek és questajtó
+követik a szobát. Részletes szabályok és C# példa:
+[küldetésszobák elhelyezése](../../doc/quest-room-placement-readme.md).
+
 1. Töltsd be a pályát, majd válaszd a **Találkozások** fül **Szobai** vagy **Folyosói** listáját.
 2. Az **Új találkozás…** üres űrlapot nyit; meglévő sorhoz a **Szerkesztés…** vagy dupla kattintás használható.
 3. Válassz típust: `Same`, `Solo`, `Mixed`, `LeaderGroup`, `Horde`, `MixedHorde`, `LeaderHorde`,
