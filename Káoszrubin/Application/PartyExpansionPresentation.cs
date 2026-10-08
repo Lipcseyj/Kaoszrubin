@@ -20,7 +20,9 @@ internal static class PartyExpansionPresentation
         [
             "Aurelios ügynöke szervezett ork csapatokra figyelmeztet. Nagyobb kíséretre lesz szükségetek.",
             "Új partihely! A Kulcshordozók csapata mostantól 6 fős lehet.",
-            "Elérhető a széles harcrend és egy újabb egyszeri toborzási támogatás."
+            "Elérhető a 3×2-es széles harcrend; az alakzatszerkesztőben F-fel válthattok formát.",
+            "Újabb egyszeri toborzási támogatás: három különböző kasztú zsoldosból egyet ingyen felvehettek.",
+            "A választás elhalasztható; a támogatás a következő fogadóban is megmarad."
         ]),
         _ => throw new ArgumentOutOfRangeException(nameof(milestone))
     };

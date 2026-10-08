@@ -22,8 +22,8 @@ public sealed record PartyCampaignProgressionSnapshot(
 public sealed record PartyCapacityRules
 {
     public const int InitialCapacity = 4;
-    // A harmadik ütem az ötödik helyet kapcsolja be; a hatodik külön szállítási ütem.
-    public static PartyCapacityRules Current { get; } = new() { ExpandedPartyEnabled = true, MaximumEnabledCapacity = 5 };
+    // Az 5. és 8. sikeresen lezárt főpálya oldja fel az ötödik és hatodik helyet.
+    public static PartyCapacityRules Current { get; } = new() { ExpandedPartyEnabled = true };
     public bool ExpandedPartyEnabled { get; init; }
     public int MaximumEnabledCapacity { get; init; } = Party.MaximumSize;
     public int FifthMemberCompletedLevel { get; init; } = 5;

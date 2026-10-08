@@ -13,8 +13,8 @@ internal static class RecruitmentTests
 {
     public static IEnumerable<(string Name, Action Run)> Cases =>
     [
-        ("A harmadik ütem élesben öt helyet old fel, hatot még nem", CurrentRules),
-        ("Régi mentés jogosultsága megmarad a hatodik hely bekapcsolásáig", LegacyEntitlement),
+        ("Élesben az 5. és 8. teljesített főpálya oldja fel az ötödik és hatodik helyet", CurrentRules),
+        ("A harmadik ütemben tárolt és a régi mentésből migrált hatos jogosultság azonnal érvényesül", LegacyEntitlement),
         ("Támogatott zsoldos pontos szinttel, felszereléssel és ellátmánnyal készül", SupportedCharacters),
         ("A három támogatott jelöltből legalább egy hiányzó kasztú", CandidatePool),
         ("Az ingyenes felvétel egyszer fogyaszt támogatást és nem költ aranyat", FreeRecruitment),
@@ -27,7 +27,14 @@ internal static class RecruitmentTests
         ("A fogadói jelöltek és a támogatás hostállapota replikálható", InnReplication),
         ("Mentés-visszatöltés megtartja a halasztott és elhasznált támogatást", SavedRecruitment),
         ("Az ingyenes ajánlat és a támogatás egyértelmű a toborzási képernyőn", RecruitmentDisplay),
-        ("A 6–8. kampánypálya generált területein elhelyezhető az ötös menetoszlop", CampaignLayouts)
+        ("A 6–8. kampánypálya generált területein elhelyezhető az ötös menetoszlop", CampaignLayouts),
+        ("A 8. főpálya jutalma után nyílik a hatodik hely, történet és ingyenes felvétel", SixthCompletion),
+        ("A két halasztott támogatás külön fogy a két új hely feltöltésekor", TwoDeferredGrants),
+        ("A hatos parti mentése megőrzi a széles formát és a két elköltött támogatást", SixthSave),
+        ("A vendég hat tagot, széles formát és a második támogatás fogadói állapotát kapja", SixthReplication),
+        ("Az F öt és hat taggal körbejárja a két nagy formát, az üres hely megmarad", WideEditor),
+        ("Teli hatos parti és elavult ajánlat nem használhatja újra a második támogatást", SixthFullParty),
+        ("A 9–10. kampánypálya generált területein mindkét nagy alakzat elhelyezhető", SixthCampaignLayouts)
     ];
 
     private static void Check(bool value, string message) { if (!value) throw new InvalidOperationException(message); }
@@ -74,19 +81,28 @@ internal static class RecruitmentTests
         var party = new Party();
         party.RecordCampaignLevelCompletion(4); Check(party.Capacity == 4, "Korai feloldás.");
         party.RecordCampaignLevelCompletion(5); Check(party.Capacity == 5, "Az ötödik hely nem nyílt meg.");
+        party.RecordCampaignLevelCompletion(7);
+        Check(party.Capacity == 5 &&
+            FormationEditor.AvailableShapes(party.Capacity, 5).SequenceEqual([PartyFormationShape.Column2x3]) &&
+            !party.TryMarkUnlockPresented(PartyExpansionMilestone.SixthMember), "Korai hatodik hely vagy széles forma.");
+        party.RecordCampaignLevelCompletion(8);
+        Check(party.Capacity == 6 && party.UnlockedCapacity == 6 &&
+            party.AvailableRecruitmentGrants.SequenceEqual([PartyExpansionMilestone.FifthMember, PartyExpansionMilestone.SixthMember]) &&
+            party.PendingUnlockPresentations.Count == 2, "A hatodik hely vagy második támogatás nem nyílt meg.");
+        Check(FormationEditor.AvailableShapes(party.Capacity, 5).SequenceEqual([PartyFormationShape.Column2x3, PartyFormationShape.Wide3x2]),
+            "A széles forma a feloldás után sem érhető el.");
         party.RecordCampaignLevelCompletion(22);
-        Check(party.Capacity == 5 && party.UnlockedCapacity == 6 &&
-            party.AvailableRecruitmentGrants.SequenceEqual([PartyExpansionMilestone.FifthMember]) &&
-            !party.TryMarkUnlockPresented(PartyExpansionMilestone.SixthMember), "A negyedik ütem idő előtt bekapcsolt.");
-        Check(FormationEditor.AvailableShapes(party.Capacity, 5).SequenceEqual([PartyFormationShape.Column2x3]), "A széles forma idő előtt elérhető.");
+        party.RecordCampaignLevelCompletion(4);
+        Check(party.Capacity == 6 && party.AvailableRecruitmentGrants.Count == 2, "Ismételt teljesítés módosította a jutalmakat.");
     }
     public static void LegacyEntitlement()
     {
         var migrated = GameSaveFormat.MigrateToCurrent(new GameSaveData { Version = 35, MazeLevel = 9 });
-        var party = new Party(); party.MergeCampaignProgression(migrated.PartyCampaignProgression);
+        var party = new Party(PartyCapacityRules.Current with { MaximumEnabledCapacity = 5 });
+        party.MergeCampaignProgression(migrated.PartyCampaignProgression);
         Check(party.Capacity == 5 && party.UnlockedCapacity == 6, "A régi jogosultság elveszett.");
         party.TryMarkUnlockPresented(PartyExpansionMilestone.FifthMember);
-        var future = new Party(new PartyCapacityRules { ExpandedPartyEnabled = true });
+        var future = new Party();
         future.MergeCampaignProgression(party.CampaignProgression);
         Check(future.Capacity == 6 && future.PendingUnlockPresentations.SequenceEqual([PartyExpansionMilestone.SixthMember]),
             "A későbbi hatodik helyhez újra kellene teljesíteni a mérföldkövet.");
@@ -261,12 +277,176 @@ internal static class RecruitmentTests
         Check(lines.Any(line => line.Text.Contains("4/5")) && lines.Count(line => line.Text.Contains("TÁMOGATÁSSAL INGYEN")) == 3 &&
             lines.Any(line => line.Text.Contains("1 támogatás")) && lines.Any(line => line.Text.Contains("Esc")), "A kedvezmény nincs világosan megkülönböztetve.");
     }
-    public static void CampaignLayouts()
+    private static (InnController Inn, CharacterRoster Roster) FifthParty()
     {
-        var members = Catalog.CharacterClasses.Take(5).Select((value, index) => Character($"Kampány{index}", 8, value.Id)).ToArray();
-        var formation = PartyFormationRules.CreateDefault(members.Select(value => value.Id), members[0].Id);
+        var (inn, roster) = Fixture();
+        var offer = inn.RecruitmentOffers()[0];
+        Check(inn.TryRecruit(offer.CharacterId, inn.Revision, null, out _), "Az ötödik társ nem csatlakozott.");
+        roster.Party.TryMarkUnlockPresented(PartyExpansionMilestone.FifthMember);
+        roster.Party.RecordCampaignLevelCompletion(7);
+        return (inn, roster);
+    }
+
+    private static (InnController Inn, CharacterRoster Roster) SixthInn()
+    {
+        var (inn, roster) = FifthParty();
+        Invoke(inn, "CompleteLevelAtInn", 8);
+        inn.InitializeRecruitment(8);
+        return (inn, roster);
+    }
+
+    public static void SixthCompletion()
+    {
+        var (inn, roster) = FifthParty();
+        Check(roster.Party.Capacity == 5 && roster.Party.AvailableRecruitmentGrants.Count == 0,
+            "A 8. pálya lezárása előtt feloldódott a hatodik hely.");
+        var outcome = Invoke(inn, "CompleteLevelAtInn", 8);
+        var completion = (LevelCompletionSnapshot)Invoke(inn, "CreateLevelCompletionSnapshot", 8, outcome);
+        var expansion = completion.PartyExpansions!.Single();
+        Check(completion.Survivors.Count == 5 &&
+            completion.Survivors.All(value => value.GainedExperience == Catalog.BaseLevelCompletionExperience * 8) &&
+            expansion.Milestone == PartyExpansionMilestone.SixthMember && roster.Party.Capacity == 6,
+            "Hibás pályajutalom, feloldás vagy ismételt történet.");
+        var lines = ConsoleRenderer.BuildLevelCompletionLines(completion);
+        Check(lines.Any(line => line.Text.Contains("Aurelios")) && lines.Any(line => line.Text.Contains("6 fős")) &&
+            lines.Any(line => line.Text.Contains("3×2")) && lines.Any(line => line.Text.Contains("F-fel")) &&
+            lines.FindIndex(line => line.Text.Contains("Teljesítési XP")) < lines.FindIndex(line => line.Text.Contains("Új partihely")),
+            "A hatodik hely története vagy a formaváltás magyarázata hiányzik.");
+        Check(roster.Party.TryMarkUnlockPresented(PartyExpansionMilestone.SixthMember) &&
+            !roster.Party.TryMarkUnlockPresented(PartyExpansionMilestone.SixthMember), "A történet többször elfogadható.");
+        inn.InitializeRecruitment(8);
+        var offers = inn.RecruitmentOffers();
+        Check(offers.Count == 3 && offers.All(offer => offer.Price == 0 &&
+            offer.RecruitmentGrant == PartyExpansionMilestone.SixthMember), "A második támogatás nem használható.");
+        var candidate = Candidates(inn)[0]; var xp = candidate.Experience; var gold = roster.Party.Leader!.Gold;
+        Check(inn.TryRecruit(candidate.Id, inn.Revision, null, out _) && candidate.Experience == xp &&
+            roster.Party.Members.Count == 6 && roster.Party.Leader.Gold == gold &&
+            roster.Party.AvailableRecruitmentGrants.Count == 0, "A hatodik társ hibás áron vagy visszamenőleges XP-vel csatlakozott.");
+        Invoke(inn, "CompleteLevelAtInn", 8);
+        Check(PartyExpansionPresentation.Pending(roster.Party).Count == 0 && roster.Party.AvailableRecruitmentGrants.Count == 0,
+            "Ismételt teljesítés visszaadta a történetet vagy a támogatást.");
+    }
+
+    public static void TwoDeferredGrants()
+    {
+        var (inn, roster) = Fixture(completed: 8);
+        var offers = inn.RecruitmentOffers();
+        Check(roster.Party.AvailableRecruitmentGrants.Count == 2 &&
+            offers.All(offer => offer.RecruitmentGrant == PartyExpansionMilestone.FifthMember), "Hibás támogatássorrend.");
+        Check(inn.TryRecruit(offers[0].CharacterId, inn.Revision, null, out _), "Az első halasztott támogatás nem használható.");
+        Check(!inn.TryRecruit(offers[1].CharacterId, inn.Revision - 1, null, out _) &&
+            roster.Party.AvailableRecruitmentGrants.SequenceEqual([PartyExpansionMilestone.SixthMember]),
+            "Elavult ajánlat elköltötte a második támogatást.");
+        var next = Controller(roster, 294); next.InitializeRecruitment(9);
+        Check(next.RecruitmentOffers().Count == 3 &&
+            next.RecruitmentOffers().All(offer => offer.RecruitmentGrant == PartyExpansionMilestone.SixthMember),
+            "A halasztott második támogatás elveszett.");
+        Check(next.TryRecruit(next.RecruitmentOffers()[0].CharacterId, next.Revision, null, out _) &&
+            roster.Party.Members.Count == 6 && roster.Party.AvailableRecruitmentGrants.Count == 0 &&
+            roster.Party.CampaignProgression.ConsumedRecruitmentGrants!.Count == 2,
+            "A két támogatás nem külön fogyott el.");
+    }
+
+    public static void SixthSave()
+    {
+        var (inn, roster) = SixthInn();
+        var deferred = roster.Party.CampaignProgression;
+        roster.Party.TryMarkUnlockPresented(PartyExpansionMilestone.SixthMember);
+        Check(inn.TryRecruit(inn.RecruitmentOffers()[0].CharacterId, inn.Revision, null, out _), "Hatodik tag hiányzik.");
+        var formation = PartyFormationRules.WithShape(
+            PartyFormationRules.CreateDefault(roster.Party.Members.Select(member => member.Id), roster.Party.Leader!.Id, Direction.Left),
+            PartyFormationShape.Wide3x2);
+        var directory = Path.Combine(Path.GetTempPath(), $"party-sixth-{Guid.NewGuid():N}");
+        try
+        {
+            var characters = new CharacterSaveService(Path.Combine(directory, "characters.json"), Catalog);
+            var saves = new GameSaveService(directory, characters);
+            var path = saves.Save(new GameSaveData { MainCharacterName = roster.Party.Leader.Name, MazeLevel = 9,
+                Formation = formation }, roster);
+            var loaded = saves.Load(path);
+            loaded.Roster.Party.MergeCampaignProgression(deferred);
+            Check(loaded.Roster.Party.Capacity == 6 && loaded.Roster.Party.Members.Select(member => member.Id)
+                .SequenceEqual(roster.Party.Members.Select(member => member.Id)) &&
+                loaded.Roster.Party.PendingUnlockPresentations.Count == 0 && loaded.Roster.Party.AvailableRecruitmentGrants.Count == 0 &&
+                loaded.State.Formation!.Shape == PartyFormationShape.Wide3x2 && loaded.State.Formation.Facing == Direction.Left &&
+                loaded.State.Formation.Slots.SequenceEqual(formation.Slots), "Hatodik tag, széles forma vagy egyszeri jutalom elveszett.");
+        }
+        finally
+        {
+            Check(Path.GetFullPath(directory).StartsWith(Path.GetFullPath(Path.GetTempPath()), StringComparison.OrdinalIgnoreCase),
+                "A tesztkönyvtár az ideiglenes gyökéren kívülre mutat.");
+            if (Directory.Exists(directory)) Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    public static void SixthReplication()
+    {
+        var (inn, roster) = SixthInn();
+        var before = JsonSerializer.Deserialize<InnSnapshot>(JsonSerializer.Serialize(inn.CreateSnapshot()))!;
+        Check(before.PartyCapacity == 6 && before.PartyCount == 5 &&
+            before.RecruitmentGrants!.SequenceEqual([PartyExpansionMilestone.SixthMember]) &&
+            before.Recruits!.All(offer => offer.RecruitmentGrant == PartyExpansionMilestone.SixthMember),
+            "A vendég nem látja a második támogatást vagy az új korlátot.");
+        Check(inn.TryRecruit(before.Recruits![0].CharacterId, before.Revision, null, out _), "Replikált ajánlat nem vehető fel.");
+        var formation = PartyFormationRules.WithShape(
+            PartyFormationRules.CreateDefault(roster.Party.Members.Select(member => member.Id), roster.Party.Leader!.Id),
+            PartyFormationShape.Wide3x2);
+        var positions = PartyFormationRules.Positions(formation, roster.Party.Leader.Id, new(8, 8));
+        var snapshot = new GameSession(roster.Party, roster.Party.Leader).CreateSnapshot(new(9, "Haditábor", positions))
+            with { Formation = formation, Inn = inn.CreateSnapshot() };
+        var restored = JsonSerializer.Deserialize<SessionSnapshot>(JsonSerializer.Serialize(snapshot))!;
+        Check(restored.PartyCapacity == 6 && restored.Party.Count == 6 && restored.Party.All(member => member.Position is not null) &&
+            restored.Formation!.Shape == PartyFormationShape.Wide3x2 && restored.Formation.Slots.SequenceEqual(formation.Slots) &&
+            restored.Inn!.RecruitmentGrants!.Count == 0 && restored.Inn.PartyCount == 6,
+            "A vendégből hiányzik a hatodik tag, az alakzat vagy a felvétel eredménye.");
+    }
+
+    public static void WideEditor()
+    {
+        foreach (var count in new[] { 5, 6 })
+        {
+            var members = Catalog.CharacterClasses.Take(count).Select((value, index) => Character($"Széles{index}", 8, value.Id)).ToArray();
+            var column = PartyFormationRules.CreateDefault(members.Select(member => member.Id), members[0].Id, Direction.Down);
+            var wide = FormationEditor.CycleShape(column, PartyCapacityRules.Current.Capacity(8), count);
+            Check(wide.Shape == PartyFormationShape.Wide3x2 && wide.Facing == Direction.Down &&
+                wide.Slots.OfType<CharacterId>().ToHashSet().SetEquals(members.Select(member => member.Id)) &&
+                wide.Slots.Count(id => id is null) == 6 - count && FormationEditor.ShapeChangeHint(6, count) == string.Empty,
+                "F-fel nem választható a széles forma, vagy elveszett tag/üres hely.");
+            if (count == 5)
+            {
+                var slots = wide.Slots.ToArray();
+                var gap = Array.IndexOf(slots, null);
+                (slots[gap], slots[1]) = (slots[1], slots[gap]);
+                wide = PartyFormationRules.WithSlots(wide, slots);
+                Check(PartyFormationRules.Normalize(wide, members.Select(member => member.Id), members[0].Id).Slots.SequenceEqual(slots),
+                    "A széles forma szándékos üres helye elmozdult.");
+            }
+            Check(FormationEditor.CycleShape(wide, 6, count).Shape == PartyFormationShape.Column2x3,
+                "Az F nem vált vissza a menetoszlopra.");
+        }
+    }
+
+    public static void SixthFullParty()
+    {
+        var (inn, roster) = SixthInn();
+        var offer = inn.RecruitmentOffers()[0]; var revision = inn.Revision;
+        Check(inn.TryRecruit(offer.CharacterId, revision, null, out _), "Nem telt meg a hatos parti.");
+        var gold = roster.Party.Leader!.Gold;
+        Check(!inn.TryRecruit(offer.CharacterId, revision, null, out _) &&
+            !inn.TryRecruit(inn.RecruitmentOffers()[0].CharacterId, inn.Revision, null, out _) &&
+            roster.Party.Members.Count == 6 && roster.Party.Leader.Gold == gold &&
+            roster.Party.AvailableRecruitmentGrants.Count == 0, "Hetedik tag vagy ismételt ingyenes felvétel sikerült.");
+    }
+
+    public static void CampaignLayouts() => CheckCampaignLayouts(6, 8, 5, [PartyFormationShape.Column2x3]);
+    public static void SixthCampaignLayouts() => CheckCampaignLayouts(9, 10, 6,
+        [PartyFormationShape.Column2x3, PartyFormationShape.Wide3x2]);
+
+    private static void CheckCampaignLayouts(int firstLevel, int lastLevel, int memberCount, PartyFormationShape[] shapes)
+    {
+        var members = Catalog.CharacterClasses.Take(memberCount).Select((value, index) => Character($"Kampány{index}", 8, value.Id)).ToArray();
         var generate = typeof(Game).GetMethod("GenerateDungeonLevel", BindingFlags.NonPublic | BindingFlags.Instance)!;
-        for (var level = 6; level <= 8; level++)
+        for (var level = firstLevel; level <= lastLevel; level++)
         for (var seed = 1; seed <= 2; seed++)
         {
             var game = (Game)RuntimeHelpers.GetUninitializedObject(typeof(Game));
@@ -277,7 +457,10 @@ internal static class RecruitmentTests
                 new FileForestLevelGraphSource(Path.Combine(AppContext.BaseDirectory, "ForestLevelGraphs")));
             var dungeon = (DungeonLevel)generate.Invoke(game, [configuration, layout])!;
             foreach (var area in dungeon.Areas)
+            foreach (var shape in shapes)
             {
+                var formation = PartyFormationRules.WithShape(
+                    PartyFormationRules.CreateDefault(members.Select(value => value.Id), members[0].Id), shape);
                 var maze = area.Maze;
                 var room = maze.StartingRoom!;
                 var canPlace = false;
@@ -287,11 +470,11 @@ internal static class RecruitmentTests
                 {
                     var positions = PartyFormationRules.Positions(formation with { Facing = facing }, members[0].Id, new(x, y));
                     if (!positions.Values.All(maze.IsWalkable) || positions.Values.Any(position => maze.GetObjectAt(position) is not null)) continue;
-                    Check(positions.Count == 5 && positions.Values.Distinct().Count() == 5, "Ütköző kampánybelépés.");
+                    Check(positions.Count == memberCount && positions.Values.Distinct().Count() == memberCount, "Ütköző kampánybelépés.");
                     Check(positions.Values.All(position => TacticalDistance.IsWithin(positions[members[0].Id], position)), "A harmadik sor kimarad a harci sugárból.");
                     canPlace = true; break;
                 }
-                Check(canPlace, $"{level}. pálya / {area.Id}: nincs hely az ötfős induló alakzatnak.");
+                Check(canPlace, $"{level}. pálya / {area.Id}: nincs hely a {memberCount} fős {shape} induló alakzatnak.");
             }
         }
     }

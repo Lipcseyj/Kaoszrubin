@@ -1,10 +1,10 @@
 # Hatfős parti – megvalósítási állapot
 
-2026. október 8. – a harmadik szállítási ütem elkészült: az ötödik partihely és a hozzá tartozó toborzási támogatás már aktív.
+2026. október 8. – a negyedik szállítási ütem megvalósítása elkészült: az ötödik és hatodik partihely, a két toborzási támogatás és mindkét nagy alakzat aktív. A 9–10. pálya automatizált elhelyezési próbája sikeres; az interaktív harci és balanszpróbák az ötödik ütem ellenőrzéseihez tartoznak.
 
 ## Kapacitás, kampányállapot és mentés
 
-- A technikai felső határ 6. A tényleges csatlakozási korlátot a `Party.Capacity` és az `IsFull` adja. Az alapértelmezett `ExpandedPartyEnabled = true`, `MaximumEnabledCapacity = 5`: új kampányban 4 hely, az 5. sikeresen lezárt főpálya után 5 hely használható. A hatodik hely és jutalma a negyedik ütemig még kikapcsolt; a már megszerzett jogosultság a kampányállapotban megmarad.
+- A technikai felső határ 6. A tényleges csatlakozási korlátot a `Party.Capacity` és az `IsFull` adja. Az alapértelmezett `ExpandedPartyEnabled = true`, `MaximumEnabledCapacity = 6`: új kampányban 4 hely, az 5. sikeresen lezárt főpálya után 5, a 8. után 6 hely használható. A korábbi ütemben már tárolt hatos jogosultság most új pályateljesítés nélkül érvényesül.
 - A közös kapacitásszabály az 5. és 8. sikeresen lezárt főpályához köti az új helyeket. A kampány menti a legmagasabb teljesített főpályát, a két támogatás felhasználását és az egyszeri bemutatásokat. Halál, eltávolítás, vezetőváltás és régi pillanatkép visszaállítása nem vonja vissza ezeket; új kampány négy helyről indul.
 - A főpálya fogadói lezárása a túlélők jutalmazása és az elesettek eltávolítása után rögzíti a teljesítést. Mellékhelyszín, területváltás és fejlesztői pályaugrás nem old fel új helyet.
 - A fogadói, világ-NPC-, egyedi követő-, fejlesztői és coop csatlakozás a közös korláthoz igazodik. A támogatott normál felvétel és a támogatás felhasználása egyetlen partiművelet; sikertelen felvételnél nincs támogatásfogyás. A társcsere is egyetlen művelet, sikertelen normál felvételért nincs fizetés.
@@ -15,7 +15,7 @@
 ## Alakzat és mozgás
 
 - A közös geometriai API kezeli a 2×2-es blokkot, a 2×3-as menetoszlopot és a 3×2-es széles harcrendet. A sor és az oszlop a formából következik; minden élő rendes tag pontosan egyszer szerepel. Ötfős partiban a szándékosan üres slot megmarad.
-- A 3×2-es forma technikai alapjai már a közös modell részei; a kampánybeli hatodik hely és a széles forma látható használata a későbbi feloldási ütemhez tartozik.
+- A 3×2-es széles forma a hatodik partihely feloldásától választható, öt tényleges taggal is. Az F a 2×3 és 3×2 között vált; négy vagy kevesebb taggal a 2×2 is választható. Egyetlen engedélyezett forma esetén a szerkesztő megmutatja a váltás feloldási feltételét.
 - A követési sorrend, a rácselhelyezés, a libasor, a kanyar és a visszafordulás hat tagot kezel. Az ideiglenes követő nem foglal rendes slotot.
 - A téglalap fordulása és a hosszabb átrendeződés előre megtervezett, járható, szomszédos lépésekből áll. Elérhetetlen vagy foglalt cél esetén a tervezés nem módosít pozíciót. Az út közben érintett terep, látótér, láda és csapda minden lépésnél érvényesül; újonnan felfedezett csapda vagy elesett társ megszakítja a végrehajtást és feloszlatja az alakzatot.
 - A régi 2×2-es forgatási viselkedés megmarad. Teljes alakzatszerkesztés csak harcon kívül nyitható meg.
@@ -39,14 +39,26 @@
 - A toborzási képernyő külön jelzi a támogatással ingyenes ajánlatot és a megmaradt támogatást. A vezető választási ablaka a vendégek számára megosztott; az ajánlatok, a támogatás, a feloldási történet és a sikeres felvétel tranzakciója a host pillanatképének része. A toborzás továbbra is vezetői döntés.
 - Az ötödik társ a korábbi pálya teljesítési XP-jét utólag nem kapja meg. A mentés-visszatöltés megtartja a halasztott támogatást, a felvett ötödik tagot és az elhasznált támogatást; régi kampánypillanatkép nem adja vissza a jutalmat.
 
+## Negyedik ütem: hatodik hely és széles harcrend
+
+- A 8. főpálya lezárásakor a meglévő túlélők megkapják a teljes pályajutalmat, majd hatra nő a kapacitás. Aurelios ügynökének egyszeri története a szervezett ork csapatokra figyelmeztet, bemutatja a széles harcrendet és az F-es formaváltást.
+- A második támogatás a `SixthMember` azonosítót használja, az elsőtől függetlenül. Három eltérő kasztú, a vezetőnél egy szinttel alacsonyabb normál jelöltből egy ingyen felvehető. Halasztáskor a következő fogadóban is megmarad.
+- Ha mindkét támogatás felhasználatlan, előbb az ötödik hely támogatása fogy; a frissített ajánlatok ezután a hatodikét használják. Elavult ajánlat, sikertelen felvétel vagy teli parti nem fogyaszt támogatást, és hetedik tag nem csatlakozhat.
+- A széles alakzat a feloldástól öt és hat taggal egyaránt választható. Öt tagnál a játékos áthelyezheti az üres slotot; normalizáláskor a rés megmarad. Formaváltáskor a nézési irány és minden tag megmarad.
+- A meglévő 37-es mentésformátum és 105-ös protokoll már tartalmazza az összes szükséges mezőt; ehhez az ütemhez nincs új adatszerződés. A hatos csapat, a széles forma, a hat slot és a két jutalom állapota a korábbi mentési és replikációs utakon működik.
+- A kampánypályák konfigurációja, ellenfélértékei és XP-szabályai nem változtak; a folyamatban lévő pályabalansz megmaradt.
+
 ## Ellenőrzés
 
 - Játékfordítás: **0 hiba, 0 figyelmeztetés**.
-- Önálló regressziós csomag: **55/55 sikeres**. Kapacitás és támogatások, párhuzamos felvétel, régi/questmentés-migráció, hat tag felszerelésének mentése, mindkét téglalap minden nézési iránnyal és vezérhellyel, üres slot, libasor, előre tervezett forgatás, foglalt/elérhetetlen cél, követő elhelyezése, sorvédelem, hatótáv, sorcsere és lekötésátadás, felkészítés, parancsadatok, ikonok és a panel rajzolási útja.
+- Önálló regressziós csomag: **62/62 sikeres**. Kapacitás és támogatások, párhuzamos felvétel, régi/questmentés-migráció, hat tag felszerelésének mentése, mindkét téglalap minden nézési iránnyal és vezérhellyel, üres slot, libasor, előre tervezett forgatás, foglalt/elérhetetlen cél, követő elhelyezése, sorvédelem, hatótáv, sorcsere és lekötésátadás, felkészítés, parancsadatok, ikonok és a panel rajzolási útja.
 - Meglévő teljes regressziós csomag: **424/424 sikeres**. A korábban javított `ForestTerrainAmbushPlacementIsStable` továbbra is átmegy; a pályabalansz ehhez az ütemhez nem változott.
-- A harmadik ütem 15 további próbája ellenőrzi az éles ötös korlátot, a későbbi hatos jogosultság megtartását, mind a hat kaszt támogatott generálását, a hiányzó kaszt garantálását, a halasztást, a normál és egyedi felvételt, a teli partit és társcserét, a jutalmazási sorrendet, a történetet, a mentést és a coop adatokat.
+- A harmadik ütem 15 további próbája ellenőrzi az éles 5/8-as küszöböket, a korábbi ütemből megőrzött hatos jogosultság érvényesülését, mind a hat kaszt támogatott generálását, a hiányzó kaszt garantálását, a halasztást, a normál és egyedi felvételt, a teli partit és társcserét, a jutalmazási sorrendet, a történetet, a mentést és a coop adatokat.
 - A 6., 7. és 8. pálya tényleges kampánygenerátorával két-két térképmag mellett minden generált terület kezdőterében ellenőriztük az ötfős menetoszlop elhelyezhetőségét és a harmadik sor harci sugarát. A 6. pálya a csomagolt JSON erdőgráfot használta. A pályakonfiguráció és az encounterek balansza nem változott.
 - A teljes interaktív helyi/coop játékteszt, a sokféle ajtó és képernyőváltás végigjátszása, valamint a 6–10. pálya harci és ellátási mérései még hátravannak. Az automatizált geometriai és felvételi ellenőrzések nem helyettesítik ezeket.
+
+- A negyedik ütem hét új próbája ellenőrzi a 8. főpálya jutalmazását és feloldását, a történet egyszeriségét, a hatodik társ ingyenes felvételét utólagos XP nélkül, a két halasztott támogatást, a hatos csapat és széles forma tényleges fájlmentését, a vendégadatokat, az F-es váltást öt és hat taggal, valamint az elavult és teli partis ajánlatokat.
+- A 9. és 10. pálya tényleges kampánygenerátorával két-két térképmag mellett minden generált terület kezdőterében mindkét hatfős forma elhelyezhető volt, ütköző tagok nélkül és a harci csatlakozási sugáron belül. Ez geometriai kampánypróba; nem teljes harci végigjátszás és nem balanszmérés.
 
 Futtatás a játék projektkönyvtárából:
 
@@ -57,4 +69,4 @@ dotnet run --project ../Tests/KaoszrubinTests.csproj --no-restore -- --only-fail
 
 ## Következő ütem
 
-A negyedik ütemben a hatodik hely és a széles harcrend kampánybeli bekapcsolása következik, a 8. főpálya teljesítéséhez tartozó második támogatással és a 9–10. pálya próbájával. Ezután a teljes mentés/coop játékteszt, valamint a találkozások és az ellátás végső hangolása zárja a tervet.
+Az ötödik ütemben a teljes mentés/coop játékteszt, a 6–10. pálya interaktív harci és ellátási mérései, valamint a találkozások és az ellátás végső hangolása következik. Ezek után zárható a közös kiadás.
