@@ -426,6 +426,8 @@ internal static partial class Program
     ("A portrépaletta összegyűjti az egyedi Unicode-karaktereket", PortraitPaletteCollectsAllUniqueUnicodeRunes),
     ("A palettabeállítás megőrzi a kedvenceket és az oldalelnevezéseket", PaletteSettingsRoundTripFavouritesAndNames),
     ("A hibás palettabeállítás biztonságosan elutasítható", PaletteSettingsRejectMalformedJsonWithoutThrowing),
+    ("Az ASCII portrészettek mentése független", AsciiPortraitSetsSaveIndependently),
+    ("Az ASCII portrészett választása mentődik és azonnal érvényesül", AsciiPortraitSetSettingPersistsAndApplies),
     ("Az ASCII portréforrás mindkét szótárat és raw stringet beolvassa", AsciiPortraitSourceParsesDictionaries),
     ("Az ASCII portréfrissítés csak a kiválasztott bejegyzést módosítja", AsciiPortraitSourceUpdatesOneEntry),
     ("Az ASCII portrémentés új bejegyzést illeszt a kiválasztott szótárba", AsciiPortraitSourceInsertsEntry),

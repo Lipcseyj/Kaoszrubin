@@ -31,6 +31,8 @@ public sealed class EditorApp
     private readonly string? _paletteSettingsLoadError;
     private (PortraitDictionary Dictionary, PortraitSourceEntry Entry)[] _portraitEntries = [];
     private int _portraitIndex;
+    private int _portraitSet = 1;
+    private readonly Dictionary<int, CanvasDraft> _setDrafts = new();
     private PortraitDictionary? _selectedDictionary;
     private string? _selectedKeyExpression;
     private string? _proposedKeyExpression;
@@ -60,10 +62,11 @@ public sealed class EditorApp
         _portraits = portraits;
         var sourceContent = File.ReadAllText(sourcePath);
         _portraitEntries = Enum.GetValues<PortraitDictionary>()
-            .SelectMany(dictionary => _source.ParseDictionary(sourceContent, dictionary)
+            .SelectMany(dictionary => _source.ParseDictionary(sourceContent, dictionary, _portraitSet)
                 .Select(entry => (dictionary, entry)))
             .ToArray();
-        _palette = PortraitPalette.Collect(_portraitEntries.Select(item => item.Entry.Content))
+        _palette = PortraitPalette.Collect(Enumerable.Range(1, 2)
+            .SelectMany(set => _source.ParsePortraits(sourceContent, set).Values))
             .ToArray();
         _paletteSettingsStore = new PaletteSettingsStore();
         if (!_paletteSettingsStore.TryLoad(out _paletteSettings, out _paletteSettingsLoadError))
@@ -217,6 +220,7 @@ public sealed class EditorApp
             case ConsoleKey.PageDown:
                 DrawPalettePanel(layout);
                 break;
+            case ConsoleKey.F2:
             case ConsoleKey.C:
             case ConsoleKey.N:
             case ConsoleKey.R:
@@ -285,6 +289,9 @@ public sealed class EditorApp
             case ConsoleKey.P:
                 SelectPaletteGlyph((_paletteIndex + 1) % _palette.Length);
                 break;
+            case ConsoleKey.F2:
+                SwitchSet();
+                break;
             case ConsoleKey.S:
                 SaveCurrent();
                 break;
@@ -311,6 +318,38 @@ public sealed class EditorApp
         return true;
     }
 
+    private sealed record CanvasDraft(int Width, string Content,
+        PortraitDictionary? Dictionary, string? Key, string? ProposedKey, int Index);
+
+    private void SwitchSet()
+    {
+        _setDrafts[_portraitSet] = new CanvasDraft(_canvasWidth, GetCanvasContent(),
+            _selectedDictionary, _selectedKeyExpression, _proposedKeyExpression, _portraitIndex);
+        _portraitSet = _portraitSet == 1 ? 2 : 1;
+        RefreshPortraitEntries();
+        if (_setDrafts.TryGetValue(_portraitSet, out var draft))
+        {
+            _canvasWidth = draft.Width;
+            Load(draft.Content);
+            _selectedDictionary = draft.Dictionary;
+            _selectedKeyExpression = draft.Key;
+            _proposedKeyExpression = draft.ProposedKey;
+            _portraitIndex = draft.Index;
+            _cursorX = Math.Min(_cursorX, _canvasWidth - 1);
+            _cursorY = Math.Min(_cursorY, _canvasHeight - 1);
+        }
+        else if (_portraitEntries.Length > 0)
+        {
+            var index = Array.FindIndex(_portraitEntries, item =>
+                item.Dictionary == _selectedDictionary && item.Entry.KeyExpression == _selectedKeyExpression);
+            SelectPortrait(Math.Max(0, index), redraw: false);
+        }
+        else
+            StartNewPortrait();
+        _status = $"Set {_portraitSet} selected. S saves to this set.";
+        DrawAll(clear: true);
+    }
+
     private void SwitchPortrait(int direction)
     {
         if (_portraitEntries.Length == 0)
@@ -332,7 +371,10 @@ public sealed class EditorApp
         _selectedDictionary = portrait.Dictionary;
         _selectedKeyExpression = portrait.Entry.KeyExpression;
         _proposedKeyExpression = null;
+        _canvasWidth = PortraitWidth;
         Load(portrait.Entry.Content);
+        _cursorX = Math.Min(_cursorX, _canvasWidth - 1);
+        _cursorY = Math.Min(_cursorY, _canvasHeight - 1);
         _status = $"Portrait {_portraitIndex + 1}/{_portraitEntries.Length}: {_selectedKeyExpression}";
         if (redraw)
         {
@@ -708,7 +750,7 @@ public sealed class EditorApp
             }
         }
 
-        var result = _source.SavePortraitInFile(_sourcePath, dictionary.Value, keyExpression, GetCanvasContent());
+        var result = _source.SavePortraitInFile(_sourcePath, dictionary.Value, keyExpression, GetCanvasContent(), _portraitSet);
         if (!result.Success)
         {
             _status = $"Save failed: {result.Error}";
@@ -764,7 +806,7 @@ public sealed class EditorApp
     {
         var sourceContent = File.ReadAllText(_sourcePath);
         _portraitEntries = Enum.GetValues<PortraitDictionary>()
-            .SelectMany(dictionary => _source.ParseDictionary(sourceContent, dictionary)
+            .SelectMany(dictionary => _source.ParseDictionary(sourceContent, dictionary, _portraitSet)
                 .Select(entry => (dictionary, entry)))
             .ToArray();
 
@@ -798,8 +840,8 @@ public sealed class EditorApp
         Console.ResetColor();
         if (clear)
             Console.Clear();
-        WriteAt(2, 0, "ASCII PORTRAIT EDITOR", layout.Width - 4);
-        WriteAt(2, 1, "Arrows move | Shift+Left/Right portrait | Space/D draw | E erase | Del clear | P glyph | PgUp/PgDn palette | R rename | RMB pin/unpin | Ctrl+LMB/RMB range | S save | C resize | N new | Esc/Q quit",
+        WriteAt(2, 0, $"ASCII PORTRAIT EDITOR — Set {_portraitSet}", layout.Width - 4);
+        WriteAt(2, 1, "F2 set | Arrows move | Shift+Left/Right portrait | Space/D draw | E erase | Del clear | P glyph | PgUp/PgDn palette | R rename | RMB pin/unpin | Ctrl+LMB/RMB range | S save | C resize | N new | Esc/Q quit",
             layout.Width - 4);
 
         for (var y = 2; y < layout.Height - 2; y++)

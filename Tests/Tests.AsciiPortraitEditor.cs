@@ -138,6 +138,70 @@ internal static partial class Program
         }
     }
 
+    static void AsciiPortraitSetsSaveIndependently()
+    {
+        var source = new AsciiPortraitSource();
+        var fixture = CreateAsciiPortraitSourceFixture();
+        var second = fixture.Replace("CharacterClasses =", "CharacterClassesSet2 =")
+            .Replace("Enemies =", "EnemiesSet2 =").Replace("hero", "second hero");
+        var path = Path.Combine(Path.GetTempPath(), $"ascii-sets-{Guid.NewGuid():N}.cs");
+        try
+        {
+            File.WriteAllText(path, second + "\n" + fixture);
+            Assert(source.ParsePortraits(File.ReadAllText(path))["CharacterClassIds.Harcos"] == "    hero",
+                "Az első szett keresése összekeverte a két szótár nevét.");
+            Assert(source.UpdatePortraitInFile(path, "CharacterClassIds.Harcos", "edited second", 2),
+                "A második szett frissítése sikertelen.");
+            var inserted = source.SavePortraitInFile(path, PortraitDictionary.Enemies,
+                "MonsterIds.Goblin", "new second", 2);
+            var updated = File.ReadAllText(path);
+            Assert(inserted.Success && inserted.Inserted &&
+                   source.ParsePortraits(updated, 1)["CharacterClassIds.Harcos"] == "    hero" &&
+                   source.ParsePortraits(updated, 2)["CharacterClassIds.Harcos"] == "edited second" &&
+                   !source.ParsePortraits(updated, 1).ContainsKey("MonsterIds.Goblin") &&
+                   source.ParsePortraits(updated, 2)["MonsterIds.Goblin"] == "new second",
+                "A második szett mentése vagy beszúrása módosította az elsőt.");
+            Assert(source.UpdatePortraitInFile(path, "CharacterClassIds.Harcos", "edited first") &&
+                   source.ParsePortraits(File.ReadAllText(path), 2)["CharacterClassIds.Harcos"] == "edited second",
+                "Az első szett mentése módosította a másodikat.");
+        }
+        finally { File.Delete(path); }
+    }
+
+    static void AsciiPortraitSetSettingPersistsAndApplies()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"portrait-settings-{Guid.NewGuid():N}.json");
+        try
+        {
+            File.WriteAllText(path, "{}");
+            var service = new KaoszRubin.Application.GameSettingsService(path);
+            Assert(service.Settings.PortraitSet == KaoszRubin.Application.AsciiPortraitSet.First,
+                "A régi beállításfájl nem az első szettet választotta.");
+            service.Settings.PortraitSet = KaoszRubin.Application.AsciiPortraitSet.Second;
+            var barbarian = KaoszRubin.Domain.Characters.CharacterClassIds.Barbár;
+            var rat = KaoszRubin.Domain.Combat.MonsterIds.Óriáspatkány;
+            Assert(KaoszRubin.UI.AsciiPortraits.ForCharacterClass(barbarian).Lines[0].Contains("▄██▀██▄") &&
+                   KaoszRubin.UI.AsciiPortraits.ForEnemy(rat).Lines[0].Contains("╭─╮▄▓▓▓▄"),
+                "A szettváltás nem alkalmazta a megadott portrékat.");
+            service.Save();
+            var loaded = new KaoszRubin.Application.GameSettingsService(path);
+            Assert(loaded.Settings.PortraitSet == KaoszRubin.Application.AsciiPortraitSet.Second,
+                "A portrészett választása nem maradt meg.");
+            loaded.Settings.PortraitSet = (KaoszRubin.Application.AsciiPortraitSet)999;
+            loaded.Settings.Normalize();
+            Assert(loaded.Settings.PortraitSet == KaoszRubin.Application.AsciiPortraitSet.First &&
+                   KaoszRubin.UI.AsciiPortraits.ForCharacterClass(barbarian).Lines
+                       .SequenceEqual(KaoszRubin.UI.AsciiPortraits.ForCharacterClass(barbarian,
+                           KaoszRubin.Application.AsciiPortraitSet.First).Lines),
+                "A hibás szettválasztás nem állt vissza az első készletre.");
+        }
+        finally
+        {
+            File.Delete(path);
+            KaoszRubin.UI.AsciiPortraits.UseSettings(new KaoszRubin.Application.GameSettings());
+        }
+    }
+
     private static string WriteAsciiPortraitFixture()
     {
         var path = Path.Combine(Path.GetTempPath(), $"ascii-portraits-{Guid.NewGuid():N}.cs");

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Text;
 using AsciiArtEditor.Services;
@@ -38,7 +38,14 @@ if (editorArguments.Length >= 4 && editorArguments[1].Equals("update", StringCom
     }
 
     var newContent = File.ReadAllText(newFile);
-    var ok = source.UpdatePortraitInFile(path, id, newContent);
+    var set = 1;
+    if (editorArguments.Length >= 5 &&
+        (!int.TryParse(editorArguments[4], out set) || set is not (1 or 2)))
+    {
+        Console.WriteLine("Portrait set must be 1 or 2 (optional fifth argument).");
+        return 1;
+    }
+    var ok = source.UpdatePortraitInFile(path, id, newContent, set);
     Console.WriteLine(ok ? "Update succeeded." : "Update failed: id not found or unsupported format.");
     return ok ? 0 : 2;
 }

@@ -25,21 +25,21 @@ public sealed class AsciiPortraitSource
         "(?m)^(?<indent>[ \\t]*)\\[(?<key>[^\\]\\r\\n]+)\\]\\s*=\\s*Portrait\\(\\s*\"\"\"(?<inner>.*?)\"\"\"\\s*\\)(?<comma>,?)",
         RegexOptions.Singleline | RegexOptions.Compiled);
 
-    public Dictionary<string, string> ParsePortraits(string sourceContent)
+    public Dictionary<string, string> ParsePortraits(string sourceContent, int set = 1)
     {
         var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach (PortraitDictionary dictionary in Enum.GetValues<PortraitDictionary>())
         {
-            foreach (var entry in ParseDictionary(sourceContent, dictionary))
+            foreach (var entry in ParseDictionary(sourceContent, dictionary, set))
                 result[entry.KeyExpression] = entry.Content;
         }
 
         return result;
     }
 
-    public IReadOnlyList<PortraitSourceEntry> ParseDictionary(string sourceContent, PortraitDictionary dictionary)
+    public IReadOnlyList<PortraitSourceEntry> ParseDictionary(string sourceContent, PortraitDictionary dictionary, int set = 1)
     {
-        var range = FindDictionary(sourceContent, dictionary);
+        var range = FindDictionary(sourceContent, dictionary, set);
         var body = sourceContent[range.BodyStart..range.CloseBrace];
         var entries = new List<PortraitSourceEntry>();
         foreach (Match match in EntryRegex.Matches(body))
@@ -52,27 +52,28 @@ public sealed class AsciiPortraitSource
         return entries;
     }
 
-    public Dictionary<string, string> LoadPortraitsFromFile(string filePath) => ParsePortraits(File.ReadAllText(filePath));
+    public Dictionary<string, string> LoadPortraitsFromFile(string filePath, int set = 1) => ParsePortraits(File.ReadAllText(filePath), set);
 
-    public bool UpdatePortraitInFile(string filePath, string id, string newInner)
+    public bool UpdatePortraitInFile(string filePath, string id, string newInner, int set = 1)
     {
         var source = File.ReadAllText(filePath);
         var matches = Enum.GetValues<PortraitDictionary>()
-            .SelectMany(dictionary => FindEntries(source, dictionary)
+            .SelectMany(dictionary => FindEntries(source, dictionary, set)
                 .Where(entry => string.Equals(entry.KeyExpression, id, StringComparison.OrdinalIgnoreCase))
                 .Select(entry => (dictionary, entry)))
             .ToArray();
         if (matches.Length != 1)
             return false;
 
-        return SavePortraitInFile(filePath, matches[0].dictionary, matches[0].entry.KeyExpression, newInner).Success;
+        return SavePortraitInFile(filePath, matches[0].dictionary, matches[0].entry.KeyExpression, newInner, set).Success;
     }
 
     public PortraitSaveResult SavePortraitInFile(
         string filePath,
         PortraitDictionary dictionary,
         string keyExpression,
-        string content)
+        string content,
+        int set = 1)
     {
         if (!IsAllowedKeyExpression(dictionary, keyExpression))
             return new PortraitSaveResult(false, false, "The key must be a matching domain ID or a quoted string literal.");
@@ -81,14 +82,14 @@ public sealed class AsciiPortraitSource
         DictionaryRange range;
         try
         {
-            range = FindDictionary(source, dictionary);
+            range = FindDictionary(source, dictionary, set);
         }
         catch (InvalidDataException ex)
         {
             return new PortraitSaveResult(false, false, ex.Message);
         }
 
-        var existing = FindEntries(source, dictionary);
+        var existing = FindEntries(source, dictionary, set);
         var matching = existing.Where(entry => KeysEqual(entry.KeyExpression, keyExpression)).ToArray();
         if (matching.Length > 1)
             return new PortraitSaveResult(false, false, "The key is duplicated in the selected dictionary.");
@@ -146,19 +147,21 @@ public sealed class AsciiPortraitSource
         return new PortraitSaveResult(true, true);
     }
 
-    private static List<EntryMatch> FindEntries(string source, PortraitDictionary dictionary)
+    private static List<EntryMatch> FindEntries(string source, PortraitDictionary dictionary, int set)
     {
-        var range = FindDictionary(source, dictionary);
+        var range = FindDictionary(source, dictionary, set);
         var body = source[range.BodyStart..range.CloseBrace];
         return EntryRegex.Matches(body)
             .Select(match => new EntryMatch(match.Groups["key"].Value.Trim(), match, range.BodyStart))
             .ToList();
     }
 
-    private static DictionaryRange FindDictionary(string source, PortraitDictionary dictionary)
+    private static DictionaryRange FindDictionary(string source, PortraitDictionary dictionary, int set)
     {
-        var name = dictionary.ToString();
-        var declaration = source.IndexOf($"{TypeDeclaration} {name}", StringComparison.Ordinal);
+        if (set is not (1 or 2))
+            throw new ArgumentOutOfRangeException(nameof(set));
+        var name = dictionary + (set == 2 ? "Set2" : "");
+        var declaration = source.IndexOf($"{TypeDeclaration} {name} =", StringComparison.Ordinal);
         if (declaration < 0)
             throw new InvalidDataException($"Could not find the {name} portrait dictionary.");
 

@@ -4,12 +4,13 @@ namespace KaoszRubin.UI;
 public static class SettingsScreen
 {
     private const int Width = 70;
-    private const int ContentRows = 25;
+    private const int ContentRows = 27;
 
     public static void Show(GameSettingsService settingsService, Action? applyAudioSettings = null,
         Func<string?>? coopStatusProvider = null)
     {
         var settings = settingsService.Settings;
+        AsciiPortraits.UseSettings(settings);
         var left = Math.Max(0, (Console.WindowWidth - Width) / 2);
         var top = Math.Max(0, (Console.WindowHeight - ContentRows - 2) / 2);
         using var background = new BackgroundContentRestorer(left, top, Width, ContentRows + 2);
@@ -47,6 +48,10 @@ public static class SettingsScreen
                     2000 => 250,
                     _ => 0
                 };
+            else if (key.Key is ConsoleKey.T)
+                settings.PortraitSet = settings.PortraitSet == AsciiPortraitSet.First
+                    ? AsciiPortraitSet.Second
+                    : AsciiPortraitSet.First;
             else if (key.Key is ConsoleKey.P)
                 settings.PartyAvatars = settings.PartyAvatars == PartyAvatarSet.Letters
                     ? PartyAvatarSet.Runes
@@ -87,6 +92,7 @@ public static class SettingsScreen
             $"Harci késleltetés:",
             $"{settings.CombatDelayMilliseconds} ms",
             $"Party avatárok: {PartyAvatarSetName(settings.PartyAvatars)}",
+            $"ASCII portrék: {(settings.PortraitSet == AsciiPortraitSet.Second ? 2 : 1)}. szett",
             string.Empty,
             "Z / Space       Zene ki- és bekapcsolása",
             "← → / ↑ ↓      Hangerő módosítása",
@@ -96,6 +102,7 @@ public static class SettingsScreen
             "S               A harc sebességének váltása",
             "K               A harc késleltetésének módosítása",
             "P               Party avatárkészlet váltása",
+            "T               ASCII portrészett váltása",
             string.Empty,
             "Enter / Esc     Vissza"
         };
@@ -123,7 +130,7 @@ public static class SettingsScreen
                 12 => settings.CombatSpeed == CombatSpeed.PauseBeforeAnyAction ? ConsoleColor.DarkGray : settings.CombatDelayMilliseconds == 2000 ? ConsoleColor.DarkGreen : 
                     settings.CombatDelayMilliseconds == 1000 ? ConsoleColor.Green :
                     (settings.CombatDelayMilliseconds == 500 ? ConsoleColor.DarkYellow : ConsoleColor.Yellow),
-                13 => ConsoleColor.Magenta,
+                13 or 14 => ConsoleColor.Magenta,
                 _ => ConsoleColor.Gray
             };
             Console.Write(text.PadRight(interiorWidth - 2));

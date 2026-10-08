@@ -16,6 +16,12 @@ public enum PartyAvatarSet
     Runes
 }
 
+public enum AsciiPortraitSet
+{
+    First,
+    Second
+}
+
 public enum CombatSpeed
 {
     PauseBeforeAnyAction,
@@ -30,6 +36,7 @@ public sealed class GameSettings
     public bool SoundEffectsEnabled { get; set; } = true;
     public int SoundEffectsVolumePercent { get; set; } = 75;
     public QuickCombatMode QuickCombat { get; set; } = QuickCombatMode.Ask;
+    public AsciiPortraitSet PortraitSet { get; set; } = AsciiPortraitSet.First;
     public PartyAvatarSet PartyAvatars { get; set; } = PartyAvatarSet.Letters;
     public CombatSpeed CombatSpeed { get; set; } = CombatSpeed.PauseBeforeAnyAction;    
     public int CombatDelayMilliseconds { get; set; } = 500;
@@ -39,6 +46,7 @@ public sealed class GameSettings
         MusicVolumePercent = Math.Clamp(MusicVolumePercent, 0, 100);
         SoundEffectsVolumePercent = Math.Clamp(SoundEffectsVolumePercent, 0, 100);
         if (!Enum.IsDefined(QuickCombat)) QuickCombat = QuickCombatMode.Ask;
+        if (!Enum.IsDefined(PortraitSet)) PortraitSet = AsciiPortraitSet.First;
         if (!Enum.IsDefined(PartyAvatars)) PartyAvatars = PartyAvatarSet.Letters;
     }
 }
@@ -53,6 +61,7 @@ public sealed class GameSettingsService
     {
         _path = path ?? Path.Combine(AppContext.BaseDirectory, "beallitasok.json");
         Settings = Load(_path);
+        AsciiPortraits.UseSettings(Settings);
     }
 
     public void Save()
