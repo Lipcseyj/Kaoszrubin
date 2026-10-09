@@ -5,19 +5,23 @@ internal static class SpecialRoomPlacer
 {
     private static readonly Direction[] Directions = Enum.GetValues<Direction>();
 
-    public static bool TryAssign(Maze maze, MazeGenerationSettings settings, Random random)
+    public static bool TryAssign(Maze maze, MazeGenerationSettings settings, Random random,
+        bool questRoomsRequireBuilding = false)
     {
         var requests = settings.QuestRoomIds.Select(id => (Id: id, Purpose: RoomPurpose.Quest))
             .Concat(settings.BossRoomIds.Select(id => (Id: id, Purpose: RoomPurpose.Boss))).ToArray();
         var available = maze.Rooms.Where(room => room.AllowsRandomContent).ToList();
         if (available.Count < requests.Length) return false;
+        bool Eligible(Room room, RoomPurpose purpose) =>
+            !questRoomsRequireBuilding || purpose != RoomPurpose.Quest || room.BuildingId is not null;
+        if (available.Count(room => Eligible(room, RoomPurpose.Quest)) < settings.QuestRoomIds.Count) return false;
 
         // Először lezárható mellékágakat alakítunk ki, utána mérjük a végleges főút távolságait.
         foreach (var request in requests.Where(request =>
             settings.SpecialRoomPlacements.GetValueOrDefault(request.Id) == SpecialRoomPlacement.SideBranch))
         {
             Room? selected = null;
-            foreach (var room in available.OrderBy(_ => random.Next()))
+            foreach (var room in available.Where(room => Eligible(room, request.Purpose)).OrderBy(_ => random.Next()))
             {
                 var boundary = Boundary(room).ToHashSet();
                 var blocked = room.InteriorPositions().Concat(boundary).ToHashSet();
@@ -53,7 +57,7 @@ internal static class SpecialRoomPlacer
         foreach (var request in requests.Where(request => settings.SpecialRoomPlacements.TryGetValue(request.Id, out var rule) &&
             rule == SpecialRoomPlacement.MiddleRoute))
         {
-            var candidate = available.Select(room =>
+            var candidate = available.Where(room => Eligible(room, request.Purpose)).Select(room =>
             {
                 var center = new Position(room.TopLeft.X + room.Width / 2, room.TopLeft.Y + room.Height / 2);
                 var start = fromStart[center];
@@ -77,8 +81,10 @@ internal static class SpecialRoomPlacer
             .ThenBy(_ => random.Next()).ToList();
         foreach (var request in requests.Where(request => !settings.SpecialRoomPlacements.ContainsKey(request.Id)))
         {
-            maze.AssignRoomPurpose(remaining[0], request.Purpose, request.Id);
-            remaining.RemoveAt(0);
+            var selected = remaining.FirstOrDefault(room => Eligible(room, request.Purpose));
+            if (selected is null) return false;
+            maze.AssignRoomPurpose(selected, request.Purpose, request.Id);
+            remaining.Remove(selected);
         }
         return true;
     }

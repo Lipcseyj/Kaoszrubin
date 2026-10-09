@@ -287,7 +287,7 @@ public sealed class MazeLevelConfiguration
     /// </summary>
     public int VisionModifier { get; set; }
 
-    /// <summary>A generátor által garantáltan létrehozandó küldetésszobák tartalomazonosítói.</summary>
+    /// <summary>A generátor által garantáltan létrehozandó küldetésszobák tartalomazonosítói. Erdős pályán csak épületbelsőbe kerülhetnek.</summary>
     public IReadOnlyList<string> QuestRoomIds { get; init; } = [];
 
     /// <summary>Küldetésszobánként opcionális képernyőszám vagy stabil AreaId; a főút/mellékág szabály külön megmarad.</summary>

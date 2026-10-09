@@ -7,6 +7,7 @@ public class MazeGenerator
 {
     protected virtual int CorridorNodeWidth => 2;
     protected virtual int GridStep => 5;
+    protected virtual bool QuestRoomsRequireBuilding => false;
     private static readonly Direction[] Directions = Enum.GetValues<Direction>();
     protected readonly Random Random;
     protected readonly MazeGenerationSettings Settings;
@@ -32,7 +33,7 @@ public class MazeGenerator
         for (var attempt = 0; attempt < 128; attempt++)
         {
             var maze = CreateLayout(width, height);
-            if (!SpecialRoomPlacer.TryAssign(maze, Settings, Random)) continue;
+            if (!SpecialRoomPlacer.TryAssign(maze, Settings, Random, QuestRoomsRequireBuilding)) continue;
             PlaceMapObjects(maze);
             return maze;
         }

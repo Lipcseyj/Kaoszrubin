@@ -9,6 +9,7 @@ namespace KaoszRubin.World;
 /// </summary>
 public sealed class ForestMazeGenerator : MazeGenerator
 {
+    protected override bool QuestRoomsRequireBuilding => true;
     private static readonly Direction[] Directions = Enum.GetValues<Direction>();
     private readonly ForestGenerationConfiguration _forest;
     private bool[,] _reserved = null!;

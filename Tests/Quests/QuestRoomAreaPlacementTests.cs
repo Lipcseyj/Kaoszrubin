@@ -120,10 +120,64 @@ internal static class QuestRoomAreaPlacementTests
                       level.Areas.Single(area => area.Id == exitId).Maze.GetRoomByContentId("DEFAULT") is not null &&
                       level.Areas.Single(area => area.Id == exitId).Maze.GetRoomByContentId("BOSS") is not null,
                     $"A tényleges {layout.Style} generálás eltér a szobacéloktól (seed {seed}).");
+                if (layout == forest)
+                    Check(level.Areas.SelectMany(area => area.Maze.Rooms)
+                            .Where(room => room.Purpose == RoomPurpose.Quest)
+                            .All(room => room.BuildingId is not null &&
+                                room.Kind is RoomKind.Cabin or RoomKind.Manor or RoomKind.Labyrinth),
+                        $"Erdős pályán tisztásra került a questszoba (seed {seed}).");
                 Check(level.Areas.Sum(area => area.Maze.Rooms.Count(room => room.ContentId is not null)) == 4,
                     "Hiányzó vagy duplikált szoba a generált pályán.");
             }
         }
+    }
+
+    public static void ForestQuestRoomsRequireBuildingForEveryPlacement()
+    {
+        foreach (var rule in new SpecialRoomPlacement?[] { null, SpecialRoomPlacement.SideBranch, SpecialRoomPlacement.MiddleRoute })
+        {
+            Maze Layout(bool building)
+            {
+                var maze = new Maze(25, 13);
+                for (var y = 1; y < maze.Height - 1; y++)
+                for (var x = 1; x < maze.Width - 1; x++)
+                    maze.Carve(new(x, y));
+                maze.AddRoom(new(new(20, 8), 3, 3, Kind: RoomKind.Clearing));
+                if (building)
+                    maze.AddRoom(new(new(10, 4), 3, 3, Kind: RoomKind.Cabin, BuildingId: "CABIN"));
+                return maze;
+            }
+            var settings = new MazeGenerationSettings
+            {
+                QuestRoomIds = ["QUEST"], BossRoomIds = ["BOSS"],
+                SpecialRoomPlacements = rule is { } placement
+                    ? new Dictionary<string, SpecialRoomPlacement> { ["QUEST"] = placement }
+                    : new Dictionary<string, SpecialRoomPlacement>()
+            };
+            var maze = Layout(true);
+            Check(SpecialRoomPlacer.TryAssign(maze, settings, new Random(17), questRoomsRequireBuilding: true),
+                $"Nem sikerült az épületbelső kiválasztása: {rule}.");
+            Check(maze.GetRoomByContentId("QUEST") is { BuildingId: "CABIN", Kind: RoomKind.Cabin } &&
+                  maze.GetRoomByContentId("BOSS") is { Kind: RoomKind.Clearing },
+                $"A questszoba tisztásra került, vagy a boss nem használhat tisztást: {rule}.");
+            var missingBuilding = Layout(false);
+            missingBuilding.AddRoom(new(new(10, 4), 3, 3, Kind: RoomKind.Clearing));
+            Check(!SpecialRoomPlacer.TryAssign(missingBuilding, settings, new Random(17), questRoomsRequireBuilding: true) &&
+                  missingBuilding.Rooms.All(room => room.ContentId is null),
+                $"Épület nélkül is elfogadta a questszobát: {rule}.");
+        }
+
+        var noBuildingSettings = new MazeGenerationSettings
+        {
+            RoomCount = 1, MinimumRoomSize = 4, MaximumRoomSize = 4,
+            TreasureChestCount = 0, QuestRoomIds = ["QUEST"]
+        };
+        Reject(() => new ForestMazeGenerator(noBuildingSettings,
+            new ForestGenerationConfiguration { BuildingCount = new(0, 0) },
+            [], [], new Random(19)).Create(35, 23));
+        var classic = new MazeGenerator(noBuildingSettings, [], [], new Random(19)).Create(35, 23);
+        Check(classic.GetRoomByContentId("QUEST") is { Kind: RoomKind.Generic },
+            "A klasszikus pálya questszobája is épületazonosítót követel.");
     }
 
     public static void QuestRoomAreaContentsFollowRooms()

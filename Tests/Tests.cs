@@ -5,6 +5,7 @@ internal static partial class Program
         #region test cases
         var tests = new (string Name, Action Run)[]
         {
+    ("Questroom erdőben: minden elhelyezési mód épületbelsőt követel", QuestRoomAreaPlacementTests.ForestQuestRoomsRequireBuildingForEveryPlacement),
     ("Questroom célterület: képernyőszám, AreaId és helyi szabályok", QuestRoomAreaPlacementTests.QuestRoomAreaTargetsAndLocalRules),
     ("Questroom célterület: hibás és ütköző célok elutasítása", QuestRoomAreaPlacementTests.QuestRoomAreaRejectsInvalidTargets),
     ("Questroom célterület: széles és explicit erdei generálás", QuestRoomAreaPlacementTests.QuestRoomAreaWideAndForestGeneration),

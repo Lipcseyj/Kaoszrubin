@@ -1699,7 +1699,7 @@ További módosítók:
 Ha a szörny saját fegyvere is elvihető, arra előbb külön dobás történik. Ennek alapja 30%, szintén módosítja a kereső Intelligenciája, kasztja és faja. Ha a saját fegyver kiesik, abban a keresésben a felszerelési tábla már nem dob.
 Ezért például a „Vörös sárkány — 90%” nem 90% Legendás esélyt jelent, hanem 90%-os alap felszereléstábla-esélyt. A Legendás tárgy tényleges esélye ennek csak egy része, mert a játék a teljes engedélyezett Varázs–Legendás készletből választ.
 
-<a id="session-esemenyek"></a>
+<a id="varazslatok"></a>
 
 ## Varázslatok
 
@@ -1790,6 +1790,8 @@ A területi animáció a tényleges hatóterületet követi, a falak és takará
 **Jelenleg kikapcsolt elsülési animációk:** Teleportáció, Időmegállítás, Dimenziókapu, Harci gyorsítás, Vérbástya, Sötét litánia, Véráldozat, Vérgyógyítás, Étel és ital teremtése.
 
 Módosítás után újra kell fordítani és indítani a játékot, mert futáskor a kimeneti mappába másolt CSV-t olvassa. A README azon állítása, hogy minden buff és gyógyítás vizuálja ki van kapcsolva, **már elavult**; a fenti lista a jelenlegi kódot és adatokat követi.
+
+<a id="session-esemenyek"></a>
 
 ## Session-események
 
