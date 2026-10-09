@@ -5,6 +5,12 @@ internal static partial class Program
         #region test cases
         var tests = new (string Name, Action Run)[]
         {
+    ("Játékidő: térképi kör, pihenés, napváltás és napszak", GameTimeRoundsRestAndDaylight),
+    ("Játékidő: taktikai és gyorsharci körök egyszer számítanak", GameTimeBattleRoundsCountOnce),
+    ("Játékidő: mentésmigráció és megkezdett térképi kör", GameTimeSaveMigrationAndRoundRemainder),
+    ("Játékidő: szünet és folytatás megtartja a kör maradékát", GameTimePausesPreservePartialRound),
+    ("Játékidő: teljes és delta snapshot átviszi a napváltást", GameTimeReplicatesThroughFullAndDelta),
+    ("Játékidő: fejléc és aranykulcsok második oszlopa", GameTimeHeaderAndGoldColumnFit),
     ("A rejtett szörnyek nem színezik el a felfedezett terepet", HiddenEnemiesNeverTintExploredTerrain),
     ("A Holló-szoba mellékága megtartja az épület falazatát", ForestQuestSideBranchesPreserveBuildingWalls),
     ("Erdei ellátmány: a 6. és 13. pálya fogadói és őrzött ládái épületbe kerülnek", ForestSuppliesAndInnsGenerateInBuildings),

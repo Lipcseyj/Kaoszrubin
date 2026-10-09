@@ -673,6 +673,7 @@ public sealed partial class Game
             return;
         }
         var completedLevel = _mazeLevel;
+        PauseExplorationRound();
         PlaySessionSound(SoundEffect.LevelComplete);
         _renderer.PlayScreenBurnEffect();
         _session.SetPhase(GameSessionPhase.Paused);
@@ -837,11 +838,13 @@ public sealed partial class Game
         RecordSessionActivity(SessionActivityKind.System, message, ConsoleColor.Cyan);
         _backgroundMusic.SynchronizeMazeLevel(_mazeLevel, IsLevelExitDiscovered());
         _activeInnDeparture = null;
+        ResumeExplorationRound();
         RequestCoopSnapshotPublish();
     }
 
     private void ReturnFromExpeditionToInn()
     {
+        PauseExplorationRound();
         _isReturnExpedition = false;
         PlaySessionSound(SoundEffect.LevelComplete);
         _backgroundMusic.EnterInn();

@@ -14,8 +14,8 @@ public static class RestSummaryWindow
             (rest.AtInn ? "🛏️💤  FOGADÓI PIHENÉS  💤🛏️" : "🏕️💤  TÁBORI PIHENÉS  💤🏕️", ConsoleColor.Yellow),
             (string.Empty, ConsoleColor.Gray),
             (rest.AtInn
-                ? "A parti kényelmes ágyakban pihente ki az út fáradalmait."
-                : "A parti biztonságba zárta a szobát, majd rövid pihenőt tartott.", ConsoleColor.Cyan),
+                ? "A parti nyolc órát pihent kényelmes ágyakban."
+                : "A parti biztonságba zárta a szobát, majd nyolc órát pihent.", ConsoleColor.Cyan),
             (string.Empty, ConsoleColor.Gray),
             ("💤 Regenerálódás és megszűnt állapotok:", ConsoleColor.Green)
         };

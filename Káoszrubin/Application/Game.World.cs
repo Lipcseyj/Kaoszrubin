@@ -619,6 +619,8 @@ public sealed partial class Game
                     }
                     else if (now >= _nextExplorationStatusTickUtc)
                     {
+                        GameTime.AdvanceExplorationRound();
+                        RefreshGameTime();
                         ProcessExplorationStatusEffects();
                         _nextExplorationStatusTickUtc = now + ExplorationStatusTickInterval;
                         if (_gameOver) continue;
@@ -824,6 +826,7 @@ public sealed partial class Game
 
     private void StartNewMaze(bool showLevelImage = true)
     {
+        PauseExplorationRound();
         RememberCurrentNpcRelationships();
         _locationKind = AdventureLocationKind.Campaign;
         _locationId = $"CAMPAIGN_{_mazeLevel:00}";
@@ -887,6 +890,7 @@ public sealed partial class Game
         _activeInnDeparture = null;
         if (showLevelImage) ShowLevelImage();
         LogMazeAccessibilityCheck();
+        ResumeExplorationRound();
     }
 
     private DungeonLevel GenerateDungeonLevel(MazeLevelConfiguration configuration,
@@ -1129,6 +1133,7 @@ public sealed partial class Game
     {
         var follower = FindRodericFollower() ??
             throw new InvalidOperationException("Roderic nélkül nem indítható el Sir Malrec küldetéshelyszíne.");
+        PauseExplorationRound();
         _suspendedCampaignState = CreateGameSaveData();
         ActivateNpcQuest(follower, RodericMalrecQuestId);
         CarryPersistentTemporaryFollowers();
@@ -1187,6 +1192,7 @@ public sealed partial class Game
             ConsoleColor.Cyan);
         _backgroundMusic.SynchronizeMazeLevel(_difficultyLevel, IsLevelExitDiscovered());
         LogMazeAccessibilityCheck();
+        ResumeExplorationRound();
     }
 
     private bool ProcessPendingRodericTransition()
@@ -1270,6 +1276,7 @@ public sealed partial class Game
 
     private void RestoreSuspendedCampaign()
     {
+        PauseExplorationRound();
         var suspended = _suspendedCampaignState ??
             throw new InvalidOperationException("A felfüggesztett katakombapálya nem található.");
         if (FindRodericFollower() is { } currentRoderic)
@@ -1339,6 +1346,7 @@ public sealed partial class Game
         _renderer.DrawInitialState(_maze, _player, _fogOfWar, _difficultyLevel);
         _renderer.DrawInventoryMessage("↩ Visszatértetek a katakombák ugyanazon pontjára.", ConsoleColor.Cyan);
         _backgroundMusic.SynchronizeMazeLevel(_difficultyLevel, IsLevelExitDiscovered());
+        ResumeExplorationRound();
     }
 
     private bool TryFinalizeRodericPermanentJoin()

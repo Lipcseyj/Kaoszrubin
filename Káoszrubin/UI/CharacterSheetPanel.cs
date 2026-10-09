@@ -123,10 +123,23 @@ public static class CharacterSheetPanel
         CharacterClassGlyph(characterClassId, avatarSet);
 
     /// <summary>A karakter aranyát a karakterlap 9. sorára formázza.</summary>
-    public static CharacterSheetPanelLine BuildGoldLine(LiveCharacter character)
-    {
-        return new CharacterSheetPanelLine(9, $"Arany: {character.Gold} {ConsoleRenderer.MoneyIcon}", ConsoleColor.Yellow);
+    public static CharacterSheetPanelLine BuildGoldLine(LiveCharacter character, int goldenKeyCount = 0,
+        int bossCount = 0, int width = Width) =>
+        BuildGoldLine(character.Gold, goldenKeyCount, bossCount, width);
 
+    private static CharacterSheetPanelLine BuildGoldLine(int gold, int goldenKeyCount, int bossCount, int width)
+    {
+        var money = $"Arany: {gold} {ConsoleRenderer.MoneyIcon}";
+        var keys = $"🔑 {goldenKeyCount}/{bossCount}";
+        var effectiveWidth = Math.Max(Width, width);
+        var column = 18;
+        if (BattleCommandPanel.DisplayWidth(money) >= column &&
+            BattleCommandPanel.DisplayWidth(money) + 1 + BattleCommandPanel.DisplayWidth(keys) > effectiveWidth)
+            money = $"Arany: {gold}";
+        column = Math.Max(column, BattleCommandPanel.DisplayWidth(money) + 1);
+        return new CharacterSheetPanelLine(9,
+            money + new string(' ', column - BattleCommandPanel.DisplayWidth(money)) + keys,
+            ConsoleColor.Yellow);
     }
 
     /// <summary>
@@ -261,7 +274,7 @@ public static class CharacterSheetPanel
     public static IReadOnlyList<CharacterSheetPanelLine> Build(LiveCharacter character,
         IReadOnlyDictionary<int, int> experienceByLevel, int mazeLevel, int goldenKeyCount, int bossCount,
         bool isPartyLeader = false, bool isTemporaryFollower = false, int width = Width,
-        IReadOnlyList<string>? combatStatusIcons = null, string explorationClockIndicator = "")
+        IReadOnlyList<string>? combatStatusIcons = null, string explorationClockIndicator = "", GameTimeSnapshot? gameTime = null)
     {
         var characterSheet = CharacterSheetSnapshotProjector.Create(character, experienceByLevel,
             MazeLevelConfigurations.Get(mazeLevel).VisionModifier);
@@ -278,7 +291,7 @@ public static class CharacterSheetPanel
             characterSheet,
             IsTemporaryFollower: isTemporaryFollower);
         return Build(snapshot, mazeLevel, goldenKeyCount, bossCount, isPartyLeader, width,
-            explorationClockIndicator);
+            explorationClockIndicator, gameTime);
     }
 
     /// <summary>
@@ -299,7 +312,7 @@ public static class CharacterSheetPanel
     /// <exception cref="ArgumentException">Hiányzik a karakterlap- vagy inventory-projekció.</exception>
     public static IReadOnlyList<CharacterSheetPanelLine> Build(SessionCharacterSnapshot character,
         int mazeLevel, int goldenKeyCount, int bossCount, bool isPartyLeader = false, int width = Width,
-        string explorationClockIndicator = "")
+        string explorationClockIndicator = "", GameTimeSnapshot? gameTime = null)
     {
         ArgumentNullException.ThrowIfNull(character);
         var details = character.CharacterSheet ?? throw new ArgumentException(
@@ -309,7 +322,7 @@ public static class CharacterSheetPanel
         var effectiveWidth = Math.Max(Width, width);
         var lines = new List<CharacterSheetPanelLine>
         {
-            BuildWorldHeaderLine(mazeLevel, goldenKeyCount, bossCount, explorationClockIndicator, effectiveWidth),
+            BuildWorldHeaderLine(mazeLevel, goldenKeyCount, bossCount, explorationClockIndicator, effectiveWidth, gameTime),
             new(1, $"KARAKTERLAP - {character.Name}", ConsoleColor.Yellow),
             new(2, $"{details.RaceName} {details.CharacterClassName}" +
                    (isPartyLeader ? "  👑 VEZÉR" : character.IsTemporaryFollower ? "  👤 KÖVETŐ" : string.Empty),
@@ -341,7 +354,7 @@ public static class CharacterSheetPanel
             .Select(icon => icon == "🪨" ? ConsoleRenderer.DamageReductionIcon : icon).ToArray();
         lines.Add(new(8, statusIcons.Length == 0 ? "Áll: nincs" : $"Áll: {string.Join(' ', statusIcons)}",
             details.StatusIcons.Count == 0 ? ConsoleColor.DarkGray : ConsoleColor.Magenta));
-        lines.Add(new(9, $"Arany: {character.Gold} {ConsoleRenderer.MoneyIcon}", ConsoleColor.Yellow));
+        lines.Add(BuildGoldLine(character.Gold, goldenKeyCount, bossCount, effectiveWidth));
         var proficiencies = details.WeaponProficiencyNames ?? [];
         lines.Add(new(10, proficiencies.Count > 0 ? $"Jártasság: {string.Join(' ', proficiencies)}" : "Jártasság: —",
             proficiencies.Count > 0 ? ConsoleColor.Yellow : ConsoleColor.DarkGray));
@@ -360,21 +373,30 @@ public static class CharacterSheetPanel
         return lines;
     }
 
-    /// <summary>A labirintusszintet, kulcsokat és opcionális időjelzőt a 0. sorra formázza.</summary>
-    /// <remarks>A teljes vagy rövid fejlécet a legszélesebb időjelzővel számolt terminálcellaszélesség alapján választja.</remarks>
+    /// <summary>A labirintusszintet, játékidőt, napszakot és homokórát a 0. sorra formázza.</summary>
+    /// <remarks>Balra a ▦ pályajel, középen │ jelekkel elválasztott idő, jobbra négycellás homokórahely.</remarks>
     public static CharacterSheetPanelLine BuildWorldHeaderLine(int mazeLevel, int goldenKeyCount, int bossCount,
-        string explorationClockIndicator, int width = Width)
+        string explorationClockIndicator, int width = Width, GameTimeSnapshot? gameTime = null)
     {
-        const string widestClockIndicator = "⌛⏸";
-        var suffix = string.IsNullOrWhiteSpace(explorationClockIndicator)
-            ? string.Empty
-            : $"  {explorationClockIndicator}";
-        var full = $"Labirintus: {mazeLevel}  🔑 {goldenKeyCount}/{bossCount}{suffix}";
-        var compact = $"Lab: {mazeLevel}  🔑 {goldenKeyCount}/{bossCount}{suffix}";
-        var widestFull = $"Labirintus: {mazeLevel}  🔑 {goldenKeyCount}/{bossCount}  {widestClockIndicator}";
+        var time = gameTime ?? new GameTimeSnapshot();
+        const int clockWidth = 4;
+        var level = $"▦ {mazeLevel}";
+        var levelWidth = BattleCommandPanel.DisplayWidth(level);
+        var available = Math.Max(0, width - levelWidth - clockWidth - 2);
+        var middle = $"│ {time.DisplayText} │";
+        if (BattleCommandPanel.DisplayWidth(middle) > available)
+            middle = $"│{time.DisplayText}│";
+        if (BattleCommandPanel.DisplayWidth(middle) > available)
+            middle = $"│{time.Day}n {time.Hour:00}:{time.Minute:00} {time.DayNightIcon}│";
+        middle = BattleCommandPanel.TruncateToDisplayWidth(middle, available);
+        var middleWidth = BattleCommandPanel.DisplayWidth(middle);
+        var clockStart = Math.Max(levelWidth, width - clockWidth);
+        var middleStart = Math.Clamp((width - middleWidth) / 2,
+            levelWidth, Math.Max(levelWidth, clockStart - middleWidth));
         return new CharacterSheetPanelLine(0,
-            BattleCommandPanel.DisplayWidth(widestFull) <= Math.Max(1, width) ? full : compact,
-            ConsoleColor.Green);
+            level + new string(' ', middleStart - levelWidth) + middle +
+            new string(' ', Math.Max(0, clockStart - middleStart - middleWidth)) +
+            explorationClockIndicator, ConsoleColor.Green);
     }
 
     /// <summary>Egy fejlécsor elé fókuszjelzőt tesz, és beállítja a fókuszhoz tartozó hátteret.</summary>
@@ -382,7 +404,7 @@ public static class CharacterSheetPanel
         int width = Width)
     {
         var contentWidth = Math.Max(0, width - 1);
-        var content = line.Text[..Math.Min(line.Text.Length, contentWidth)];
+        var content = BattleCommandPanel.TruncateToDisplayWidth(line.Text, contentWidth);
         return line with
         {
             Text = (focused ? "»" : "«") + content,

@@ -247,6 +247,9 @@ public sealed partial class Game
                     area.Name, area.Coordinate.X, area.Coordinate.Y, area.Role);
             }).ToList();
         }
+        state.GameTime = GameTime.Snapshot;
+        state.ExplorationRoundRemainingMilliseconds = RemainingExplorationRoundMilliseconds(
+            _playerWindowPauseStartedUtc ?? DateTime.UtcNow);
         state.RestedAreaIds = _dungeonRestState.RestedAreaIds.OrderBy(id => id, StringComparer.Ordinal).ToList();
         state.QuestJournal = _questJournal.Values.Select(entry => new QuestJournalSaveData(LegacyQuestIdMap.ToExternalId(entry.Key.QuestId),
             entry.Status, entry.Progress, entry.ExperienceReward,
@@ -296,6 +299,8 @@ public sealed partial class Game
 
     private void RestoreGame(GameSaveData state)
     {
+        GameTime.Restore(state.GameTime);
+        RefreshGameTime();
         _npcRelationships.Clear();
         foreach (var (npcId, friendliness) in state.NpcRelationships ?? new Dictionary<string, int>())
             if (_gameData.Npcs.Any(npc => npc.PersistentRelationship &&
@@ -394,6 +399,8 @@ public sealed partial class Game
                   FindRodericFollower() is { StoryStateId: "MALREC_READY" } &&
                   _questManager.Roderic.Quests.OathbreakerKnight.State is (QuestState.Locked or QuestState.Available))
             _pendingRodericExpedition = true;
+        _pausedExplorationRoundMilliseconds = Math.Clamp(state.ExplorationRoundRemainingMilliseconds, 0, 30_000);
+        ResumeExplorationRound();
     }
 
     private DungeonLevel RestoreDungeonLevel(GameSaveData state, RestoredGameState activeState,

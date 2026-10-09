@@ -155,6 +155,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
     private int _mazeLevel;
     private int _goldenKeyCount;
     private string _explorationClockIndicator = "⌛⏸";
+    private GameTimeSnapshot _gameTime = new();
     private bool _battleActive;
     private Enemy? _battleEnemy;
     private BattleActionDetails? _battleDetails;
@@ -254,6 +255,14 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
 
     /// <summary>Tárolja az aranykulcsok számát a nulla és a bossok száma közé korlátozva; nem rajzol újra.</summary>
     public void SetGoldenKeyCount(int count) => _goldenKeyCount = Math.Clamp(count, 0, MonsterIds.Bosses.Count);
+
+    /// <summary>Tárolja a játékidőt, és változás esetén frissíti a fejlécet.</summary>
+    public void SetGameTime(GameTimeSnapshot time)
+    {
+        if (_gameTime == time) return;
+        _gameTime = time;
+        CharacterSheet.RefreshExplorationClockLine();
+    }
 
     /// <summary>Tárolja a felfedezés időjelzőjét, és változás esetén frissíti annak fejlécszegmensét.</summary>
     public void SetExplorationClockIndicator(string indicator)

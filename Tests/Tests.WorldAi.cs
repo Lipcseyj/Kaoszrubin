@@ -377,9 +377,10 @@ internal static partial class Program
                Game.ExplorationClockFrame(next, now, false).Contains("⏸", StringComparison.Ordinal),
             "A homokóra nem három másodpercenként fordul vagy nem jelzi a szünetet.");
         var header = CharacterSheetPanel.BuildWorldHeaderLine(12, 7, 12, "⏳", 34);
-        Assert(header.Text.Contains("🔑 7/12", StringComparison.Ordinal) &&
+        Assert(!header.Text.Contains("🔑", StringComparison.Ordinal) &&
+               header.Text.Contains("1.nap 08:00", StringComparison.Ordinal) &&
                header.Text.EndsWith("⏳", StringComparison.Ordinal),
-            "A homokóra nem az aranykulcsok után jelenik meg a karakterlapon.");
+            "A homokóra nem a játékidő után jelenik meg a karakterlapon.");
     }
     static void CompositeMonsterAbilityAppliesAllEffects()
     {

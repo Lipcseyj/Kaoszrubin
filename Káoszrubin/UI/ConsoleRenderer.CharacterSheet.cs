@@ -133,7 +133,8 @@ public sealed partial class ConsoleRenderer
         /// <param name="character">The character whose gold is written, regardless of the current display selection.</param>
         public void UpdateGoldInCharacterSheet(LiveCharacter character)
         {
-            var goldLine = CharacterSheetPanel.BuildGoldLine(character);
+            var goldLine = CharacterSheetPanel.BuildGoldLine(character, _owner._goldenKeyCount,
+                MonsterIds.Bosses.Count, RightSheetWidthForWindow());
             WriteSheetLine(CharacterSheetGoldLine, goldLine.Text, goldLine.Color, goldLine.Background);
         }
 
@@ -467,7 +468,7 @@ public sealed partial class ConsoleRenderer
 
         /// <summary>
         /// Draws the full character sheet for one character into the right panel.
-        /// Clears the panel when the character changes; otherwise writes only changed cached rows.
+        /// Clears character rows when the character changes, preserving unchanged headers; otherwise writes only changed cached rows.
         /// </summary>
         /// <param name="character">The character to display and retain as the active sheet context.</param>
         /// <remarks>Use RefreshCharacterSheet to preserve an open spell info or item inspection page.</remarks>
@@ -479,8 +480,9 @@ public sealed partial class ConsoleRenderer
 
             if (fullRedraw)
             {
-                ClearRightPanel();
-                InvalidateCharacterSheetCache();
+                var preserveWorldHeader = _lastCharacterSheetLines.ContainsKey(0);
+                ClearRightPanel(preserveHeaders: preserveWorldHeader);
+                InvalidateCharacterSheetCache(preserveWorldHeader);
             }
 
             var panelLines = CharacterSheetPanel.Build(
@@ -493,7 +495,7 @@ public sealed partial class ConsoleRenderer
                 IsTemporaryFollower(character),
                 RightSheetWidthForWindow(),
                 _owner.CombatStatusIconsFor(character),
-                _owner._explorationClockIndicator);
+                _owner._explorationClockIndicator, _owner._gameTime);
 
             if (fullRedraw)
                 DrawCharacterSheetHeaders(character);
@@ -612,10 +614,12 @@ public sealed partial class ConsoleRenderer
         /// Clears cached line and status snapshots used for incremental redraws.
         /// Use this before a forced full redraw to avoid stale diffing data.
         /// </summary>
-        private void InvalidateCharacterSheetCache()
+        private void InvalidateCharacterSheetCache(bool preserveWorldHeader = false)
         {
+            var worldHeader = preserveWorldHeader ? _lastCharacterSheetLines.GetValueOrDefault(0) : null;
             _lastCharacterSheetCharacterId = null;
             _lastCharacterSheetLines.Clear();
+            if (worldHeader is not null) _lastCharacterSheetLines[worldHeader.Row] = worldHeader;
             _lastInventoryRows.Clear();
             _lastCharacterVitalsOverlay = null;
             _lastPartyStatusRows.Clear();
@@ -777,28 +781,23 @@ public sealed partial class ConsoleRenderer
             var width = RightSheetWidthForWindow();
             var worldHeader = CharacterSheetPanel.WithFocusMarker(
                 CharacterSheetPanel.BuildWorldHeaderLine(_owner._mazeLevel, _owner._goldenKeyCount,
-                    MonsterIds.Bosses.Count, _owner._explorationClockIndicator, Math.Max(1, width - 1)),
+                    MonsterIds.Bosses.Count, _owner._explorationClockIndicator, Math.Max(1, width - 1), _owner._gameTime),
                 _characterSheetFocused, width);
-            // Az emojik terminálfüggő cellaszélessége nem befolyásolhatja a háttér jobb szélét.
-            WriteSheetLine(worldHeader.Row, string.Empty, worldHeader.Color, worldHeader.Background);
-            SetColors(worldHeader.Color, worldHeader.Background);
-            WriteAt(RightSheetX, worldHeader.Row,
-                BattleCommandPanel.TruncateToDisplayWidth(worldHeader.Text, width));
-            _lastCharacterSheetLines[worldHeader.Row] = worldHeader;
+            if (!_lastCharacterSheetLines.TryGetValue(worldHeader.Row, out var previousWorldHeader) ||
+                !SheetLineEquals(previousWorldHeader, worldHeader))
+            {
+                WriteSheetLine(worldHeader.Row, worldHeader.Text, worldHeader.Color, worldHeader.Background);
+                _lastCharacterSheetLines[worldHeader.Row] = worldHeader;
+            }
 
             var background = _characterSheetFocused ? ConsoleColor.DarkCyan : ConsoleColor.Black;
             var marker = _characterSheetFocused ? "»" : "«";
-            WriteSheetLine(CharacterSheetHeaderLine, string.Empty, ConsoleColor.Yellow, background);
-            var title = marker + "KARAKTERLAP";
-            SetColors(ConsoleColor.Yellow, background);
-            WriteAt(RightSheetX, CharacterSheetHeaderLine, title);
-            var titleWidth = BattleCommandPanel.DisplayWidth(title);
-            SetColors(character.Color, background);
-            WriteAt(RightSheetX + titleWidth, CharacterSheetHeaderLine,
-                BattleCommandPanel.TruncateToDisplayWidth(" - " + character.Name, width - titleWidth));
+            WriteSheetLine(CharacterSheetHeaderLine,
+                marker + "KARAKTERLAP", ConsoleColor.Yellow, background,
+                " - " + character.Name, character.Color);
         }
 
-        /// <summary>Updates only the exploration clock segment in the world header without redrawing the rest of the row.</summary>
+        /// <summary>Refreshes game time and daylight; hourglass-only changes update just their fixed segment.</summary>
         /// <remarks>Does nothing when a detail page is open, no character is displayed, or the indicator is absent.</remarks>
         public void RefreshExplorationClockLine()
         {
@@ -808,7 +807,13 @@ public sealed partial class ConsoleRenderer
             var line = CharacterSheetPanel.WithFocusMarker(
                 CharacterSheetPanel.BuildWorldHeaderLine(_owner._mazeLevel,
                     _owner._goldenKeyCount, MonsterIds.Bosses.Count, _owner._explorationClockIndicator,
-                    Math.Max(1, width - 1)), _characterSheetFocused, width);
+                    Math.Max(1, width - 1), _owner._gameTime), _characterSheetFocused, width);
+            if (!_lastCharacterSheetLines.TryGetValue(line.Row, out var previous) ||
+                CoopGuestScreen.ClockOnlyUpdate(previous.Text, line.Text, width) is null)
+            {
+                DrawCharacterSheetHeaders(_displayedCharacter);
+                return;
+            }
             var indicatorStart = line.Text.LastIndexOf(_owner._explorationClockIndicator,
                 StringComparison.Ordinal);
             if (indicatorStart < 0) return;
@@ -841,7 +846,8 @@ public sealed partial class ConsoleRenderer
                 _activeSheetSelection = entries.FirstOrDefault()?.Key;
             var panelLines = CharacterSheetPanel.Build(character, _owner._gameData.ExperienceByLevel, _owner._mazeLevel,
                 _owner._goldenKeyCount, MonsterIds.Bosses.Count, character == _party.Leader, IsTemporaryFollower(character),
-                RightSheetWidthForWindow(), explorationClockIndicator: _owner._explorationClockIndicator);
+                RightSheetWidthForWindow(), explorationClockIndicator: _owner._explorationClockIndicator,
+                gameTime: _owner._gameTime);
             DrawInventorySlotRows(character, panelLines);
             DrawPartyStatusRows(character);
         }
@@ -1035,9 +1041,10 @@ public sealed partial class ConsoleRenderer
         /// Clears the whole right panel area.
         /// Use this before full redraws to avoid leftover characters from previous content.
         /// </summary>
-        private void ClearRightPanel()
+        private void ClearRightPanel(bool preserveHeaders = false)
         {
-            for (var row = 0; row <= PicturePanelBottom; row++)
+            var firstRow = preserveHeaders ? CharacterSheetHeaderLine + 1 : 0;
+            for (var row = firstRow; row <= PicturePanelBottom; row++)
                 WriteSheetLine(row, string.Empty, ConsoleColor.Gray);
         }
 

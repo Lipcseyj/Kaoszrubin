@@ -60,7 +60,8 @@ public sealed partial class Game
             : [];
         foreach (var enemy in ambushingGroup)
             enemy.ConfigureAmbush(false);
-        _nextExplorationStatusTickUtc = DateTime.MaxValue;
+        PauseExplorationRound();
+        _renderer.SetExplorationClockIndicator(BuildExplorationClockIndicator(DateTime.UtcNow, advancing: false));
         CheckBossDiscovery([initiatingEnemy], initiatingCharacter);
         _timeStopUsedThisBattle = false;
         _turnUndeadNextAvailableRounds.Clear();
@@ -225,6 +226,8 @@ public sealed partial class Game
     {
         while (_activeBattle is { } battle)
         {
+            GameTime.AccountBattleRounds(battle.Id, battle.Turns.Cycle);
+            RefreshGameTime();
             // Központi fék ami meg tudja állítani a csatát, hogy lássuk a csapást
             if (battle.PauseReason != BattlePauseReason.None)
             {

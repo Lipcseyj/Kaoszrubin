@@ -181,10 +181,14 @@ public sealed partial class Game
     private void ShowSynchronizedRest(PartyRestSnapshot rest)
     {
         var previousPhase = _session.Phase;
+        var restStartedUtc = DateTime.UtcNow;
+        GameTime.AdvanceRest(rest.RestId);
+        RefreshGameTime();
         _restAcknowledgements.Clear();
         _hostRestAcknowledgementMessages.Clear();
         _latestRestNotice = rest;
         _session.SetPhase(GameSessionPhase.Paused);
+        _renderer.SetExplorationClockIndicator(BuildExplorationClockIndicator(restStartedUtc, advancing: false));
         DrawRestSummaryForHost();
         var renderedAcknowledgementCount = _restAcknowledgements.Count;
         RequestCoopSnapshotPublish();
@@ -206,6 +210,8 @@ public sealed partial class Game
         _renderer.ClearRestSummaryScreen(_maze, _fogOfWar, _player.Position);
         _latestRestNotice = null;
         _restAcknowledgements.Clear();
+        if (previousPhase == GameSessionPhase.Exploration && !_battleStarted)
+            ShiftExplorationSchedules(DateTime.UtcNow - restStartedUtc);
         _session.SetPhase(previousPhase);
         RequestCoopSnapshotPublish();
         foreach (var message in _hostRestAcknowledgementMessages)

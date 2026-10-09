@@ -130,6 +130,9 @@ public sealed partial class Game : ISessionCommandHandler
     private DateTime _nextNeedsDrain;
     private static readonly TimeSpan ExplorationStatusTickInterval = TimeSpan.FromSeconds(30);
     private DateTime _nextExplorationStatusTickUtc = DateTime.MinValue;
+    private GameTimeClock? _gameTimeClock;
+    private GameTimeClock GameTime => _gameTimeClock ??= new();
+    private int _pausedExplorationRoundMilliseconds = 30_000;
     private DateTime _nextNpcSelfCareCheck;
     private DateTime _nextBlockedTrapMessageUtc;
     private readonly Dictionary<Enemy, DateTime> _nextEnemyMoves = [];
@@ -286,6 +289,7 @@ public sealed partial class Game : ISessionCommandHandler
             SharedWindow = _activeSharedWindow is null ? null : _activeSharedWindow with
             { AcknowledgedPlayerIds = _sharedWindowAcknowledgements.ToArray() },
             MusicContext = _backgroundMusic.Context,
+            GameTime = GameTime.Snapshot,
             ExplorationClockIndicator = BuildExplorationClockIndicator(DateTime.UtcNow,
                 IsExplorationClockAdvancing),
             SpellImpacts = _sessionEventService.SpellImpacts,

@@ -133,6 +133,10 @@ internal static partial class Program
 
     static void GuestClockUpdatesOnlyItsOwnHeaderSegment()
     {
+        Assert(BattleCommandPanel.DisplayWidth("⌛") == 2 &&
+               BattleCommandPanel.DisplayWidth("⏳") == 2 &&
+               BattleCommandPanel.DisplayWidth("⌛⏸") == 4,
+            "A homokóra hibás cellaszélessége túlírást okoz a fejléc jobb szélén.");
         const int width = 27;
         string Header(int level, string clock, bool focused = false) => CharacterSheetPanel.WithFocusMarker(
             CharacterSheetPanel.BuildWorldHeaderLine(level, 7, 12, clock, width - 1), focused, width).Text;

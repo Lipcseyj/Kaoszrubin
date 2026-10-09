@@ -119,7 +119,7 @@ public sealed class GameSaveService
 public static class GameSaveFormat
 {
     public const int OldestSupportedVersion = 1;
-    public const int CurrentVersion = 39;
+    public const int CurrentVersion = 40;
 
     public static GameSaveData MigrateToCurrent(GameSaveData state)
     {
@@ -170,6 +170,7 @@ public static class GameSaveFormat
                 36 => MigrateVersion36To37(state),
                 37 => MigrateVersion37To38(state),
                 38 => MigrateVersion38To39(state),
+                39 => MigrateVersion39To40(state),
                 _ => throw new InvalidOperationException($"Hiányzó mentésmigráció a(z) {state.Version}. verzióhoz.")
             };
         }
@@ -181,6 +182,14 @@ public static class GameSaveFormat
                 state.PartyCampaignProgression, suspended.PartyCampaignProgression);
             suspended.PartyCampaignProgression = state.PartyCampaignProgression;
         }
+        return state;
+    }
+
+    private static GameSaveData MigrateVersion39To40(GameSaveData state)
+    {
+        state.GameTime = new GameTimeSnapshot();
+        state.ExplorationRoundRemainingMilliseconds = 30_000;
+        state.Version = 40;
         return state;
     }
 
@@ -552,6 +561,8 @@ public sealed class GameSaveData
     [JsonRequired]
     public int Version { get; set; } = GameSaveFormat.CurrentVersion;
     public DateTimeOffset SavedAt { get; set; }
+    public GameTimeSnapshot GameTime { get; set; } = new();
+    public int ExplorationRoundRemainingMilliseconds { get; set; } = 30_000;
     public Guid CampaignId { get; set; }
     public PartyCampaignProgressionSnapshot PartyCampaignProgression { get; set; } = new();
     public string MainCharacterName { get; set; } = string.Empty;

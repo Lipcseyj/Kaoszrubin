@@ -1966,7 +1966,7 @@ public sealed class CoopGuestScreen
                 : own?.CharacterSheet is not null && own.Inventory is not null
                     ? CharacterSheetPanel.Build(own, snapshot.MazeLevel, snapshot.GoldenKeyCount,
                         snapshot.BossKeyCount, own.CharacterId == snapshot.LeaderCharacterId, width: panelWidth,
-                        explorationClockIndicator: snapshot.ExplorationClockIndicator)
+                        explorationClockIndicator: snapshot.ExplorationClockIndicator, gameTime: snapshot.GameTime)
                         .ToDictionary(line => line.Row)
                     : [];
         if (!_spellInfoOpen && _itemInspectionPanel is null && own?.CharacterSheet is not null &&
@@ -1974,7 +1974,7 @@ public sealed class CoopGuestScreen
         {
             panelLines[0] = CharacterSheetPanel.WithFocusMarker(
                 CharacterSheetPanel.BuildWorldHeaderLine(snapshot.MazeLevel, snapshot.GoldenKeyCount,
-                    snapshot.BossKeyCount, snapshot.ExplorationClockIndicator, Math.Max(1, panelWidth - 1)),
+                    snapshot.BossKeyCount, snapshot.ExplorationClockIndicator, Math.Max(1, panelWidth - 1), snapshot.GameTime),
                 _inventoryOpen, panelWidth);
             panelLines[1] = CharacterSheetPanel.WithFocusMarker(panelLines[1], _inventoryOpen, panelWidth);
         }

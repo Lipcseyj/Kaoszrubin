@@ -192,7 +192,7 @@ public sealed class BattleCommandPanel
         {
             var element = elements.GetTextElement();
             width += element.EnumerateRunes().Any(rune =>
-                rune.Value > char.MaxValue || rune.Value is 0xFE0F or 0x200D) ? 2 : 1;
+                rune.Value > char.MaxValue || rune.Value is 0x231B or 0x23F3 or 0x23F8 or 0xFE0F or 0x200D) ? 2 : 1;
         }
         return width;
     }

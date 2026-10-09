@@ -736,6 +736,8 @@ public sealed partial class Game
         string reason)
     {
         battle.RecordCompletedFinalAction();
+        GameTime.AccountBattleRounds(battle.Id, battle.Turns.Cycle);
+        RefreshGameTime();
         var cycles = Math.Max(1, battle.Turns.Cycle);
         var characterResults = battle.Characters.Select(battle.ResultFor).ToArray();
         var summary = ConsoleRenderer.FormatBattleRetreatSummary(cycles, battle.ActionNumber, battle.Kills);
@@ -770,6 +772,7 @@ public sealed partial class Game
             ResolvePerkOffers(levelingCharacter, result);
         _pendingLevelUps.Clear();
         _renderer.RestoreAfterBattle();
+        ResumeExplorationRound();
         RequestCoopSnapshotPublish();
     }
 
@@ -1856,6 +1859,8 @@ public sealed partial class Game
         _fogOfWar.ClearBattleVisibleEnemies();
         _renderer.DrawBattleCommandPanel(string.Empty);
         _session.EndBattle(battle.Id);
+        GameTime.AccountBattleRounds(battle.Id, battle.Turns.Cycle);
+        RefreshGameTime();
         var cycles = Math.Max(1, battle.Turns.Cycle);
         var characterResults = battle.Characters.Select(battle.ResultFor).ToArray();
         var resourceSummary = ConsoleRenderer.FormatBattleResourceSummary(characterResults, cycles);
@@ -1897,6 +1902,7 @@ public sealed partial class Game
         _nextNeedsDrain = DateTime.UtcNow + TimeSpan.FromMinutes(1);
         ForceCoopSnapshotPublish();
         Thread.Sleep(800);
+        ResumeExplorationRound();
     }
 
     private void FinishBattle(BattleEncounter battle, bool forceDefeat = false)
@@ -1906,6 +1912,8 @@ public sealed partial class Game
         _session.EndBattle(battle.Id);
         var victory = !forceDefeat && battle.HostileSideDefeated && !battle.FriendlySideDefeated;
         var wasQuickBattle = _isQuickBattle;
+        GameTime.AccountBattleRounds(battle.Id, battle.Turns.Cycle);
+        RefreshGameTime();
         var cycles = Math.Max(1, battle.Turns.Cycle);
         var characterResults = battle.Characters.Select(battle.ResultFor).ToArray();
         var resourceSummary = ConsoleRenderer.FormatBattleResourceSummary(characterResults, cycles);
@@ -1916,6 +1924,7 @@ public sealed partial class Game
         _activeBattle = null;
         _isQuickBattle = false;
         _battleStarted = false;
+
         _preparedBattleTurnId = 0;
 
         _session.EndBattle(battle.Id);
@@ -1957,6 +1966,7 @@ public sealed partial class Game
         foreach (var member in _maze.PartyMembers) ScheduleNextPartyMove(member, DateTime.UtcNow);
         _session.SetPhase(GameSessionPhase.Exploration);
         _nextNeedsDrain = DateTime.UtcNow + TimeSpan.FromMinutes(1);
+        ResumeExplorationRound();
         RequestCoopSnapshotPublish();
     }
 
