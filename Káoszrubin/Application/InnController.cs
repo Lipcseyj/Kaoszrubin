@@ -837,7 +837,7 @@ internal sealed partial class InnController
             stock.Add(CreateMerchantStockOffer(weapon, 1.0, completedLevel));
 
         var magicPower = completedLevel switch { >= 12 => 3, >= 8 => 2, >= 4 => 1, _ => 0 };
-        var magicCount = completedLevel switch { >= 15 => 4, >= 10 => 3, >= 5 => 2, >= 4 => 1, _ => 0 };
+        var magicCount = completedLevel switch { >= 16 => 4, >= 10 => 3, >= 5 => 2, >= 4 => 1, _ => 0 };
         var magicPool = unlocked.Where(weapon => weapon.Rarity == ItemRarity.Magic &&
                 weapon.MagicPower == magicPower)
             .OrderBy(_ => _random.Next()).ToList();
@@ -1329,7 +1329,7 @@ internal sealed partial class InnController
     private List<InnStockOffer> CreateSpecialistStock(int completedLevel, ItemCategory category)
     {
         var totalCount = _random.Next(2, 5) + completedLevel / 3;
-        var magicCount = completedLevel switch { >= 15 => 4, >= 10 => 3, >= 5 => 2, >= 4 => 1, _ => 0 };
+        var magicCount = completedLevel switch { >= 16 => 4, >= 10 => 3, >= 5 => 2, >= 4 => 1, _ => 0 };
         magicCount = Math.Min(magicCount, totalCount);
         var magicPower = completedLevel switch { >= 12 => 3, >= 8 => 2, >= 4 => 1, _ => 0 };
         var source = category == ItemCategory.Weapon

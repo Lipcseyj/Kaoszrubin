@@ -96,6 +96,13 @@ internal static class QuestPresentationTests
                     CharacterClassIds.Mágus, 20, new Random(1))?.Id == legendary.Id,
             "A véletlen questjutalom 4000/10000 XP-s ritkasági küszöbe hibás.");
 
+        var tierFour = magic with { Id = "TEST-TIER-FOUR", MagicPower = 4 };
+        Require(QuestRandomRewardSelector.Select([tierFour], quest with { ExperienceReward = 10_000 },
+                    CharacterClassIds.Mágus, 17, new Random(1)) is null &&
+                QuestRandomRewardSelector.Select([tierFour], quest with { ExperienceReward = 10_000 },
+                    CharacterClassIds.Mágus, 18, new Random(1))?.Id == tierFour.Id,
+            "A lápvidék beszúrása után a magas mágikus jutalom a vámpírerődnél oldódjon fel.");
+
         var tierTwo = magic with { Id = "TEST-TIER-TWO", MagicPower = 2 };
         Require(QuestRandomRewardSelector.Weight(magic, CharacterClassIds.Mágus, 10) >
                 QuestRandomRewardSelector.Weight(magic, CharacterClassIds.Harcos, 10) &&

@@ -28,12 +28,12 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<None Remove="ForestLevelGraphs\level-6.json" />
+		<None Remove="ForestLevelGraphs\*.json" />
 		<None Remove="UI\Mainscreen.txt" />
 	</ItemGroup>
 
 	<ItemGroup>
-		<Content Include="ForestLevelGraphs\level-6.json">
+		<Content Include="ForestLevelGraphs\*.json">
 		  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
 		<Content Include="UI\Mainscreen.txt">

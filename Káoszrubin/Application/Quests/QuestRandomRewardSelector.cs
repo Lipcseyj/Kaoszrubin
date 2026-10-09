@@ -23,7 +23,7 @@ public static class QuestRandomRewardSelector
         var maximumRarity = quest.ExperienceReward >= LegendaryExperienceThreshold ? ItemRarity.Legendary :
             quest.ExperienceReward >= MagicExperienceThreshold ? ItemRarity.Magic : ItemRarity.Normal;
         var maximumPrice = Math.Max(80, quest.ExperienceReward * 2);
-        var levelMagicPower = mazeLevel switch { < 5 => 0, < 11 => 1, < 17 => 2, _ => 3 };
+        var levelMagicPower = mazeLevel switch { < 5 => 0, < 11 => 1, < 18 => 2, _ => 3 };
         var maximumMagicPower = Math.Min(Math.Max(0, quest.ExperienceReward / ExperiencePerMagicPower),
             levelMagicPower + 1);
         var candidates = source.Where(item => item.Rarity <= maximumRarity &&
@@ -45,7 +45,7 @@ public static class QuestRandomRewardSelector
 
     public static int Weight(IItemDefinition item, string npcClassId, int mazeLevel)
     {
-        var levelMagicPower = mazeLevel switch { < 5 => 0, < 11 => 1, < 17 => 2, _ => 3 };
+        var levelMagicPower = mazeLevel switch { < 5 => 0, < 11 => 1, < 18 => 2, _ => 3 };
         return Weight(item, npcClassId, mazeLevel, levelMagicPower);
     }
 

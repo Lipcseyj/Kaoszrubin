@@ -5,6 +5,8 @@ internal static partial class Program
         #region test cases
         var tests = new (string Name, Action Run)[]
         {
+    ("Süllyedt koronák lápvidéke: gráf, JSON és kampánysorrend", SunkenCrownsForestHasMatchingJsonAndConnectedRegions),
+    ("Süllyedt koronák lápvidéke: mentések és felfüggesztett kampányok migrációja", SunkenCrownsForestSaveMigrationPreservesLocationsAndHistory),
     ("Questroom erdőben: minden elhelyezési mód épületbelsőt követel", QuestRoomAreaPlacementTests.ForestQuestRoomsRequireBuildingForEveryPlacement),
     ("Questroom célterület: képernyőszám, AreaId és helyi szabályok", QuestRoomAreaPlacementTests.QuestRoomAreaTargetsAndLocalRules),
     ("Questroom célterület: hibás és ütköző célok elutasítása", QuestRoomAreaPlacementTests.QuestRoomAreaRejectsInvalidTargets),
@@ -327,7 +329,7 @@ internal static partial class Program
     ("A terepre célzott rajtaütések stabilan rejtőző csoportot helyeznek el", ForestTerrainAmbushPlacementIsStable),
     ("Az erdei terephatások és rajtaütések mentési adatai kompatibilisen körbefordulnak", ForestTerrainGameplaySaveDataRoundTrips),
     ("Az erdei képernyőgráf összefüggő és betartja a fokszám- valamint kijárattávolság-korlátot", ForestAreaGraphHonorsTopologyRules),
-    ("A 8–22. szint valódi generálása megtartja a hadrendeket, mágusokat és kincseket", CampaignEncounterGenerationFitsRoomsAndKeepsCasters),
+    ("A 8–23. szint valódi generálása megtartja a hadrendeket, mágusokat és kincseket", CampaignEncounterGenerationFitsRoomsAndKeepsCasters),
     ("A kijelölt széles szintek több területre elég változatos hordát konfigurálnak", WideLevelsHaveBalancedDiverseHordes),
     ("A képernyőátjáró a mentésben és a világmodellben is megmarad", MazePassageSurvivesSaveRoundTrip),
     ("A mentés visszaállítja a szörny alatt fekvő csapdát", SavedTrapCanShareEnemyPosition),

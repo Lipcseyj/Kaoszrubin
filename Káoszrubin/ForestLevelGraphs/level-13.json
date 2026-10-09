@@ -1,0 +1,361 @@
+{
+  "SchemaVersion": 1,
+  "Level": 13,
+  "Graph": {
+    "Areas": [
+      {
+        "Id": "REED_GATE",
+        "Name": "A nádas kapuja",
+        "Coordinate": {
+          "X": 0,
+          "Y": 0
+        },
+        "TemplateId": "reed-marsh",
+        "Overrides": {
+          "ForestDensity": 0.32,
+          "TrailWidth": 2,
+          "MarshCount": {
+            "Minimum": 4,
+            "Maximum": 6
+          },
+          "BuildingCount": {
+            "Minimum": 1,
+            "Maximum": 1
+          }
+        }
+      },
+      {
+        "Id": "DROWNED_WOOD",
+        "Name": "Fuldokló erdő",
+        "Coordinate": {
+          "X": 1,
+          "Y": 0
+        },
+        "TemplateId": "flooded-wood",
+        "Overrides": {
+          "LakeCount": {
+            "Minimum": 4,
+            "Maximum": 6
+          },
+          "MarshCount": {
+            "Minimum": 5,
+            "Maximum": 7
+          },
+          "BuildingCount": {
+            "Minimum": 1,
+            "Maximum": 2
+          }
+        }
+      },
+      {
+        "Id": "FERRY_ISLAND",
+        "Name": "A révész szigete",
+        "Coordinate": {
+          "X": 2,
+          "Y": 0
+        },
+        "TemplateId": "island-groves",
+        "Overrides": {
+          "LakeRadius": {
+            "Minimum": 4,
+            "Maximum": 7
+          },
+          "BuildingCount": {
+            "Minimum": 1,
+            "Maximum": 2
+          },
+          "ManorBuildingChance": 0.1,
+          "TrailWidth": 2
+        }
+      },
+      {
+        "Id": "CROWN_CAUSEWAY",
+        "Name": "Koronák töltése",
+        "Coordinate": {
+          "X": 3,
+          "Y": 0
+        },
+        "TemplateId": "flooded-wood",
+        "Overrides": {
+          "ForestDensity": 0.34,
+          "TrailWidth": 3,
+          "ExtraTrailChance": 0.6,
+          "BuildingCount": {
+            "Minimum": 1,
+            "Maximum": 2
+          },
+          "ManorBuildingChance": 0.65
+        }
+      },
+      {
+        "Id": "SUNKEN_COURT",
+        "Name": "Elsüllyedt udvarházak",
+        "Coordinate": {
+          "X": 4,
+          "Y": 0
+        },
+        "TemplateId": "ruined-estate",
+        "Overrides": {
+          "LakeCount": {
+            "Minimum": 3,
+            "Maximum": 5
+          },
+          "MarshCount": {
+            "Minimum": 3,
+            "Maximum": 5
+          },
+          "BuildingCount": {
+            "Minimum": 3,
+            "Maximum": 4
+          },
+          "ManorBuildingChance": 1,
+          "LabyrinthBuildingChance": 0,
+          "ManorRoomCount": {
+            "Minimum": 4,
+            "Maximum": 6
+          }
+        }
+      },
+      {
+        "Id": "DROWNED_THRONE",
+        "Name": "A vízbe fúlt trón",
+        "Coordinate": {
+          "X": 5,
+          "Y": 0
+        },
+        "TemplateId": "lost-manor",
+        "Overrides": {
+          "ForestDensity": 0.45,
+          "LakeCount": {
+            "Minimum": 4,
+            "Maximum": 6
+          },
+          "MarshCount": {
+            "Minimum": 2,
+            "Maximum": 4
+          },
+          "BuildingCount": {
+            "Minimum": 2,
+            "Maximum": 3
+          },
+          "ManorBuildingChance": 1,
+          "LabyrinthBuildingChance": 0,
+          "ManorRoomCount": {
+            "Minimum": 4,
+            "Maximum": 6
+          }
+        }
+      },
+      {
+        "Id": "LEECH_MIRE",
+        "Name": "Piócák ingoványa",
+        "Coordinate": {
+          "X": 1,
+          "Y": 1
+        },
+        "TemplateId": "huge-swamp",
+        "Overrides": {
+          "MarshCount": {
+            "Minimum": 10,
+            "Maximum": 14
+          },
+          "MarshRadius": {
+            "Minimum": 6,
+            "Maximum": 10
+          },
+          "LakeCount": {
+            "Minimum": 3,
+            "Maximum": 5
+          }
+        }
+      },
+      {
+        "Id": "BLACK_MIRROR",
+        "Name": "Fekete tükör",
+        "Coordinate": {
+          "X": 2,
+          "Y": 1
+        },
+        "TemplateId": "blackwater-bog",
+        "Overrides": {
+          "LakeCount": {
+            "Minimum": 5,
+            "Maximum": 7
+          },
+          "MarshCount": {
+            "Minimum": 7,
+            "Maximum": 10
+          },
+          "MarshRadius": {
+            "Minimum": 4,
+            "Maximum": 8
+          },
+          "BuildingCount": {
+            "Minimum": 0,
+            "Maximum": 0
+          }
+        }
+      },
+      {
+        "Id": "REED_LABYRINTH",
+        "Name": "Nádrengeteg",
+        "Coordinate": {
+          "X": 3,
+          "Y": 1
+        },
+        "TemplateId": "reed-marsh",
+        "Overrides": {
+          "UndergrowthChance": 0.48,
+          "DenseUndergrowthChance": 0.24,
+          "MarshCount": {
+            "Minimum": 8,
+            "Maximum": 12
+          },
+          "TrailWinding": 0.96,
+          "ExtraTrailChance": 0.16
+        }
+      },
+      {
+        "Id": "WITCH_GROVE",
+        "Name": "Boszorkányok ligete",
+        "Coordinate": {
+          "X": 4,
+          "Y": 1
+        },
+        "TemplateId": "ancient-forest",
+        "Overrides": {
+          "ForestDensity": 0.72,
+          "LakeCount": {
+            "Minimum": 2,
+            "Maximum": 4
+          },
+          "MarshChance": 0.85,
+          "MarshCount": {
+            "Minimum": 4,
+            "Maximum": 6
+          },
+          "BuildingCount": {
+            "Minimum": 1,
+            "Maximum": 2
+          },
+          "ManorBuildingChance": 0.1
+        }
+      },
+      {
+        "Id": "CROCODILE_LAKES",
+        "Name": "Krokodilok tavai",
+        "Coordinate": {
+          "X": 2,
+          "Y": -1
+        },
+        "TemplateId": "mirror-lakes",
+        "Overrides": {
+          "LakeCount": {
+            "Minimum": 7,
+            "Maximum": 10
+          },
+          "LakeRadius": {
+            "Minimum": 4,
+            "Maximum": 8
+          },
+          "MarshChance": 0.9,
+          "MarshCount": {
+            "Minimum": 4,
+            "Maximum": 7
+          },
+          "BuildingCount": {
+            "Minimum": 0,
+            "Maximum": 0
+          }
+        }
+      },
+      {
+        "Id": "OLD_SLUICE",
+        "Name": "A királyi zsilip romjai",
+        "Coordinate": {
+          "X": 3,
+          "Y": -1
+        },
+        "TemplateId": "ruined-estate",
+        "Overrides": {
+          "ForestDensity": 0.35,
+          "LakeCount": {
+            "Minimum": 2,
+            "Maximum": 4
+          },
+          "MarshCount": {
+            "Minimum": 2,
+            "Maximum": 4
+          },
+          "BuildingCount": {
+            "Minimum": 2,
+            "Maximum": 3
+          },
+          "ManorBuildingChance": 0.9,
+          "LabyrinthBuildingChance": 0.1
+        }
+      }
+    ],
+    "Connections": [
+      {
+        "FirstAreaId": "REED_GATE",
+        "SecondAreaId": "DROWNED_WOOD"
+      },
+      {
+        "FirstAreaId": "DROWNED_WOOD",
+        "SecondAreaId": "FERRY_ISLAND"
+      },
+      {
+        "FirstAreaId": "FERRY_ISLAND",
+        "SecondAreaId": "CROWN_CAUSEWAY"
+      },
+      {
+        "FirstAreaId": "CROWN_CAUSEWAY",
+        "SecondAreaId": "SUNKEN_COURT"
+      },
+      {
+        "FirstAreaId": "SUNKEN_COURT",
+        "SecondAreaId": "DROWNED_THRONE"
+      },
+      {
+        "FirstAreaId": "DROWNED_WOOD",
+        "SecondAreaId": "LEECH_MIRE"
+      },
+      {
+        "FirstAreaId": "LEECH_MIRE",
+        "SecondAreaId": "BLACK_MIRROR"
+      },
+      {
+        "FirstAreaId": "BLACK_MIRROR",
+        "SecondAreaId": "FERRY_ISLAND"
+      },
+      {
+        "FirstAreaId": "BLACK_MIRROR",
+        "SecondAreaId": "REED_LABYRINTH"
+      },
+      {
+        "FirstAreaId": "REED_LABYRINTH",
+        "SecondAreaId": "WITCH_GROVE"
+      },
+      {
+        "FirstAreaId": "WITCH_GROVE",
+        "SecondAreaId": "SUNKEN_COURT"
+      },
+      {
+        "FirstAreaId": "FERRY_ISLAND",
+        "SecondAreaId": "CROCODILE_LAKES"
+      },
+      {
+        "FirstAreaId": "CROCODILE_LAKES",
+        "SecondAreaId": "OLD_SLUICE"
+      },
+      {
+        "FirstAreaId": "OLD_SLUICE",
+        "SecondAreaId": "CROWN_CAUSEWAY"
+      }
+    ],
+    "EntranceAreaId": "REED_GATE",
+    "ExitAreaId": "DROWNED_THRONE",
+    "Templates": []
+  }
+}

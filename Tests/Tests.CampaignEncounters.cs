@@ -11,7 +11,7 @@ internal static partial class Program
             "| Szint | Ellenfelek min–max | Varázshasználók min–max | Típusok min–max | Ládák min–max |",
             "|---|---:|---:|---:|---:|"
         };
-        for (var number = 8; number <= 22; number++)
+        for (var number = 8; number <= MazeLevelConfigurations.FinalLevel; number++)
         {
             var configuration = MazeLevelConfigurations.Get(number);
             var encounters = configuration.RoomEncounters.Concat(configuration.CorridorEncounters).ToArray();
@@ -34,7 +34,7 @@ internal static partial class Program
                 try
                 {
                     level = (DungeonLevel)typeof(Game).GetMethod("GenerateDungeonLevel",
-                        BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(game, [configuration, null])!;
+                        BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(game, [configuration, ForestLevelGraphOverrideBridge.Apply(configuration, new FileForestLevelGraphSource(Path.Combine(AppContext.BaseDirectory, "ForestLevelGraphs")))])!;
                 }
                 catch (TargetInvocationException exception) when (exception.InnerException is not null)
                 { throw exception.InnerException; }
@@ -57,6 +57,27 @@ internal static partial class Program
                     foreach (var leader in encounter.Members.Where(member => member.Role == EnemyGroupRole.Leader))
                         Assert(target.Enemies.Any(enemy => enemy.Definition.Id == leader.EnemyId),
                             $"A(z) {number}. szint {encounter.ScreenNumber}. képernyőjéről hiányzik {leader.EnemyId} (seed {seed}).");
+                }
+                if (number == SunkenCrownsForest.CampaignLevel)
+                {
+                    Assert(level.Areas.Count == 12 && level.Areas.All(area => area.Maze.Enemies.Count >= 12),
+                        $"A lápvidék egyik területe üres maradt (seed {seed}).");
+                    foreach (var encounter in configuration.RoomEncounters.Where(encounter => encounter.AreaId is not null))
+                    {
+                        var target = level.Areas.Single(area => area.Id == encounter.AreaId).Maze;
+                        foreach (var leader in encounter.Members.Where(member => member.Role == EnemyGroupRole.Leader))
+                            Assert(target.Enemies.Any(enemy => enemy.Definition.Id == leader.EnemyId &&
+                                (encounter.TargetRoomKind is null || target.Rooms.Any(room =>
+                                    room.Kind == encounter.TargetRoomKind && (room.Kind == RoomKind.Clearing || room.BuildingId is not null) &&
+                                    room.Contains(enemy.Position)))),
+                                $"Hiányzik a(z) {encounter.AreaId} őrsége: {leader.EnemyId} (seed {seed}).");
+                    }
+                    var ambushers = level.Areas.SelectMany(area => area.Maze.Enemies
+                        .Where(enemy => enemy.IsAmbushing)
+                        .Select(enemy => area.Maze.GetTerrainGameplayProfile(enemy.Position))).ToArray();
+                    Assert(ambushers.Length >= 40 &&
+                           ambushers.All(profile => (profile.Tags & TerrainTag.Marsh) != 0 && profile.SupportsAmbushPlacement),
+                        $"A lápvidék lesből támadói nem a mocsárban várnak (seed {seed}).");
                 }
                 var chiefCount = enemies.Count(enemy => enemy.Definition.Id == MonsterIds.OrkTörzsfő);
                 if (number == 9)

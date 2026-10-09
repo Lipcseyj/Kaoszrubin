@@ -1284,12 +1284,12 @@ static void ResolveSkipsActionAfterSupportVictory()
                data.GetTrap("TR001").DetectionExperience == 50 &&
                data.GetTrap("TR001").DisarmExperience == 100 &&
                data.GetTrap("TR002").Effect == TrapEffect.Poison && data.GetTrap("TR003").Effect == TrapEffect.Alert &&
-               data.GetTrap("TR007").MinimumLevel == 18 && data.GetTrap("TR007").DisarmDifficulty == 15 &&
+               data.GetTrap("TR007").MinimumLevel == 19 && data.GetTrap("TR007").DisarmDifficulty == 15 &&
                data.GetTrap("TR007").DetectionExperience == 500 &&
                data.GetTrap("TR007").DisarmExperience == 2500 &&
                data.GetTrap("TR008").Effect == TrapEffect.Darkness &&
                data.GetTrap("TR101") is { Effect: TrapEffect.Spell, SpellId: "S005" } &&
-               data.GetTrap("TR112") is { Effect: TrapEffect.Spell, SpellId: "S025", MinimumLevel: 21 } &&
+               data.GetTrap("TR112") is { Effect: TrapEffect.Spell, SpellId: "S025", MinimumLevel: 22 } &&
                data.GetItem(MiscItemIds.Torch) is { Effect: ConsumableEffect.Vision, EffectValue: 2 },
             "A csapdadefiníciók nem megfelelően töltődtek be a CSV-ből.");
     }

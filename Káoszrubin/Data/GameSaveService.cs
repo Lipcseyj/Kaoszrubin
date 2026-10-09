@@ -119,7 +119,7 @@ public sealed class GameSaveService
 public static class GameSaveFormat
 {
     public const int OldestSupportedVersion = 1;
-    public const int CurrentVersion = 37;
+    public const int CurrentVersion = 38;
 
     public static GameSaveData MigrateToCurrent(GameSaveData state)
     {
@@ -168,6 +168,7 @@ public static class GameSaveFormat
                 34 => MigrateVersion34To35(state),
                 35 => MigrateVersion35To36(state),
                 36 => MigrateVersion36To37(state),
+                37 => MigrateVersion37To38(state),
                 _ => throw new InvalidOperationException($"Hiányzó mentésmigráció a(z) {state.Version}. verzióhoz.")
             };
         }
@@ -179,6 +180,28 @@ public static class GameSaveFormat
                 state.PartyCampaignProgression, suspended.PartyCampaignProgression);
             suspended.PartyCampaignProgression = state.PartyCampaignProgression;
         }
+        return state;
+    }
+
+    private static GameSaveData MigrateVersion37To38(GameSaveData state)
+    {
+        // A lápvidék a régi 12. és 13. kampánypálya közé kerül.
+        const int insertedLevel = SunkenCrownsForest.CampaignLevel;
+        if (state.MazeLevel >= insertedLevel) state.MazeLevel++;
+        if (state.LocationKind == AdventureLocationKind.Campaign)
+        {
+            if (state.DifficultyLevel >= insertedLevel) state.DifficultyLevel++;
+            if (string.IsNullOrWhiteSpace(state.LocationId) ||
+                state.LocationId.StartsWith("CAMPAIGN_", StringComparison.OrdinalIgnoreCase))
+                state.LocationId = $"CAMPAIGN_{state.MazeLevel:00}";
+        }
+        if (state.AdHocConversationMazeLevel >= insertedLevel) state.AdHocConversationMazeLevel++;
+        state.RosterJson = ShiftNpcJoinLevels(state.RosterJson, insertedLevel, shiftCampaignBindings: true);
+        var progression = state.PartyCampaignProgression;
+        if (progression.HighestCompletedCampaignLevel >= insertedLevel)
+            state.PartyCampaignProgression = progression with
+            { HighestCompletedCampaignLevel = progression.HighestCompletedCampaignLevel + 1 };
+        state.Version = 38;
         return state;
     }
 
@@ -198,8 +221,15 @@ public static class GameSaveFormat
         var highestCompletedLevel = state.LocationKind == AdventureLocationKind.Campaign
             ? Math.Max(0, state.MazeLevel - 1)
             : state.SuspendedCampaign?.PartyCampaignProgression.HighestCompletedCampaignLevel ?? 0;
+        // A felfüggesztett mentés ekkor már új számozású lehet; itt még a 36. formátum készül.
+        var suspendedProgression = state.SuspendedCampaign?.PartyCampaignProgression;
+        if (suspendedProgression is { HighestCompletedCampaignLevel: >= 14 })
+            suspendedProgression = suspendedProgression with
+            { HighestCompletedCampaignLevel = suspendedProgression.HighestCompletedCampaignLevel - 1 };
+        if (state.LocationKind == AdventureLocationKind.Quest)
+            highestCompletedLevel = suspendedProgression?.HighestCompletedCampaignLevel ?? 0;
         state.PartyCampaignProgression = PartyCampaignProgressionSnapshot.Merge(
-            new(highestCompletedLevel), state.SuspendedCampaign?.PartyCampaignProgression);
+            new(highestCompletedLevel), suspendedProgression);
         state.Version = 36;
         return state;
     }
@@ -231,7 +261,7 @@ public static class GameSaveFormat
         return state;
     }
 
-    private static string ShiftNpcJoinLevels(string rosterJson, int insertedLevel)
+    private static string ShiftNpcJoinLevels(string rosterJson, int insertedLevel, bool shiftCampaignBindings = false)
     {
         if (string.IsNullOrWhiteSpace(rosterJson)) return rosterJson;
         var root = JsonNode.Parse(rosterJson);
@@ -245,6 +275,8 @@ public static class GameSaveFormat
             {
                 if (value["NpcJoinedMazeLevel"]?.GetValue<int?>() is { } level && level >= insertedLevel)
                     value["NpcJoinedMazeLevel"] = level + 1;
+                if (shiftCampaignBindings && value["LastKnownLevel"]?.GetValue<int?>() is { } campaignLevel && campaignLevel >= insertedLevel)
+                    value["LastKnownLevel"] = campaignLevel + 1;
                 foreach (var child in value.Select(pair => pair.Value).Where(child => child is not null).ToArray())
                     Shift(child!);
             }

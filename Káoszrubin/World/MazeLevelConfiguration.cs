@@ -349,7 +349,7 @@ public sealed class MazeLevelConfiguration
 public static class MazeLevelConfigurations
 {
     /// <summary>Az utolsó, kézzel definiált kampánypálya sorszáma.</summary>
-    public const int FinalLevel = 22;
+    public const int FinalLevel = 23;
 
     #region Kampánypályák – új pályát és pályatartalmat elsősorban itt szerkessz
 
@@ -990,6 +990,148 @@ public static class MazeLevelConfigurations
             [13] = new()
             {
                 Level = 13,
+                Name = "Süllyedt koronák lápvidéke",
+                ForestGraphJsonOverrideEnabled = true,
+                Layout = new ForestMazeLayoutConfiguration(
+                    new DungeonAreaGraphConfiguration(new(12, 12), MinimumExitDistance: 5, MaximumDegree: 4),
+                    new ForestGenerationConfiguration
+                    {
+                        ForestDensity = 0.48,
+                        GroveSize = new(5, 12),
+                        BiomeSize = 18,
+                        PineChance = 0.03,
+                        BushChance = 0.26,
+                        FlowerBushChance = 0.02,
+                        BushGroupSize = new(3, 7),
+                        ForestEdgeWidth = 3,
+                        ThicketChance = 0.08,
+                        UndergrowthChance = 0.34,
+                        DenseUndergrowthChance = 0.18,
+                        LakeCount = new(3, 5),
+                        LakeRadius = new(3, 7),
+                        MarshChance = 1,
+                        MarshCount = new(4, 7),
+                        MarshRadius = new(4, 8),
+                        TrailWidth = 2,
+                        TrailWinding = 0.84,
+                        ExtraTrailChance = 0.32,
+                        BuildingCount = new(1, 2),
+                        BuildingSize = new(4, 7),
+                        BuildingPartitionChance = 0.60,
+                        ManorBuildingChance = 0.55,
+                        LabyrinthBuildingChance = 0.10,
+                        ManorBuildingWidth = new(14, 22),
+                        ManorBuildingHeight = new(10, 16),
+                        ManorRoomCount = new(4, 6),
+                        LabyrinthBuildingWidth = new(16, 24),
+                        LabyrinthBuildingHeight = new(10, 17),
+                        BuildingExtraConnectionChance = 0.24,
+                        BuildingSecondEntranceChance = 0.35,
+                        LockedBuildingDoorChance = 0.35,
+                        OpenBuildingDoorChance = 0.30,
+                        BuildingStyles =
+                        [
+                            new("sunken-timber", new("sunken-timber-wall", new('▓'),
+                                ConsoleColor.DarkYellow, ConsoleColor.Black, false, true), 3),
+                            new("sunken-stone", new("sunken-stone-wall", new('▣'),
+                                ConsoleColor.DarkGray, ConsoleColor.Black, false, true), 4),
+                            new("sunken-court", new("sunken-court-wall", new('▤'),
+                                ConsoleColor.Gray, ConsoleColor.Black, false, true), 3,
+                                new HashSet<ForestBuildingLayout> { ForestBuildingLayout.Manor })
+                        ],
+                        Palette = new ForestTerrainPalette
+                        {
+                            Tree = new("sunken-tree", new('♠'), ConsoleColor.DarkGreen, ConsoleColor.Black, false, true),
+                            Bush = new("sunken-reeds", new('♣'), ConsoleColor.DarkYellow, ConsoleColor.Black, true, false),
+                            Pine = new("sunken-pine", new('▲'), ConsoleColor.DarkGreen, ConsoleColor.Black, false, true),
+                            FlowerBush = new("sunken-flowers", new('✿'), ConsoleColor.DarkMagenta, ConsoleColor.Black, true, false),
+                            Thicket = new("sunken-thicket", new('#'), ConsoleColor.DarkGreen, ConsoleColor.Black, false, true),
+                            Undergrowth = new("sunken-growth", new('░'), ConsoleColor.DarkYellow, ConsoleColor.Black, true, false),
+                            DenseUndergrowth = new("sunken-dense-growth", new('▒'), ConsoleColor.DarkGreen, ConsoleColor.Black, true, false),
+                            Water = new("sunken-water", new('≈'), ConsoleColor.DarkBlue, ConsoleColor.Black, false, false),
+                            Marsh = new("sunken-marsh", new('≋'), ConsoleColor.DarkYellow, ConsoleColor.DarkBlue, true, false),
+                            BuildingWall = new("sunken-wall", new('█'), ConsoleColor.DarkGray, ConsoleColor.Black, false, true)
+                        }
+                    },
+                    ExplicitGraph: SunkenCrownsForest.CreateGraph()),
+                WallRune = new('♠'),
+                WallColor = ConsoleColor.DarkGreen,
+                RoomCount = new(96, 120),
+                RoomSize = new(5, 9),
+                TreasureChestCount = new(28, 36),
+                TreasureGold = new(650, 1400),
+                ItemCurseChancePercent = 18,
+                // A nyílt lápot tömegek uralják; az udvarházakban mágusokkal támogatott őrségek várnak.
+                RoomEncounters =
+                [
+                    new(GroupCount: new(6, 8),
+                        Members: [new(MonsterIds.MérgesVarangy, new(5, 8)), new(MonsterIds.MocsáriVipera, new(4, 6))],
+                        MovementProfile: EnemyMovementProfile.Stationary, TargetRoomKind: RoomKind.Clearing),
+                    new(GroupCount: new(4, 6),
+                        Members: [new(MonsterIds.Óriáspióca, new(8, 12)), new(MonsterIds.Savanyálka, new(2, 3))],
+                        MovementProfile: EnemyMovementProfile.Stationary, TargetRoomKind: RoomKind.Clearing),
+                    new(GroupCount: new(4, 5),
+                        Members: [new(MonsterIds.MocsáriOgre, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.Goblin, new(6, 9)), new(MonsterIds.GoblinVajákos, new(1, 1))],
+                        MovementProfile: EnemyMovementProfile.Stationary),
+                    new(GroupCount: new(3, 4),
+                        Members: [new(MonsterIds.LápiLidérc, new(2, 3)), new(MonsterIds.Zombi, new(5, 8))],
+                        MovementProfile: EnemyMovementProfile.Stationary),
+                    new(GroupCount: new(1, 1),
+                        Members: [new(MonsterIds.SötétDruida, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.Útonálló, new(4, 6))],
+                        MovementProfile: EnemyMovementProfile.Stationary, AreaId: "FERRY_ISLAND"),
+                    new(GroupCount: new(2, 2),
+                        Members: [new(MonsterIds.SötétDruida, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.MérgesVarangy, new(5, 7)), new(MonsterIds.LápiLidérc, new(1, 2))],
+                        MovementProfile: EnemyMovementProfile.Stationary, AreaId: "WITCH_GROVE"),
+                    new(GroupCount: new(2, 3),
+                        Members: [new(MonsterIds.Káoszpap, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.Martalóc, new(5, 7)), new(MonsterIds.KáoszmágusTanítvány, new(1, 1))],
+                        MovementProfile: EnemyMovementProfile.Stationary, AreaId: "SUNKEN_COURT", TargetRoomKind: RoomKind.Manor),
+                    new(GroupCount: new(2, 2),
+                        Members: [new(MonsterIds.Nekromanta, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.PáncélozottZombi, new(4, 6)), new(MonsterIds.CsontvázLovag, new(2, 3))],
+                        MovementProfile: EnemyMovementProfile.Stationary, AreaId: "OLD_SLUICE", TargetRoomKind: RoomKind.Manor),
+                    new(GroupCount: new(1, 1),
+                        Members: [new(MonsterIds.Kígyópap, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.Kígyóember, new(1, 2)), new(MonsterIds.GyíkemberPortyázó, new(4, 6))],
+                        MovementProfile: EnemyMovementProfile.Stationary, AreaId: "DROWNED_THRONE", TargetRoomKind: RoomKind.Manor),
+                    new(GroupCount: new(1, 1),
+                        Members: [new(MonsterIds.Káoszpap, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.Orgyilkos, new(3, 5)), new(MonsterIds.Martalóc, new(5, 7))],
+                        MovementProfile: EnemyMovementProfile.Stationary, AreaId: "DROWNED_THRONE", TargetRoomKind: RoomKind.Manor),
+                    new(GroupCount: new(1, 1),
+                        Members: [new(MonsterIds.Óriáskrokodil, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.MocsáriKrokodil, new(3, 5))],
+                        MovementProfile: EnemyMovementProfile.Stationary, AreaId: "CROCODILE_LAKES", TargetRoomKind: RoomKind.Clearing)
+                ],
+                CorridorEncounters =
+                [
+                    new(GroupCount: new(10, 14),
+                        Members: [new(MonsterIds.Óriáspióca, new(10, 14)), new(MonsterIds.MocsáriVipera, new(6, 9))],
+                        MovementProfile: EnemyMovementProfile.Wander, Behavior: EnemyEncounterBehavior.Horde, TargetTerrainTags: TerrainTag.Marsh),
+                    new(GroupCount: new(8, 10),
+                        Members: [new(MonsterIds.MérgesVarangy, new(5, 8)), new(MonsterIds.MocsáriVipera, new(3, 5))],
+                        MovementProfile: EnemyMovementProfile.Wander, TargetTerrainTags: TerrainTag.Marsh, Posture: EnemyEncounterPosture.Ambush, TriggerDistance: 4),
+                    new(GroupCount: new(4, 6),
+                        Members: [new(MonsterIds.MocsáriKrokodil, new(2, 3)), new(MonsterIds.BarlangiGyík, new(3, 5))],
+                        MovementProfile: EnemyMovementProfile.Patrol),
+                    new(GroupCount: new(2, 3),
+                        Members: [new(MonsterIds.ÉjiBanya, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.Savanyálka, new(4, 6)), new(MonsterIds.Óriáspók, new(3, 5))],
+                        MovementProfile: EnemyMovementProfile.Wander, Behavior: EnemyEncounterBehavior.Horde),
+                    new(GroupCount: new(2, 3),
+                        Members: [new(MonsterIds.LápiLidérc, new(2, 3)), new(MonsterIds.Zombi, new(4, 6))],
+                        MovementProfile: EnemyMovementProfile.Wander, Behavior: EnemyEncounterBehavior.Horde, AreaId: "BLACK_MIRROR"),
+                    new(GroupCount: new(2, 3),
+                        Members: [new(MonsterIds.MocsáriOgre, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.Goblin, new(8, 12))],
+                        MovementProfile: EnemyMovementProfile.Wander, Behavior: EnemyEncounterBehavior.Horde, AreaId: "LEECH_MIRE"),
+                    new(GroupCount: new(2, 2),
+                        Members: [new(MonsterIds.GyíkemberPortyázó, new(4, 6)), new(MonsterIds.MocsáriVipera, new(4, 6))],
+                        MovementProfile: EnemyMovementProfile.Patrol, AreaId: "REED_LABYRINTH", TargetTerrainTags: TerrainTag.Marsh, Posture: EnemyEncounterPosture.Ambush, TriggerDistance: 4),
+                    new(GroupCount: new(2, 2),
+                        Members: [new(MonsterIds.Orgyilkos, new(3, 5)), new(MonsterIds.Martalóc, new(5, 8)), new(MonsterIds.KáoszmágusTanítvány, new(1, 1))],
+                        MovementProfile: EnemyMovementProfile.Patrol, AreaId: "CROWN_CAUSEWAY"),
+                    new(GroupCount: new(2, 2),
+                        Members: [new(MonsterIds.SötétDruida, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.Óriáspók, new(4, 6)), new(MonsterIds.MérgesVarangy, new(3, 5))],
+                        MovementProfile: EnemyMovementProfile.Wander, Behavior: EnemyEncounterBehavior.Horde, AreaId: "DROWNED_WOOD")
+                ]
+            },
+            [14] = new()
+            {
+                Level = 14,
                 Name = "A rothadó mocsár",
                 Layout = new WideMazeLayoutConfiguration(new(2, 2), NarrowingChance: 0.18),
                 WallRune = new('▒'),
@@ -1049,9 +1191,9 @@ public static class MazeLevelConfigurations
                         MovementProfile: EnemyMovementProfile.Patrol)
                 ]
             },
-            [14] = new()
+            [15] = new()
             {
-                Level = 14,
+                Level = 15,
                 Name = "A fojtogató mélyjárat",
                 DoubleWidthCorridorChance = 0,
                 WallRune = new('█'),
@@ -1105,9 +1247,9 @@ public static class MazeLevelConfigurations
                         MovementProfile: EnemyMovementProfile.Wander, Behavior: EnemyEncounterBehavior.Horde)
                 ]
             },
-            [15] = new()
+            [16] = new()
             {
-                Level = 15,
+                Level = 16,
                 Name = "A megtört kristálycsarnok",
                 DoubleWidthCorridorChance = 0.72,
                 WallRune = new('◆'),
@@ -1161,9 +1303,9 @@ public static class MazeLevelConfigurations
                         MovementProfile: EnemyMovementProfile.Wander, Behavior: EnemyEncounterBehavior.Horde)
                 ]
             },
-            [16] = new()
+            [17] = new()
             {
-                Level = 16,
+                Level = 17,
                 Name = "A dermedt mélység",
                 DoubleWidthCorridorChance = 0.62,
                 WallRune = new('▒'),
@@ -1217,9 +1359,9 @@ public static class MazeLevelConfigurations
                         MovementProfile: EnemyMovementProfile.Patrol)
                 ]
             },
-            [17] = new()
+            [18] = new()
             {
-                Level = 17,
+                Level = 18,
                 Name = "Az örökéj vámpírerődje",
                 Layout = new WideMazeLayoutConfiguration(new(3, 3), NarrowingChance: 0.13),
                 WallRune = new('⣿'),
@@ -1279,9 +1421,9 @@ public static class MazeLevelConfigurations
                         MovementProfile: EnemyMovementProfile.Wander, Behavior: EnemyEncounterBehavior.Horde)
                 ]
             },
-            [18] = new()
+            [19] = new()
             {
-                Level = 18,
+                Level = 19,
                 Name = "A sárkányok temetője",
                 DoubleWidthCorridorChance = 0.84,
                 WallRune = new('█'),
@@ -1335,9 +1477,9 @@ public static class MazeLevelConfigurations
                         MovementProfile: EnemyMovementProfile.Wander, Behavior: EnemyEncounterBehavior.Horde)
                 ]
             },
-            [19] = new()
+            [20] = new()
             {
-                Level = 19,
+                Level = 20,
                 Name = "A démoni sík: Parázspusztaság",
                 Layout = new WideMazeLayoutConfiguration(new(3, 3), NarrowingChance: 0.08),
                 WallRune = new('█'),
@@ -1391,9 +1533,9 @@ public static class MazeLevelConfigurations
                         MovementProfile: EnemyMovementProfile.Patrol)
                 ]
             },
-            [20] = new()
+            [21] = new()
             {
-                Level = 20,
+                Level = 21,
                 Name = "A démoni sík: Vértrónus",
                 Layout = new WideMazeLayoutConfiguration(new(3, 3), NarrowingChance: 0.11),
                 WallRune = new('▓'),
@@ -1453,9 +1595,9 @@ public static class MazeLevelConfigurations
                         MovementProfile: EnemyMovementProfile.Wander, Behavior: EnemyEncounterBehavior.Horde)
                 ]
             },
-            [21] = new()
+            [22] = new()
             {
-                Level = 21,
+                Level = 22,
                 Name = "A káosz szíve",
                 DoubleWidthCorridorChance = 0.80,
                 WallRune = new('▒'),
@@ -1512,9 +1654,9 @@ public static class MazeLevelConfigurations
                         MovementProfile: EnemyMovementProfile.Wander, Behavior: EnemyEncounterBehavior.Horde)
                 ]
             },
-            [22] = new()
+            [23] = new()
             {
-                Level = 22,
+                Level = 23,
                 Name = "A káosz trónja",
                 DoubleWidthCorridorChance = 0.86,
                 WallRune = new('▓'),
@@ -1636,8 +1778,8 @@ public static class MazeLevelConfigurations
     {
         configuration.VisionModifier = configuration.Level switch
         {
-            5 or 6 or 13 => -1,
-            10 or 14 or 18 or 21 => -2,
+            5 or 6 or 13 or 14 => -1,
+            10 or 15 or 19 or 22 => -2,
             _ => 0
         };
         (configuration.TrapCount, configuration.TrapIds) = configuration.Level switch
@@ -1646,8 +1788,8 @@ public static class MazeLevelConfigurations
             2 => (new IntRange(4, 8), LevelTwoTraps),
             <= 7 => (new IntRange(5, 9), EarlyTraps),
             <= 10 => (new IntRange(6, 11), MidTraps),
-            <= 14 => (new IntRange(6, 11), AdvancedTraps),
-            <= 18 => (new IntRange(6, 13), DeadlyTraps),
+            <= 15 => (new IntRange(6, 11), AdvancedTraps),
+            <= 19 => (new IntRange(6, 13), DeadlyTraps),
             _ => (new IntRange(7, 14), ChaosTraps)
         };
         return configuration;

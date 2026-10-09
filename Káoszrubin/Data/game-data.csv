@@ -526,7 +526,7 @@ Tier;AlapEsély%;SzintenkéntiEsély%;MaxEsély%
 MágikusErő;MinimumSzint;MinimumTier;AlapSúly;SzintenkéntiSúly;TierenkéntiSúly
 1;3;1;100;0;0
 2;8;2;10;2;8
-3;14;3;2;1;4
+3;15;3;2;1;4
 
 #Kereskedelemből tiltott tárgyak
 Id
@@ -904,8 +904,8 @@ TR002;Mérgezett tű;†;Poison;3;8;9;1;4;35;100;200;A falból mérgezett tű re
 TR003;Riasztórúna;◎;Alert;4;9;8;0;0;100;140;220;A felizzó rúna magára vonja a közeli lények figyelmét.
 TR004;Ingapengék;╳;Damage;7;10;11;7;12;0;260;480;A falakból egymást keresztező rozsdás pengék csapnak ki.
 TR005;Dögvészfelhő;≋;Poison;10;11;12;4;8;60;390;670;Fojtó zöld gáz tör elő a repedt padlólapok alól.
-TR006;Káoszpecsét;✹;Alert;14;13;13;4;9;100;435;1500;A felhasadó pecsét energiakitörése megsebzi az áldozatot és odahívja a közeli szörnyeket.
-TR007;Lélektű;♦;Poison;18;15;15;8;14;75;500;2500;Árnyékból formált tű sebzi meg a testet és mérgezi meg a lelket.
+TR006;Káoszpecsét;✹;Alert;15;13;13;4;9;100;435;1500;A felhasadó pecsét energiakitörése megsebzi az áldozatot és odahívja a közeli szörnyeket.
+TR007;Lélektű;♦;Poison;19;15;15;8;14;75;500;2500;Árnyékból formált tű sebzi meg a testet és mérgezi meg a lelket.
 TR008;Koromfelhő;☁;Darkness;5;9;9;0;0;100;100;250;Sűrű fekete korom borítja el az áldozat látását.
 TR101;Lángnyíl-rúna;✧;Spell;2;8;8;0;0;0;90;180;A rúna lángoló nyilat lő a legközelebbi kalandozóra.;S005
 TR102;Dermesztő átokrúna;❄;Spell;3;8;9;0;0;0;110;220;Síri hideget és lassító átkot szabadít fel.;D002
@@ -915,10 +915,10 @@ TR105;Vakítórúna;☼;Spell;6;10;10;0;0;0;200;400;Vakító mágikus villanást
 TR106;Tűzgolyó-rúna;☄;Spell;7;10;11;0;0;0;250;500;Tűzgolyót robbant a legközelebbi csapattag helyén.;S007
 TR107;Jégvihar-rúna;❉;Spell;9;11;11;0;0;0;300;600;Jeges vihart idéz a csapatra.;S008
 TR108;Hasadóvillám-rúna;Ϟ;Spell;11;11;12;0;0;0;360;720;Kalandozóról kalandozóra ugró villámot szabadít fel.;S023
-TR109;Rémkép-rúna;☠;Spell;13;12;12;0;0;0;420;840;Bénító rémképeket vetít a közel állók elméjébe.;S028
-TR110;Villámvihar-rúna;☈;Spell;15;13;13;0;0;0;500;1000;Tartós villámvihart idéz a csapat fölé.;S009
-TR111;Meteorrúna;✺;Spell;18;14;14;0;0;0;650;1300;Meteorzáport zúdít a célterületre.;S011
-TR112;Lélekvihar-rúna;◈;Spell;21;15;16;0;0;0;800;1600;Sötét lélekvihart szakít a kalandozókra.;S025
+TR109;Rémkép-rúna;☠;Spell;14;12;12;0;0;0;420;840;Bénító rémképeket vetít a közel állók elméjébe.;S028
+TR110;Villámvihar-rúna;☈;Spell;16;13;13;0;0;0;500;1000;Tartós villámvihart idéz a csapat fölé.;S009
+TR111;Meteorrúna;✺;Spell;19;14;14;0;0;0;650;1300;Meteorzáport zúdít a célterületre.;S011
+TR112;Lélekvihar-rúna;◈;Spell;22;15;16;0;0;0;800;1600;Sötét lélekvihart szakít a kalandozókra.;S025
 
 #Varázslatok
 Id;Név;Szint;Manna;Leírás;Célzás;Hatótáv;Terület;Látóvonal;HasználatiMód;BecsapódásSzín;BecsapódásIdőMs;CsakEllenség;BecsapódásMinta;ViharMinta;ViharSzín;NemHatÉlőholtra;NaplóEmoji
@@ -1523,16 +1523,16 @@ NPCE014;NPC011;9;8;18
 NPCE015;NPC012;10;8;19
 NPCE016;NPC019;11;9;21
 NPCE017;NPC013;12;9;21
-NPCE018;NPC014;13;8;20
-NPCE019;NPC015;14;9;21
-NPCE020;NPC015;15;9;21
-NPCE021;NPC016;16;9;21
-NPCE022;NPC016;17;9;21
-NPCE023;NPC013;18;9;22
-NPCE024;NPC017;19;10;22
-NPCE025;NPC017;20;10;22
-NPCE026;NPC018;21;10;23
-NPCE027;NPC018;22;10;23
+NPCE018;NPC014;14;8;20
+NPCE019;NPC015;15;9;21
+NPCE020;NPC015;16;9;21
+NPCE021;NPC016;17;9;21
+NPCE022;NPC016;18;9;21
+NPCE023;NPC013;19;9;22
+NPCE024;NPC017;20;10;22
+NPCE025;NPC017;21;10;22
+NPCE026;NPC018;22;10;23
+NPCE027;NPC018;23;10;23
 NPCE028;NPC020;2;8;18
 NPCE029;NPC021;5;1;50;RODERIC_MEETING
 NPCE030;NPC022;1;5;13
@@ -1543,6 +1543,7 @@ NPCE035;NPC002;6;7;17;;WHISPERING_WOOD
 NPCE032;NPC024;6;17;27;;RAVEN_CROSSING
 NPCE036;NPC025;6;10;30;;LOST_MANOR
 NPCE037;NPC014;6;14;28;;BLACKWATER
+NPCE038;NPC014;13;8;20;;FERRY_ISLAND
 
 #Quest ládák
 Id;Név;Arany;Térképjel;Előtérszín;Háttérszín
@@ -1799,6 +1800,8 @@ NPCD139;NPC014;0;10;"A mocsári révész egy félig korhadt ladik mellett áll, 
 NPCD140;NPC014;0;10;"A révész már messziről integet, amikor meglát benneteket közeledni. ""Ugye nem azt akarjátok mondani, hogy tényleg végeztetek vele?"" Amikor megerősítitek a hírt, széles mosoly terül el az arcán. ""Akkor végre újra járható lesz a mocsár. Az emberek visszatérhetnek az ösvényekre, én pedig úgy indíthatom útnak a csónakomat, hogy nem kell minden árnyékban egy hatalmas állkapcsot látnom."" A révész elővesz egy gondosan elrejtett erszényt. ""Ezt nektek tettem félre. Nemcsak nekem segítettetek, hanem mindenkinek, akinek át kell kelnie ezen az átkozott vidéken.""";NPCE037
 NPCD141;NPC025;0;10;"Az inkvizítor ezúttal már ismerősként fogad, de arcán nyoma sincs megkönnyebbülésnek. ""Újabb fertőzés ütötte fel a fejét. Két káoszpap járja ezeket a folyosókat, és romlott tanításaikkal egyre több gyenge lelket térítenek le a helyes útról."" Ökölbe szorítja a kezét. ""A ghoulok csak testet falnak, de ezek a férgek a lelket mérgezik meg. Keressétek meg mindkettőt, és vessetek véget az istentelen szertartásaiknak. A káosz szolgáival nincs alku.""";NPCE036
 NPCD142;NPC025;0;10;"Az inkvizítor komoran hallgatja végig a beszámolótokat, majd elégedetten bólint. ""Mindkét káoszpap halott? Akkor két hanggal kevesebb suttogja a romlás igéit ezekben a járatokban."" Szent jelét a mellkasához emeli. ""Ne becsüljétek alá, amit tettetek. Egyetlen ilyen eretnek több száz ember lelkét képes megfertőzni, ha időt kap rá."" Ezután átnyújtja a jutalmatokat. ""Fogadjátok ezt szolgálatotokért. Ma nem csupán ellenségeket győztetek le, hanem a káosz terjedését is megállítottátok.""";NPCE036
+
+NPCD143;NPC014;0;10;"A révész a ladik oldalához ütögeti a csáklyáját. ""Ez a Süllyedt koronák lápvidéke. A régi királyok udvarházait elnyelte a víz, a koronák után kutatókat pedig az iszap. A szigettől keletre a Koronák töltése vezet az udvarházakhoz; a vízbe fúlt trón mögött van a kijárat. Északon a krokodilok tavai és a királyi zsilip romjai várnak. Délen több út is kanyarog a nádrengetegben, de a boszorkányok ligetét messze elkerülném. És ha csendes a víz, akkor is nézzetek a lábatok elé.""";NPCE038
 
 #NPC történeti választások
 Id;TörténetId;ÁllapotId;Mondat;Sorrend;Válasz;ViszonyVáltozás;KövetkezőÁllapotId;Reakció;Hatás;HatásParaméter;Folytatás;MinimumViszony;MaximumViszony
