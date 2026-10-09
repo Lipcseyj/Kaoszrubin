@@ -3614,7 +3614,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         var passage = maze.GetPassageAt(position);
         return new MapCellVisual(mapObject?.Symbol ??
             (passage is not null ? MazePassage.Symbol : maze.Tiles[position.X, position.Y]),
-            GetForegroundColor(maze, position),
+            GetForegroundColor(maze, position, mapObject),
             mapObject is null && passage is null
                 ? maze.GetTerrainStyle(position)?.BackgroundColor ?? ConsoleColor.Black
                 : ConsoleColor.Black);
@@ -3681,14 +3681,13 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
     }
 
     /// <summary>
-    /// Visszaadja az adott mező előtérszínét az ott lévő objektum alapján
-    /// (kincsesládához sárga, ellenséghez piros, stb.), vagy a tile alapértelmezettét.
+    /// A láthatósági szűrés után kiválasztott objektum adja a mező előtérszínét.
+    /// A tényleges, de rejtett ellenfél nem színezheti el az alatta látható terepet.
     /// </summary>
-    private ConsoleColor GetForegroundColor(Maze maze, Position position)
+    private ConsoleColor GetForegroundColor(Maze maze, Position position, WorldObject? mapObject)
     {
         if (maze.GetTrapAt(position) is { State: not TrapState.Hidden } trap)
             return trap.State == TrapState.Detected ? ConsoleColor.Yellow : ConsoleColor.DarkGray;
-        var mapObject = maze.GetObjectAt(position);
         if (mapObject is TreasureChest chest) return chest.MapForegroundColor;
         if (mapObject is Enemy enemy) return GetEnemyColor(enemy);
         if (mapObject is Corpse) return ConsoleColor.DarkRed;

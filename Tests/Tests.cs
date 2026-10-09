@@ -5,6 +5,8 @@ internal static partial class Program
         #region test cases
         var tests = new (string Name, Action Run)[]
         {
+    ("A rejtett szörnyek nem színezik el a felfedezett terepet", HiddenEnemiesNeverTintExploredTerrain),
+    ("A Holló-szoba mellékága megtartja az épület falazatát", ForestQuestSideBranchesPreserveBuildingWalls),
     ("Erdei ellátmány: a 6. és 13. pálya fogadói és őrzött ládái épületbe kerülnek", ForestSuppliesAndInnsGenerateInBuildings),
     ("Erdei ellátmány: őrök, ládanyitás és egyszeri minibossok", ForestSupplyGuardiansGateLootAndDoNotRespawn),
     ("Erdei fogadó: látogatás mentése, köd és hálózati delta", ForestInnVisitPersistsAndReplicates),

@@ -49,10 +49,19 @@ internal static class SpecialRoomPlacer
                         Directions.Any(direction => reachable.ContainsKey(position + direction)))
                     .OrderBy(position => position.Y).ThenBy(position => position.X).Cast<Position?>().FirstOrDefault();
                 if (entrance is null) continue;
-                foreach (var position in boundary.Where(position => position != entrance.Value))
+                // Az épület meglévő falait megtartjuk; csak a további átjárásokat zárjuk le.
+                // Erdőben a maze.WallRune fa, ezért egy bezárt ajtóhoz az épület falazata kell.
+                var wallStyle = room.BuildingId is null ? null : boundary
+                    .Where(position => !maze.IsConnectedRevealTerrain(position))
+                    .Select(maze.GetTerrainStyle)
+                    .Where(style => style is { Walkable: false, BlocksSight: true })
+                    .GroupBy(style => style).OrderByDescending(group => group.Count())
+                    .Select(group => group.Key).FirstOrDefault();
+                foreach (var position in boundary.Where(position => position != entrance.Value && Passable(maze, position)))
                 {
                     maze.RemoveDoor(position);
-                    maze.SetTile(position, maze.WallRune);
+                    if (wallStyle is not null) maze.SetTerrain(position, wallStyle);
+                    else maze.SetTile(position, maze.WallRune);
                 }
                 var state = maze.GetDoorAt(entrance.Value)?.State ?? DoorState.Closed;
                 if (settings.QuestDoorRequirements.TryGetValue(request.Id, out var questId))
