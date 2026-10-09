@@ -39,7 +39,7 @@ public static class QuestRoomEnemyPlacement
                 var enemy = new ConfiguredEnemy(position, data.GetEnemy(encounter.EnemyId), random,
                     magicWeaponContext: magicWeaponContext);
                 enemy.ConfigureMovement(EnemyMovementProfile.Stationary, Direction.Right);
-                enemy.ConfigureGroup($"QUEST:{encounter.RoomId}");
+                enemy.ConfigureGroup($"QUEST:{encounter.RoomId}", encounter.Role);
                 if (encounter.GuaranteedItemId is { } itemId) enemy.ConfigureGuaranteedLoot([itemId]);
                 maze.AddEnemy(enemy);
             }

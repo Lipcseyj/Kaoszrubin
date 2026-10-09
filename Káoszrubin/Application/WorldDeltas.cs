@@ -10,14 +10,15 @@ public sealed record WorldDelta(long FromSnapshotSequence, long ToSnapshotSequen
     IReadOnlyList<WorldEntityId> RemovedEntityIds, IReadOnlyList<WorldNpcSnapshot>? NpcUpserts = null,
     IReadOnlyList<WorldLastKnownEnemySnapshot>? LastKnownEnemyUpserts = null,
     IReadOnlyList<WorldEntityId>? RemovedLastKnownEnemyIds = null,
-    IReadOnlyList<WorldStormZoneSnapshot>? StormZones = null)
+    IReadOnlyList<WorldStormZoneSnapshot>? StormZones = null,
+    IReadOnlyList<WorldForestInnSnapshot>? ForestInns = null)
 {
     public bool IsEmpty => RevealedEntrance is null && RevealedExit is null &&
         RevealedOrChangedCells.Count == 0 && DoorUpserts.Count == 0 && RemovedDoorPositions.Count == 0 &&
         EnemyUpserts.Count == 0 && ChestUpserts.Count == 0 && CorpseUpserts.Count == 0 &&
         GroundPileUpserts.Count == 0 && RemovedEntityIds.Count == 0 && (NpcUpserts?.Count ?? 0) == 0 &&
         (LastKnownEnemyUpserts?.Count ?? 0) == 0 && (RemovedLastKnownEnemyIds?.Count ?? 0) == 0 &&
-        StormZones is null;
+        StormZones is null && ForestInns is null;
 }
 
 public static class WorldDeltaProjector
@@ -78,7 +79,8 @@ public static class WorldDeltaProjector
             previous.Exit is null ? current.Exit : null,
             changedCells, doorChanges, removedDoors, enemyChanges, chestChanges, corpseChanges, pileChanges,
             previousEntities.Where(id => !currentEntities.Contains(id)).ToArray(), npcChanges,
-            memoryChanges, removedMemoryIds, stormsChanged ? currentStorms : null);
+            memoryChanges, removedMemoryIds, stormsChanged ? currentStorms : null,
+            (previous.ForestInns ?? []).SequenceEqual(current.ForestInns ?? []) ? null : current.ForestInns ?? []);
     }
 
     private static IEnumerable<T> Upserts<T, TKey>(IEnumerable<T> previous, IEnumerable<T> current,

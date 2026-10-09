@@ -64,7 +64,7 @@ public sealed class PartyFormationController
         {
             if (!maze.IsWalkable(position) || maze.GetEnemyAt(position) is not null) return false;
             var occupant = maze.GetObjectAt(position);
-            if (occupant is null or GroundItemPile or Corpse or TreasureChest || Maze.IsPassableNeutralNpc(occupant))
+            if (occupant is null or GroundItemPile or Corpse or ForestInn or TreasureChest || Maze.IsPassableNeutralNpc(occupant))
                 continue;
             if (occupant is PartyMemberAvatar avatar && ownAvatars.Contains(avatar)) continue;
             if (occupant is PartyMemberAvatar relocatable && canRelocateAvatar?.Invoke(relocatable) == true)

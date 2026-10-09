@@ -78,7 +78,7 @@ public sealed class PartyFormationAssemblyCoordinator
         var obstacleReported = !madeProgress && targets.Values.Any(position =>
             !maze.IsWalkable(position) ||
             (maze.GetObjectAt(position) is { } occupant && occupant is not PartyMemberAvatar &&
-             occupant is not (GroundItemPile or Corpse or TreasureChest) &&
+             occupant is not (GroundItemPile or Corpse or ForestInn or TreasureChest) &&
              !Maze.IsPassableNeutralNpc(occupant)));
 
         return new Result(false, madeProgress, obstacleReported, false);

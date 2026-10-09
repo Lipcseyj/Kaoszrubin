@@ -725,6 +725,11 @@ E111;Lápi lidérc;ʑ;10;260;4;7;950;2;MA024;Undead;7;4;0;nem;WN002;nem;2;2;-2;0
 E112;Óriáskrokodil;Ͼ;14;620;8;5;1900;3;MA005|MA007;;6;2;3;igen;WN011|WN012;nem;3;2;1;0;3;0;0;6;;0
 E113;Mocsári ogre;Ǫ;13;420;4;3;1300;3;MA005|MA007;;5;1;4;igen;W019|W017;igen;1;1;1;0;1;0;0;5;;0
 
+E114;Holló klánvezér;Ƈ;9;260;5;8;1300;3;MA004|MA002|MA006|MA017;;6;3;;igen;W001|W042;nem;0;0;0;0;0;0;2;3;;
+E115;Ork raktárnok;Ǭ;10;340;7;5;1500;3;MA005;;5;;;igen;W007|W008|W009|W012;igen;0;0;0;0;0;0;0;3;W027;0
+E116;A zsilip őrkapitánya;Ƶ;12;480;8;5;2400;4;;Undead;4;;;nem;W004|W006|W007|W008|W009|W010|W011|W012|W013;igen;2;4;-3;0;0;1;0;6;W029;10
+E117;Lápi udvarmester;Ʊ;11;300;4;6;2600;4;MA003;;6;1;2;igen;W018|W006|W007;nem;0;0;0;0;0;1;3;4;W025;20
+
 #Ellenséges varázshasználók
 EllenségId;VarázslatIds;MaxManna;Intelligencia;Mannatartalék%;VarázslásiEsély%;Profil;VarázslatLehűlés
 E090;D001|D003|D005|P001;26;6;0;90;BattleMage;1
@@ -742,6 +747,8 @@ E074;D009|S014|S025|D010;90;17;10;80;Necromancer;1
 E022;D002|S014|S025|D010;120;19;10;85;Necromancer;1
 E049;D011|S014|S025|D010;150;21;10;80;Necromancer;2
 E100;D011|D012|S018|D016|S025;180;23;5;90;Artillery;1
+
+E117;D017|D013|D014|P009;44;8;25;88;Support;1
 
 #Szörnyképességek
 Id;Név;Leírás;Aktiválás;Végrehajtás;Célzás;SikerEsély;Lehűlés;Hatótáv;MaxCélpont;AI súly;FegyverIds;HasználatCsatánként;Látóvonal;Előkészítés;Támadásszám;Képességcsoport;HátrálásHasználatUtán;Területsugár
@@ -1546,10 +1553,15 @@ NPCE037;NPC014;6;14;28;;BLACKWATER
 NPCE038;NPC014;13;8;20;;FERRY_ISLAND
 
 #Quest ládák
-Id;Név;Arany;Térképjel;Előtérszín;Háttérszín
+Id;Név;Arany;Térképjel;Előtérszín;Háttérszín;ŐrzőEnemyId
 RODERIC_ORDER_RELICS;Az Ezüst Eskü ereklyeládája;0;◈;White;DarkBlue
 AURELIOS_HELP;Aurelios máguskirály küldöttének ládája;300;◈;Yellow;DarkMagenta
 GOBLIN_CHEST;A goblin főnök kincsesládája;600;◈;Magenta;Green
+
+RAVENS_LOOT;A Holló klán zsákmányos ládája;200;◈;Yellow;DarkGray;E114
+ORC_TRIBE_SUPPLIES;Az ork törzs ellátmányládája;150;◈;Yellow;DarkGreen;E115
+SLUICE_SUPPLIES;A királyi zsilip tartalékai;450;◈;Yellow;DarkBlue;E116
+SUNKEN_COURT_SUPPLIES;A lápi udvar készletládája;550;◈;Yellow;DarkMagenta;E117
 
 #Quest láda tartalom
 Id;TárgyId;Darab
@@ -1574,6 +1586,35 @@ GOBLIN_CHEST;T011;6
 GOBLIN_CHEST;W042;1
 GOBLIN_CHEST;W045;1
 GOBLIN_CHEST;A010;1
+
+RAVENS_LOOT;T001;18
+RAVENS_LOOT;T002;24
+RAVENS_LOOT;T006;6
+RAVENS_LOOT;T011;8
+RAVENS_LOOT;T014;6
+RAVENS_LOOT;T017;4
+RAVENS_LOOT;T019;4
+ORC_TRIBE_SUPPLIES;T001;24
+ORC_TRIBE_SUPPLIES;T002;24
+ORC_TRIBE_SUPPLIES;T006;8
+ORC_TRIBE_SUPPLIES;T011;8
+ORC_TRIBE_SUPPLIES;T014;6
+ORC_TRIBE_SUPPLIES;T018;4
+ORC_TRIBE_SUPPLIES;T025;4
+SLUICE_SUPPLIES;T001;30
+SLUICE_SUPPLIES;T002;36
+SLUICE_SUPPLIES;T006;6
+SLUICE_SUPPLIES;T012;12
+SLUICE_SUPPLIES;T015;8
+SLUICE_SUPPLIES;T017;8
+SLUICE_SUPPLIES;T019;6
+SUNKEN_COURT_SUPPLIES;T001;36
+SUNKEN_COURT_SUPPLIES;T002;42
+SUNKEN_COURT_SUPPLIES;T006;12
+SUNKEN_COURT_SUPPLIES;T012;12
+SUNKEN_COURT_SUPPLIES;T015;8
+SUNKEN_COURT_SUPPLIES;T018;6
+SUNKEN_COURT_SUPPLIES;T025;6
 
 #NPC küldetések
 Id;NpcId;Típus;CélId;Darabszám;XP;Cím;Leírás;FixJutalomId;FixJutalomDarab;VéletlenJutalomDarab;SzükségesTörténetÁllapot;LezáróPárbeszédId;MagasViszonyJutalomId;MagasViszonyJutalomDarab;MagasViszonyPárbeszédId;TalálkozásId;MinimumViszony;MaximumViszony;MegbízóTávozikLeadásUtán
@@ -1632,6 +1673,11 @@ NPCQ050;NPC024;Kill;E072;3;2250;Csökkentsük a konkurenciát;A renegát orgyilk
 NPCQ051;NPC025;Kill;E033;2;2600;Tisztítótűz;Az inkvizítor megbízásából győzd le a ghoulokat;PS008;1;;;NPCD138;PS007;3;;NPCE036;;;
 NPCQ052;NPC014;Kill;E112;1;2900;Biztonságos ösvény;Öld meg az óriáskrokodilt, ami terrorizálja a mocsárvidéket;T033;2;;;NPCD140;;;;NPCE037;;;
 NPCQ053;NPC025;Kill;E092;2;2800;A káosz szolgái;Az inkvizítor megbízásából győzd le a káoszpapokat;M011;1;;;NPCD142;PS007;3;;NPCE036;5;;
+
+NPCQ054;NPC024;OpenQuestChest;RAVENS_LOOT;1;1800;A Hollók elrabolt készlete;Győzzétek le a Holló klánvezért és orgyilkosait a Hollók kereszteződésének egyik épületében, majd nyissátok ki a zsákmányládát. Az élelmet és italokat megtarthatjátok.;;;0;;NPCD144;;;;NPCE032;0;10;nem
+NPCQ055;NPC007;OpenQuestChest;ORC_TRIBE_SUPPLIES;1;2200;Az ork törzs tartalékai;Az Elveszett kúriákban egy ork raktárnok őrzi a törzs készleteit. Győzzétek le a testőreivel együtt, és nyissátok ki az ellátmányládát.;;;0;;NPCD145;;;;NPCE008;0;10;nem
+NPCQ056;NPC014;OpenQuestChest;SLUICE_SUPPLIES;1;3400;A királyi zsilip tartalékai;A királyi zsilip romjai között az élőholt őrkapitány még mindig védi a régi tartalékokat. Győzzétek le, és nyissátok ki a ládát a romépületben.;;;0;;NPCD146;;;;NPCE038;0;10;nem
+NPCQ057;NPC014;OpenQuestChest;SUNKEN_COURT_SUPPLIES;1;3800;Ellátmány a lápi udvarból;Az Elsüllyedt udvarházakban a lápi udvarmester és kultistái halmozták fel a készleteket. Törjétek meg az őrséget, és nyissátok ki a ládát.;;;0;;NPCD147;;;;NPCE038;0;10;nem
 
 #NPC párbeszédek
 Id;NpcId;MinimumBarátságosság;MaximumBarátságosság;Szöveg;TalálkozásId
@@ -1792,7 +1838,7 @@ NPCD131;NPC007;0;10;"""Mivel az elfek barátai vagytok elmondok nektek pár font
 NPCD132;NPC002;0;10;"Az egyik fa árnyékában egy ismerős alakot láttok, aki csípőre tett kézzel vár és hangosan üdvözöl titeket: ""Hallottam róla, hogy erre fogtok járni, cimborák!"" Prémekre van szükségem. És errefelé is láttak néhány zöldbőrű sámánt egy kihalt kúriában.";NPCE035
 NPCD133;NPC002;0;10;"A szörnyvadász megvizsgálja az árut: ""Kitűnő minőségű prémek!"" - Rikkantja. ""Még találkozunk, cimborák!""";NPCE035
 NPCD134;NPC002;0;10;"A szörnyvadász megvizsgálja az árut: ""Ez valóban az ork sámán orra! Szép munka!"" - Kérdő tekintetetekre csak megvonja a vállát és széles vigyorral mondja: ""Ne kérdezzétek, honnan tudom. Még találkozunk, cimborák!""";NPCE035
-NPCD135;NPC024;0;10;"A fal árnyékából egy sötét ruhás alak válik ki, kezében keskeny pengével. ""Ne nyúljatok a fegyveretekhez. Ha meg akarnálak ölni benneteket, már nem beszélgetnénk."" Az orgyilkos halványan elmosolyodik. ""Van néhány szakmabeli a környéken, akik kezdik túl komolyan venni magukat. Megbízásokat halásznak el előlem, lenyomják az árakat, és ami a legrosszabb, életben maradnak. Keressétek meg őket, és tegyétek kevésbé zsúfolttá a szakmát. Ne aggódjatok, nem kérek ingyen szívességet. A konkurencia eltűnése nekem pénzt ér, és abból nektek is jut.""";NPCE032
+NPCD135;NPC024;0;10;"A fal árnyékából egy sötét ruhás alak válik ki, kezében keskeny pengével. ""Ne nyúljatok a fegyveretekhez. Ha meg akarnálak ölni benneteket, már nem beszélgetnénk."" Az orgyilkos halványan elmosolyodik. ""Van néhány szakmabeli a környéken, akik kezdik túl komolyan venni magukat. Megbízásokat halásznak el előlem, lenyomják az árakat, és ami a legrosszabb, életben maradnak. Keressétek meg őket, és tegyétek kevésbé zsúfolttá a szakmát. Ne aggódjatok, nem kérek ingyen szívességet. A konkurencia eltűnése nekem pénzt ér, és abból nektek is jut. A Holló klánvezér itt, az egyik házban őrizteti a vándoroktól elrabolt élelmet is. Ha végeztek vele, a zsákmányos láda a tiétek. A Fáradt Holló fogadóban pedig egyszer megpihenhettek; előbb gyűljön össze a csapat.""";NPCE032
 NPCD136;NPC024;0;10;"A renegát orgyilkos egyetlen pillantást vet rátok, majd elégedetten bólint. ""Hallottam, hogy néhány ismerős arc hirtelen eltűnt a környékről. Micsoda tragédia."" Elégedett mosoly fut át az arcán. ""Kevesebb orgyilkos, több megbízás nekem, és kevesebb ember, aki a hátamba próbál kést állítani. Mindenki jól jár. Mármint azok közül, akik még élnek."" Egy erszényt dob felétek. ""Tessék, a fizetségetek. Ha így folytatjátok, még a végén kénytelen leszek benneteket is konkurenciának tekinteni.""";NPCE032
 NPCD137;NPC025;0;10;"Az inkvizítor mozdulatlanul áll a folyosó közepén, kezében szent jelvényét szorítva. Amikor közelebb értek, szigorú tekintettel végigmér benneteket. ""A romlottság gyökeret vert ezekben a járatokban. Két ghoul ólálkodik a közelben, és már több szerencsétlen vándor húsát tépték le a csontjáról."" Undorodva pillant a sötétbe. ""Az ilyen förtelmeknek nincs helyük az élők világában. Keressétek meg mindkettőt, és küldjétek vissza őket oda, ahová valók. Ne legyen irgalom, ne legyen habozás. Csak a tisztítótűz.""";NPCE036
 NPCD138;NPC025;0;10;"Az inkvizítor figyelmesen végighallgatja beszámolótokat, majd lassan bólint. ""Mindkét ghoul elpusztult? Helyes. Két förtelemmel kevesebb szennyezi ezt a földet."" Egy pillanatra lehunyja a szemét, és halk imát mormol. ""Ne gondoljátok azonban, hogy ezzel megtisztítottuk ezeket a járatokat. Ahol egy holttest felkel, ott gyakran mások is követik."" Előveszi a jutalmatokat, és felétek nyújtja. ""Fogadjátok ezt szolgálatotokért. Ma a fény győzött a rothadás felett, és ebben nektek is részetek volt.""";NPCE036
@@ -1801,7 +1847,12 @@ NPCD140;NPC014;0;10;"A révész már messziről integet, amikor meglát bennetek
 NPCD141;NPC025;0;10;"Az inkvizítor ezúttal már ismerősként fogad, de arcán nyoma sincs megkönnyebbülésnek. ""Újabb fertőzés ütötte fel a fejét. Két káoszpap járja ezeket a folyosókat, és romlott tanításaikkal egyre több gyenge lelket térítenek le a helyes útról."" Ökölbe szorítja a kezét. ""A ghoulok csak testet falnak, de ezek a férgek a lelket mérgezik meg. Keressétek meg mindkettőt, és vessetek véget az istentelen szertartásaiknak. A káosz szolgáival nincs alku.""";NPCE036
 NPCD142;NPC025;0;10;"Az inkvizítor komoran hallgatja végig a beszámolótokat, majd elégedetten bólint. ""Mindkét káoszpap halott? Akkor két hanggal kevesebb suttogja a romlás igéit ezekben a járatokban."" Szent jelét a mellkasához emeli. ""Ne becsüljétek alá, amit tettetek. Egyetlen ilyen eretnek több száz ember lelkét képes megfertőzni, ha időt kap rá."" Ezután átnyújtja a jutalmatokat. ""Fogadjátok ezt szolgálatotokért. Ma nem csupán ellenségeket győztetek le, hanem a káosz terjedését is megállítottátok.""";NPCE036
 
-NPCD143;NPC014;0;10;"A révész a ladik oldalához ütögeti a csáklyáját. ""Ez a Süllyedt koronák lápvidéke. A régi királyok udvarházait elnyelte a víz, a koronák után kutatókat pedig az iszap. A szigettől keletre a Koronák töltése vezet az udvarházakhoz; a vízbe fúlt trón mögött van a kijárat. Északon a krokodilok tavai és a királyi zsilip romjai várnak. Délen több út is kanyarog a nádrengetegben, de a boszorkányok ligetét messze elkerülném. És ha csendes a víz, akkor is nézzetek a lábatok elé.""";NPCE038
+NPCD143;NPC014;0;10;"A révész a ladik oldalához ütögeti a csáklyáját. ""Ez a Süllyedt koronák lápvidéke. A régi királyok udvarházait elnyelte a víz, a koronák után kutatókat pedig az iszap. A szigettől keletre a Koronák töltése vezet az udvarházakhoz; a vízbe fúlt trón mögött van a kijárat. Északon a krokodilok tavai és a királyi zsilip romjai várnak. Délen több út is kanyarog a nádrengetegben, de a boszorkányok ligetét messze elkerülném. A szigeten A Száraz Kulacsban, az udvarházaknál A Rozsdás Koronában pihenhettek meg. Mindkettő csak egyetlen megállásra fogadja a csapatot. A zsilipnél és a lápi udvarban elraktározott ellátmányról is tudok, de előbb le kell győznötök az őreiket. És ha csendes a víz, akkor is nézzetek a lábatok elé.""";NPCE038
+
+NPCD144;NPC024;0;10;"A renegát orgyilkos elégedetten bólint. ""A klánvezér többé nem tart igényt a környék zsákmányára. Az ellátmányt tartsátok meg. Éhesen még az orgyilkosnak is remeg a keze.""";NPCE032
+NPCD145;NPC007;0;10;"Az elf kósza az erdő mélye felé int. ""Az ork készletek most már titeket segítenek. Osszátok be a kulacsokat, és vigyétek tovább az élelmet; a rengetegben hosszú az út a következő biztos tetőig.""";NPCE008
+NPCD146;NPC014;0;10;"A révész végigmér benneteket. ""Az őrkapitány végre elengedte a zsilipet? Akkor a királyok tartalékaiból ma az élők esznek. Az északi út után a sziget fogadójában is megpihenhettek.""";NPCE038
+NPCD147;NPC014;0;10;"A révész a megtömött zsákokra pillant. ""Az udvarmesternek többé nem kell a készlet. Nektek annál inkább. Ha az udvarházak fogadóját már elhagytátok, ez az ellátmány segít eljutni a vízbe fúlt trónig.""";NPCE038
 
 #NPC történeti választások
 Id;TörténetId;ÁllapotId;Mondat;Sorrend;Válasz;ViszonyVáltozás;KövetkezőÁllapotId;Reakció;Hatás;HatásParaméter;Folytatás;MinimumViszony;MaximumViszony

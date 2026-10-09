@@ -122,7 +122,7 @@ public sealed class PartyMovementController
                 maze.GetEnemyAt(neighbor) is not null) return false;
             if (neighbor == member.Position) return true;
             var occupant = maze.GetObjectAt(neighbor);
-            return occupant is null or GroundItemPile or Corpse || Maze.IsPassableNeutralNpc(occupant);
+            return occupant is null or GroundItemPile or Corpse or ForestInn || Maze.IsPassableNeutralNpc(occupant);
         });
     }
 
@@ -179,7 +179,7 @@ public sealed class PartyMovementController
     {
         if (!maze.IsWalkable(position) || position == player.Position || HasBlockingTrap(maze, position)) return false;
         var occupant = maze.GetObjectAt(position);
-        return occupant is null or GroundItemPile or Corpse or PartyMemberAvatar || occupant == member ||
+        return occupant is null or GroundItemPile or Corpse or ForestInn or PartyMemberAvatar || occupant == member ||
                Maze.IsPassableNeutralNpc(occupant);
     }
 
@@ -294,14 +294,14 @@ public sealed class PartyMovementController
     {
         if (!maze.IsWalkable(position) || position == player.Position || HasBlockingTrap(maze, position)) return false;
         var occupant = maze.GetObjectAt(position);
-        return occupant is null or GroundItemPile or Corpse || Maze.IsPassableNeutralNpc(occupant);
+        return occupant is null or GroundItemPile or Corpse or ForestInn || Maze.IsPassableNeutralNpc(occupant);
     }
 
     public static bool CanPartyTraverse(PartyMemberAvatar member, Position position, Maze maze, Player player)
     {
         if (!maze.IsWalkable(position) || position == player.Position || HasBlockingTrap(maze, position)) return false;
         var occupant = maze.GetObjectAt(position);
-        return occupant is null or GroundItemPile or Corpse || occupant == member ||
+        return occupant is null or GroundItemPile or Corpse or ForestInn || occupant == member ||
                Maze.IsPassableNeutralNpc(occupant);
     }
 
@@ -356,7 +356,7 @@ public sealed class PartyMovementController
             maze.GetEnemyAt(position) is not null)
             return false;
         var occupant = maze.GetObjectAt(position);
-        if (occupant is null or GroundItemPile or Corpse || occupant == member || Maze.IsPassableNeutralNpc(occupant))
+        if (occupant is null or GroundItemPile or Corpse or ForestInn || occupant == member || Maze.IsPassableNeutralNpc(occupant))
             return true;
         if (occupant is not PartyMemberAvatar friend) return false;
         return !formationTargets.TryGetValue(friend.Character.Id, out var friendTarget) ||

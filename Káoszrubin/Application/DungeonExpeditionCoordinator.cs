@@ -28,12 +28,12 @@ public sealed class DungeonExpeditionCoordinator
         bool clear = true)
     {
         if (clear) templates.Clear();
-        templates.AddRange(maze.Enemies.Where(enemy => !enemy.Definition.IsBoss &&
+        templates.AddRange(maze.Enemies.Where(enemy => enemy.Definition.Rank < EnemyRank.MiniBoss &&
             enemy.GroupId?.StartsWith("QUEST:", StringComparison.OrdinalIgnoreCase) != true).Select(enemy =>
             new ExpeditionEnemyTemplate(enemy.Definition.Id, enemy.Position, enemy.MovementProfile,
                 enemy.PatrolDirection, enemy.GroupId, enemy.GroupRole, areaId)));
         templates.AddRange(maze.Corpses.OfType<MonsterCorpse>()
-            .Where(corpse => !gameData.GetEnemy(corpse.EnemyDefinitionId).IsBoss &&
+            .Where(corpse => gameData.GetEnemy(corpse.EnemyDefinitionId).Rank < EnemyRank.MiniBoss &&
                              corpse.EnemyDefinitionId != MonsterIds.ÉlőholtPátriárka &&
                              corpse.GuaranteedLootIds.Count == 0)
             .Select(corpse => new ExpeditionEnemyTemplate(corpse.EnemyDefinitionId, corpse.Position,
@@ -48,7 +48,7 @@ public sealed class DungeonExpeditionCoordinator
     {
         templates = templates.Where(template => string.Equals(template.AreaId, areaId,
             StringComparison.Ordinal)).ToList();
-        var currentNormalCount = maze.Enemies.Count(enemy => !enemy.Definition.IsBoss &&
+        var currentNormalCount = maze.Enemies.Count(enemy => enemy.Definition.Rank < EnemyRank.MiniBoss &&
             enemy.GroupId?.StartsWith("QUEST:", StringComparison.OrdinalIgnoreCase) != true);
         var needed = ReturnExpeditionRules.AdditionalEnemiesNeeded(templates.Count, currentNormalCount);
         var candidates = templates.OrderBy(_ => _random.Next()).ToList();
@@ -70,6 +70,7 @@ public sealed class DungeonExpeditionCoordinator
 
     public static Position? FindExpeditionSpawnPosition(Maze maze, Position preferred)
     {
+        var innInteriors = maze.InnBuildingInteriors();
         var positions = new List<Position> { preferred };
         for (var radius = 1; radius <= 5; radius++)
             for (var y = preferred.Y - radius; y <= preferred.Y + radius; y++)
@@ -78,7 +79,8 @@ public sealed class DungeonExpeditionCoordinator
                         positions.Add(new Position(x, y));
         return positions.Where(position => maze.IsInside(position) && maze.IsWalkable(position) &&
                 position != maze.Entrance && position != maze.Exit && maze.GetObjectAt(position) is null &&
-                maze.GetDoorAt(position) is null && maze.GetTrapAt(position) is null)
+                maze.GetDoorAt(position) is null && maze.GetTrapAt(position) is null &&
+                !innInteriors.Any(room => room.Contains(position)))
             .Select(position => (Position?)position).FirstOrDefault();
     }
 }

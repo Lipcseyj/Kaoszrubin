@@ -17,6 +17,8 @@ public sealed class MazeGenerationSettings
     public IReadOnlyList<string> QuestRoomIds { get; init; } = [];
     public IReadOnlyDictionary<string, QuestRoomPlacementConfiguration> QuestRoomPlacements { get; init; }
         = new Dictionary<string, QuestRoomPlacementConfiguration>();
+    public IReadOnlyDictionary<string, int> SpecialRoomMinimumFreeCells { get; init; } = new Dictionary<string, int>();
+    public IReadOnlyList<string> InnRoomIds { get; init; } = [];
     public IReadOnlyList<string> BossRoomIds { get; init; } = [];
     public IReadOnlyDictionary<string, SpecialRoomPlacement> SpecialRoomPlacements { get; init; }
         = new Dictionary<string, SpecialRoomPlacement>();

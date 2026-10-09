@@ -634,6 +634,7 @@ public sealed partial class Game
         _renderer.DrawMovement(_maze, _fogOfWar, previousPosition, _player.Position, newlyRevealed, justReachedExit);
         if (_maze.GetPassageAt(_player.Position) is not null)
             _renderer.DrawInventoryMessage("⇄ Átjáró a szint másik területére. Enter: átkelés.", ConsoleColor.Cyan);
+        ShowForestInnHint();
         CheckBossDiscoveryAt(newlyRevealed, PartyLeader);
         PlayCharacterStepSound(PartyLeader);
         CollectTreasureChest(PartyLeader, _player.Position, shareLootWithParty: true);
@@ -667,6 +668,7 @@ public sealed partial class Game
             leaderRevealed.Concat(memberRevealed).Distinct().ToArray(), _player.Position, reachedExit);
         if (_maze.GetPassageAt(_player.Position) is not null)
             _renderer.DrawInventoryMessage("⇄ Átjáró a szint másik területére. Enter: átkelés.", ConsoleColor.Cyan);
+        ShowForestInnHint();
         CheckBossDiscoveryAt(leaderRevealed, PartyLeader);
         CheckBossDiscoveryAt(memberRevealed, member.Character);
         PlayCharacterStepSound(PartyLeader);
@@ -719,7 +721,13 @@ public sealed partial class Game
                         identificationMessages.Add($"🎁 {ItemIdentificationRules.DisplayName(item, identification.State.IsIdentified)}:{FormatMageIdentification(identification)}");
                     return true;
                 },
-                PartyLeader.AddGold);
+                PartyLeader.AddGold, guardian => _maze.Enemies.Any(enemy =>
+                    enemy.Definition.Id == guardian && enemy.CurrentHitPoints > 0));
+            if (result.BlockingGuardianId is { } guardianId)
+            {
+                _renderer.DrawInventoryMessage($"A ládát {_gameData.GetEnemy(guardianId).Name} őrzi. Előbb győzzétek le!", ConsoleColor.DarkYellow);
+                return;
+            }
             ProcessQuestProgressChanges(result.Changes);
             SynchronizeInventoryQuests();
             var text = $"🎁 {chest.Definition.Name}: {result.Gold} arany, {result.ItemCount} tárgy felvéve. " +
@@ -815,6 +823,7 @@ public sealed partial class Game
         else
         {
             var action = GameInputBindings.LeaderAction(key,
+                _maze.GetForestInnAt(_player.Position) is not null ||
                 _maze.GetPassageAt(_player.Position) is not null ||
                 _player.Position == _maze.Exit && _dungeonLevel.ActiveArea == _dungeonLevel.ExitArea);
             if (action is not null)

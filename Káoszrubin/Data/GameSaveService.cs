@@ -119,7 +119,7 @@ public sealed class GameSaveService
 public static class GameSaveFormat
 {
     public const int OldestSupportedVersion = 1;
-    public const int CurrentVersion = 38;
+    public const int CurrentVersion = 39;
 
     public static GameSaveData MigrateToCurrent(GameSaveData state)
     {
@@ -169,6 +169,7 @@ public static class GameSaveFormat
                 35 => MigrateVersion35To36(state),
                 36 => MigrateVersion36To37(state),
                 37 => MigrateVersion37To38(state),
+                38 => MigrateVersion38To39(state),
                 _ => throw new InvalidOperationException($"Hiányzó mentésmigráció a(z) {state.Version}. verzióhoz.")
             };
         }
@@ -180,6 +181,13 @@ public static class GameSaveFormat
                 state.PartyCampaignProgression, suspended.PartyCampaignProgression);
             suspended.PartyCampaignProgression = state.PartyCampaignProgression;
         }
+        return state;
+    }
+
+    private static GameSaveData MigrateVersion38To39(GameSaveData state)
+    {
+        // A meglévő térképeket megőrizzük; a hiányzó erdei fogadólista üres.
+        state.Version = 39;
         return state;
     }
 
@@ -611,6 +619,7 @@ public sealed class MazeSaveData
     public Room? StartingRoom { get; set; }
     public List<Room> Rooms { get; set; } = [];
     public List<DoorSaveData> Doors { get; set; } = [];
+    public List<ForestInnSaveData> ForestInns { get; set; } = [];
     public List<ChestSaveData> Chests { get; set; } = [];
     public List<EnemySaveData> Enemies { get; set; } = [];
     public List<CorpseSaveData> Corpses { get; set; } = [];
@@ -644,6 +653,7 @@ public sealed record QuestDoorSaveData(
     [property: JsonRequired, JsonConverter(typeof(Infrastructure.Quests.QuestKeyJsonConverter))]
     Domain.Quests.QuestKey Key,
     bool AccessGranted = false);
+public sealed record ForestInnSaveData(string RoomId, string Name, Position Position, bool Visited = false);
 public sealed record ChestSaveData(Position Position, int GoldAmount, QuestChestSaveData? QuestChest = null);
 public sealed record QuestChestSaveData(string DefinitionId, [property: JsonRequired] bool IsOpened,
     [property: JsonRequired] List<QuestChestItemSaveData> RemainingItems);

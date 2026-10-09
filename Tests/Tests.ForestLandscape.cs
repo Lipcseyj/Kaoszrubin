@@ -96,9 +96,9 @@ internal static partial class Program
             "A felfedezett régiótérkép rejtett területet szivárogtatott vagy kihagyta az ismert átjárót.");
 
         var campaignLayout = (ForestMazeLayoutConfiguration)MazeLevelConfigurations.Get(6).Layout!;
-        Assert(campaignLayout.ExplicitGraph is null && campaignLayout.Graph.AreaCount.Minimum == 6 &&
+        Assert(campaignLayout.ExplicitGraph is { Areas.Count: 8 } && campaignLayout.Graph.AreaCount.Minimum == 6 &&
                campaignLayout.Graph.AreaCount.Maximum == 8 && campaignLayout.Forest.BuildingStyles.Count >= 3,
-            "A kampányerdő beégetett gráfot tartalmaz, vagy elvesztette a generált tartalékát.");
+            "A kampányerdő elvesztette a célzott képernyőket biztosító tartalékát.");
         Assert(MazeLevelConfigurations.Get(6).ForestGraphJsonOverrideEnabled &&
                !MazeLevelConfigurations.Get(7).ForestGraphJsonOverrideEnabled,
             "A JSON-felülírás jelölője nem látszik jól a pályakonfigurációban.");

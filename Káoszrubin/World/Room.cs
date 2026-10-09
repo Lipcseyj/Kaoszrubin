@@ -1,6 +1,6 @@
 namespace KaoszRubin.World;
 
-public enum RoomPurpose { Normal, Starting, Quest, Boss }
+public enum RoomPurpose { Normal, Starting, Quest, Boss, Inn }
 public enum RoomKind { Generic, Clearing, Cabin, Manor, Labyrinth }
 
 /// <summary>Egy ajtóval kapcsolódó téglalap alakú szoba belső területe.</summary>

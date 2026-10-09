@@ -5,6 +5,11 @@ internal static partial class Program
         #region test cases
         var tests = new (string Name, Action Run)[]
         {
+    ("Erdei ellátmány: a 6. és 13. pálya fogadói és őrzött ládái épületbe kerülnek", ForestSuppliesAndInnsGenerateInBuildings),
+    ("Erdei ellátmány: őrök, ládanyitás és egyszeri minibossok", ForestSupplyGuardiansGateLootAndDoNotRespawn),
+    ("Erdei fogadó: látogatás mentése, köd és hálózati delta", ForestInnVisitPersistsAndReplicates),
+    ("Erdei fogadó: összegyűlt parti és szabad mozgás", ForestInnEntryRequiresRegroupingAndAllowsMovement),
+    ("Erdei fogadó: ellátmány és kereskedés pályateljesítés nélkül", ForestInnOffersSuppliesWithoutCompletingLevel),
     ("Süllyedt koronák lápvidéke: gráf, JSON és kampánysorrend", SunkenCrownsForestHasMatchingJsonAndConnectedRegions),
     ("Süllyedt koronák lápvidéke: mentések és felfüggesztett kampányok migrációja", SunkenCrownsForestSaveMigrationPreservesLocationsAndHistory),
     ("Questroom erdőben: minden elhelyezési mód épületbelsőt követel", QuestRoomAreaPlacementTests.ForestQuestRoomsRequireBuildingForEveryPlacement),

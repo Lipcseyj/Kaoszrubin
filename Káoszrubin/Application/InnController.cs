@@ -10,7 +10,7 @@ namespace KaoszRubin.Application;
 
 internal sealed partial class InnController
 {
-    public enum DepartureChoice { NextLevel, ReturnExpedition }
+    public enum DepartureChoice { NextLevel, ReturnExpedition, ReturnToMap }
     internal const ConsoleKey StateChangedKey = ConsoleKey.F24;
     private const int SecretStashLevelAdvance = 4;
     private const int FeastBasePricePerPerson = 90;
@@ -40,6 +40,7 @@ internal sealed partial class InnController
     private long _revision;
     private bool _active;
     private bool _hasRestedAtInn;
+    private bool _forestStop;
     private int _secretStashAccessCost;
     private string _artisanNotice = string.Empty;
     private IReadOnlyList<InnMenuOptionSnapshot> _menuOptions = [];
@@ -203,6 +204,20 @@ internal sealed partial class InnController
         }
     }
 
+    public void RunForestStop(int level, string name, Action? onReady = null)
+    {
+        PrepareForestStop(level, name);
+        onReady?.Invoke();
+        RunMenuLoop(level);
+    }
+
+    internal void PrepareForestStop(int level, string name)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(level, 1);
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        InitializeVisit(level, null, null, name);
+    }
+
     public DepartureChoice Run(int completedLevel, string? expeditionReason = null, bool resume = false,
         Action? onCompletionDismissed = null)
     {
@@ -215,31 +230,44 @@ internal sealed partial class InnController
             return RunMenuLoop(completedLevel);
         }
 
+        InitializeVisit(completedLevel, expeditionReason, onCompletionDismissed, null);
+        return RunMenuLoop(completedLevel);
+    }
+
+    private void InitializeVisit(int completedLevel, string? expeditionReason,
+        Action? onCompletionDismissed, string? forestInnName)
+    {
+        _forestStop = forestInnName is not null;
         var availableInnNames = _gameData.InnNames.Where(name => !_usedInnNames.Contains(name)).ToArray();
         if (availableInnNames.Length == 0)
         {
             _usedInnNames.Clear();
             availableInnNames = _gameData.InnNames.ToArray();
         }
-        _innName = availableInnNames[_random.Next(availableInnNames.Length)];
+        _innName = forestInnName ?? availableInnNames[_random.Next(availableInnNames.Length)];
 
         _usedInnNames.Add(_innName);
         _innLevel = completedLevel;
         _hasRestedAtInn = false;
         _secretStashAccessCost = _random.Next(50, 101) + completedLevel * 50;
-        var completion = CompleteLevelAtInn(completedLevel);
-        _levelCompletion = CreateLevelCompletionSnapshot(completedLevel, completion);
+        _levelCompletion = null;
         _active = true;
         _revision++;
-        _renderer.DrawLevelCompletionScreen(_levelCompletion);
-        while (_readKey().Key is not (ConsoleKey.Enter or ConsoleKey.Spacebar)) { }
-        foreach (var unlock in _levelCompletion.PartyExpansions ?? [])
-            _characterRoster.Party.TryMarkUnlockPresented(unlock.Milestone);
-        _levelCompletion = null;
-        _revision++;
-        onCompletionDismissed?.Invoke();
-        foreach (var levelResult in completion.Results.Where(result => result.Experience.LeveledUp))
-            _resolvePerkOffers(levelResult.Character, levelResult.Experience);
+        if (forestInnName is null)
+        {
+            var completion = CompleteLevelAtInn(completedLevel);
+            _levelCompletion = CreateLevelCompletionSnapshot(completedLevel, completion);
+            _renderer.DrawLevelCompletionScreen(_levelCompletion);
+            while (_readKey().Key is not (ConsoleKey.Enter or ConsoleKey.Spacebar)) { }
+            foreach (var unlock in _levelCompletion.PartyExpansions ?? [])
+                _characterRoster.Party.TryMarkUnlockPresented(unlock.Milestone);
+            _levelCompletion = null;
+            _revision++;
+            onCompletionDismissed?.Invoke();
+            foreach (var levelResult in completion.Results.Where(result => result.Experience.LeveledUp))
+                _resolvePerkOffers(levelResult.Character, levelResult.Experience);
+        }
+        else onCompletionDismissed?.Invoke();
 
         var blacksmithPresent = _random.Next(2) == 0;
         var armorerPresent = _random.Next(2) == 0;
@@ -316,12 +344,11 @@ internal sealed partial class InnController
             "Osztályképességek, taktikai diszciplínák vagy fegyverjártasságok fizetős újraosztása.",
             LeaderOnly: true));
         options.Add(new(InnMenuOptionKind.Rumors, "👂 Pletykák", "Helyi szóbeszédek, hírek a következő pályáról és a környékbeli szörnyekről."));
-        options.Add(new(InnMenuOptionKind.Leave, "🚪 Indulás a következő pályára", "A parti elhagyja a fogadót.", LeaderOnly: true));
+        options.Add(new(InnMenuOptionKind.Leave, forestInnName is null ? "🚪 Indulás a következő pályára" : "🚪 Vissza az erdei útra", "A parti elhagyja a fogadót.", LeaderOnly: true));
         if (!string.IsNullOrWhiteSpace(expeditionReason))
             options.Add(new(InnMenuOptionKind.ReturnExpedition, "🗺️ Visszatérő expedíció",
                 expeditionReason, LeaderOnly: true));
         _menuOptions = options;
-        return RunMenuLoop(completedLevel);
     }
 
     private DepartureChoice RunMenuLoop(int completedLevel)
@@ -393,7 +420,7 @@ internal sealed partial class InnController
                         return DepartureChoice.ReturnExpedition;
                     case InnMenuOptionKind.Leave:
                         _active = false;
-                        return DepartureChoice.NextLevel;
+                        return _forestStop ? DepartureChoice.ReturnToMap : DepartureChoice.NextLevel;
                 }
             }
         }

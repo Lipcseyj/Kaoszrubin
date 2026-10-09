@@ -1,6 +1,6 @@
 # A 8–23. kampányszint konfigurációja
 
-Az 1–7. szint meglévő konfigurációja változatlan. A 8. szint még négyfős partihoz tervezett átmenet; a 9. szinttől a hatfős parti lehetőségével számolunk. A későbbi nehézséget a csoport összetétele, a tömeg, az íjászok és varázshasználók fedezete, valamint a szűkületek együtt adják.
+Az 1–7. szint encounter-egyensúlya a meglévő konfigurációt követi. A 6. és 13. erdő új ellátmányládáit és pályán belüli fogadóit a [ForestSuppliesAndInns.md](ForestSuppliesAndInns.md) írja le. A 8. szint még négyfős partihoz tervezett átmenet; a 9. szinttől a hatfős parti lehetőségével számolunk. A későbbi nehézséget a csoport összetétele, a tömeg, az íjászok és varázshasználók fedezete, valamint a szűkületek együtt adják.
 
 A Süllyedt koronák lápvidéke az új 13. pálya; a korábbi 13–22. pályák 14–23. számra kerültek. A kampányhatár 23. A lápvidék részletei a [SunkenCrownsForest.md](SunkenCrownsForest.md) dokumentumban vannak. A további új pályák lent tervezési javaslatként szerepelnek.
 

@@ -121,8 +121,9 @@ public sealed record EnemyEncounterConfiguration(IntRange GroupCount,
 /// <param name="EnemyId">A szörny azonosítója.</param>
 /// <param name="Count">A garantált példányszám.</param>
 /// <param name="GuaranteedItemId">Opcionális tárgy, amelyet az encounter garantáltan biztosít.</param>
+/// <param name="Role">A garantált csoporttag szerepe; minibossnál tipikusan Leader.</param>
 public sealed record QuestRoomEnemyEncounterConfiguration(string RoomId, string EnemyId, int Count,
-    string? GuaranteedItemId = null);
+    string? GuaranteedItemId = null, EnemyGroupRole Role = EnemyGroupRole.Member);
 
 /// <summary>Egy csapdatípus garantált elhelyezése a pályán.</summary>
 /// <param name="TrapId">A <c>#Csapdák</c> CSV-szekcióban szereplő csapdaazonosító.</param>
@@ -298,6 +299,9 @@ public sealed class MazeLevelConfiguration
     public IReadOnlyDictionary<string, Domain.Quests.QuestChestId> QuestChestPlacements { get; init; }
         = new Dictionary<string, Domain.Quests.QuestChestId>();
 
+    /// <summary>Pályán belüli, egyszeri fogadói megállók; mindegyik külön épületet foglal el.</summary>
+    public IReadOnlyList<ForestInnConfiguration> ForestInns { get; init; } = [];
+
     /// <summary>A generátor által garantáltan létrehozandó boss-szobák tartalomazonosítói.</summary>
     public IReadOnlyList<string> BossRoomIds { get; init; } = [];
 
@@ -334,7 +338,15 @@ public sealed class MazeLevelConfiguration
         WallColor = WallColor,
         LevelName = Name,
         QuestRoomIds = QuestRoomIds,
-        QuestRoomPlacements = QuestRoomPlacements,
+        QuestRoomPlacements = QuestRoomPlacements.Concat(ForestInns.Select(inn =>
+            new KeyValuePair<string, QuestRoomPlacementConfiguration>(inn.RoomId, new(AreaId: inn.AreaId))))
+            .ToDictionary(pair => pair.Key, pair => pair.Value),
+        SpecialRoomMinimumFreeCells = QuestRoomIds.Concat(BossRoomIds).ToDictionary(id => id,
+            id => QuestRoomEnemyEncounters.Where(encounter => encounter.RoomId == id).Sum(encounter => encounter.Count)
+                + (QuestChestPlacements.ContainsKey(id) ? 1 : 0))
+            .Concat(ForestInns.Select(inn => new KeyValuePair<string, int>(inn.RoomId, 9)))
+            .ToDictionary(pair => pair.Key, pair => pair.Value),
+        InnRoomIds = ForestInns.Select(inn => inn.RoomId).ToArray(),
         BossRoomIds = BossRoomIds,
         SpecialRoomPlacements = SpecialRoomPlacements,
         QuestDoorRequirements = QuestDoorRequirements
@@ -629,7 +641,7 @@ public static class MazeLevelConfigurations
                             BuildingWall = new("forbidden-building-wall", new('█'), ConsoleColor.Gray,
                                 ConsoleColor.Black, false, true)
                         }
-                    }),
+                    }, ExplicitGraph: ForbiddenForestGraph.CreateGraph()),
                 WallRune = new('♠'),
                 WallColor = ConsoleColor.DarkGreen,
                 RoomCount = new IntRange(42, 56),
@@ -678,21 +690,32 @@ public static class MazeLevelConfigurations
                     Encounters.LeaderHorde(leaderId: MonsterIds.Lidércfarkas, followerId: MonsterIds.Farkas, groups: Amount.Few, followers: Amount.Band) with { AreaId = "WINDLESS_GLADE" },
                     Encounters.Horde(enemyId: MonsterIds.Óriásdenevér, groups: Amount.Pair, size: Amount.Pack)
                 ],
-                //QuestRoomIds = ["RAVENS_LOOT_ROOM", "ORC_TRIBE_ROOM"],
-                //SpecialRoomPlacements = new Dictionary<string, SpecialRoomPlacement>
-                //{
-                //    ["RAVENS_LOOT_ROOM"] = SpecialRoomPlacement.MiddleRoute,
-                //    ["ORC_TRIBE_ROOM"] = SpecialRoomPlacement.SideBranch
-                //},
-                //QuestChestPlacements = new Dictionary<string, Domain.Quests.QuestChestId>
-                //{
-                //    ["RAVENS_LOOT_ROOM"] = Domain.Quests.QuestChestId.RavensLootChest,
-                //    ["ORC_TRIBE_ROOM"] = Domain.Quests.QuestChestId.OrcTribeChest   
-                //},
-                //QuestDoorRequirements = new Dictionary<string, Domain.Quests.QuestId>
-                //{
-
-                //},
+                QuestRoomIds = ["RAVENS_LOOT_ROOM", "ORC_TRIBE_ROOM"],
+                QuestRoomPlacements = new Dictionary<string, QuestRoomPlacementConfiguration>
+                {
+                    ["RAVENS_LOOT_ROOM"] = new(AreaId: "RAVEN_CROSSING"),
+                    ["ORC_TRIBE_ROOM"] = new(AreaId: "LOST_MANOR")
+                },
+                SpecialRoomPlacements = new Dictionary<string, SpecialRoomPlacement>
+                {
+                    ["RAVENS_LOOT_ROOM"] = SpecialRoomPlacement.SideBranch,
+                    ["ORC_TRIBE_ROOM"] = SpecialRoomPlacement.SideBranch
+                },
+                QuestChestPlacements = new Dictionary<string, Domain.Quests.QuestChestId>
+                {
+                    ["RAVENS_LOOT_ROOM"] = Domain.Quests.QuestChestId.RavensLootChest,
+                    ["ORC_TRIBE_ROOM"] = Domain.Quests.QuestChestId.OrcTribeChest
+                },
+                QuestRoomEnemyEncounters =
+                [
+                    new("RAVENS_LOOT_ROOM", MonsterIds.HollóKlánvezér, 1, Role: EnemyGroupRole.Leader),
+                    new("RAVENS_LOOT_ROOM", MonsterIds.Orgyilkos, 4),
+                    new("ORC_TRIBE_ROOM", MonsterIds.OrkRaktárnok, 1, Role: EnemyGroupRole.Leader),
+                    new("ORC_TRIBE_ROOM", MonsterIds.OrkTestőr, 2),
+                    new("ORC_TRIBE_ROOM", MonsterIds.OrkÍjász, 2),
+                    new("ORC_TRIBE_ROOM", MonsterIds.OrkVérpap, 1)
+                ],
+                ForestInns = [new("RAVEN_INN", "A Fáradt Holló", "RAVEN_CROSSING")]
             },
             [7] = new()
             {
@@ -1061,6 +1084,36 @@ public static class MazeLevelConfigurations
                 TreasureChestCount = new(28, 36),
                 TreasureGold = new(650, 1400),
                 ItemCurseChancePercent = 18,
+                QuestRoomIds = ["SLUICE_SUPPLY_ROOM", "SUNKEN_COURT_SUPPLY_ROOM"],
+                QuestRoomPlacements = new Dictionary<string, QuestRoomPlacementConfiguration>
+                {
+                    ["SLUICE_SUPPLY_ROOM"] = new(AreaId: "OLD_SLUICE"),
+                    ["SUNKEN_COURT_SUPPLY_ROOM"] = new(AreaId: "SUNKEN_COURT")
+                },
+                SpecialRoomPlacements = new Dictionary<string, SpecialRoomPlacement>
+                {
+                    ["SLUICE_SUPPLY_ROOM"] = SpecialRoomPlacement.SideBranch,
+                    ["SUNKEN_COURT_SUPPLY_ROOM"] = SpecialRoomPlacement.SideBranch
+                },
+                QuestChestPlacements = new Dictionary<string, Domain.Quests.QuestChestId>
+                {
+                    ["SLUICE_SUPPLY_ROOM"] = Domain.Quests.QuestChestId.SluiceSupplies,
+                    ["SUNKEN_COURT_SUPPLY_ROOM"] = Domain.Quests.QuestChestId.SunkenCourtSupplies
+                },
+                QuestRoomEnemyEncounters =
+                [
+                    new("SLUICE_SUPPLY_ROOM", MonsterIds.ZsilipŐrkapitány, 1, Role: EnemyGroupRole.Leader),
+                    new("SLUICE_SUPPLY_ROOM", MonsterIds.CsontvázLovag, 3),
+                    new("SLUICE_SUPPLY_ROOM", MonsterIds.PáncélozottZombi, 3),
+                    new("SUNKEN_COURT_SUPPLY_ROOM", MonsterIds.LápiUdvarmester, 1, Role: EnemyGroupRole.Leader),
+                    new("SUNKEN_COURT_SUPPLY_ROOM", MonsterIds.Martalóc, 4),
+                    new("SUNKEN_COURT_SUPPLY_ROOM", MonsterIds.KáoszmágusTanítvány, 2)
+                ],
+                ForestInns =
+                [
+                    new("FERRY_INN", "A Száraz Kulacs", "FERRY_ISLAND"),
+                    new("COURT_INN", "A Rozsdás Korona", "SUNKEN_COURT")
+                ],
                 // A nyílt lápot tömegek uralják; az udvarházakban mágusokkal támogatott őrségek várnak.
                 RoomEncounters =
                 [

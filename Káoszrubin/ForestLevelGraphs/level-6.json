@@ -17,7 +17,7 @@
       },
       {
         "Id": "WHISPERING_WOOD",
-        "Name": "Suttog\u00F3 rengeteg",
+        "Name": "Suttogó rengeteg",
         "Coordinate": {
           "X": 1,
           "Y": 0
@@ -44,16 +44,26 @@
       },
       {
         "Id": "RAVEN_CROSSING",
-        "Name": "Holl\u00F3k el\u00E1gaz\u00E1sa",
+        "Name": "Hollók elágazása",
         "Coordinate": {
           "X": 2,
           "Y": 0
         },
-        "TemplateId": "hunter-camp"
+        "TemplateId": "hunter-camp",
+        "Overrides": {
+          "BuildingCount": {
+            "Minimum": 3,
+            "Maximum": 4
+          },
+          "BuildingSize": {
+            "Minimum": 6,
+            "Maximum": 8
+          }
+        }
       },
       {
         "Id": "OLD_PINES",
-        "Name": "Az \u00F6reg fenyves",
+        "Name": "Az öreg fenyves",
         "Coordinate": {
           "X": 2,
           "Y": -1
@@ -80,7 +90,7 @@
       },
       {
         "Id": "LOST_MANOR",
-        "Name": "Az elveszett k\u00FAri\u00E1k",
+        "Name": "Az elveszett kúriák",
         "Coordinate": {
           "X": 3,
           "Y": 0
@@ -96,12 +106,28 @@
             "Maximum": 8
           },
           "ManorBuildingChance": 1,
-          "LabyrinthBuildingChance": 0
+          "LabyrinthBuildingChance": 0,
+          "BuildingCount": {
+            "Minimum": 2,
+            "Maximum": 3
+          },
+          "ManorBuildingWidth": {
+            "Minimum": 16,
+            "Maximum": 22
+          },
+          "ManorBuildingHeight": {
+            "Minimum": 10,
+            "Maximum": 16
+          },
+          "ManorRoomCount": {
+            "Minimum": 3,
+            "Maximum": 5
+          }
         }
       },
       {
         "Id": "BLACKWATER",
-        "Name": "Feketev\u00EDz l\u00E1pja",
+        "Name": "Feketevíz lápja",
         "Coordinate": {
           "X": 2,
           "Y": 1
@@ -128,7 +154,7 @@
           "Palette": {
             "Tree": {
               "Id": "forbidden-tree",
-              "Rune": "\u2660",
+              "Rune": "♠",
               "ForegroundColor": "DarkGreen",
               "BackgroundColor": "Black",
               "Walkable": false,
@@ -136,7 +162,7 @@
             },
             "Bush": {
               "Id": "forest-bush",
-              "Rune": "\u2663",
+              "Rune": "♣",
               "ForegroundColor": "Green",
               "BackgroundColor": "Black",
               "Walkable": true,
@@ -144,7 +170,7 @@
             },
             "Pine": {
               "Id": "forest-pine",
-              "Rune": "\u25B2",
+              "Rune": "▲",
               "ForegroundColor": "Green",
               "BackgroundColor": "Black",
               "Walkable": false,
@@ -152,7 +178,7 @@
             },
             "FlowerBush": {
               "Id": "forbidden-flower-bush",
-              "Rune": "\u273F",
+              "Rune": "✿",
               "ForegroundColor": "DarkMagenta",
               "BackgroundColor": "Black",
               "Walkable": true,
@@ -168,7 +194,7 @@
             },
             "Undergrowth": {
               "Id": "forest-undergrowth",
-              "Rune": "\u2591",
+              "Rune": "░",
               "ForegroundColor": "DarkGreen",
               "BackgroundColor": "Black",
               "Walkable": true,
@@ -176,7 +202,7 @@
             },
             "DenseUndergrowth": {
               "Id": "forest-dense-undergrowth",
-              "Rune": "\u2592",
+              "Rune": "▒",
               "ForegroundColor": "Green",
               "BackgroundColor": "Black",
               "Walkable": true,
@@ -184,7 +210,7 @@
             },
             "Water": {
               "Id": "forbidden-water",
-              "Rune": "\u2248",
+              "Rune": "≈",
               "ForegroundColor": "DarkBlue",
               "BackgroundColor": "Black",
               "Walkable": false,
@@ -192,7 +218,7 @@
             },
             "Marsh": {
               "Id": "forbidden-marsh",
-              "Rune": "\u224B",
+              "Rune": "≋",
               "ForegroundColor": "Black",
               "BackgroundColor": "DarkBlue",
               "Walkable": true,
@@ -200,7 +226,7 @@
             },
             "BuildingWall": {
               "Id": "forbidden-building-wall",
-              "Rune": "\u2588",
+              "Rune": "█",
               "ForegroundColor": "Gray",
               "BackgroundColor": "Black",
               "Walkable": false,
@@ -211,7 +237,7 @@
       },
       {
         "Id": "THORN_MAZE",
-        "Name": "A t\u00F6visek \u00FAtveszt\u0151je",
+        "Name": "A tövisek útvesztője",
         "Coordinate": {
           "X": 3,
           "Y": 1
@@ -223,7 +249,7 @@
       },
       {
         "Id": "WINDLESS_GLADE",
-        "Name": "A Sz\u00E9lcsend tiszt\u00E1sa",
+        "Name": "A Szélcsend tisztása",
         "Coordinate": {
           "X": 3,
           "Y": 2

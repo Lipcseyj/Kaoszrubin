@@ -1,6 +1,6 @@
 namespace KaoszRubin.World;
 
-/// <summary>A lápvidék beépített gráfja; a level-13.json a szerkeszthető felülírása.</summary>
+/// <summary>Beépített tartalék a level-13.json szerkeszthető erdőgráfjához.</summary>
 public static class SunkenCrownsForest
 {
     public const int CampaignLevel = 13;
@@ -24,9 +24,10 @@ public static class SunkenCrownsForest
             new("FERRY_ISLAND", "A révész szigete", new(2, 0), "island-groves", new()
             {
                 LakeRadius = new(4, 7),
-                BuildingCount = new(1, 2),
+                BuildingCount = new(2, 2),
                 ManorBuildingChance = 0.1,
-                TrailWidth = 2
+                TrailWidth = 2,
+                BuildingSize = new(6, 8)
             }),
             new("CROWN_CAUSEWAY", "Koronák töltése", new(3, 0), "flooded-wood", new()
             {

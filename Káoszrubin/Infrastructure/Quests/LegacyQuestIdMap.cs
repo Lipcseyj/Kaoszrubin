@@ -69,6 +69,10 @@ public static class LegacyQuestIdMap
             "NPCQ051" => QuestId.Tisztítótűz,
             "NPCQ052" => QuestId.Biztonságos_ösvény,
             "NPCQ053" => QuestId.A_káosz_szolgái,
+            "NPCQ054" => QuestId.RavensStolenSupplies,
+            "NPCQ055" => QuestId.OrcTribeSupplyCache,
+            "NPCQ056" => QuestId.SluiceRoyalProvisions,
+            "NPCQ057" => QuestId.SunkenCourtProvisions,
             _ => throw new InvalidDataException(
                 $"Ismeretlen legacy quest-azonosító: '{legacyId}'.")
         };
@@ -128,6 +132,10 @@ public static class LegacyQuestIdMap
         QuestId.Tisztítótűz => "NPCQ051",
         QuestId.Biztonságos_ösvény => "NPCQ052",
         QuestId.A_káosz_szolgái => "NPCQ053",
+        QuestId.RavensStolenSupplies => "NPCQ054",
+        QuestId.OrcTribeSupplyCache => "NPCQ055",
+        QuestId.SluiceRoyalProvisions => "NPCQ056",
+        QuestId.SunkenCourtProvisions => "NPCQ057",
         _ => throw new InvalidDataException("Ismeretlen típusos questazonosító.")
     };
 }

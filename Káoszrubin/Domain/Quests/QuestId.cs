@@ -122,4 +122,8 @@ public enum QuestId
     Biztonságos_ösvény,
     // NPC025 - Inkvizítor
     A_káosz_szolgái,
+    RavensStolenSupplies,
+    OrcTribeSupplyCache,
+    SluiceRoyalProvisions,
+    SunkenCourtProvisions,
 }

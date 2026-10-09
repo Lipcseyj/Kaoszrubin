@@ -482,11 +482,12 @@ public class MazeGenerator
 
     private static IEnumerable<Position> GetOutdoorPositions(Maze maze)
     {
+        var innInteriors = maze.InnBuildingInteriors();
         for (var y = 1; y < maze.Height - 1; y++)
         for (var x = 1; x < maze.Width - 1; x++)
         {
             var position = new Position(x, y);
-            if (maze.IsWalkable(position) && maze.GetDoorAt(position) is null && !maze.Rooms.Any(room => room.Contains(position)))
+            if (maze.IsWalkable(position) && maze.GetDoorAt(position) is null && !maze.Rooms.Any(room => room.Contains(position)) && !innInteriors.Any(room => room.Contains(position)))
                 yield return position;
         }
     }
@@ -547,7 +548,7 @@ public class MazeGenerator
 
     private static void ValidateSettings(MazeGenerationSettings settings)
     {
-        var ids = settings.QuestRoomIds.Concat(settings.BossRoomIds).ToArray();
+        var ids = settings.QuestRoomIds.Concat(settings.BossRoomIds).Concat(settings.InnRoomIds).ToArray();
         if (settings.QuestDoorRequirements.Any(rule => !Enum.IsDefined(rule.Value) ||
             rule.Value == Domain.Quests.QuestId.None ||
             !settings.SpecialRoomPlacements.TryGetValue(rule.Key, out var placement) ||

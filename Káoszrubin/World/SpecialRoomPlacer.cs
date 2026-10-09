@@ -9,19 +9,35 @@ internal static class SpecialRoomPlacer
         bool questRoomsRequireBuilding = false)
     {
         var requests = settings.QuestRoomIds.Select(id => (Id: id, Purpose: RoomPurpose.Quest))
-            .Concat(settings.BossRoomIds.Select(id => (Id: id, Purpose: RoomPurpose.Boss))).ToArray();
+            .Concat(settings.BossRoomIds.Select(id => (Id: id, Purpose: RoomPurpose.Boss)))
+            .Concat(settings.InnRoomIds.Select(id => (Id: id, Purpose: RoomPurpose.Inn))).ToArray();
         var available = maze.Rooms.Where(room => room.AllowsRandomContent).ToList();
         if (available.Count < requests.Length) return false;
-        bool Eligible(Room room, RoomPurpose purpose) =>
-            !questRoomsRequireBuilding || purpose != RoomPurpose.Quest || room.BuildingId is not null;
-        if (available.Count(room => Eligible(room, RoomPurpose.Quest)) < settings.QuestRoomIds.Count) return false;
+        bool Eligible(Room room, RoomPurpose purpose, string? id = null) =>
+            (!questRoomsRequireBuilding || (purpose != RoomPurpose.Quest && purpose != RoomPurpose.Inn) || room.BuildingId is not null) &&
+            (purpose != RoomPurpose.Inn || room.BuildingId is not null &&
+                !maze.Rooms.Any(other => other.BuildingId == room.BuildingId && !other.AllowsRandomContent)) &&
+            (id is null || room.InteriorPositions().Count(position => maze.IsWalkable(position) &&
+                maze.Doors.All(door => Math.Abs(door.Position.X - position.X) + Math.Abs(door.Position.Y - position.Y) > 1))
+                >= settings.SpecialRoomMinimumFreeCells.GetValueOrDefault(id));
+        if (available.Count(room => Eligible(room, RoomPurpose.Quest)) < settings.QuestRoomIds.Count + settings.InnRoomIds.Count) return false;
+
+        void Assign(Room room, RoomPurpose purpose, string id)
+        {
+            if (purpose == RoomPurpose.Inn)
+            {
+                foreach (var interior in maze.Rooms.Where(other => other.BuildingId == room.BuildingId).ToArray())
+                    maze.AssignRoomPurpose(interior, purpose, interior == room ? id : null);
+            }
+            else maze.AssignRoomPurpose(room, purpose, id);
+        }
 
         // Először lezárható mellékágakat alakítunk ki, utána mérjük a végleges főút távolságait.
         foreach (var request in requests.Where(request =>
             settings.SpecialRoomPlacements.GetValueOrDefault(request.Id) == SpecialRoomPlacement.SideBranch))
         {
             Room? selected = null;
-            foreach (var room in available.Where(room => Eligible(room, request.Purpose)).OrderBy(_ => random.Next()))
+            foreach (var room in available.Where(room => Eligible(room, request.Purpose, request.Id)).OrderBy(_ => random.Next()))
             {
                 var boundary = Boundary(room).ToHashSet();
                 var blocked = room.InteriorPositions().Concat(boundary).ToHashSet();
@@ -47,8 +63,8 @@ internal static class SpecialRoomPlacer
                 break;
             }
             if (selected is null) return false;
-            maze.AssignRoomPurpose(selected, request.Purpose, request.Id);
-            available.Remove(selected);
+            Assign(selected, request.Purpose, request.Id);
+            available.RemoveAll(room => room == selected || request.Purpose == RoomPurpose.Inn && room.BuildingId == selected.BuildingId);
         }
 
         var fromStart = Distances(maze, maze.Entrance);
@@ -57,7 +73,7 @@ internal static class SpecialRoomPlacer
         foreach (var request in requests.Where(request => settings.SpecialRoomPlacements.TryGetValue(request.Id, out var rule) &&
             rule == SpecialRoomPlacement.MiddleRoute))
         {
-            var candidate = available.Where(room => Eligible(room, request.Purpose)).Select(room =>
+            var candidate = available.Where(room => Eligible(room, request.Purpose, request.Id)).Select(room =>
             {
                 var center = new Position(room.TopLeft.X + room.Width / 2, room.TopLeft.Y + room.Height / 2);
                 var start = fromStart[center];
@@ -71,8 +87,8 @@ internal static class SpecialRoomPlacer
                 .OrderBy(entry => Math.Abs(entry.Progress - length / 2.0) + entry.Detour)
                 .FirstOrDefault();
             if (candidate.Room is null) return false;
-            maze.AssignRoomPurpose(candidate.Room, request.Purpose, request.Id);
-            available.Remove(candidate.Room);
+            Assign(candidate.Room, request.Purpose, request.Id);
+            available.RemoveAll(room => room == candidate.Room || request.Purpose == RoomPurpose.Inn && room.BuildingId == candidate.Room.BuildingId);
         }
 
         var remaining = available.OrderByDescending(room =>
@@ -81,10 +97,10 @@ internal static class SpecialRoomPlacer
             .ThenBy(_ => random.Next()).ToList();
         foreach (var request in requests.Where(request => !settings.SpecialRoomPlacements.ContainsKey(request.Id)))
         {
-            var selected = remaining.FirstOrDefault(room => Eligible(room, request.Purpose));
+            var selected = remaining.FirstOrDefault(room => Eligible(room, request.Purpose, request.Id));
             if (selected is null) return false;
-            maze.AssignRoomPurpose(selected, request.Purpose, request.Id);
-            remaining.Remove(selected);
+            Assign(selected, request.Purpose, request.Id);
+            remaining.RemoveAll(room => room == selected || request.Purpose == RoomPurpose.Inn && room.BuildingId == selected.BuildingId);
         }
         return true;
     }

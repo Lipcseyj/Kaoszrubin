@@ -6,7 +6,7 @@ namespace KaoszRubin.Data;
 internal sealed class QuestChestCsvBuilder
 {
     private readonly Dictionary<QuestChestId,
-        (string Name, int Gold, Rune Symbol, ConsoleColor Foreground, ConsoleColor Background)> _definitions = [];
+        (string Name, int Gold, Rune Symbol, ConsoleColor Foreground, ConsoleColor Background, string? Guardian)> _definitions = [];
     private readonly Dictionary<(QuestChestId Chest, string Item), int> _items = [];
     public void AddDefinition(IReadOnlyList<string> cells)
     {
@@ -23,7 +23,7 @@ internal sealed class QuestChestCsvBuilder
         if (!Enum.TryParse<ConsoleColor>(cells[5], true, out var background) || !Enum.IsDefined(background))
             throw new InvalidDataException($"Ismeretlen questláda-háttérszín: '{cells[5]}'.");
 
-        if (!_definitions.TryAdd(new(cells[0]), (cells[1], gold, runes[0], foreground, background)))
+        if (!_definitions.TryAdd(new(cells[0]), (cells[1], gold, runes[0], foreground, background, cells.Count > 6 && !string.IsNullOrWhiteSpace(cells[6]) ? cells[6].Trim() : null)))
             throw new InvalidDataException("Duplikált questláda-azonosító.");
     }
     public void AddItem(IReadOnlyList<string> cells)
@@ -38,10 +38,12 @@ internal sealed class QuestChestCsvBuilder
     {
         if (_items.Keys.Any(key => !_definitions.ContainsKey(key.Chest)))
             throw new InvalidDataException("A ládatartalom ismeretlen ládára hivatkozik.");
+        foreach (var definition in _definitions.Values)
+            if (definition.Guardian is { } guardian) _ = data.GetEnemy(guardian);
         return _definitions.Select(pair => new QuestChestDefinition(pair.Key, pair.Value.Name, pair.Value.Gold,
             Array.AsReadOnly(_items.Where(item => item.Key.Chest == pair.Key)
                 .Select(item => new QuestChestItem(data.GetItemDefinition(item.Key.Item), item.Value)).ToArray()),
-            pair.Value.Symbol, pair.Value.Foreground, pair.Value.Background))
+            pair.Value.Symbol, pair.Value.Foreground, pair.Value.Background, pair.Value.Guardian))
             .ToArray();
     }
 }

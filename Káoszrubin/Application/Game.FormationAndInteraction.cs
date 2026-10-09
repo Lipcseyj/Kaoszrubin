@@ -346,7 +346,7 @@ public sealed partial class Game
     {
         if (!_maze.IsWalkable(position) || _maze.GetEnemyAt(position) is not null) return false;
         var occupant = _maze.GetObjectAt(position);
-        return occupant is null or GroundItemPile or Corpse || occupant == follower ||
+        return occupant is null or GroundItemPile or Corpse or ForestInn || occupant == follower ||
                Maze.IsPassableNeutralNpc(occupant);
     }
 
@@ -416,6 +416,7 @@ public sealed partial class Game
         if (_maze.GetPassageAt(_player.Position) is not null)
             _renderer.DrawInventoryMessage("⇄ Átjáró a szint másik területére. Enter: átkelés.", ConsoleColor.Cyan);
 
+        ShowForestInnHint();
         PlayCharacterStepSound(PartyLeader);
         CollectTreasureChest(PartyLeader, _player.Position, shareLootWithParty: true);
         TriggerTrapAt(PartyLeader, _player.Position);
@@ -634,6 +635,11 @@ public sealed partial class Game
 
     private void ActivateExit()
     {
+        if (_maze.GetForestInnAt(_player.Position) is { } inn)
+        {
+            EnterForestInn(inn);
+            return;
+        }
         if (_maze.GetPassageAt(_player.Position) is { } passage)
         {
             ActivatePassage(passage);

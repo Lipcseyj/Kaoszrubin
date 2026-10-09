@@ -13,6 +13,7 @@ public sealed class Maze
     public Rune[,] Tiles { get; }
     private readonly List<Room> _rooms = [];
     private readonly List<TreasureChest> _treasureChests = [];
+    private readonly List<ForestInn> _forestInns = [];
     private readonly List<Enemy> _enemies = [];
     private readonly List<Corpse> _corpses = [];
     private readonly List<PartyMemberAvatar> _partyMembers = [];
@@ -38,6 +39,28 @@ public sealed class Maze
     public long NavigationRevision { get; private set; }
     public IReadOnlyList<Room> Rooms => _rooms;
     public IReadOnlyList<TreasureChest> TreasureChests => _treasureChests;
+    public IReadOnlyList<Room> InnBuildingInteriors() =>
+        _rooms.Where(room => room.Purpose == RoomPurpose.Inn && room.BuildingId is not null)
+            .GroupBy(room => room.BuildingId).Select(group => new Room(
+                new(group.Min(room => room.TopLeft.X), group.Min(room => room.TopLeft.Y)),
+                group.Max(room => room.TopLeft.X + room.Width) - group.Min(room => room.TopLeft.X),
+                group.Max(room => room.TopLeft.Y + room.Height) - group.Min(room => room.TopLeft.Y),
+                RoomPurpose.Inn)).ToArray();
+    public IReadOnlyList<ForestInn> ForestInns => _forestInns;
+    public ForestInn? GetForestInnAt(Position position) => _forestInns.FirstOrDefault(inn => inn.Position == position);
+    public void AddForestInn(ForestInn inn)
+    {
+        var room = GetRoomByContentId(inn.RoomId);
+        if (room is not { Purpose: RoomPurpose.Inn, BuildingId: not null } || !room.Contains(inn.Position))
+            throw new ArgumentException("Erdei fogadó csak a kijelölt épületbelsőbe helyezhető.", nameof(inn));
+        if (GetPassageAt(inn.Position) is not null || GetTrapAt(inn.Position) is not null ||
+            GetDoorAt(inn.Position) is not null)
+            throw new ArgumentException("A fogadó jele szabad mezőt igényel.", nameof(inn));
+        EnsureObjectPositionIsFree(inn.Position);
+        if (_forestInns.Any(existing => existing.RoomId == inn.RoomId))
+            throw new ArgumentException("Duplikált erdei fogadó.");
+        _forestInns.Add(inn);
+    }
     public IReadOnlyList<Enemy> Enemies => _enemies;
     public IReadOnlyList<Corpse> Corpses => _corpses;
     public IReadOnlyList<PartyMemberAvatar> PartyMembers => _partyMembers;
@@ -306,7 +329,8 @@ public sealed class Maze
     {
         // A partitárs játék közben szabályosan ráléphet a bejáratra vagy a kijáratra,
         // ezért mentés visszatöltésekor ezeket a mezőket sem szabad elutasítani.
-        EnsureObjectPositionIsFree(member.Position, reserveEntranceAndExit: false);
+        if (GetObjectAt(member.Position) is not ForestInn)
+            EnsureObjectPositionIsFree(member.Position, reserveEntranceAndExit: false);
         _partyMembers.Add(member);
         AddToPositionIndex(_partyMembersByPosition, member);
         TrackPositionChanges(member);
@@ -356,7 +380,8 @@ public sealed class Maze
         _partyMembersByPosition.GetValueOrDefault(position) as WorldObject ??
         _worldNpcsByPosition.GetValueOrDefault(position) as WorldObject ??
         GetCorpseAt(position) as WorldObject ??
-        _groundItemPilesByPosition.GetValueOrDefault(position) as WorldObject;
+        _groundItemPilesByPosition.GetValueOrDefault(position) as WorldObject ??
+        GetForestInnAt(position);
 
     public GroundItemPile? GetGroundItemPileAt(Position position) =>
         _groundItemPilesByPosition.GetValueOrDefault(position);
@@ -420,7 +445,7 @@ public sealed class Maze
     {
         if (!IsWalkable(destination) || destination == leaderPosition) return false;
         var occupant = GetObjectAt(destination);
-        if (occupant is not null && occupant != member && occupant is not (GroundItemPile or Corpse) &&
+        if (occupant is not null && occupant != member && occupant is not (GroundItemPile or Corpse or ForestInn) &&
             !(allowTreasureChest && occupant is TreasureChest) && !(allowWorldNpc && occupant is WorldNpc) &&
             !IsPassableNeutralNpc(occupant)) return false;
         member.MoveTo(destination);
@@ -449,7 +474,7 @@ public sealed class Maze
             GetPartyMemberAt(member.Position) != member || GetPartyMemberAt(leader.Position) is not null)
             return false;
         var occupant = GetObjectAt(leader.Position);
-        if (occupant is not null and not (GroundItemPile or Corpse) && !IsPassableNeutralNpc(occupant))
+        if (occupant is not null and not (GroundItemPile or Corpse or ForestInn) && !IsPassableNeutralNpc(occupant))
             return false;
         var leaderPosition = leader.Position;
         leader.TeleportTo(member.Position);

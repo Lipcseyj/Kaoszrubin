@@ -151,7 +151,7 @@ public static class PartyFormationAssemblyPlanner
             maze.GetEnemyAt(position) is not null ||
             maze.GetTrapAt(position) is { State: TrapState.Detected }) return false;
         var occupant = maze.GetObjectAt(position);
-        return occupant is null or PartyMemberAvatar or GroundItemPile or Corpse ||
+        return occupant is null or PartyMemberAvatar or GroundItemPile or Corpse or ForestInn ||
                Maze.IsPassableNeutralNpc(occupant);
     }
 

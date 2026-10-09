@@ -61,11 +61,15 @@
             "Maximum": 7
           },
           "BuildingCount": {
-            "Minimum": 1,
+            "Minimum": 2,
             "Maximum": 2
           },
           "ManorBuildingChance": 0.1,
-          "TrailWidth": 2
+          "TrailWidth": 2,
+          "BuildingSize": {
+            "Minimum": 6,
+            "Maximum": 8
+          }
         }
       },
       {

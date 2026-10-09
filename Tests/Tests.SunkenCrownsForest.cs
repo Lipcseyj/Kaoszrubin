@@ -53,7 +53,7 @@ internal static partial class Program
             RosterJson = """{"Characters":[{"NpcJoinedMazeLevel":13},{"NpcJoinedMazeLevel":12}],"Campaigns":[{"LastKnownLevel":22}]}"""
         };
         GameSaveFormat.MigrateToCurrent(state);
-        Assert(state.Version == 38 && state.MazeLevel == 14 && state.DifficultyLevel == 14 &&
+        Assert(state.Version == GameSaveFormat.CurrentVersion && state.MazeLevel == 14 && state.DifficultyLevel == 14 &&
                state.LocationId == "CAMPAIGN_14" && state.AdHocConversationMazeLevel == 14 &&
                state.PartyCampaignProgression.HighestCompletedCampaignLevel == 12 &&
                ReferenceEquals(state.Maze, oldMaze),

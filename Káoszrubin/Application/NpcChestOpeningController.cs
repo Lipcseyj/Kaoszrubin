@@ -62,7 +62,7 @@ public static class NpcChestOpeningController
         var occupant = maze.GetObjectAt(position);
         return position == chestPosition
             ? occupant is TreasureChest
-            : occupant is null or PartyMemberAvatar or GroundItemPile or Corpse ||
+            : occupant is null or PartyMemberAvatar or GroundItemPile or Corpse or ForestInn ||
               Maze.IsPassableNeutralNpc(occupant);
     }
 }

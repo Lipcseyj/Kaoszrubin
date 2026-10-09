@@ -14,7 +14,10 @@ public sealed record WorldSnapshot(WorldId WorldId, int Width, int Height, Posit
     IReadOnlyList<WorldCorpseSnapshot> Corpses, IReadOnlyList<WorldGroundPileSnapshot> GroundPiles,
     IReadOnlyList<WorldNpcSnapshot>? Npcs = null,
     IReadOnlyList<WorldLastKnownEnemySnapshot>? LastKnownEnemies = null,
-    IReadOnlyList<WorldStormZoneSnapshot>? StormZones = null);
+    IReadOnlyList<WorldStormZoneSnapshot>? StormZones = null,
+    IReadOnlyList<WorldForestInnSnapshot>? ForestInns = null);
+
+public sealed record WorldForestInnSnapshot(string RoomId, string Name, Position Position, bool Visited);
 
 public sealed record WorldStormZoneSnapshot(Guid Id, string SpellId, IReadOnlyList<Position> Cells,
     int RemainingRounds);
@@ -90,12 +93,15 @@ public static class WorldSnapshotProjector
             visible.Add(position);
             var tile = maze.Tiles[x, y];
             if (maze.GetPassageAt(position) is not null) tile = MazePassage.Symbol;
+            var inn = maze.GetForestInnAt(position);
+            if (inn is not null) tile = inn.Symbol;
             var shownTrap = maze.GetTrapAt(position) is { State: not TrapState.Hidden } trap ? trap : null;
             if (shownTrap is not null) tile = shownTrap.Symbol;
             var color = shownTrap is not null
                 ? shownTrap.State == TrapState.Detected ? ConsoleColor.Yellow : ConsoleColor.DarkGray
                 : tile == maze.WallRune && illuminatedWalls?.TryGetValue(position, out var lightColor) == true
                 ? lightColor
+                : inn is not null ? inn.Color
                 : maze.GetPassageAt(position) is not null ? ConsoleColor.Cyan
                 : maze.GetTerrainStyle(position) is { } terrain
                 ? terrain.ForegroundColor
@@ -181,6 +187,8 @@ public static class WorldSnapshotProjector
                 memory.Value.Position, memory.Value.RemainingPartyMoves, memory.Value.IsSoundCue)).ToArray(),
             maze.StormZones.Select(zone => new WorldStormZoneSnapshot(zone.Id, zone.SpellId,
                     zone.Cells.Where(fogOfWar.IsVisible).ToArray(), zone.RemainingRounds))
-                .Where(zone => zone.Cells.Count > 0).ToArray());
+                .Where(zone => zone.Cells.Count > 0).ToArray(),
+            maze.ForestInns.Count == 0 ? null : maze.ForestInns.Where(inn => visible.Contains(inn.Position))
+                .Select(inn => new WorldForestInnSnapshot(inn.RoomId, inn.Name, inn.Position, inn.Visited)).ToArray());
     }
 }

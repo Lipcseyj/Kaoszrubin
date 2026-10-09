@@ -3609,6 +3609,8 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         if (mapObject is null && fogOfWar.EnemyMemoryAt(position) is { } memory)
             return new MapCellVisual(new Rune('?'), memory.IsSoundCue ? ConsoleColor.DarkYellow : ConsoleColor.DarkGray,
                 ConsoleColor.Black);
+        if (mapObject is null && maze.GetForestInnAt(position) is { } inn)
+            return new MapCellVisual(inn.Symbol, inn.Color, ConsoleColor.Black);
         var passage = maze.GetPassageAt(position);
         return new MapCellVisual(mapObject?.Symbol ??
             (passage is not null ? MazePassage.Symbol : maze.Tiles[position.X, position.Y]),

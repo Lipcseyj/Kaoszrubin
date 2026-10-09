@@ -110,6 +110,11 @@ public static class MonsterIds
     public const string Óriáskrokodil = "E112";
     public const string MocsáriOgre = "E113";
 
+    public const string HollóKlánvezér = "E114";
+    public const string OrkRaktárnok = "E115";
+    public const string ZsilipŐrkapitány = "E116";
+    public const string LápiUdvarmester = "E117";
+
     public static IReadOnlySet<string> Bosses { get; } = new HashSet<string>(
     [
         Patkányember, Ghoul, OrkSámán, Fagyóriás, VörösSárkány, Hidra,
@@ -117,5 +122,5 @@ public static class MonsterIds
     ], StringComparer.OrdinalIgnoreCase);
 
     public static IReadOnlySet<string> MiniBosses { get; } = new HashSet<string>(
-        [SirMalrec], StringComparer.OrdinalIgnoreCase);
+        [SirMalrec, HollóKlánvezér, OrkRaktárnok, ZsilipŐrkapitány, LápiUdvarmester], StringComparer.OrdinalIgnoreCase);
 }

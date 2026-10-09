@@ -984,8 +984,10 @@ public sealed partial class Game
                      StringComparison.Ordinal) && area.Maze.Passages.Count > 0))
             area.Maze.PlaceExit(area.Maze.Passages.First().Position);
 
-        return new DungeonLevel(areas, topology.EntranceAreaId,
+        var level = new DungeonLevel(areas, topology.EntranceAreaId,
             topology.EntranceAreaId, topology.ExitAreaId);
+        ForestInnPlacement.Place(level, configuration.ForestInns);
+        return level;
     }
 
     private static string ForestAreaDisplayName(DungeonAreaNodePlan node, int index, int areaCount)
@@ -1066,13 +1068,13 @@ public sealed partial class Game
             areaIds.Distinct(StringComparer.Ordinal).Count() != areaIds.Count ||
             !areaIds.Contains(exitAreaId, StringComparer.Ordinal))
             throw new InvalidOperationException("A küldetésszobákhoz érvényes területlista és kijárati terület szükséges.");
-        var roomIds = source.QuestRoomIds.Concat(source.BossRoomIds).ToArray();
+        var roomIds = source.QuestRoomIds.Concat(source.BossRoomIds).Concat(source.InnRoomIds).ToArray();
         if (roomIds.Any(string.IsNullOrWhiteSpace) ||
             roomIds.Distinct(StringComparer.Ordinal).Count() != roomIds.Length ||
             source.SpecialRoomPlacements.Keys.Concat(source.QuestDoorRequirements.Keys)
                 .Any(id => !roomIds.Contains(id, StringComparer.Ordinal)))
             throw new InvalidOperationException("Hibás vagy ismétlődő különlegesszoba-azonosító.");
-        var targets = source.QuestRoomIds.ToDictionary(id => id, _ => exitAreaId, StringComparer.Ordinal);
+        var targets = source.QuestRoomIds.Concat(source.InnRoomIds).ToDictionary(id => id, _ => exitAreaId, StringComparer.Ordinal);
         foreach (var (roomId, placement) in source.QuestRoomPlacements)
         {
             if (!targets.ContainsKey(roomId) || placement is null)
@@ -1110,8 +1112,11 @@ public sealed partial class Game
             WallRune = source.WallRune,
             WallColor = source.WallColor,
             LevelName = areaCount == 1 ? source.LevelName : $"{source.LevelName} — {areaIndex + 1}/{areaCount}",
-            QuestRoomIds = questRoomIds,
+            QuestRoomIds = questRoomIds.Except(source.InnRoomIds, StringComparer.Ordinal).ToArray(),
+            InnRoomIds = questRoomIds.Intersect(source.InnRoomIds, StringComparer.Ordinal).ToArray(),
             BossRoomIds = bossRoomIds,
+            SpecialRoomMinimumFreeCells = source.SpecialRoomMinimumFreeCells.Where(pair => roomIds.Contains(pair.Key))
+                .ToDictionary(pair => pair.Key, pair => pair.Value),
             SpecialRoomPlacements = source.SpecialRoomPlacements.Where(pair => roomIds.Contains(pair.Key))
                 .ToDictionary(pair => pair.Key, pair => pair.Value),
             QuestDoorRequirements = source.QuestDoorRequirements.Where(pair => roomIds.Contains(pair.Key))
@@ -1471,6 +1476,7 @@ public sealed partial class Game
                 $"csapdák számát ({desiredCount}).");
         if (desiredCount > guaranteedDefinitions.Length && definitions.Length == 0)
             throw new InvalidOperationException("Nincs véletlenszerűen elhelyezhető csapda az előírt darabszámhoz.");
+        var innInteriors = _maze.InnBuildingInteriors();
         var candidates = new List<Position>();
         for (var y = 0; y < _maze.Height; y++)
         for (var x = 0; x < _maze.Width; x++)
@@ -1480,6 +1486,7 @@ public sealed partial class Game
                 _maze.StartingRoom?.Contains(position) == true || _maze.GetObjectAt(position) is not null ||
                 _maze.GetPassageAt(position) is not null ||
                 _maze.Rooms.Any(room => !room.AllowsRandomContent && room.Contains(position)) ||
+                innInteriors.Any(room => room.Contains(position)) ||
                 Manhattan(position, _maze.Entrance) < 6 ||
                 _maze.Doors.Any(door => Manhattan(door.Position, position) <= 1)) continue;
             candidates.Add(position);

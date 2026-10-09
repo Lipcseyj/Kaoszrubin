@@ -29,9 +29,9 @@ A tavak nem járhatók, a láp lassít és leshelyet biztosít. A száraz tiszt�
 
 A gyenge fauna adja a tömeget: piócák, viperák, mérges varangyok, savanyálkák és kisebb krokodilok. A vándorló pióca–vipera csapatok 16–23 tagúak; a mocsári varangy–vipera csoportok lesből támadnak. Az ogrék goblinokat vezetnek, a druidák állatokat és lidérceket támogatnak. A veszélyes romőrségek kisebbek, viszont papot, nekromantát vagy tanítványt kapnak. A hüllőnépek egyelőre néhány előőrssel jelennek meg.
 
-A konfiguráció 96–120 szobát/tisztást és összesen 28–36 ládát kér, ládánként 650–1400 arannyal. A tervezett átlagos ládaarany 32 800 a teljes, tizenkét területes pályára; a tárgyátok esélye 18%. Az ellenfelek felszerelése és további zsákmánya a meglévő rendszert követi.
+A konfiguráció 96–120 szobát/tisztást és 28–36 véletlen ládát kér, ládánként 650–1400 arannyal, ezen felül két őrzött ellátmányládát. A tervezett átlagos ládaarany 32 800 a teljes, tizenkét területes pályára; a tárgyátok esélye 18%. Az ellenfelek felszerelése és további zsákmánya a meglévő rendszert követi.
 
-Boss és új questszoba most nem került ide. A Vízbe fúlt trón épületei a későbbi questhez kötött boss számára is használhatók lesznek. Az óriáskrokodil jelenleg rendes vezérellenfél.
+A királyi zsilip és az elsüllyedt udvarházak egy-egy questszobában miniboss által őrzött ellátmányládát kapnak. A révész szigetén A Száraz Kulacs, az udvarházaknál A Rozsdás Korona fogadóban egyszer-egyszer meg lehet pihenni. A küldetések, készletek és a fogadói mechanika részletei a [ForestSuppliesAndInns.md](ForestSuppliesAndInns.md) dokumentumban vannak. Aranykulcsos boss nem került ide; a Vízbe fúlt trón épületei későbbi questhez kötött boss számára használhatók. Az óriáskrokodil rendes vezérellenfél.
 
 ## Szerkesztés és mentések
 
@@ -45,6 +45,6 @@ A 38-as mentésformátum automatikusan átvezeti a kampánypályát, az aktuáli
 
 ## Ellenőrzés
 
-Öt különböző kezdőértékkel minden terület bejárható volt. Az új pályán **750–865 ellenfél, 20–22 varázshasználó, 26 szörnytípus és 28–35 láda** keletkezett. Minden területen legalább tizenkét ellenfél van. A célzott vezérek a kijelölt területen, a kúriaőrségek épületbelsőben jelennek meg; a mocsári lesben állók megfelelő terepen vannak.
+Öt különböző kezdőértékkel minden terület bejárható volt. Az új pályán **755–884 véletlen ellenfél, 20–22 varázshasználó, 26 szörnytípus és 28–35 véletlen láda** keletkezett. A két ellátmány-őrség ezen felül 14 ellenfelet ad, köztük három varázshasználót, és két fix ládát. Minden területen legalább tizenkét véletlen ellenfél van. A célzott vezérek a kijelölt területen, a kúriaőrségek épületbelsőben jelennek meg; a mocsári lesben állók megfelelő terepen vannak.
 
 A teljes 8–23. generálási ellenőrzés 80 pályát vizsgál. A külön tesztek ellenőrzik a JSON betöltését, a tartalék gráfot és a régi/felfüggesztett mentések egyszeri átvezetését. Ezek az elhelyezés helyességét bizonyítják; a harci nehézséget és a tizenkét terület végigjátszási idejét játék közben még hangolni kell.
