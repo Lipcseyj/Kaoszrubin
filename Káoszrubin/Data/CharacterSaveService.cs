@@ -193,7 +193,15 @@ public sealed class CharacterSaveService
         for (var index = 0; index + backpackOffset < LiveCharacter.MaximumBackpackItemCount && index < saved.BackpackItems.Count; index++)
             if (saved.BackpackItems[index] is { } item)
             {
-                if (SpellcastingRules.IsSpellcastingFocusId(item.Id) || SpellcastingRules.IsLegacyStartingFocusId(item.Id)) continue;
+                if (SpellcastingRules.IsLegacyStartingFocusId(item.Id)) continue;
+                if (SpellcastingRules.IsSpellcastingFocusId(item.Id))
+                {
+                    // A meglévő modern fókusz azonosítója is tartós; csak a régi/hiányzó fókusz pótlódik.
+                    if (index == 0 && string.Equals(item.Id, requiredFocusId, StringComparison.OrdinalIgnoreCase))
+                        character.ApplyInventoryChanges(new InventorySlotChange(InventorySlotKind.Backpack, 0,
+                            ResolveItem(item), item.Charges, item.Quantity, RestoreItemState(item.State)));
+                    continue;
+                }
                 character.ApplyInventoryChanges(new InventorySlotChange(InventorySlotKind.Backpack, index + backpackOffset,
                     ResolveItem(item), item.Charges, item.Quantity, RestoreItemState(item.State)));
             }

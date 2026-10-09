@@ -17,7 +17,8 @@ public sealed record WorldSnapshot(WorldId WorldId, int Width, int Height, Posit
     IReadOnlyList<WorldStormZoneSnapshot>? StormZones = null,
     IReadOnlyList<WorldForestInnSnapshot>? ForestInns = null);
 
-public sealed record WorldForestInnSnapshot(string RoomId, string Name, Position Position, bool Visited);
+public sealed record WorldForestInnSnapshot(string RoomId, string Name, Position Position, bool Visited,
+    long? FirstVisitMinutes = null);
 
 public sealed record WorldStormZoneSnapshot(Guid Id, string SpellId, IReadOnlyList<Position> Cells,
     int RemainingRounds);
@@ -189,6 +190,6 @@ public static class WorldSnapshotProjector
                     zone.Cells.Where(fogOfWar.IsVisible).ToArray(), zone.RemainingRounds))
                 .Where(zone => zone.Cells.Count > 0).ToArray(),
             maze.ForestInns.Count == 0 ? null : maze.ForestInns.Where(inn => visible.Contains(inn.Position))
-                .Select(inn => new WorldForestInnSnapshot(inn.RoomId, inn.Name, inn.Position, inn.Visited)).ToArray());
+                .Select(inn => new WorldForestInnSnapshot(inn.RoomId, inn.Name, inn.Position, inn.Visited, inn.FirstVisitMinutes)).ToArray());
     }
 }

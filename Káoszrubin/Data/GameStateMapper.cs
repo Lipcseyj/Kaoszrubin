@@ -41,7 +41,7 @@ internal sealed class GameStateMapper
             WallColor = maze.WallColor,
             LevelName = maze.LevelName,
             StormZones = maze.StormZones.ToList(),
-            ForestInns = maze.ForestInns.Select(inn => new ForestInnSaveData(inn.RoomId, inn.Name, inn.Position, inn.Visited)).ToList(),
+            ForestInns = maze.ForestInns.Select(inn => new ForestInnSaveData(inn.RoomId, inn.Name, inn.Position, inn.Visited, inn.Services)).ToList(),
             TerrainStyles = maze.TerrainStyles.Select(style => new MazeTerrainStyleSaveData(
                 style.Id, style.Rune.Value, style.ForegroundColor, style.BackgroundColor,
                 style.Walkable, style.BlocksSight)).ToList(),
@@ -190,7 +190,7 @@ internal sealed class GameStateMapper
             maze.AddPassage(new MazePassage(passage.Position, passage.DestinationAreaId,
                 passage.DestinationPosition));
         foreach (var inn in state.Maze.ForestInns ?? [])
-            maze.AddForestInn(new(inn.Position, inn.RoomId, inn.Name, inn.Visited));
+            maze.AddForestInn(new(inn.Position, inn.RoomId, inn.Name, inn.Visited) { Services = inn.Services });
         var chestIds = new HashSet<QuestChestId>();
         foreach (var chest in state.Maze.Chests)
         {

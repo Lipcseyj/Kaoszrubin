@@ -36,9 +36,29 @@ A mennyiségek darabszámok. A 13. pálya nagyobb készlete hatfős partival sz�
 
 A fogadók külön épületet foglalnak el, véletlen őrség és csapda nem kerül beléjük. Ajtóik nyitva vannak. A 13. pálya két fogadója a főút középső és késői szakaszán segít; az északi kitérő a zsilip készletéhez, az udvarházak a második készlethez vezetnek.
 
-A térképen a **♨** jelre kell állni, majd **Enter**. Harc közben nem lehet betérni, és minden élő, jelen lévő társnak legfeljebb nyolc lépésre kell lennie a vezértől. Minden fogadó egyetlen látogatást enged, amelyen belül a meglévő fogadói szolgáltatások használhatók: pihenés és varázslatmemorizálás, lakoma, kereskedő és vajákos, valamint a szokásos mesterek és toborzás. Az alapkészlet a parti feloldott kapacitásával nő.
+A térképen a **♨** jelre kell állni, majd **Enter**. Harc közben nem lehet betérni, és minden élő, jelen lévő társnak legfeljebb nyolc lépésre kell lennie a vezértől. Minden fogadó korlátlan számú látogatást enged. Használhatók a meglévő fogadói szolgáltatások: pihenés és varázslatmemorizálás, lakoma, kereskedő és vajákos, valamint a szokásos mesterek és toborzás. Az alapkészlet a parti feloldott kapacitásával nő.
 
-A kilépő menüpont **Vissza az erdei útra**. A térkép, az aktív terület és a vezér pozíciója megmarad; a meglévő társak a helyükön maradnak, az újonnan felvett társak a közelében állnak fel. A megálló nem teljesíti a pályát, nem ad pályateljesítési XP-t, nem old fel új partihelyet, és nem indít következő pályát. Az időzített felfedezési események a fogadói tartózkodás alatt szünetelnek. Az elhasznált fogadó jele szürke. Az átjárók ugyanezt a nyolcmezős közelségi szabályt használják; a kijárathoz kísért NPC-knél a határ hét mező. A Gyülekező (G) parancs közvetlenül a vezér mellé hívja a társakat, és ilyenkor az utolsó szabad szomszédos mezőt is elfoglalhatják. A vezér Shift+kurzorral helyet cserélhet velük. Normál követéskor a társak továbbra is mozgásteret hagynak.
+A kilépő menüpont **Vissza az erdei útra**. A térkép, az aktív terület és a vezér pozíciója megmarad; a meglévő társak a helyükön maradnak, az újonnan felvett társak a közelében állnak fel. A megálló nem teljesíti a pályát, nem ad pályateljesítési XP-t, nem old fel új partihelyet, és nem indít következő pályát. Az időzített felfedezési események a fogadói tartózkodás alatt szünetelnek. A fogadó jele minden látogatás után is sárga marad. Az átjárók ugyanezt a nyolcmezős közelségi szabályt használják; a kijárathoz kísért NPC-knél a határ hét mező. A Gyülekező (G) parancs közvetlenül a vezér mellé hívja a társakat, és ilyenkor az utolsó szabad szomszédos mezőt is elfoglalhatják. A vezér Shift+kurzorral helyet cserélhet velük. Normál követéskor a társak továbbra is mozgásteret hagynak.
+
+## Készlet és vendégjárás
+
+Minden fogadó saját, tartós állapotot kap az első betéréskor. Az első látogatás napja és ideje a fogadói menü tájékoztatójában is szerepel. Az azonnali visszalépés megtartja az árakat, a megmaradt árukészletet és a zsoldosjelölteket. Zsákmányt újra el lehet adni, és a korábban megfizethetetlen árut később meg lehet venni.
+
+| Az első betéréstől számított időszak | Változás |
+|---|---|
+| Minden 2 játékóra | Jelen lévő kereskedőnként egy hiányzó eladási egység pótlódik. |
+| Minden 4 játékóra | Egy véletlenszerű vándormester érkezik vagy távozik. |
+| Minden 6 játékóra | Egy normál zsoldos helyére új jelölt érkezik; üres hely esetén azt tölti be. |
+
+Az utánpótlás az eredeti ajánlatokat és árakat követi, az eredeti készletmennyiségig. Az eladási egység az ajánlat csomagmérete: élelemnél tipikusan egy darab, lőszernél egy csomag. A pótlás váltogatja a hiányzó ajánlatokat. A teljesen kifogyott áru is visszatérhet; a teli készlet nem halmoz fel később beváltható pótlást. Több eltelt időszak több egységet pótol, és a megkezdett időszak maradéka megőrződik.
+
+A kereskedő és a vajákos állandó. A kovácsmester, páncélmíves, vándormágus és íjkészítő vendégjárása változik. Egy újonnan érkező mester saját új portékával jön; a távozó mester javítási vagy egyéb szolgáltatása is eltűnik a menüből. A titkos raktár az első megnyitáskor alakul ki, utána saját készletét őrzi és ugyanilyen lassan pótlódik; újranyitáskor nem sorsolódik újra. A raktár belépési díja minden megnyitáskor fizetendő.
+
+A zsoldosok eredeti kínálati létszáma megmarad. A felvett jelölt nem jelenik meg újra eladóként; a hatórás forduló később betölti a helyét. A questhez kötött különleges társakat a normál zsoldoscserék nem távolítják el. A meglévő erdei fogadó újralátogatása megtartja az árukat, és nem fogyasztja a fogadóban várakozó különleges társak látogatási keretét.
+
+Egy látogatás alatt egyszer lehet pihenni, visszatéréskor újra. Minden sikeres pihenés nyolc játékórát jelent: ez négy utánpótlási időszakot, két vándormester-változást és legalább egy zsoldosfordulót hoz. A fogadói menük nézegetésétől nem telik játékidő. Távollét alatt az állapot a következő betéréskor követi le az eltelt játékidőt. Nagyon hosszú kihagyásnál az utánpótlás az eredeti készletig, a zsoldoscsere legfeljebb a teljes kínálatig, a köztes vándormester-változások szimulációja legfeljebb 64 eseményig fut; az időbélyegek minden eltelt időszakot elszámolnak.
+
+Visszatérő expedíció közben az erdei kitérő megőrzi a pályavégi fogadó korábbi készletét, menüjét és pihenési állapotát.
 
 ## Konfiguráció, mentés és hálózat
 
@@ -46,12 +66,16 @@ A fogadók a MazeLevelConfiguration.ForestInns listában adhatók meg szobaazono
 
 A 6. pálya JSON-gráfjával egyező beépített tartalék a ForbiddenForestGraph.cs. Így hiányzó JSON mellett is megmaradnak a questek és a fogadó célterületei. A 13. pálya tartaléka továbbra is a SunkenCrownsForest.cs.
 
-A 39-es mentésformátum minden területen megőrzi a fogadókat és a felhasznált látogatást. A részlegesen kiürített questláda a meglévő mentési mechanikával őrzi a maradékot. A fogadók a felfedezett térképpel együtt jutnak a többjátékos klienshez; a látogatás és a térképjel színváltozása deltafrissítést kap.
+A 41-es mentésformátum minden területen megőrzi a fogadók első betérési idejét, időszakos frissítéseit, készleteit, árait, titkos raktárát és normál zsoldosait. A részlegesen kiürített questláda a meglévő mentési mechanikával őrzi a maradékot. A fogadók a felfedezett térképpel együtt jutnak a többjátékos klienshez; az első betérés ideje deltafrissítést kap. A 107-es protokoll a fogadói snapshotban is továbbítja ezt az időpontot.
+
+Régebbi mentésben a már meglátogatott fogadó is újra használható. A korábbi látogatás ideje és akkori készlete nem rekonstruálható, ezért első új betéréskor indul a tartós készlet és az időszámítás. A meglévő játékidő megmarad.
 
 A korábban elmentett térképeket a migráció megőrzi. **Az új ládák, őrségek és fogadók újonnan generált 6. és 13. pályán jelennek meg.** Meglévő mentett pályára nem kerülnek be utólag.
 
 ## Ellenőrzés
 
-Tíz-tíz kezdőértékkel ellenőrzött teljes generálás mindkét pályán: bejárhatóság, pontos célterületek, külön fogadóépületek, csapdamentes belsők és teljes ládaőrség. Külön teszt vizsgálja az élő őr miatti zárolást, az egyszeri ládanyitást, a később felvett questet, a minibossok visszatérésének kizárását, a fogadó egyszeri használatát, a mentést, a ködöt és a hálózati deltát. A fogadói készlet és vásárlás öt- és hatfős partival is ellenőrzött, pályateljesítési jutalom nélkül.
+Tíz-tíz kezdőértékkel ellenőrzött teljes generálás mindkét pályán: bejárhatóság, pontos célterületek, külön fogadóépületek, csapdamentes belsők és teljes ládaőrség. Külön teszt vizsgálja az élő őr miatti zárolást, az egyszeri ládanyitást, a később felvett questet, a minibossok visszatérésének kizárását, a fogadó ismételt használatát, a mentést, a ködöt és a hálózati deltát. A fogadói készlet és vásárlás öt- és hatfős partival is ellenőrzött, pályateljesítési jutalom nélkül.
 
-A készletek és a minibossok harci nehézsége végigjátszás alapján tovább hangolható.
+A gazdasági tesztek valódi vásárlással és eladással ellenőrzik a készlet fogyását, két fogadó elkülönítését, a két-, négy- és hatórás időhatárokat, a készlet felső korlátját, a pihenés nyolc óráját, a felvett és questhez kötött jelölteket, a titkos raktár megőrzését, a mentés/betöltés körét és a régi mentések migrációját.
+
+A készletek, időszakok és minibossok harci nehézsége végigjátszás alapján tovább hangolható.

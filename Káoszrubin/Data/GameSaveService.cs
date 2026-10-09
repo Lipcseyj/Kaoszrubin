@@ -119,7 +119,7 @@ public sealed class GameSaveService
 public static class GameSaveFormat
 {
     public const int OldestSupportedVersion = 1;
-    public const int CurrentVersion = 40;
+    public const int CurrentVersion = 41;
 
     public static GameSaveData MigrateToCurrent(GameSaveData state)
     {
@@ -171,6 +171,7 @@ public static class GameSaveFormat
                 37 => MigrateVersion37To38(state),
                 38 => MigrateVersion38To39(state),
                 39 => MigrateVersion39To40(state),
+                40 => MigrateVersion40To41(state),
                 _ => throw new InvalidOperationException($"Hiányzó mentésmigráció a(z) {state.Version}. verzióhoz.")
             };
         }
@@ -182,6 +183,13 @@ public static class GameSaveFormat
                 state.PartyCampaignProgression, suspended.PartyCampaignProgression);
             suspended.PartyCampaignProgression = state.PartyCampaignProgression;
         }
+        return state;
+    }
+
+    private static GameSaveData MigrateVersion40To41(GameSaveData state)
+    {
+        // A korábbi fogadók újra látogathatók; készletük a következő belépéskor alakul ki.
+        state.Version = 41;
         return state;
     }
 
@@ -664,7 +672,8 @@ public sealed record QuestDoorSaveData(
     [property: JsonRequired, JsonConverter(typeof(Infrastructure.Quests.QuestKeyJsonConverter))]
     Domain.Quests.QuestKey Key,
     bool AccessGranted = false);
-public sealed record ForestInnSaveData(string RoomId, string Name, Position Position, bool Visited = false);
+public sealed record ForestInnSaveData(string RoomId, string Name, Position Position, bool Visited = false,
+    ForestInnServicesState? Services = null);
 public sealed record ChestSaveData(Position Position, int GoldAmount, QuestChestSaveData? QuestChest = null);
 public sealed record QuestChestSaveData(string DefinitionId, [property: JsonRequired] bool IsOpened,
     [property: JsonRequired] List<QuestChestItemSaveData> RemainingItems);

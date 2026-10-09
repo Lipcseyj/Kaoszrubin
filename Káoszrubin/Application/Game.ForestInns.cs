@@ -18,7 +18,7 @@ public sealed partial class Game
         _session.SetPhase(GameSessionPhase.Paused);
         try
         {
-            _innController.RunForestStop(_difficultyLevel, inn.Name, () =>
+            _innController.RunForestStop(_difficultyLevel, inn, () =>
             {
                 _backgroundMusic.EnterInn();
                 _session.SetPhase(GameSessionPhase.Inn);
@@ -53,9 +53,8 @@ public sealed partial class Game
     private void ShowForestInnHint()
     {
         if (_maze.GetForestInnAt(_player.Position) is not { } inn) return;
-        _renderer.DrawInventoryMessage(inn.Visited
-            ? $"♨ {inn.Name}: ezt a fogadói megállót már felhasználtátok."
-            : $"♨ {inn.Name}. Enter: betérés a fogadóba; gyűljön össze a parti.",
-            inn.Visited ? ConsoleColor.DarkGray : ConsoleColor.Yellow);
+        _renderer.DrawInventoryMessage(
+            $"♨ {inn.Name}. Enter: betérés a fogadóba; gyűljön össze a parti.",
+            ConsoleColor.Yellow);
     }
 }

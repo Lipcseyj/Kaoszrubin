@@ -1,8 +1,9 @@
 using System.Text;
+using KaoszRubin.Application;
 
 namespace KaoszRubin.World;
 
-/// <summary>Pályán belüli, egyszer használható fogadói megálló.</summary>
+/// <summary>Pályán belüli, többször felkereshető fogadó.</summary>
 public sealed record ForestInnConfiguration(string RoomId, string Name, string AreaId);
 
 public sealed class ForestInn : WorldObject
@@ -11,8 +12,10 @@ public sealed class ForestInn : WorldObject
     public string RoomId { get; }
     public string Name { get; }
     public bool Visited => Volatile.Read(ref _visited) != 0;
+    public long? FirstVisitMinutes => Services?.FirstVisitMinutes;
+    public ForestInnServicesState? Services { get; set; }
     public override Rune Symbol => new('♨');
-    public ConsoleColor Color => Visited ? ConsoleColor.DarkGray : ConsoleColor.Yellow;
+    public ConsoleColor Color => ConsoleColor.Yellow;
 
     public ForestInn(Position position, string roomId, string name, bool visited = false) : base(position)
     {
@@ -23,7 +26,11 @@ public sealed class ForestInn : WorldObject
         _visited = visited ? 1 : 0;
     }
 
-    public bool TryVisit() => Interlocked.CompareExchange(ref _visited, 1, 0) == 0;
+    public bool TryVisit()
+    {
+        Interlocked.Exchange(ref _visited, 1);
+        return true;
+    }
 }
 
 public static class ForestInnPlacement
@@ -57,7 +64,6 @@ public static class ForestInnPlacement
         bool inBattle, out string? reason)
     {
         reason = inBattle ? "Harc közben nem térhettek be a fogadóba." :
-            inn.Visited ? "Ezt a fogadói megállót már felhasználtátok." :
             leaderPosition != inn.Position ? "A fogadó jelére kell állnotok." :
             PartyGatheringRules.FirstDistantLivingMember(members, leaderPosition)
                 is { } distant ? $"{distant.Character.Name} túl messze van. Előbb gyűljön össze a parti." : null;

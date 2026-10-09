@@ -873,6 +873,13 @@ public sealed partial class Game
         return candidates;
     }
 
+    private IReadOnlyList<LiveCharacter> PeekSpecialInnRecruitCandidates()
+    {
+        var candidates = _waitingDismissedCompanions.Select(waiting => waiting.Character).ToList();
+        if (_eliraWaitingAtInn is { } elira) candidates.Insert(0, elira);
+        return candidates;
+    }
+
     private int? SpecialInnRecruitmentPrice(LiveCharacter recruit, int completedLevel) =>
         _waitingDismissedCompanions.Any(waiting => ReferenceEquals(waiting.Character, recruit))
             ? RecruitmentRules.StandardPrice(recruit.Level)

@@ -156,13 +156,13 @@ internal static partial class Program
         var before = WorldSnapshotProjector.Create(maze, fog);
         var successes = 0;
         Parallel.For(0, 20, _ => { if (inn.TryVisit()) Interlocked.Increment(ref successes); });
-        Assert(successes == 1, "A fogadó több látogatást is engedett.");
+        Assert(successes == 20, "A fogadó nem engedte az ismételt látogatást.");
         var after = WorldSnapshotProjector.Create(maze, fog);
         var delta = JsonSerializer.Deserialize<WorldDelta>(JsonSerializer.Serialize(
             WorldDeltaProjector.Create(1, before, 2, after)))!;
         var applied = WorldDeltaReducer.Apply(before, delta);
         Assert(applied.ForestInns!.Single().Visited &&
-            applied.RevealedCells.Single(cell => cell.Position == inn.Position).ForegroundColor == ConsoleColor.DarkGray &&
+            applied.RevealedCells.Single(cell => cell.Position == inn.Position).ForegroundColor == ConsoleColor.Yellow &&
             WorldDeltaProjector.Create(2, after, 3, after).IsEmpty, "A fogadó állapota elveszett a kliensben.");
 
         var mapper = new GameStateMapper(data, roster, leader);
@@ -172,8 +172,8 @@ internal static partial class Program
         saved = JsonSerializer.Deserialize<GameSaveData>(JsonSerializer.Serialize(saved))!;
         var restored = mapper.Restore(saved);
         Assert(restored.Maze.ForestInns.Single() is { RoomId: "TEST_INN", Name: "Próbafogadó", Visited: true } &&
-            restored.Player.Position == inn.Position && !restored.Maze.ForestInns.Single().TryVisit(),
-            "A mentés visszaadta az elhasznált fogadói látogatást.");
+            restored.Player.Position == inn.Position && restored.Maze.ForestInns.Single().TryVisit(),
+            "A mentett fogadó nem látogatható újra.");
         var old = new GameSaveData { Version = 38, MazeLevel = 13, Maze = new() { LevelName = "Meglévő erdő" } };
         GameSaveFormat.MigrateToCurrent(old);
         Assert(old.Version == GameSaveFormat.CurrentVersion && old.Maze.ForestInns.Count == 0 &&
@@ -200,7 +200,7 @@ internal static partial class Program
         member.MoveTo(new(9, 6));
         Assert(!ForestInnPlacement.CanEnter(inn, inn.Position, [member], false, out _), "A szétszórt parti betérhet.");
         inn.TryVisit();
-        Assert(!ForestInnPlacement.CanEnter(inn, inn.Position, [], false, out _), "A felhasznált megálló újra nyitott.");
+        Assert(ForestInnPlacement.CanEnter(inn, inn.Position, [], false, out _), "A fogadó nem nyitott újra.");
     }
 
     static void ForestInnOffersSuppliesWithoutCompletingLevel()
@@ -224,7 +224,7 @@ internal static partial class Program
                 _ => { }, new Random(42),
                 (_, _) => throw new Exception("Erdei fogadó pályateljesítési XP-t adott."),
                 (_, _) => throw new Exception("Erdei fogadó szintlépést indított."), () => { });
-            inn.PrepareForestStop(level, "Erdei próbafogadó");
+            inn.PrepareForestStop(level, new ForestInn(new(3, 3), "TEST_INN", "Erdei próbafogadó"));
             var snapshot = inn.CreateSnapshot()!;
             Assert(snapshot.InnName == "Erdei próbafogadó" && snapshot.MazeLevel == level &&
                 snapshot.LevelCompletion is null && snapshot.PartyCount == capacity &&

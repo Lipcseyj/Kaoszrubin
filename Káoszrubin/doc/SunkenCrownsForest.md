@@ -31,7 +31,7 @@ A gyenge fauna adja a tömeget: piócák, viperák, mérges varangyok, savanyál
 
 A konfiguráció 96–120 szobát/tisztást és 28–36 véletlen ládát kér, ládánként 650–1400 arannyal, ezen felül két őrzött ellátmányládát. A tervezett átlagos ládaarany 32 800 a teljes, tizenkét területes pályára; a tárgyátok esélye 18%. Az ellenfelek felszerelése és további zsákmánya a meglévő rendszert követi.
 
-A királyi zsilip és az elsüllyedt udvarházak egy-egy questszobában miniboss által őrzött ellátmányládát kapnak. A révész szigetén A Száraz Kulacs, az udvarházaknál A Rozsdás Korona fogadóban egyszer-egyszer meg lehet pihenni. A küldetések, készletek és a fogadói mechanika részletei a [ForestSuppliesAndInns.md](ForestSuppliesAndInns.md) dokumentumban vannak. Aranykulcsos boss nem került ide; a Vízbe fúlt trón épületei későbbi questhez kötött boss számára használhatók. Az óriáskrokodil rendes vezérellenfél.
+A királyi zsilip és az elsüllyedt udvarházak egy-egy questszobában miniboss által őrzött ellátmányládát kapnak. A révész szigetén A Száraz Kulacs, az udvarházaknál A Rozsdás Korona fogadóba bármikor vissza lehet térni pihenni, kereskedni és toborozni. A küldetések, készletek és a fogadói mechanika részletei a [ForestSuppliesAndInns.md](ForestSuppliesAndInns.md) dokumentumban vannak. Aranykulcsos boss nem került ide; a Vízbe fúlt trón épületei későbbi questhez kötött boss számára használhatók. Az óriáskrokodil rendes vezérellenfél.
 
 ## Szerkesztés és mentések
 

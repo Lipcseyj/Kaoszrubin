@@ -67,9 +67,9 @@ internal static partial class Program
         var legacy = JsonSerializer.Deserialize<GameSaveData>(
             "{\"Version\":39,\"MazeLevel\":13,\"SuspendedCampaign\":{\"Version\":39}}")!;
         GameSaveFormat.MigrateToCurrent(legacy);
-        Assert(legacy.Version == 40 && legacy.MazeLevel == 13 &&
+        Assert(legacy.Version == GameSaveFormat.CurrentVersion && legacy.MazeLevel == 13 &&
             legacy.GameTime is { Day: 1, Hour: 8 } &&
-            legacy.SuspendedCampaign!.Version == 40 &&
+            legacy.SuspendedCampaign!.Version == GameSaveFormat.CurrentVersion &&
             legacy.ExplorationRoundRemainingMilliseconds == 30_000, "A régi mentés időmigrációja hibás.");
     }
 

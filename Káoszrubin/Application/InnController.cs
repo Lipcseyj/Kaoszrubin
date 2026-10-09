@@ -41,6 +41,8 @@ internal sealed partial class InnController
     private bool _active;
     private bool _hasRestedAtInn;
     private bool _forestStop;
+    private int _feastPrice;
+    private readonly Func<long> _gameTimeMinutes;
     private int _secretStashAccessCost;
     private string _artisanNotice = string.Empty;
     private IReadOnlyList<InnMenuOptionSnapshot> _menuOptions = [];
@@ -51,6 +53,7 @@ internal sealed partial class InnController
     private Dictionary<LiveCharacter, int>? _recruitmentPrices;
     private readonly Func<IReadOnlyList<LiveCharacter>> _temporaryFollowers;
     private readonly Func<IReadOnlyList<LiveCharacter>> _specialRecruitCandidates;
+    private readonly Func<IReadOnlyList<LiveCharacter>> _currentSpecialRecruitCandidates;
     private readonly Action<LiveCharacter> _specialRecruitAccepted;
     private readonly Func<LiveCharacter, int, int?> _specialRecruitmentPrice;
     private readonly HashSet<CharacterId> _normalRecruitIds = [];
@@ -68,8 +71,11 @@ internal sealed partial class InnController
         Func<IReadOnlyList<LiveCharacter>>? specialRecruitCandidates = null,
         Func<LiveCharacter, int, int?>? specialRecruitmentPrice = null,
         Action<LiveCharacter>? specialRecruitAccepted = null,
-        Action<string, string, Action>? runHostWindow = null, BackgroundMusicPlayer? backgroundMusicPlayer = null)
+        Action<string, string, Action>? runHostWindow = null, BackgroundMusicPlayer? backgroundMusicPlayer = null,
+        Func<long>? gameTimeMinutes = null,
+        Func<IReadOnlyList<LiveCharacter>>? currentSpecialRecruitCandidates = null)
     {
+        _gameTimeMinutes = gameTimeMinutes ?? (() => 8 * 60);
         _gameData = gameData;
         _characterRoster = characterRoster;
         _partyLeader = selectedCharacter;
@@ -83,6 +89,7 @@ internal sealed partial class InnController
         _reportRest = reportRest ?? (_ => { });
         _temporaryFollowers = temporaryFollowers ?? (() => []);
         _specialRecruitCandidates = specialRecruitCandidates ?? (() => []);
+        _currentSpecialRecruitCandidates = currentSpecialRecruitCandidates ?? _specialRecruitCandidates;
         _specialRecruitAccepted = specialRecruitAccepted ?? (_ => { });
         _specialRecruitmentPrice = specialRecruitmentPrice ?? ((_, _) => null);
         _runHostWindow = runHostWindow ?? ((_, _, action) => action());
@@ -109,7 +116,7 @@ internal sealed partial class InnController
             _menuOptions, _artisanNotice, _characterRoster.Party.Members.Count,
             _characterRoster.Party.Members.Sum(character => character.Backpack.Count(item => item is null)),
             _levelCompletion, _innName, _innLevel, _characterRoster.Party.Capacity,
-            RecruitmentOffers(), _characterRoster.Party.AvailableRecruitmentGrants);
+            RecruitmentOffers(), _characterRoster.Party.AvailableRecruitmentGrants, _forestInn?.FirstVisitMinutes);
     }
 
     public bool TryPurchase(InnVendorKind vendor, int offerIndex, long expectedRevision,
@@ -204,20 +211,6 @@ internal sealed partial class InnController
         }
     }
 
-    public void RunForestStop(int level, string name, Action? onReady = null)
-    {
-        PrepareForestStop(level, name);
-        onReady?.Invoke();
-        RunMenuLoop(level);
-    }
-
-    internal void PrepareForestStop(int level, string name)
-    {
-        ArgumentOutOfRangeException.ThrowIfLessThan(level, 1);
-        ArgumentException.ThrowIfNullOrWhiteSpace(name);
-        InitializeVisit(level, null, null, name);
-    }
-
     public DepartureChoice Run(int completedLevel, string? expeditionReason = null, bool resume = false,
         Action? onCompletionDismissed = null)
     {
@@ -237,6 +230,11 @@ internal sealed partial class InnController
     private void InitializeVisit(int completedLevel, string? expeditionReason,
         Action? onCompletionDismissed, string? forestInnName)
     {
+        _forestInn = null;
+        _forestSecretStash = null;
+        _forestSecretStashTargets = null;
+        _forestStockTargets.Clear();
+        _forestRestockCursors.Clear();
         _forestStop = forestInnName is not null;
         var availableInnNames = _gameData.InnNames.Where(name => !_usedInnNames.Contains(name)).ToArray();
         if (availableInnNames.Length == 0)
@@ -311,6 +309,17 @@ internal sealed partial class InnController
                 ConsoleColor.Yellow));
         foreach (var rumor in selectedRumors.OrderBy(_ => _random.Next())) _rumors.Add(rumor);
         _revision++;
+        _feastPrice = ModifyPriceOfItem(FeastBasePricePerPerson, completedLevel);
+        RebuildInnMenu(expeditionReason);
+    }
+
+    private void RebuildInnMenu(string? expeditionReason = null)
+    {
+        var forestInnName = _forestStop ? _innName : null;
+        var blacksmithPresent = _vendorStocks.ContainsKey(InnVendorKind.Blacksmith);
+        var armorerPresent = _vendorStocks.ContainsKey(InnVendorKind.Armorer);
+        var wanderingMagePresent = _vendorStocks.ContainsKey(InnVendorKind.WanderingMage);
+        var bowyerPresent = _vendorStocks.ContainsKey(InnVendorKind.Bowyer);
         var presentVisitors = new List<string>();
         if (blacksmithPresent) presentVisitors.Add("a Kovácsmester");
         if (armorerPresent) presentVisitors.Add("a Páncélmíves");
@@ -324,7 +333,7 @@ internal sealed partial class InnController
             new(InnMenuOptionKind.Rest, "🛏️ Pihenés", "HP és manna feltöltése, majd varázslatok memorizálása minden partitag számára.", LeaderOnly: true),
             new(InnMenuOptionKind.Market, "🛒 Kereskedő", "Felszerelés vétele és eladása.", InnVendorKind.Market),
             new(InnMenuOptionKind.Witcher, "⚗️ Vajákos", "Gyógy- és varázsitalok, kötés és gyógyfüves készítmények.", InnVendorKind.Witcher),
-            new(InnMenuOptionKind.Feast, $"🍽️ Lakomázás ({ModifyPriceOfItem(FeastBasePricePerPerson, completedLevel)} {ConsoleRenderer.MoneyIcon}/fő)", "Ellátmány feltöltése: élelem és víz minden partitag és követő számára.", LeaderOnly: true),
+            new(InnMenuOptionKind.Feast, $"🍽️ Lakomázás ({_feastPrice} {ConsoleRenderer.MoneyIcon}/fő)", "Ellátmány feltöltése: élelem és víz minden partitag és követő számára.", LeaderOnly: true),
             new(InnMenuOptionKind.SecretStash, $"🗝️ Titkos raktár ({_secretStashAccessCost} {ConsoleRenderer.MoneyIcon})", "Fejlettebb, drágább különleges készlet a kereskedő pultja mögött.", LeaderOnly: true)
         };
         if (blacksmithPresent)
@@ -362,9 +371,15 @@ internal sealed partial class InnController
             var redraw = true;
             while (true)
             {
+                if (AdvanceForestInnTime())
+                {
+                    menuNotice = _artisanNotice;
+                    redraw = true;
+                }
                 if (redraw)
                 {
                     options = (_menuOptions ?? []).ToList();
+                    selectedIndex = Math.Clamp(selectedIndex, 0, Math.Max(0, options.Count - 1));
                     _renderer.DrawInnMenuScreen(_partyLeader, _characterRoster.Party.Members.Count, selectedIndex,
                         options, menuNotice, _innName, _innLevel);
                     redraw = false;
@@ -662,11 +677,7 @@ internal sealed partial class InnController
         }
         if (!_renderer.ConfirmInnSecretStashAccess(_secretStashAccessCost)) return;
         _partyLeader.SpendGold(_secretStashAccessCost);
-        var secretLevel = completedLevel + SecretStashLevelAdvance;
-        var stock = CreateMerchantStock(completedLevel, secretLevel, _random.Next(105, 121) / 100.0,
-            includePremiumStock: false, includeRandomLegendary: false, includePremiumSupplies: true).ToList();
-        AddSecretStashSpecialOffer(stock, completedLevel, secretLevel);
-        stock.Sort((left, right) => left.Price.CompareTo(right.Price));
+        var stock = SecretStashStock(completedLevel);
         var selectedIndex = 0;
         var message = $"🗝️ {_secretStashAccessCost} aranyért a kereskedő megmutatta titkos, fejlettebb készletét.";
         var redraw = true;
@@ -915,7 +926,7 @@ internal sealed partial class InnController
 
     private void RunInnFeast(int completedLevel)
     {
-        var perPerson = ModifyPriceOfItem(FeastBasePricePerPerson, completedLevel);
+        var perPerson = _forestStop ? _feastPrice : ModifyPriceOfItem(FeastBasePricePerPerson, completedLevel);
         var partyCount = _characterRoster.Party.Members.Count;
         var followers = _temporaryFollowers();
         var followerCount = followers?.Count ?? 0;
@@ -1829,6 +1840,7 @@ internal sealed partial class InnController
         _renderer.CharacterSheet.UpdateGoldInCharacterSheet(_partyLeader);
         if (kind == InnTransactionKind.Recruitment)
             _renderer.CharacterSheet.RefreshPartyStatusRows();
+        CaptureForestStop();
         var transaction = new InnTransactionSnapshot(++_transactionSequence, kind, actorName, itemName, price,
             inventoryOwnerName);
         _playGlobalSound(SoundEffect.Item);

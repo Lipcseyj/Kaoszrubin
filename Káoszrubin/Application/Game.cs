@@ -574,7 +574,8 @@ public sealed partial class Game : ISessionCommandHandler
                 .Select(member => member.Character)
                 .ToArray() ?? [], GetSpecialInnRecruitCandidates, SpecialInnRecruitmentPrice,
             SpecialInnRecruitAccepted,
-            RunHostWindow, _backgroundMusic);
+            RunHostWindow, _backgroundMusic, () => GameTime.Snapshot.TotalMinutes,
+            PeekSpecialInnRecruitCandidates);
         _battleSystem = new BattleSystem(_random, gameData.MonsterAbilities, gameData.Statuses,
             gameData.StrengthHitBonuses);
         _spellExecutionService = new SpellExecutionService(gameData, _random);

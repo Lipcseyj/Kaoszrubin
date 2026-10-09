@@ -33,13 +33,7 @@ internal sealed partial class InnController
             usedNames.Add(candidate.Name);
             _recruitmentPrices[candidate] = RecruitmentPrice(candidate, completedLevel);
         }
-        foreach (var candidate in _specialRecruitCandidates().Where(candidate =>
-                     !_characterRoster.Party.Members.Any(member => member.Id == candidate.Id) &&
-                     !_recruitCandidates.Any(existing => existing.Id == candidate.Id)))
-        {
-            _recruitCandidates.Add(candidate);
-            _recruitmentPrices[candidate] = RecruitmentPrice(candidate, completedLevel);
-        }
+        AppendSpecialRecruitCandidates();
         _revision++;
     }
 
