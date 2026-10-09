@@ -327,6 +327,7 @@ internal static partial class Program
     ("A terepre célzott rajtaütések stabilan rejtőző csoportot helyeznek el", ForestTerrainAmbushPlacementIsStable),
     ("Az erdei terephatások és rajtaütések mentési adatai kompatibilisen körbefordulnak", ForestTerrainGameplaySaveDataRoundTrips),
     ("Az erdei képernyőgráf összefüggő és betartja a fokszám- valamint kijárattávolság-korlátot", ForestAreaGraphHonorsTopologyRules),
+    ("A 8–22. szint valódi generálása megtartja a hadrendeket, mágusokat és kincseket", CampaignEncounterGenerationFitsRoomsAndKeepsCasters),
     ("A kijelölt széles szintek több területre elég változatos hordát konfigurálnak", WideLevelsHaveBalancedDiverseHordes),
     ("A képernyőátjáró a mentésben és a világmodellben is megmarad", MazePassageSurvivesSaveRoundTrip),
     ("A mentés visszaállítja a szörny alatt fekvő csapdát", SavedTrapCanShareEnemyPosition),

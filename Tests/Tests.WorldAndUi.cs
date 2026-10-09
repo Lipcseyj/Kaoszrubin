@@ -653,8 +653,9 @@ internal static partial class Program
             var minimumEnemies = level.CorridorEncounters.Sum(encounter =>
                 encounter.GroupCount.Minimum * encounter.Members.Sum(member => member.Count.Minimum));
             Assert(level.CorridorEncounters.All(encounter =>
-                       encounter.Behavior == EnemyEncounterBehavior.Horde &&
                        encounter.Members.Sum(member => member.Count.Minimum) >= 2) &&
+                   level.CorridorEncounters.Where(encounter => encounter.Behavior == EnemyEncounterBehavior.Horde)
+                       .Sum(encounter => encounter.GroupCount.Minimum) >= areaCount * 2 &&
                    minimumGroups >= areaCount * 2 && minimumEnemies >= areaCount * 12,
                 $"A(z) {levelNumber}. szint folyosói találkozásai nem adnak képernyőnként elég hordát.");
             Assert(level.CorridorEncounters.SelectMany(encounter => encounter.Members)
