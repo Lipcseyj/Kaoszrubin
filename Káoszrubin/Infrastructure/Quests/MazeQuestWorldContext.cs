@@ -20,7 +20,7 @@ public sealed class MazeQuestWorldContext : IQuestWorldContext
     private readonly QuestNpcInstanceRegistry _instanceRegistry;
     private readonly Func<IItemDefinition, int, bool> _tryConsumePartyItem;
     private readonly Func<QuestLocation, bool> _hasDiscoveredLocation;
-    public const int ExitEscortMaximumDistance = 3;
+    public const int ExitEscortMaximumDistance = PartyGatheringRules.ExitEscortMaximumDistance;
     public MazeQuestWorldContext(
         Func<Maze> getMaze,
         Func<IItemDefinition, int> countPartyItem,

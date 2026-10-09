@@ -101,7 +101,7 @@ internal static class QuestMigrationTests
         var maze = new Maze(11, 11);
         maze.Carve(new Position(9, 9));
         maze.PlaceExit(new Position(9, 9));
-        var npc = new WorldNpc(new Position(5, 9), "NPC020", fixture.SelectedCharacter,
+        var npc = new WorldNpc(new Position(1, 9), "NPC020", fixture.SelectedCharacter,
             NpcDisposition.Neutral, true, true, "Elira");
         npc.BeginFollowing();
         var avatar = new PartyMemberAvatar(npc.Position, npc.Character, npc);
@@ -111,11 +111,12 @@ internal static class QuestMigrationTests
             new QuestNpcInstanceRegistry(), _ => true);
         var id = context.GetInstanceId(npc);
         Require(!context.IsNpcAtLocation(QuestNpcId.EliraSilverbranch, id, QuestLocation.Exit),
-            "A négy mezőre lévő kísérő túl közelnek számít.");
-        avatar.MoveTo(new Position(6, 9));
+            "A nyolc mezőre lévő kísérő túl közelnek számít.");
+        maze.Carve(new Position(2, 9));
+        avatar.MoveTo(new Position(2, 9));
         Require(context.IsNpcAtLocation(QuestNpcId.EliraSilverbranch, id, QuestLocation.Exit) &&
             context.IsNpcAliveAndFollowing(QuestNpcId.EliraSilverbranch, id),
-            "Az élő, három mezőre lévő követő nem teljesíti a kijárat közelségi szabályát.");
+            "Az élő, hét mezőre lévő követő nem teljesíti a kijárat közelségi szabályát.");
         Require(!context.IsNpcAtLocation(QuestNpcId.EliraSilverbranch, new QuestNpcInstanceId(id.Value + 1), QuestLocation.Exit),
             "Másik NPC-példány helyzete is megfelelt.");
         npc.Character.ReceiveDamage(1000);

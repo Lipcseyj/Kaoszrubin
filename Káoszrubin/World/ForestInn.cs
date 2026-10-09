@@ -59,8 +59,7 @@ public static class ForestInnPlacement
         reason = inBattle ? "Harc közben nem térhettek be a fogadóba." :
             inn.Visited ? "Ezt a fogadói megállót már felhasználtátok." :
             leaderPosition != inn.Position ? "A fogadó jelére kell állnotok." :
-            members.FirstOrDefault(member => member.Character.IsAlive &&
-                Math.Abs(member.Position.X - leaderPosition.X) + Math.Abs(member.Position.Y - leaderPosition.Y) > 4)
+            PartyGatheringRules.FirstDistantLivingMember(members, leaderPosition)
                 is { } distant ? $"{distant.Character.Name} túl messze van. Előbb gyűljön össze a parti." : null;
         return reason is null;
     }

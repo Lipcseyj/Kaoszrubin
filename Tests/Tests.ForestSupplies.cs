@@ -195,7 +195,9 @@ internal static partial class Program
         Assert(maze.TrySwapLeaderAndPartyMember(leader, member) &&
             maze.TryMovePartyMember(member, new(4, 3), leader.Position) &&
             maze.TryMovePartyMember(member, inn.Position, leader.Position), "A fogadó jelén megakad a partitagok mozgása.");
-        member.MoveTo(new(9, 8));
+        member.MoveTo(new(9, 5));
+        Assert(ForestInnPlacement.CanEnter(inn, inn.Position, [member], false, out _), "A nyolcmezős parti nem térhet be.");
+        member.MoveTo(new(9, 6));
         Assert(!ForestInnPlacement.CanEnter(inn, inn.Position, [member], false, out _), "A szétszórt parti betérhet.");
         inn.TryVisit();
         Assert(!ForestInnPlacement.CanEnter(inn, inn.Position, [], false, out _), "A felhasznált megálló újra nyitott.");

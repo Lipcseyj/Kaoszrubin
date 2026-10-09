@@ -112,6 +112,15 @@ public sealed class PartyMovementController
             .FirstOrDefault();
     }
 
+    /// <summary>A kért gyülekező a vezér utolsó szomszédos helyét is elfoglalhatja.</summary>
+    public static Position? ChooseRegroupStep(PartyMemberAvatar member, Maze maze, Player player,
+        IReadOnlyList<Position> leaderTrail)
+    {
+        if (Manhattan(member.Position, player.Position) <= 1) return null;
+        return FindNextStep(member, FreeNeighborsOf(maze, player, player.Position), maze, player)
+            ?? FollowLeaderTrail(member, minimumLag: 1, maze, player, leaderTrail);
+    }
+
     public static bool PreservesLeaderExit(PartyMemberAvatar member, Position destination, Maze maze, Player player)
     {
         if (Manhattan(destination, player.Position) != 1) return true;

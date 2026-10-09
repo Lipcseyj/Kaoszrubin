@@ -658,8 +658,9 @@ public sealed partial class Game
             ReturnFromExpeditionToInn();
             return;
         }
-        if (_maze.PartyMembers.FirstOrDefault(member => member.IsTemporaryFollower) is { } escort &&
-            Manhattan(escort.Position, _player.Position) > MazeQuestWorldContext.ExitEscortMaximumDistance)
+        if (PartyGatheringRules.FirstDistantLivingMember(
+                _maze.PartyMembers.Where(member => member.IsTemporaryFollower), _player.Position,
+                PartyGatheringRules.ExitEscortMaximumDistance) is { } escort)
         {
             _renderer.DrawInventoryMessage($"🌿 {escort.Character.Name} túl messze van a kijárattól. Várjátok meg vagy hívjátok magatokhoz Gyülekező paranccsal.",
                 ConsoleColor.Yellow);
@@ -701,8 +702,7 @@ public sealed partial class Game
         if (_battleStarted || !_dungeonLevel.IsMultiArea) return;
         var sourceArea = _dungeonLevel.ActiveArea;
         var destinationArea = _dungeonLevel.GetArea(passage.DestinationAreaId);
-        var distantMember = _maze.PartyMembers.FirstOrDefault(member => member.Character.IsAlive &&
-            Manhattan(member.Position, _player.Position) > 4);
+        var distantMember = PartyGatheringRules.FirstDistantLivingMember(_maze.PartyMembers, _player.Position);
         if (distantMember is not null)
         {
             _renderer.DrawInventoryMessage(

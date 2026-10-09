@@ -854,10 +854,8 @@ public sealed partial class Game
 
     private bool MovePartyMemberTowardLeader(PartyMemberAvatar member)
     {
-        if (Manhattan(member.Position, _player.Position) <= 1) return false;
-        var next = FindNextStep(member, FreeNeighborsOf(_player.Position))
-                   ?? FollowLeaderTrail(member, minimumLag: 1);
-        if (next is null || !PartyMovementController.PreservesLeaderExit(member, next.Value, _maze, _player))
+        var next = PartyMovementController.ChooseRegroupStep(member, _maze, _player, _leaderTrail);
+        if (next is null)
             return false;
         var previous = member.Position;
         if (!CanEnterTrap(member.Character, next.Value) ||

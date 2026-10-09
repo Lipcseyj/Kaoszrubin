@@ -231,6 +231,8 @@ internal static partial class Program
     ("A 2x2-es alakzat minden irányban a vezér slotjához igazodik", PartyFormationPositionsFollowFacing),
     ("A zárt 2x2-es alakzat a saját mezőin fordul meg", PartyFormationTurnsInPlace),
     ("A feloszlatott parti az alakzatslotok sorrendjében követ", FormationSlotsControlFreeFollowOrder),
+    ("Az együtt utazás nagyobb távolságot enged a hatfős partinak", PartyGatheringAllowsLargerTravelRadius),
+    ("A Gyülekező elfoglalhatja a vezér utolsó szomszédos helyét", RegroupingCanFillLastLeaderNeighbor),
     ("A megálló vezér körül a társak helyet hagynak", PartyMembersLeaveRoomAroundIdleLeader),
     ("A támadó profil messzebb indul ellenségre, mint a védő", PartyMovementProfilesHaveDistinctEnemyLeashes),
     ("A támadó és a felderítő a vezér tényleges iránya elé jut", ForwardProfilesOvertakeLeaderWhenThereIsRoom),
