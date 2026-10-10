@@ -119,7 +119,7 @@ public sealed class GameSaveService
 public static class GameSaveFormat
 {
     public const int OldestSupportedVersion = 1;
-    public const int CurrentVersion = 41;
+    public const int CurrentVersion = 42;
 
     public static GameSaveData MigrateToCurrent(GameSaveData state)
     {
@@ -172,6 +172,7 @@ public static class GameSaveFormat
                 38 => MigrateVersion38To39(state),
                 39 => MigrateVersion39To40(state),
                 40 => MigrateVersion40To41(state),
+                41 => MigrateVersion41To42(state),
                 _ => throw new InvalidOperationException($"Hiányzó mentésmigráció a(z) {state.Version}. verzióhoz.")
             };
         }
@@ -183,6 +184,13 @@ public static class GameSaveFormat
                 state.PartyCampaignProgression, suspended.PartyCampaignProgression);
             suspended.PartyCampaignProgression = state.PartyCampaignProgression;
         }
+        return state;
+    }
+
+    private static GameSaveData MigrateVersion41To42(GameSaveData state)
+    {
+        // A régi pihenési/lakomázási időpont nem rekonstruálható; az első új használat indítja a korlátot.
+        state.Version = 42;
         return state;
     }
 

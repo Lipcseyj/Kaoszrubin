@@ -96,6 +96,7 @@ internal sealed partial class InnController
         {
             SecretStashAccessCost = _secretStashAccessCost,
             FeastPrice = _feastPrice,
+            RoomPricePerPerson = _roomPricePerPerson,
             Vendors = _vendorStocks.Select(pair => new ForestInnVendorState(pair.Key,
                 pair.Value.Select(SaveForestOffer).ToList(),
                 (_forestStockTargets.GetValueOrDefault(pair.Key) ?? pair.Value).Select(SaveForestOffer).ToList(),
@@ -122,6 +123,8 @@ internal sealed partial class InnController
         _innLevel = level;
         _secretStashAccessCost = state.SecretStashAccessCost;
         _feastPrice = state.FeastPrice;
+        _roomPricePerPerson = state.RoomPricePerPerson > 0 ? state.RoomPricePerPerson :
+            RoomPricePerPerson(level, true, _random);
         _levelCompletion = null;
         _transactions.Clear();
         _pendingHostTransactionMessages.Clear();

@@ -56,7 +56,22 @@ A kereskedő és a vajákos állandó. A kovácsmester, páncélmíves, vándorm
 
 A zsoldosok eredeti kínálati létszáma megmarad. A felvett jelölt nem jelenik meg újra eladóként; a hatórás forduló később betölti a helyét. A questhez kötött különleges társakat a normál zsoldoscserék nem távolítják el. A meglévő erdei fogadó újralátogatása megtartja az árukat, és nem fogyasztja a fogadóban várakozó különleges társak látogatási keretét.
 
-Egy látogatás alatt egyszer lehet pihenni, visszatéréskor újra. Minden sikeres pihenés nyolc játékórát jelent: ez négy utánpótlási időszakot, két vándormester-változást és legalább egy zsoldosfordulót hoz. A fogadói menük nézegetésétől nem telik játékidő. Távollét alatt az állapot a következő betéréskor követi le az eltelt játékidőt. Nagyon hosszú kihagyásnál az utánpótlás az eredeti készletig, a zsoldoscsere legfeljebb a teljes kínálatig, a köztes vándormester-változások szimulációja legfeljebb 64 eseményig fut; az időbélyegek minden eltelt időszakot elszámolnak.
+A pályavégi fogadóban továbbra is egyszer lehet pihenni. Erdei fogadóban az utolsó fogadói pihenés végétől 16 órának kell eltelnie; ez a parti közös időpontja, ezért a másik erdei fogadó felkeresése sem nullázza. Korábban a parti közli, hogy még nem fáradt, és a hátralévő idő is megjelenik. A tábori pihenés nyolc órája növeli a naptárt, de nem írja felül az utolsó fogadói pihenés időpontját. Az erdei korlát a pályavégi fogadóból érkezéskor is érvényes. Minden sikeres pihenés nyolc játékórát jelent: ez négy utánpótlási időszakot, két vándormester-változást és legalább egy zsoldosfordulót hoz. A fogadói menük nézegetésétől nem telik játékidő. Távollét alatt az állapot a következő betéréskor követi le az eltelt játékidőt. Nagyon hosszú kihagyásnál az utánpótlás az eredeti készletig, a zsoldoscsere legfeljebb a teljes kínálatig, a köztes vándormester-változások szimulációja legfeljebb 64 eseményig fut; az időbélyegek minden eltelt időszakot elszámolnak.
+
+## Szobadíjak és lakomázás
+
+A szobadíj személyenként értendő, az élő partitagokat és ideiglenes követőket számolja, ugyanazt a személyt egyszer. Az alapár a pályaszám négyzetének felfelé kerekített negyede, legalább 1 arany/fő. Erdei fogadóban ennek háromszorosa, legalább 12 arany/fő. Mindkét fogadótípus 80–120% véletlen szorzót kap, egész aranyra kerekítve. A pályavégi ár az adott látogatásra alakul ki; az erdei ár fogadónként tartósan megmarad.
+
+| Pályaszint | Pályavégi szoba (arany/fő) | Erdei szoba (arany/fő) |
+|---|---:|---:|
+| 1–2 | 1 | 10–14 |
+| 6 | 7–11 | 22–32 |
+| 13 | 34–52 | 103–155 |
+| 23 | 106–160 | 319–479 |
+
+A menü feltünteti a díjat, és megerősítés előtt a teljes árat is látni lehet. Sikertelen fizetés, megszakított megerősítés vagy túl korai pihenés nem fogyaszt aranyat, nem regenerál és nem növeli az időt.
+
+A lakoma mindkét fogadótípusban egy órával növeli a játékidőt, ezért az utánpótlásba és a vendégjárásba is beleszámít. Erdei fogadóban a parti egy naptári napon egyszer lakomázhat; a korlát a különböző fogadókra közös, és mentés/betöltés után is megmarad. A kezdőnap számít akkor is, ha a lakoma éjfélen átnyúlik. Pályavégi fogadóban továbbra is többször lehet lakomázni. A lakoma ára a megjelenített ajánlatot követi, nem változik a megerősítéskor.
 
 Visszatérő expedíció közben az erdei kitérő megőrzi a pályavégi fogadó korábbi készletét, menüjét és pihenési állapotát.
 
@@ -66,9 +81,9 @@ A fogadók a MazeLevelConfiguration.ForestInns listában adhatók meg szobaazono
 
 A 6. pálya JSON-gráfjával egyező beépített tartalék a ForbiddenForestGraph.cs. Így hiányzó JSON mellett is megmaradnak a questek és a fogadó célterületei. A 13. pálya tartaléka továbbra is a SunkenCrownsForest.cs.
 
-A 41-es mentésformátum minden területen megőrzi a fogadók első betérési idejét, időszakos frissítéseit, készleteit, árait, titkos raktárát és normál zsoldosait. A részlegesen kiürített questláda a meglévő mentési mechanikával őrzi a maradékot. A fogadók a felfedezett térképpel együtt jutnak a többjátékos klienshez; az első betérés ideje deltafrissítést kap. A 107-es protokoll a fogadói snapshotban is továbbítja ezt az időpontot.
+A 42-es mentésformátum minden területen megőrzi a fogadók első betérési idejét, időszakos frissítéseit, készleteit, árait, szobadíját, titkos raktárát és normál zsoldosait. A közös játékidő tárolja a fogadói pihenés végét és az erdei lakoma kezdőnapját is. A részlegesen kiürített questláda a meglévő mentési mechanikával őrzi a maradékot. A fogadók a felfedezett térképpel együtt jutnak a többjátékos klienshez; az első betérés ideje deltafrissítést kap. A 108-as protokoll a fogadói snapshotban is továbbítja ezt az időpontot.
 
-Régebbi mentésben a már meglátogatott fogadó is újra használható. A korábbi látogatás ideje és akkori készlete nem rekonstruálható, ezért első új betéréskor indul a tartós készlet és az időszámítás. A meglévő játékidő megmarad.
+Régebbi mentésben a már meglátogatott fogadó is újra használható. A korábbi látogatás ideje és akkori készlete nem rekonstruálható, ezért első új betéréskor indul a tartós készlet és az időszámítás. A meglévő játékidő megmarad. A 41-es mentés tartós készlete és vendégei is megmaradnak; a hiányzó szobadíj az első új betéréskor alakul ki. A korábbi fogadói pihenés és lakoma ideje nem állapítható meg, ezért a korlátot az első új használat indítja.
 
 A korábban elmentett térképeket a migráció megőrzi. **Az új ládák, őrségek és fogadók újonnan generált 6. és 13. pályán jelennek meg.** Meglévő mentett pályára nem kerülnek be utólag.
 

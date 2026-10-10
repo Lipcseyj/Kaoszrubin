@@ -182,7 +182,7 @@ public sealed partial class Game
     {
         var previousPhase = _session.Phase;
         var restStartedUtc = DateTime.UtcNow;
-        GameTime.AdvanceRest(rest.RestId);
+        GameTime.AdvanceRest(rest.RestId, rest.AtInn);
         RefreshGameTime();
         _restAcknowledgements.Clear();
         _hostRestAcknowledgementMessages.Clear();

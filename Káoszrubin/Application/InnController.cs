@@ -73,9 +73,13 @@ internal sealed partial class InnController
         Action<LiveCharacter>? specialRecruitAccepted = null,
         Action<string, string, Action>? runHostWindow = null, BackgroundMusicPlayer? backgroundMusicPlayer = null,
         Func<long>? gameTimeMinutes = null,
-        Func<IReadOnlyList<LiveCharacter>>? currentSpecialRecruitCandidates = null)
+        Func<IReadOnlyList<LiveCharacter>>? currentSpecialRecruitCandidates = null,
+        Func<GameTimeSnapshot>? gameTimeState = null, Action<bool>? reportFeast = null)
     {
         _gameTimeMinutes = gameTimeMinutes ?? (() => 8 * 60);
+        _gameTimeState = gameTimeState ?? (() => new(_gameTimeMinutes(),
+            _localLastInnRestCompletedMinutes, _localLastForestFeastDay));
+        _reportFeast = reportFeast ?? (_ => { });
         _gameData = gameData;
         _characterRoster = characterRoster;
         _partyLeader = selectedCharacter;
@@ -310,6 +314,7 @@ internal sealed partial class InnController
         foreach (var rumor in selectedRumors.OrderBy(_ => _random.Next())) _rumors.Add(rumor);
         _revision++;
         _feastPrice = ModifyPriceOfItem(FeastBasePricePerPerson, completedLevel);
+        _roomPricePerPerson = RoomPricePerPerson(completedLevel, _forestStop, _random);
         RebuildInnMenu(expeditionReason);
     }
 
@@ -330,10 +335,10 @@ internal sealed partial class InnController
             : $"A fogadós jelzi: ma {HungarianList(presentVisitors)} van jelen.";
         var options = new List<InnMenuOptionSnapshot>
         {
-            new(InnMenuOptionKind.Rest, "🛏️ Pihenés", "HP és manna feltöltése, majd varázslatok memorizálása minden partitag számára.", LeaderOnly: true),
+            RestMenuOption(),
             new(InnMenuOptionKind.Market, "🛒 Kereskedő", "Felszerelés vétele és eladása.", InnVendorKind.Market),
             new(InnMenuOptionKind.Witcher, "⚗️ Vajákos", "Gyógy- és varázsitalok, kötés és gyógyfüves készítmények.", InnVendorKind.Witcher),
-            new(InnMenuOptionKind.Feast, $"🍽️ Lakomázás ({_feastPrice} {ConsoleRenderer.MoneyIcon}/fő)", "Ellátmány feltöltése: élelem és víz minden partitag és követő számára.", LeaderOnly: true),
+            FeastMenuOption(),
             new(InnMenuOptionKind.SecretStash, $"🗝️ Titkos raktár ({_secretStashAccessCost} {ConsoleRenderer.MoneyIcon})", "Fejlettebb, drágább különleges készlet a kereskedő pultja mögött.", LeaderOnly: true)
         };
         if (blacksmithPresent)
@@ -428,7 +433,7 @@ internal sealed partial class InnController
                         _runHostWindow("Zsoldosok toborzása", "A vezető társakat választ a fogadóban…", RunInnRecruitment);
                         break;
                     case InnMenuOptionKind.Retraining: RunInnRetraining(); break;
-                    case InnMenuOptionKind.Feast: RunInnFeast(completedLevel); break;
+                    case InnMenuOptionKind.Feast: RunInnFeast(); break;
                     case InnMenuOptionKind.Rumors: RunInnRumors(); break;
                     case InnMenuOptionKind.ReturnExpedition:
                         _active = false;
@@ -465,35 +470,6 @@ internal sealed partial class InnController
             .ToList();
         _characterRoster.Party.RecordCampaignLevelCompletion(completedLevel);
         return new LevelCompletionOutcome(results, fallenCharacters);
-    }
-
-    private void RestPartyAtInn()
-    {
-        if (_hasRestedAtInn)
-        {
-            _renderer.DrawInnRestUnavailableScreen();
-            return;
-        }
-        var summaries = new List<CharacterRestSnapshot>();
-        foreach (var character in _characterRoster.Party.Members.Where(character => character.IsAlive))
-        {
-            var beforeVitality = character.CurrentVitality;
-            var beforeMana = character.CurrentMana;
-            character.RestoreVitality(_random.Next(20, 41));
-            character.SetCurrentResources(character.CurrentVitality, character.MaximumMana);
-            character.ClearTemporarySpellEffects();
-            summaries.Add(new CharacterRestSnapshot(character.Id, character.Name, character.Color,
-                character.CurrentVitality - beforeVitality, character.CurrentMana - beforeMana,
-                character.CurrentVitality, character.MaximumVitality, character.CurrentMana, character.MaximumMana,
-                character.UsesMana, []));
-        }
-        var cookedMeatCount = RestProvisionService.CookRawMeat(_characterRoster.Party.Members,
-            _gameData.GetItem(MiscItemIds.CookedMeat));
-        _hasRestedAtInn = true;
-        _reportRest(new PartyRestSnapshot(Guid.NewGuid(), true, summaries, [],
-            RestProvisionService.CookingMessage(cookedMeatCount)));
-        _playGlobalSound(SoundEffect.Rest);
-        _preparePartySpells();
     }
 
     private void RunInnRetraining()
@@ -923,61 +899,6 @@ internal sealed partial class InnController
             }))
             .Where(offer => offer is not null).Cast<InnSellOffer>()
             .OrderBy(offer => offer.Price).ToList();
-
-    private void RunInnFeast(int completedLevel)
-    {
-        var perPerson = _forestStop ? _feastPrice : ModifyPriceOfItem(FeastBasePricePerPerson, completedLevel);
-        var partyCount = _characterRoster.Party.Members.Count;
-        var followers = _temporaryFollowers();
-        var followerCount = followers?.Count ?? 0;
-        var personCount = partyCount + followerCount;
-        if (personCount == 0) { _renderer.DrawDeveloperMessage("Nincsenek személyek a partihoz."); return; }
-        var totalCost = perPerson * personCount;
-        if (_partyLeader.Gold < totalCost)
-        {
-            _renderer.DrawDeveloperMessage($"{ConsoleRenderer.MoneyIcon} Nincs elég aranyad: még {totalCost - _partyLeader.Gold} hiányzik a lakomához.");
-            return;
-        }
-        _runHostWindow("Fogadói lakomázás", "A vezető a fogadói lakomázást intézi…",
-            () => CompleteInnFeast(perPerson, personCount, totalCost, followers));
-    }
-
-    private void CompleteInnFeast(int perPerson, int personCount, int totalCost,
-        IReadOnlyList<LiveCharacter>? followers)
-    {
-        if (!_renderer.ConfirmInnFeast(perPerson, personCount, totalCost)) return;
-        // A megerősítés alatt egy coop játékos még költhet a közös aranyból, ezért
-        // közvetlenül a teljesítés előtt is atomi levonással ellenőrizzük a fedezetet.
-        if (!_partyLeader.SpendGold(totalCost))
-        {
-            _renderer.DrawDeveloperMessage(
-                $"{ConsoleRenderer.MoneyIcon} A közös arany időközben megváltozott; a lakoma nem történt meg.");
-            return;
-        }
-        foreach (var c in _characterRoster.Party.Members)
-        {
-            c.RestoreFood(100);
-            c.RestoreWater(100);
-            c.SynchronizeNeedStatuses(_gameData.GetStatus(CharacterStatusIds.Hungry),
-                _gameData.GetStatus(CharacterStatusIds.Thirsty));
-        }
-        if (followers is not null)
-            foreach (var f in followers)
-            {
-                f.RestoreFood(100);
-                f.RestoreWater(100);
-                f.SynchronizeNeedStatuses(_gameData.GetStatus(CharacterStatusIds.Hungry),
-                    _gameData.GetStatus(CharacterStatusIds.Thirsty));
-            }
-        _revision++;
-
-        // A fogadói karakterlap a lakomaablak mögött is azonnal az új értékeket mutassa.
-        _renderer.RefreshCharacterSheet(_partyLeader);
-
-        _renderer.DrawFeastWindow(_characterRoster.Party.Members.Select(m => m.Name).ToList(), totalCost);
-        
-        RecordTransaction(InnTransactionKind.Service, _partyLeader.Name, "Lakomázás", totalCost, _partyLeader.Name, announceOnHost: true);
-    }
 
     private void RunInnRecruitment()
     {

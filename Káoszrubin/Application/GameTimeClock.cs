@@ -4,7 +4,8 @@ using KaoszRubin.Combat;
 namespace KaoszRubin.Application;
 
 /// <summary>A kampány naptára. Az első nap reggel nyolckor kezdődik.</summary>
-public sealed record GameTimeSnapshot(long TotalMinutes = 8 * 60)
+public sealed record GameTimeSnapshot(long TotalMinutes = 8 * 60,
+    long? LastInnRestCompletedMinutes = null, long? LastForestFeastDay = null)
 {
     [JsonIgnore] public long Day => TotalMinutes / (24 * 60) + 1;
     [JsonIgnore] public int Hour => (int)(TotalMinutes / 60 % 24);
@@ -23,12 +24,16 @@ public sealed class GameTimeClock
     private BattleId? _battleId;
     private int _countedBattleRounds;
     private Guid? _lastRestId;
+    private long? _lastInnRestCompletedMinutes;
+    private long? _lastForestFeastDay;
 
-    public GameTimeSnapshot Snapshot => new(_totalMinutes);
+    public GameTimeSnapshot Snapshot => new(_totalMinutes, _lastInnRestCompletedMinutes, _lastForestFeastDay);
 
     public void Restore(GameTimeSnapshot? snapshot)
     {
         _totalMinutes = Math.Max(0, snapshot?.TotalMinutes ?? 8 * 60);
+        _lastInnRestCompletedMinutes = snapshot?.LastInnRestCompletedMinutes;
+        _lastForestFeastDay = snapshot?.LastForestFeastDay;
         _battleId = null;
         _countedBattleRounds = 0;
         _lastRestId = null;
@@ -50,11 +55,19 @@ public sealed class GameTimeClock
         _countedBattleRounds = currentRound;
     }
 
-    public void AdvanceRest(Guid restId)
+    public void AdvanceRest(Guid restId, bool atInn = false)
     {
         if (_lastRestId == restId) return;
         AdvanceMinutes(RestHours * 60);
         _lastRestId = restId;
+        if (atInn) _lastInnRestCompletedMinutes = _totalMinutes;
+    }
+
+    public void AdvanceFeast(bool atForestInn)
+    {
+        var feastDay = Snapshot.Day;
+        AdvanceMinutes(60);
+        if (atForestInn) _lastForestFeastDay = feastDay;
     }
 
     private void AdvanceMinutes(long minutes) => _totalMinutes = checked(_totalMinutes + minutes);

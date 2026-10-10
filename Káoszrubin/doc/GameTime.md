@@ -7,7 +7,8 @@ A kampány az **1. nap 08:00** időpontban kezdődik. Az idő a parti közös á
 | 30 másodperc aktív térképi játék, azaz egy felfedezési kör | 1 perc |
 | Egy harci kör, taktikai és gyorsharcban is | 1 perc |
 | Sikeres tábori vagy fogadói pihenés | 8 óra |
-| Menük, személyes és közös ablakok, fogadói ügyintézés, döntésre várakozás | 0 perc |
+| Sikeres lakomázás bármelyik fogadóban | 1 óra |
+| Menük, személyes és közös ablakok, egyéb fogadói ügyintézés, döntésre várakozás | 0 perc |
 
 Az erdei fogadók az eltelt játékidőt követik: kétóránként fokozatos áruutánpótlás, négyóránként egy vándormester érkezése vagy távozása, hatóránként egy normál zsoldos cseréje. A nyolcórás pihenés is számít. Részletek: [ForestSuppliesAndInns.md](ForestSuppliesAndInns.md).
 
@@ -21,8 +22,10 @@ A karakterlap felső sorában balra a ▦ jel és a pályaszám, középre igaz�
 
 ## Mentés és közös játék
 
-A 41-es játékmentés a teljes eltelt percet és a megkezdett térképi kör hátralévő milliszekundumait tárolja. A betöltés, a harc és a fogadói szünet nem fogyasztja el ezt a hátralévő időt. A felfüggesztett kampány világának visszaállítása nem tekeri vissza a közben eltelt játékidőt.
+A 42-es játékmentés a teljes eltelt percet, az utolsó fogadói pihenés végét, az utolsó erdei lakoma kezdőnapját és a megkezdett térképi kör hátralévő milliszekundumait tárolja. A betöltés, a harc és a fogadói szünet nem fogyasztja el ezt a hátralévő időt. A felfüggesztett kampány világának visszaállítása nem tekeri vissza a közben eltelt játékidőt.
 
-Régebbi mentések az 1. nap 08:00 időpontról indulnak, mert a korábbi eltelt idő nem állapítható meg belőlük. A host vezeti az órát; teljes snapshot és delta is továbbítja a vendégeknek. A hálózati protokoll verziója 107, ezért a közös játék résztvevői azonos frissített játékverziót használjanak.
+A 40-esnél régebbi mentések az 1. nap 08:00 időpontról indulnak, mert a korábbi eltelt idő nem állapítható meg belőlük. A 40-es és 41-es mentés megőrzi az órát; az ismeretlen korábbi fogadói pihenés és erdei lakoma nem állít be új korlátot. A host vezeti az órát; teljes snapshot és delta is továbbítja a vendégeknek. A hálózati protokoll verziója 108, ezért a közös játék résztvevői azonos frissített játékverziót használjanak.
+
+Az erdei fogadók 16 órás pihenési korlátja kizárólag a legutóbbi fogadói pihenés végétől számít. A tábori pihenés növeli a játékidőt, de ezt a fogadói időpontot nem írja felül. Az erdei lakoma naptári naponként egyszer vehető igénybe, a parti összes erdei fogadóját közösen számolva. Az éjfélen átnyúló lakoma a kezdőnapjához tartozik.
 
 A későbbi időarány és pihenési idő a GameTimeClock.MinutesPerRound, illetve GameTimeClock.RestHours értékkel módosítható.

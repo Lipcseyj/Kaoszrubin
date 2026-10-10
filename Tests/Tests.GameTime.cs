@@ -114,12 +114,13 @@ internal static partial class Program
             store.CurrentSnapshot!.GameTime == snapshot.GameTime, "A teljes snapshot elvesztette a játékidőt.");
         Assert(publisher.TryAcknowledge(session.HostPlayerId, snapshot.SnapshotSequence, out var error), error);
         var later = snapshot with { SnapshotSequence = snapshot.SnapshotSequence + 1,
-            GameTime = new GameTimeSnapshot(1440 + 2 * 60) };
+            GameTime = new GameTimeSnapshot(1440 + 2 * 60, 960, 1) };
         var delta = publisher.CreateFrame(session.HostPlayerId, later);
         delta = JsonSerializer.Deserialize<SessionReplicationFrame>(JsonSerializer.Serialize(delta))!;
         Assert(delta.Kind == SessionReplicationFrameKind.Delta &&
             store.Apply(delta).Status == ClientFrameApplyStatus.Applied &&
-            store.CurrentSnapshot!.GameTime is { Day: 2, Hour: 2, IsDaytime: false },
+            store.CurrentSnapshot!.GameTime is { Day: 2, Hour: 2, IsDaytime: false,
+                LastInnRestCompletedMinutes: 960, LastForestFeastDay: 1 },
             "A világ nélküli delta elvesztette a napváltást.");
     }
 

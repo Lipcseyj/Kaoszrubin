@@ -8,22 +8,29 @@ internal static partial class Program
         public CharacterRoster Roster { get; } = new();
         public LiveCharacter Leader { get; } = CreateCharacter("Erdei vezér");
         public InnController Controller { get; }
-        public long Now { get; set; } = 3 * 1440 + 8 * 60 + 17;
+        public GameTimeClock Clock { get; } = new();
+        public long Now
+        {
+            get => Clock.Snapshot.TotalMinutes;
+            set => Clock.Restore(Clock.Snapshot with { TotalMinutes = value });
+        }
         public int RestCount { get; private set; }
         public int SpecialVisitCount { get; private set; }
         public List<LiveCharacter> SpecialCandidates { get; } = [];
 
         public ForestInnEconomyFixture(int seed = 42)
         {
+            Now = 3 * 1440 + 8 * 60 + 17;
             Roster.Add(Leader); Roster.Select(Leader);
             Leader.AddGold(2_000_000);
             Controller = new(Data, Roster, Leader, new ConsoleRenderer(Data, Roster.Party),
                 _ => { }, new Random(seed),
                 (_, _) => throw new Exception("Erdei fogadó pályateljesítést indított."),
                 (_, _) => throw new Exception("Erdei fogadó szintlépést indított."), () => { },
-                reportRest: _ => { Now += GameTimeClock.RestHours * 60; RestCount++; },
+                reportRest: rest => { Clock.AdvanceRest(rest.RestId, rest.AtInn); RestCount++; },
                 specialRecruitCandidates: () => { SpecialVisitCount++; return SpecialCandidates; },
-                gameTimeMinutes: () => Now, currentSpecialRecruitCandidates: () => SpecialCandidates);
+                gameTimeMinutes: () => Now, currentSpecialRecruitCandidates: () => SpecialCandidates,
+                gameTimeState: () => Clock.Snapshot, reportFeast: Clock.AdvanceFeast);
         }
 
         public ForestInn Enter(string id = "TEST_INN", int level = 13)
@@ -305,7 +312,7 @@ internal static partial class Program
         fixture.Controller.PrepareForestStop(13, inn);
         Assert(((List<InnStockOffer>)InvokeForestInn(fixture.Controller, "SecretStashStock", 13)!).Count == 0,
             "A titkos raktár újranyitáskor feltöltődött.");
-        InvokeForestInn(fixture.Controller, "RestPartyAtInn");
+        Assert(fixture.Controller.TryRestAtInn(fixture.Snapshot.Revision, out _), "Nem sikerült fogadóban pihenni.");
         Assert(fixture.RestCount == 1 && fixture.Now == firstVisit + 480 &&
             fixture.Controller.AdvanceForestInnTime(), "A pihenés nem vitt előre nyolc órával.");
         Assert(ForestStockCount(fixture.Market(inn)) == 4 &&
@@ -315,9 +322,11 @@ internal static partial class Program
         var afterRest = ForestInnStateJson(inn);
         fixture.Controller.PrepareForestStop(13, inn);
         Assert(ForestInnStateJson(inn) == afterRest, "A pihenés utáni új belépés újra töltött.");
-        InvokeForestInn(fixture.Controller, "RestPartyAtInn");
+        var nextRest = fixture.Now + InnController.ForestRestCooldownMinutes;
+        fixture.Now = nextRest;
+        Assert(fixture.Controller.TryRestAtInn(fixture.Snapshot.Revision, out _), "Nem sikerült fogadóban pihenni.");
         fixture.Controller.AdvanceForestInnTime();
-        Assert(fixture.RestCount == 2 && fixture.Now == firstVisit + 960 && inn.FirstVisitMinutes == firstVisit,
+        Assert(fixture.RestCount == 2 && fixture.Now == firstVisit + 960 + InnController.ForestRestCooldownMinutes && inn.FirstVisitMinutes == firstVisit,
             "Új látogatáskor nem lehetett újra pihenni.");
     }
 }

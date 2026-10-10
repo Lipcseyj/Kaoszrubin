@@ -9,6 +9,7 @@ public sealed record ForestInnServicesState
     public long RecruitsThroughMinutes { get; init; }
     public int SecretStashAccessCost { get; init; }
     public int FeastPrice { get; init; }
+    public int RoomPricePerPerson { get; init; }
     public int RecruitCapacity { get; init; }
     public List<ForestInnVendorState> Vendors { get; init; } = [];
     public Dictionary<string, int> BuybackPrices { get; init; } = [];

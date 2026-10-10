@@ -575,7 +575,11 @@ public sealed partial class Game : ISessionCommandHandler
                 .ToArray() ?? [], GetSpecialInnRecruitCandidates, SpecialInnRecruitmentPrice,
             SpecialInnRecruitAccepted,
             RunHostWindow, _backgroundMusic, () => GameTime.Snapshot.TotalMinutes,
-            PeekSpecialInnRecruitCandidates);
+            PeekSpecialInnRecruitCandidates, () => GameTime.Snapshot, atForestInn =>
+            {
+                GameTime.AdvanceFeast(atForestInn);
+                RefreshGameTime();
+            });
         _battleSystem = new BattleSystem(_random, gameData.MonsterAbilities, gameData.Statuses,
             gameData.StrengthHitBonuses);
         _spellExecutionService = new SpellExecutionService(gameData, _random);

@@ -91,6 +91,7 @@ internal sealed partial class InnController
         _normalRecruitIds.Remove(recruit.Id);
         _revision++;
         _menuOptions = _menuOptions.Select(option => option.Kind == InnMenuOptionKind.Recruit ? RecruitmentMenuOption() : option).ToArray();
+        RefreshInnServiceMenu();
         message = replaced is null
             ? $"✅ {recruit.Name} csatlakozott a partihoz{(grant is not null ? " toborzási támogatással ingyen" : FormatRecruitmentPricePaid(price))}."
             : $"✅ {recruit.Name} átvette {replaced.Name} helyét{FormatRecruitmentPricePaid(price)}; a régi társ végleg távozott.";

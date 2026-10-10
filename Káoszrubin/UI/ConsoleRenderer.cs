@@ -1409,7 +1409,7 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
             ("🍽️🍎🥩  LAKOMÁZÁS 🥩🍎🍽️", ConsoleColor.Yellow),
             (string.Empty, ConsoleColor.Gray),
             ($"A lakoma {perPerson} arany/fő lesz, összesen {totalCost} arany {personCount} személyre.", ConsoleColor.Cyan),
-            ("A díj nem jár vissza. Megfizeted?", ConsoleColor.DarkYellow),
+            ("A lakoma 1 órán át tart. Megfizeted?", ConsoleColor.DarkYellow),
             (string.Empty, ConsoleColor.Gray),
             ("Enter: igen   Esc: mégsem", ConsoleColor.Green)
         };
@@ -1422,19 +1422,42 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         }
     }
 
-    /// <summary>Jelzi, hogy a fogadóban már nem lehet újra pihenni, és Enterre vár.</summary>
-    public void DrawInnRestUnavailableScreen()
+    public bool ConfirmInnRest(int perPerson, int personCount, int totalCost)
+    {
+        ClearInnMenuScreen();
+        var lines = new List<(string Text, ConsoleColor Color)>
+        {
+            ("🛏️  SZOBAFOGLALÁS  🛏️", ConsoleColor.Yellow),
+            (string.Empty, ConsoleColor.Gray),
+            ($"A szobák ára {perPerson} arany/fő, összesen {totalCost} arany {personCount} személyre.", ConsoleColor.Cyan),
+            ("A pihenés 8 órán át tart. Megfizeted a szobadíjat?", ConsoleColor.DarkYellow),
+            (string.Empty, ConsoleColor.Gray),
+            ("Enter: igen   Esc: mégsem", ConsoleColor.Green)
+        };
+        DrawCenteredFrame(InnConfirmationFrameWidth, lines, FramedWindow.Inn);
+        while (true)
+        {
+            var key = Console.ReadKey(intercept: true).Key;
+            if (key == ConsoleKey.Enter) return true;
+            if (key == ConsoleKey.Escape) return false;
+        }
+    }
+
+    /// <summary>Jelzi a fogadói pihenés akadályát, és Enterre vár.</summary>
+    public void DrawInnRestUnavailableScreen(string? reason = null)
     {
         ClearInnMenuScreen();
         var lines = new List<(string Text, ConsoleColor Color)>
         {
             ("🛏️  PIHENÉS  🛏️", ConsoleColor.Yellow),
-            (string.Empty, ConsoleColor.Gray),
-            ("A parti már kipihente magát ebben a fogadóban.", ConsoleColor.Red),
-            ("A küldetés sürgető — nincs idő újra ledőlni, tovább kell indulni!", ConsoleColor.DarkYellow),
-            (string.Empty, ConsoleColor.Gray),
-            ("Nyomj Entert a folytatáshoz...", ConsoleColor.Yellow)
+            (string.Empty, ConsoleColor.Gray)
         };
+        lines.AddRange(MessageTextLayout.Wrap(reason ?? "A parti már kipihente magát ebben a fogadóban.",
+            InnRestUnavailableFrameWidth - 8).Select(text => (text, ConsoleColor.Red)));
+        lines.Add((reason is null ? "A küldetés sürgető — nincs idő újra ledőlni, tovább kell indulni!" :
+            "A többi fogadói szolgáltatás továbbra is elérhető.", ConsoleColor.DarkYellow));
+        lines.Add((string.Empty, ConsoleColor.Gray));
+        lines.Add(("Nyomj Entert a folytatáshoz...", ConsoleColor.Yellow));
         DrawCenteredFrame(InnRestUnavailableFrameWidth, lines, FramedWindow.Inn);
         while (Console.ReadKey(intercept: true).Key != ConsoleKey.Enter) { }
     }
