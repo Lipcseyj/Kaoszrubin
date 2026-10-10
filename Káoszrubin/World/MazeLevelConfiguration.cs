@@ -632,12 +632,24 @@ public static class MazeLevelConfigurations
                         [
                             new("mossy-timber", new("forbidden-timber-wall", new('▓'),
                                 ConsoleColor.DarkYellow, ConsoleColor.Black, false, true), 4),
-                            new("old-stone", new("forbidden-stone-wall", new('▣'),
+                            new("old-stone", new("forbidden-stone-wall", new('▨'),
                                 ConsoleColor.Gray, ConsoleColor.Black, false, true), 3),
+                            new("solid-stone", new("forbidden-stone-wall", new('▊'),
+                                ConsoleColor.Gray, ConsoleColor.Black, false, true), 3),
+                            new("blue-stone", new("forbidden-stone-wall", new('⬛'),
+                                ConsoleColor.DarkBlue, ConsoleColor.Black, false, true), 2),
                             new("dark-manor", new("forbidden-manor-wall", new('▤'),
                                 ConsoleColor.DarkGray, ConsoleColor.Black, false, true), 2,
                                 new HashSet<ForestBuildingLayout>
-                                    { ForestBuildingLayout.Manor, ForestBuildingLayout.Labyrinth })
+                                    { ForestBuildingLayout.Manor, ForestBuildingLayout.Labyrinth }),
+                            new("red-labyrinth", new("red-labyrinth-wall", new('⬔'),
+                                ConsoleColor.DarkRed, ConsoleColor.Black, false, true), 2,
+                                new HashSet<ForestBuildingLayout>
+                                    { ForestBuildingLayout.Labyrinth }),
+                            new("haunted-manor", new("haunted-manor-wall", new('⣿'),
+                                ConsoleColor.DarkMagenta, ConsoleColor.Black, false, true), 2,
+                                new HashSet<ForestBuildingLayout>
+                                    { ForestBuildingLayout.Manor})
                         ],
                         LockedBuildingDoorChance = 0.6,
                         OpenBuildingDoorChance = 0.12,
