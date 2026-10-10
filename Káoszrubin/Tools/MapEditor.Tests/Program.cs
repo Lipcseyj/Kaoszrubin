@@ -15,6 +15,7 @@ internal static class Program
         Application.SetCompatibleTextRenderingDefault(false);
         var tests = new (string Name, Action Test)[]
         {
+            ("A szerkesztő főablaka kereshető falstílus-listával elindul", EditorStartsWithSearchableWallSelector),
             ("A falstílusok legördülője és kampányhivatkozásai veszteség nélkül körbefordulnak", WallStylesRoundTrip),
             ("A questroom célterülete biztonságosan szerkeszthető és körbefordul", QuestRoomPlacementsRoundTrip),
             ("Minden gyári típus és az egyedi csoport oda-vissza alakítható", FactoriesRoundTrip),
@@ -52,6 +53,40 @@ internal static class Program
 
     private static readonly IReadOnlyDictionary<string, string> Monsters = EncounterDraft.Monsters
         .GroupBy(entry => entry.Value).ToDictionary(group => group.Key, group => group.First().Key);
+    private static void EditorStartsWithSearchableWallSelector()
+    {
+        using var form = new MapEditorForm();
+        const BindingFlags fields = BindingFlags.Instance | BindingFlags.NonPublic;
+        var timer = (System.Windows.Forms.Timer)typeof(MapEditorForm)
+            .GetField("_settingsSaveTimer", fields)!.GetValue(form)!;
+        try
+        {
+            Assert(form.Handle != IntPtr.Zero, "A szerkesztő főablaka nem hozható létre.");
+            var selector = (ComboBox)typeof(MapEditorForm).GetField("_wallStyleSelector", fields)!.GetValue(form)!;
+            var preview = (Label)typeof(MapEditorForm).GetField("_wallStylePreview", fields)!.GetValue(form)!;
+            var levelFields = (Dictionary<string, TextBox>)typeof(MapEditorForm)
+                .GetField("_levelFields", fields)!.GetValue(form)!;
+            Assert(selector.Items.Count == DungeonWallStyles.All.Count + 1 &&
+                   selector.AutoCompleteSource == AutoCompleteSource.ListItems &&
+                   selector.AutoCompleteMode == AutoCompleteMode.SuggestAppend,
+                "A falstílus-lista hiányos vagy a név szerinti keresés nem aktív.");
+            selector.SelectedItem = WallStyleChoice.Choices.Single(choice => choice.Style == DungeonWallStyles.SunkenPalace);
+            Assert(preview.Text.Contains(DungeonWallStyles.SunkenPalace.Rune.ToString()) &&
+                   preview.Text.Split('\n').Length == 3 &&
+                   !levelFields["WallRune"].Enabled && !levelFields["WallColor"].Enabled,
+                "A falstílus kiválasztása nem frissíti az előnézetet és az egyedi mezőket.");
+            selector.SelectedItem = WallStyleChoice.Choices[0];
+            Assert(preview.Text.Length == 0 && levelFields["WallRune"].Enabled && levelFields["WallColor"].Enabled,
+                "Az egyedi fal választása nem engedi az egyedi jel/szín szerkesztését.");
+        }
+        finally
+        {
+            // A próba nem menti a felhasználó helyi ablakbeállításait.
+            timer.Stop();
+            timer.Dispose();
+        }
+    }
+
     private static void WallStylesRoundTrip()
     {
         Assert(WallStyleChoice.Choices.Count == DungeonWallStyles.All.Count + 1 &&

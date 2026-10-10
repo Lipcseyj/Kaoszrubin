@@ -14,8 +14,8 @@ internal sealed partial class MapEditorForm
     private readonly TabControl _npcTabs = new() { Dock = DockStyle.Fill };
     private readonly Dictionary<string, TextBox> _levelFields = [];
     private readonly ComboBox _wallStyleSelector = new() { Width = 348, DropDownWidth = 510, MaxDropDownItems = 18,
-        DropDownStyle = ComboBoxStyle.DropDownList, AutoCompleteMode = AutoCompleteMode.SuggestAppend,
-        AutoCompleteSource = AutoCompleteSource.ListItems };
+        DropDownStyle = ComboBoxStyle.DropDownList, AutoCompleteSource = AutoCompleteSource.ListItems,
+        AutoCompleteMode = AutoCompleteMode.SuggestAppend };
     private readonly Label _wallStyleDescription = new() { Width = 348, Height = 38, ForeColor = Color.DimGray };
     private readonly Label _wallStylePreview = new() { Width = 348, Height = 58, BackColor = Color.Black,
         Font = new Font(FontFamily.GenericMonospace, 10), Padding = new Padding(4) };
