@@ -11,6 +11,7 @@ public sealed class EditorApp
     private const int PortraitWidth = 17;
     private const int PortraitHeight = 5;
     private const int PaletteCellWidth = 4;
+    private const int PanelTop = 4; // Title plus three rows of shortcuts.
     private const int StdInputHandle = -10;
     private const uint EnableMouseInput = 0x0010;
     private const uint EnableQuickEditMode = 0x0040;
@@ -219,6 +220,12 @@ public sealed class EditorApp
                 DrawStatus(layout);
                 break;
             case ConsoleKey.Spacebar:
+                DrawCanvasRow(layout, _cursorY);
+                DrawStatus(layout);
+                break;
+            case ConsoleKey.Multiply:
+                DrawStatus(layout);
+                break;
             case ConsoleKey.D:
             case ConsoleKey.E:
                 DrawCanvasCell(layout, _cursorX, _cursorY);
@@ -292,6 +299,8 @@ public sealed class EditorApp
                 _cursorY = Math.Min(_canvasHeight - 1, _cursorY + 1);
                 break;
             case ConsoleKey.Spacebar:
+                InsertSpaceAtCursor();
+                break;
             case ConsoleKey.D:
                 DrawAtCursor();
                 break;
@@ -317,7 +326,16 @@ public sealed class EditorApp
                 RenamePalettePage();
                 break;
             case ConsoleKey.Delete:
-                ClearCanvas();
+                if ((key.Modifiers & ConsoleModifiers.Control) != 0)
+                    ClearCanvas();
+                else
+                    DeleteAtCursor();
+                break;
+            case ConsoleKey.Multiply:
+                if ((key.Modifiers & ConsoleModifiers.Control) != 0)
+                    CopyCanvas();
+                else
+                    CopyPalettePage();
                 break;
             case ConsoleKey.PageUp:
                 _palettePage = Math.Max(0, _palettePage - 1);
@@ -465,6 +483,24 @@ public sealed class EditorApp
             var oldCursorY = _cursorY;
             var newCursorX = newHoverX;
             var newCursorY = newHoverY;
+            if (controlPressed)
+            {
+                // Shift once per click, rather than on every event while a button is held.
+                if (!leftButtonClicked && !rightButtonClicked)
+                    return;
+
+                _cursorX = newCursorX;
+                _cursorY = newCursorY;
+                if (rightButtonClicked)
+                    DeleteAtCursor();
+                else
+                    InsertSpaceAtCursor();
+                DrawCanvasCell(layout, oldCursorX, oldCursorY);
+                DrawCanvasRow(layout, _cursorY);
+                DrawStatus(layout);
+                return;
+            }
+
             var newCell = rightButtonDown ? " " : _brush;
             var cellChanged = _cells[newCursorX, newCursorY] != newCell;
             if (oldCursorX == newCursorX && oldCursorY == newCursorY && !cellChanged)
@@ -692,6 +728,55 @@ public sealed class EditorApp
 
     private void DrawAtCursor() => _cells[_cursorX, _cursorY] = _brush;
 
+    private void InsertSpaceAtCursor()
+    {
+        for (var x = _canvasWidth - 1; x > _cursorX; x--)
+            _cells[x, _cursorY] = _cells[x - 1, _cursorY];
+        _cells[_cursorX, _cursorY] = " ";
+        _status = "Space inserted; row shifted right.";
+    }
+
+    private void DeleteAtCursor()
+    {
+        for (var x = _cursorX; x < _canvasWidth - 1; x++)
+            _cells[x, _cursorY] = _cells[x + 1, _cursorY];
+        _cells[_canvasWidth - 1, _cursorY] = " ";
+        _status = "Character deleted; row shifted left.";
+    }
+
+    private void DrawCanvasRow(EditorLayout layout, int y)
+    {
+        for (var x = 0; x < _canvasWidth; x++)
+            DrawCanvasCell(layout, x, y);
+    }
+
+    private string[] GetPalettePageGlyphs(EditorLayout layout) =>
+        Enumerable.Range(0, layout.PalettePageSize)
+            .Select(index => GetPaletteGlyph(layout, _palettePage, index))
+            .OfType<string>()
+            .ToArray();
+
+    private void CopyCanvas()
+    {
+        _status = WindowsClipboard.TryCopy(GetCanvasContent(trimLineEnds: false).ReplaceLineEndings(Environment.NewLine), out var error)
+            ? "Copied canvas to clipboard."
+            : $"Could not copy canvas to clipboard: {error}";
+    }
+
+    private void CopyPalettePage()
+    {
+        var glyphs = GetPalettePageGlyphs(CalculateLayout());
+        if (glyphs.Length == 0)
+        {
+            _status = "Palette page is empty.";
+            return;
+        }
+
+        _status = WindowsClipboard.TryCopy(string.Concat(glyphs), out var error)
+            ? $"Copied {glyphs.Length} palette glyph(s) to clipboard."
+            : $"Could not copy palette page to clipboard: {error}";
+    }
+
     private void DrawCanvasCell(EditorLayout layout, int x, int y)
     {
         var screenX = layout.CanvasFrameX + 1 + x;
@@ -883,7 +968,7 @@ public sealed class EditorApp
         }
     }
 
-    private string GetCanvasContent()
+    private string GetCanvasContent(bool trimLineEnds = true)
     {
         var lines = new string[_canvasHeight];
         for (var y = 0; y < _canvasHeight; y++)
@@ -891,7 +976,7 @@ public sealed class EditorApp
             var line = "";
             for (var x = 0; x < _canvasWidth; x++)
                 line += _cells[x, y];
-            lines[y] = line.TrimEnd();
+            lines[y] = trimLineEnds ? line.TrimEnd() : line;
         }
 
         return string.Join('\n', lines);
@@ -938,26 +1023,29 @@ public sealed class EditorApp
         WriteAt(2, 0, $"ASCII PORTRAIT EDITOR — Set {_portraitSet}", layout.Width - 4);
         DrawHotkeyRow(1, layout.Width - 4,
         [
-            ("F2", "switch portrait set"), ("Arrows", "move"), ("Shift+Left/Right", "switch portrait"),
-            ("Space/D", "draw"), ("E", "erase"), ("Del", "clear"),
-            ("PgUp/PgDn", "page"), ("R", "rename palette page"), ("S", "save art"),
-            ("C", "resize canvas"), ("N", "new art"), ("Esc/Q", "quit")
+            ("Arrows", "move"), ("D", "draw"), ("Space", "insert"), ("Del", "delete"), ("E", "erase"),
+            ("Ctrl+Del", "clear"), ("Num *", "copy palette"), ("Ctrl+Num *", "copy canvas")
         ]);
         DrawHotkeyRow(2, layout.Width - 4,
         [
-            ("LMB", "draw / drag favourites"), ("RMB", "erase / pin/unpin"),
-            ("MMB", "pick / copy glyph"), ("Ctrl+LMB/RMB", "range"), ("LMB drag", "reorder favourites")
+            ("F2", "set"), ("Shift+Left/Right", "portrait"), ("PgUp/PgDn", "page"),
+            ("R", "rename page"), ("S", "save"), ("C", "resize"), ("N", "new art"), ("Esc/Q", "quit")
+        ]);
+        DrawHotkeyRow(3, layout.Width - 4,
+        [
+            ("LMB", "draw / drag favourites"), ("RMB", "erase / pin"), ("MMB", "pick / copy"),
+            ("Ctrl+LMB", "insert / range start"), ("Ctrl+RMB", "delete / range end")
         ]);
 
-        for (var y = 3; y < layout.Height - 2; y++)
+        for (var y = PanelTop; y < layout.Height - 2; y++)
             WriteAt(layout.SplitX, y, "│", 1);
 
         DrawCanvasPanel(layout);
         DrawPalettePanel(layout);
         DrawStatus(layout);
 
-        if (layout.Width < _canvasWidth + 5 || layout.Height < _canvasHeight + 8)
-            WriteAt(2, Math.Min(3, layout.Height - 1), "Enlarge the terminal to see both framed panels.", layout.Width - 4);
+        if (layout.Width < _canvasWidth + 5 || layout.Height < _canvasHeight + PanelTop + 5)
+            WriteAt(2, Math.Min(PanelTop, layout.Height - 1), "Enlarge the terminal to see both framed panels.", layout.Width - 4);
     }
 
     private static void DrawHotkeyRow(int y, int maximumWidth, (string Key, string Description)[] hotkeys)
@@ -1074,11 +1162,11 @@ public sealed class EditorApp
         var canvasFrameWidth = _canvasWidth + 2;
         var canvasFrameHeight = _canvasHeight + 2;
         var canvasFrameX = Math.Max(1, (splitX - canvasFrameWidth) / 2);
-        var canvasFrameY = Math.Max(3, (height - canvasFrameHeight) / 2);
+        var canvasFrameY = Math.Max(PanelTop, (height - canvasFrameHeight) / 2);
         var paletteFrameX = Math.Min(width - 1, splitX + 1);
         var paletteFrameWidth = Math.Max(3, width - paletteFrameX - 1);
-        var paletteFrameY = 3;
-        var paletteFrameHeight = Math.Max(3, height - 5);
+        var paletteFrameY = PanelTop;
+        var paletteFrameHeight = Math.Max(3, height - PanelTop - 2);
         var paletteColumns = Math.Max(1, (paletteFrameWidth - 2) / PaletteCellWidth);
         var paletteRows = Math.Max(1, paletteFrameHeight - 3);
         var palettePageSize = paletteColumns * paletteRows;
