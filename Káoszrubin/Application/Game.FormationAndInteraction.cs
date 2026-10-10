@@ -658,6 +658,14 @@ public sealed partial class Game
             ReturnFromExpeditionToInn();
             return;
         }
+        if (!CampaignBosses.CanLeave(_mazeLevel, _collectedBossKeyIds) &&
+            CampaignBosses.ForLevel(_mazeLevel) is { } keyGuardian)
+        {
+            _renderer.DrawInventoryMessage(
+                $"Az átjáró zárva: {keyGuardian.RoomName} őrzője, {_gameData.GetEnemy(keyGuardian.EnemyId).Name} még nem adta át az aranykulcsot.",
+                ConsoleColor.Yellow);
+            return;
+        }
         if (PartyGatheringRules.FirstDistantLivingMember(
                 _maze.PartyMembers.Where(member => member.IsTemporaryFollower), _player.Position,
                 PartyGatheringRules.ExitEscortMaximumDistance) is { } escort)
@@ -799,15 +807,6 @@ public sealed partial class Game
         _isReturnExpedition = true;
         _session.SetPhase(GameSessionPhase.Exploration);
         _session.SynchronizeParty();
-        foreach (var area in _dungeonLevel.Areas)
-        {
-            foreach (var boss in area.Maze.Enemies.Where(enemy => enemy.Definition.IsBoss).ToArray())
-            {
-                area.Maze.RemoveEnemy(boss);
-                area.EnemyMoveDelays.Remove(boss);
-                _nextEnemyMoves.Remove(boss);
-            }
-        }
         ReplenishExpeditionEnemies();
         var returningParty = _maze.PartyMembers.Where(member => member.Character.IsAlive)
             .Select(member => (member.Character, member.TemporaryFollower)).ToList();

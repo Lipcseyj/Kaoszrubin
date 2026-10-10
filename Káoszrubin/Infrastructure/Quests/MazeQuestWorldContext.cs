@@ -20,6 +20,7 @@ public sealed class MazeQuestWorldContext : IQuestWorldContext
     private readonly QuestNpcInstanceRegistry _instanceRegistry;
     private readonly Func<IItemDefinition, int, bool> _tryConsumePartyItem;
     private readonly Func<QuestLocation, bool> _hasDiscoveredLocation;
+    private readonly Func<string, bool> _hasDefeatedBoss;
     public const int ExitEscortMaximumDistance = PartyGatheringRules.ExitEscortMaximumDistance;
     public MazeQuestWorldContext(
         Func<Maze> getMaze,
@@ -27,7 +28,8 @@ public sealed class MazeQuestWorldContext : IQuestWorldContext
         Func<IItemDefinition, int, bool> tryConsumePartyItem,
         QuestNpcInstanceRegistry instanceRegistry,
         Func<QuestLocation, bool> hasDiscoveredLocation,
-        Func<IEnumerable<Maze>>? getMazes = null)
+        Func<IEnumerable<Maze>>? getMazes = null,
+        Func<string, bool>? hasDefeatedBoss = null)
     {
         ArgumentNullException.ThrowIfNull(getMaze);
         ArgumentNullException.ThrowIfNull(countPartyItem);
@@ -41,9 +43,11 @@ public sealed class MazeQuestWorldContext : IQuestWorldContext
         _tryConsumePartyItem = tryConsumePartyItem;
         _instanceRegistry = instanceRegistry;
         _hasDiscoveredLocation = hasDiscoveredLocation;
+        _hasDefeatedBoss = hasDefeatedBoss ?? (_ => false);
     }
 
     public bool HasDiscoveredLocation(QuestLocation location) => _hasDiscoveredLocation(location);
+    public bool HasDefeatedBoss(string enemyId) => _hasDefeatedBoss(enemyId);
 
     public bool IsNpcAtLocation(QuestNpcId npcId, QuestNpcInstanceId instanceId, QuestLocation location)
     {

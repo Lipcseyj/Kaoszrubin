@@ -476,6 +476,15 @@ public static class AsciiPortraits
                  \_/|██|\_/
                """),
 
+           [MonsterIds.FagyóriásHarcos] = Portrait(
+               """
+                  /\____/\
+                 / ◉    ◉ \
+                |   __▲__  |
+                |  /||||\  |
+                 \_/|██|\_/
+               """),
+
            // E042 - Halállovag
            [MonsterIds.Halállovag] = Portrait(
                """
@@ -498,6 +507,15 @@ public static class AsciiPortraits
 
            // E044 - Csontsárkány
            [MonsterIds.Csontsárkány] = Portrait(
+               """
+                \^/\____/\^/
+                 \ x    x /
+                  \_☠▲☠_/
+                  /_||||_\
+                 <==/\/\==>
+               """),
+
+           [MonsterIds.CsontsárkányŐr] = Portrait(
                """
                 \^/\____/\^/
                  \ x    x /
@@ -546,8 +564,26 @@ public static class AsciiPortraits
                 '--------'
                """),
 
+           [MonsterIds.VénBeholderŐr] = Portrait(
+               """
+               \◉/\◉/\◉/\◉/
+                \  \ | /  /
+                .--(◎◎)--.
+               ( ▽▽▽▽▽▽▽ )
+                '--------'
+               """),
+
            // E049 - Drakolich
            [MonsterIds.Drakolich] = Portrait(
+               """
+               \^/\_☠__/\^/
+                \ ◉    ◉ /
+                 \_||||_/
+                 /▽▽▽▽▽▽\
+                <==/\/\==>
+               """),
+
+           [MonsterIds.DrakolichŐr] = Portrait(
                """
                \^/\_☠__/\^/
                 \ ◉    ◉ /
@@ -628,6 +664,15 @@ public static class AsciiPortraits
 
            // E064 - Ősi hidra
            [MonsterIds.ŐsiHidra] = Portrait(
+               """
+               (◉◉)(◉◉)(◉◉)
+                ||__||__||
+                \░/\░/\░/
+                 \▽▽▽▽▽/
+                 /| | |\
+               """),
+
+           [MonsterIds.ŐsiHidraŐr] = Portrait(
                """
                (◉◉)(◉◉)(◉◉)
                 ||__||__||
@@ -1732,6 +1777,15 @@ public static class AsciiPortraits
                  \_/|██|\_/
                """),
 
+           [MonsterIds.FagyóriásHarcos] = Portrait(
+               """
+                  /\____/\
+                 / ◉    ◉ \
+                |   __▲__  |
+                |  /||||\  |
+                 \_/|██|\_/
+               """),
+
            // E042 - Halállovag
            [MonsterIds.Halállovag] = Portrait(
                """
@@ -1754,6 +1808,15 @@ public static class AsciiPortraits
 
            // E044 - Csontsárkány
            [MonsterIds.Csontsárkány] = Portrait(
+               """
+                \^/\____/\^/
+                 \ x    x /
+                  \_☠▲☠_/
+                  /_||||_\
+                 <==/\/\==>
+               """),
+
+           [MonsterIds.CsontsárkányŐr] = Portrait(
                """
                 \^/\____/\^/
                  \ x    x /
@@ -1802,8 +1865,26 @@ public static class AsciiPortraits
                 '--------'
                """),
 
+           [MonsterIds.VénBeholderŐr] = Portrait(
+               """
+               \◉/\◉/\◉/\◉/
+                \  \ | /  /
+                .--(◎◎)--.
+               ( ▽▽▽▽▽▽▽ )
+                '--------'
+               """),
+
            // E049 - Drakolich
            [MonsterIds.Drakolich] = Portrait(
+               """
+               \^/\_☠__/\^/
+                \ ◉    ◉ /
+                 \_||||_/
+                 /▽▽▽▽▽▽\
+                <==/\/\==>
+               """),
+
+           [MonsterIds.DrakolichŐr] = Portrait(
                """
                \^/\_☠__/\^/
                 \ ◉    ◉ /
@@ -1884,6 +1965,15 @@ public static class AsciiPortraits
 
            // E064 - Ősi hidra
            [MonsterIds.ŐsiHidra] = Portrait(
+               """
+               (◉◉)(◉◉)(◉◉)
+                ||__||__||
+                \░/\░/\░/
+                 \▽▽▽▽▽/
+                 /| | |\
+               """),
+
+           [MonsterIds.ŐsiHidraŐr] = Portrait(
                """
                (◉◉)(◉◉)(◉◉)
                 ||__||__||

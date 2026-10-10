@@ -363,6 +363,16 @@ public static class CsvGameDataLoader
         };
         catalog.QuestChests = questChests.Build(catalog);
         catalog.Quests = new QuestCatalogBuilder(catalog).Build(npcQuests);
+        foreach (var boss in CampaignBosses.All)
+        {
+            var quest = catalog.Quests.Get(boss.QuestId);
+            if (quest.Objective is not Domain.Quests.QuestObjective.KillEnemy
+                    { Count: 1, RequiredFollower: null } objective || objective.Enemy.Id != boss.EnemyId ||
+                quest.RepeatPolicy != Domain.Quests.QuestRepeatPolicy.Once ||
+                !catalog.NpcEncounters.Any(encounter => encounter.MazeLevel == boss.Level &&
+                    quest.MatchesEncounter(encounter.Id) && encounter.AreaId == "AREA_1"))
+                throw new InvalidDataException($"A(z) {boss.Level}. pálya kulcsőrzőjének megbízása hibás.");
+        }
         foreach (var requirement in Enumerable.Range(1, MazeLevelConfigurations.FinalLevel)
             .Select(MazeLevelConfigurations.Get).Concat(QuestLocationConfigurations.All)
             .SelectMany(level => level.QuestDoorRequirements.Values))
@@ -1013,7 +1023,25 @@ public static class CsvGameDataLoader
         var enemyIds = enemies.Select(value => value.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var itemIds = items.Select(value => value.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
         for (var level = 1; level <= MazeLevelConfigurations.FinalLevel; level++)
-            Validate(MazeLevelConfigurations.Get(level), $"{level}. pálya");
+        {
+            var configuration = MazeLevelConfigurations.Get(level);
+            Validate(configuration, $"{level}. pálya");
+            if (configuration.RoomEncounters.Concat(configuration.CorridorEncounters)
+                .SelectMany(encounter => encounter.Members).Any(member => MonsterIds.Bosses.Contains(member.EnemyId)))
+                throw new InvalidDataException($"A(z) {level}. pálya kulcsőrzője véletlenszerű encounterben szerepel.");
+            var guardians = configuration.QuestRoomEnemyEncounters
+                .Where(encounter => MonsterIds.Bosses.Contains(encounter.EnemyId)).ToArray();
+            var expected = CampaignBosses.ForLevel(level);
+            if (expected is null ? guardians.Length != 0 :
+                guardians.Length != 1 || guardians[0].EnemyId != expected.EnemyId ||
+                guardians[0].RoomId != expected.RoomId || guardians[0].Count != 1 ||
+                guardians[0].Role != EnemyGroupRole.Leader ||
+                configuration.QuestDoorRequirements.ContainsKey(expected.RoomId))
+                throw new InvalidDataException($"A(z) {level}. pálya egyedi, szabadon elérhető kulcsőrzője hibás.");
+        }
+        if (!CampaignBosses.All.Select(boss => boss.EnemyId).ToHashSet(StringComparer.OrdinalIgnoreCase)
+                .SetEquals(MonsterIds.Bosses) || CampaignBosses.All.Count != MonsterIds.Bosses.Count)
+            throw new InvalidDataException("A kampány tizenkét kulcsőrzőjének katalógusa hiányos.");
         foreach (var configuration in QuestLocationConfigurations.All)
             Validate(configuration, $"'{configuration.Name}' küldetéshelyszín");
 

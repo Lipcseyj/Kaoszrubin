@@ -11,6 +11,8 @@ A területek névvel jelennek meg. A palota sorrendje: elárasztott kapu → kro
 
 A második palotaképernyő külön medenceszobájában két krokodilidomár, hat mocsári krokodil és egy óriáskrokodil vár. A sekély víz járható, 25%-kal növeli a felfedezéskori mozgási késleltetést és egy pont terepi megterhelést ad. Nem zár el termeket vagy átjárókat.
 
+Sszar-Kor és Szeth-Issz név szerinti kulcsőrzők saját történettel és a bejárati területen felvehető megbízással. A termük hatfős partihelyet és hadrendet kapott; a megbízás felvétele nem kötelező, a kijárat viszont a helyi boss aranykulcsát kéri. A tizenkét őrző rendszere: [CampaignBosses.md](CampaignBosses.md).
+
 ## Két harci kultúra
 
 **A gyíkemberek Pikkelylégiója** területeket és utánpótlási útvonalakat véd. A tömegét a régről ismert portyázók adják: a kapuőrrajokban három-négy pajzsos őr mellett nyolc-tizenkét portyázó áll, a folyosókon hasonló menetoszlopok járnak. Az őrök lassabbak, erős páncélt, vastag bőrt és garantált légiós pajzsot kapnak. A vadászok gyorsabbak, hosszúíjat és közeli pengét használnak. A sámánok gyógyítanak, növelik a csoport védelmét és harci erejét, kőbőrrel védenek vagy jégbilinccsel akasztanak meg. Az idomár az állatkülönítmény vezetője, a krokodilok erejét a tömeg és a természetes zúzócsapás egészíti ki.
@@ -21,7 +23,7 @@ Ez a kultúra a hadrend összetételében és a tényleges felszerelésben jelen
 
 A **méregigézet** külön aktív szörnyképesség: hatmezős hatótáv, két célpont, csatánként két használat és négykörös lehűlés. Savas sebzést okoz, a tartós mérgezés ellen 20-as nehézségű Egészség-próba véd. A dögvészvihar savsebzése és lassítása külön hatás: az ellenméreg nem helyettesíti a savvédelmet.
 
-A belső templomterületre egy medúza és egy óriásbaziliszkusz kerül. A negyedik képernyő mellékszentélyében pontosan egy ősi hidra és három óriáskígyó vár. Ezek ritka, erős teremőrök, nem aranykulcsos bossok.
+A belső templomterületre egy medúza és egy óriásbaziliszkusz kerül. A negyedik képernyő mellékszentélyében pontosan egy névtelen ősi hidra őr (E132) és három óriáskígyó vár. Sziszara, az egyedi ősi hidra kulcsőrző (E064) a 14. pályán él. Ezek ritka, erős teremőrök, nem aranykulcsos bossok.
 
 ## Új ellenfelek és fokozatos megjelenés
 

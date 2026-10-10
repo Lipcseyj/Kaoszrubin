@@ -59,7 +59,7 @@ internal static partial class Program
                 }
                 else
                 {
-                    Assert(enemies.Count(enemy => enemy.Definition.Id == MonsterIds.ŐsiHidra) == 1 &&
+                    Assert(enemies.Count(enemy => enemy.Definition.Id == MonsterIds.ŐsiHidraŐr) == 1 &&
                            enemies.Count(enemy => enemy.Definition.Id == MonsterIds.Medúza) == 1 &&
                            enemies.Count(enemy => enemy.Definition.Id == MonsterIds.ÓriásBaziliszkusz) == 1,
                         "A belső templom ritka őrzői tömegesek vagy hiányoznak.");
@@ -120,7 +120,8 @@ internal static partial class Program
         Assert(state.MazeLevel == 17 && state.DifficultyLevel == 17 && state.LocationId == "CAMPAIGN_17" &&
                state.AdHocConversationMazeLevel == 17 && ReferenceEquals(oldMaze, state.Maze) &&
                state.PartyCampaignProgression.HighestCompletedCampaignLevel == 14 &&
-               state.CollectedBossKeyIds.ToHashSet().SetEquals([MonsterIds.GyíkemberKirály, MonsterIds.KígyóFőpap, "E021"]) &&
+               state.CollectedBossKeyIds.ToHashSet().SetEquals(CampaignBosses.All
+                   .Where(boss => boss.Level < 17).Select(boss => boss.EnemyId)) &&
                state.SeenBossIds.SequenceEqual(["E021"]) &&
                oldMaze.Enemies.Select(enemy => enemy.CurrentHitPoints).SequenceEqual([105, 210]) &&
                oldMaze.Enemies.All(enemy => enemy.BossHitPointBonusPercent == 0),

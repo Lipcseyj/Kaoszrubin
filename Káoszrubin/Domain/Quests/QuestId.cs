@@ -238,4 +238,16 @@ public enum QuestId
     RuneBreakerTempleExit, // NPCQ163
     FugitiveSnakeHighPriest, // NPCQ164
     FugitiveTemplePriests, // NPCQ165
+
+    // A tizenkét kulcsőrző személyes megbízásai.
+    OrcDeserterWarchief, // NPCQ166
+    GiantHunterHrold, // NPCQ167
+    DragonResearcherAzrakar, // NPCQ168
+    FerrymanAncientHydra, // NPCQ169
+    CrystalEngineerXyrax, // NPCQ170
+    FrostGuideOssyra, // NPCQ171
+    SpiritSeerVelkhar, // NPCQ172
+    DragonResearcherNharaz, // NPCQ173
+    DemonHunterAshkaroth, // NPCQ174
+    ChaosPilgrimKaelZhur, // NPCQ175
 }

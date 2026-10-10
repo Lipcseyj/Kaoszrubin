@@ -22,93 +22,116 @@ public static class StoryNarratives
     [
         "A tizenkettedik boss elbukik. Az utolsó aranykulcs a levegőbe emelkedik, és társai felelnek hívására: tizenkét fénypont kering körülöttetek, akár egy aranyból rajzolt csillagkép.",
         "A kulcsok egyszerre fordulnak el láthatatlan zárakban. A Káoszlabirintus megrázkódik. Távoli falak omlanak le, eddig nem létező lépcsők nőnek ki a semmiből, és a mélységből olyan harangszó kondul, amelyet nem füllel, hanem a csontjaitokban hallotok.",
-        "Ekkor megjelenik előttetek Aurelios Máguskirály áttetsző képmása. „Beteljesítettétek a Csillagszeműek első jóslatát” — mondja. — „De a kulcsok csak a külső pecséteket törték fel. Zephyriel a Rubinhoz vezető utat huszonkét halálos szint mögé rejtette. Ami mögöttetek van, próba volt. Ami előttetek áll, háború.”",
+        "Ekkor megjelenik előttetek Aurelios Máguskirály áttetsző képmása. „Beteljesítettétek a Csillagszeműek első jóslatát” — mondja. — „A tizenkét pecsét feltört. A következő kapu már a Káoszrubin rejtekhelyére vezet. Vhar-Zul is megérezte a nyíló utat: most kell megelőznötök.”",
         "A látomás mögött egy másik alak is kirajzolódik: Vhar-Zul fekete koronája, majd két parázsló szem. A Sötét Úr nevetése végigviharzik a dimenzión. Ő is megérezte a zárak felnyílását — és most már pontosan tudja, merre vezet a Rubin Útja.",
-        "A tizenkét kulcs egyetlen ragyogó pecsétté olvad a parti előtt. A kapu túloldalán huszonkét új, brutális világ vár, mind közelebb a Káoszrubin lüktető fényéhez. A küldetés első célja teljesült. A valódi verseny most kezdődik."
+        "A tizenkét kulcs egyetlen ragyogó pecsétté olvad a parti előtt. A kapu túloldalán a Káoszrubin rejtekhelye vár. A tizenkét őrző története egyetlen döntéshez vezetett: kinek a kezébe kerülhet az a hatalom, amely már egyszer elpusztította az Aranykort?"
     ];
 
     public static readonly IReadOnlyDictionary<string, BossNarrative> BossNarratives =
         new Dictionary<string, BossNarrative>(StringComparer.OrdinalIgnoreCase)
         {
-            [MonsterIds.GyíkemberKirály] = new("VI. fejezet — A pikkelytrón koronája",
+            [MonsterIds.OrkTörzsfő] = new("1. kulcs — Vasagyar megtört zászlaja",
             [
-                "Sszar-Kor vagyok, a Pikkelylégió királya. A lápban csak portyázóimat láttátok. Itt pajzs viseli a csapást, vadász fogja az oldalt, sámán tartja életben a sort. Egy katona eshet el. A légió nem.",
-                "A koronák elsüllyedtek, a trón megmaradt. Az aranykulcsot a mocsár mélyéről hozták fel krokodiljaim. Zephyriel pecsétjének őrzője vagyok, és nem hajtok térdet a vedlő papoknak.",
-                "A templom főpapja isteni rendnek nevezi a mérget. Én tudom, mit jelent: a katonák engedelmességét akarja, a koronámmal együtt. Ha legyőztök, ő már várni fog benneteket."
+                "A Harci tanácsterem falára nem térképet, hanem a szökött ork családok neveit szögezték. Grond Vasagyar minden név mellé vasfogat vert. A dezertőr egykor ezt a listát őrizte, mielőtt saját fivére is felkerült rá.",
+                "„Grond vagyok, a Vasagyar törzs ura. A sámánok csak tanácsot adnak. Én döntöm el, ki eszik, ki harcol, és ki kerül a vadászok elé. A szökevény azért küldött titeket, mert maga nem mert visszajönni.”",
+                "A törzsfő a nyakában függő aranykulcsra markol. „A szél ura őrzésért adta. Vhar-Zul fegyvereket kínál érte. Előbb azonban bizonyítanom kell, hogy a csillagok emberei is elvéreznek. Testőrök, zárjátok a sort!”",
             ]),
-            [MonsterIds.KígyóFőpap] = new("VII. fejezet — A vedlő isten hamis hangja",
+            [MonsterIds.Fagyóriás] = new("2. kulcs — Jégszakáll utolsó vámja",
             [
-                "Szeth-Issz vagyok, a Vedlő Isten főpapja. A gyíkkirály pajzsokat gyűjtött. Én türelmet, mérget és hívőket. Amikor a körmenet elkezdődik, az erős kar is remegni kezd.",
-                "Ez az aranykulcs a régi bőr utolsó darabja. Tizenkét pecsét tartja vissza azt, amit ti Káoszrubinnak neveztek. A szél ura őrzést kért tőlem. Én megváltást készítettem belőle.",
-                "Az íjászok kifárasztanak, a méregmágusok megbénítanak, papjaim újra felemelik az őrséget. A belső szentély hidrája az előző korból maradt. Ne higgyétek, hogy ugyanazt az istent szolgálja."
+                "Hrold csarnokában szánok és törött expedíciós jelvények fagytak a falba. Az óriásvadász társai itt fizették ki utolsó vámjukat. Azóta az erőd minden átutazóját ugyanennek az adósságnak a nevében fosztják ki.",
+                "„Hrold Jégszakáll vagyok. Egykor átvezettem a kicsi népeket a hágón. Aztán Azrakar felégette a falvaimat, az utazók pedig a vörös sárkánynak fizettek védelemért. Most nekem fizetnek. Mind.”",
+                "Jégbe foglalt aranykulcs lóg az övén. „Zephyriel azt kérte, senkit ne engedjek át, aki hatalmat keres. Az óriásvadász szerint megszegtem az esküt. Mondjátok meg neki: az eskü nem eteti az éhezőket.”",
             ]),
-            [MonsterIds.OrkSámán] = new("II. fejezet — Grashka füstjóslata",
+            [MonsterIds.VörösSárkány] = new("3. kulcs — A Parázstrón hamis hívei",
             [
-                "Én vagyok Grashka, a Vasagyar törzs füstlátója. A többiek azt hiszik, a szellemek beszélnek hozzám. Valójában többnyire a füst beszél, és annak is rettenetes a memóriája.",
-                "Az aranykulcsot álmomban kaptam egy négyarcú vihartól. Négy hang veszekedett benne: láng, hullám, kő és szél. A szél győzött, de úgy remegett, mint aki tudja, hogy egyszer visszajönnek érte.",
-                "Északon Hrold, a fagyóriás vár. Fél a vörös szárnyaktól, bár ezt sosem vallaná be. Ha találkoztok vele, mondjátok meg, hogy Grashka szerint a szakálla csak ráfagyott kecskeszőr."
+                "A Parázsszentély oszlopain királyok neveit kaparták át Azrakar nevére. Az orgyilkos hívek minden nemzedékben új áldozatot hoztak a trónnak. A sárkánykutató expedíciója azonban felismerte: a feliratok egy régi őrzői esküt rejtenek.",
+                "„Azrakar vagyok, a Parázstrón ura. Hrold csak a szakállát veszítette a tüzemben. Az emberek egész királyságokat. A kutatótok mégis azt híreszteli, hogy nem isten vagyok, hanem egy halott mágus szolgája.”",
+                "Az aranykulcs a megolvadt koronák között izzik. „Zephyriel őrzést kért a véremtől. Én hódolatot kaptam érte. Ha elviszitek a kulcsot, ki fogja többé megkülönböztetni a sárkányt az istentől?”",
             ]),
-            [MonsterIds.Fagyóriás] = new("III. fejezet — Hrold dermedt esküje",
+            [MonsterIds.ŐsiHidra] = new("4. kulcs — A koronafaló kilenc hangja",
             [
-                "Hrold Jégszakáll vagyok. Százhetven telet számoltam, aztán meguntam. Azóta a jégcsapokat számolom. Ez itt a négyszáznyolcvankétezredik. Vagy ugyanaz, mint tegnap.",
-                "A kulcsot egy vörös sárkány karmaiból téptem ki, amikor még fiatal és ostoba volt. Azóta nagyobb lett, én pedig bölcsebb: ma már tudom, hogy Azrakar nem felejt. A tüze néha még álmomban is megolvasztja a csarnok falát.",
-                "A kulcs belsejében kaput látok, a kapu mögött pedig egy vörös követ. Nem tudom, miért kell tizenkét kulcs egyetlen kapuhoz. Talán a kicsi népek ennyire félnek a huzattól."
+                "Az Elárasztott méregcsarnok vizében koronák csillannak. Sziszara már akkor itt élt, amikor a lápi paloták még a napot látták. Kilenc torka utánozza az elsüllyedt királyok harangjait: a révész eltűnt hajósai ezt követték a mélybe.",
+                "„Sziszara vagyok” — mondja a középső fej. „Mi vagyunk Sziszara” — felel a többi. „Az aranykalapos királyok mind átkelést kértek. Mind megfizettek. A ti révészetek azt hiszi, a halottakért jár a visszajáró.”",
+                "Zephyriel kulcsa egy széttört koronában függ az ősi hidra mellkasán. „A szél ide rejtette, ahol a tűz nem érheti el. Sszar-Kor vissza akarja kérni az ősei aranyát. Szeth-Issz istennek nevez minket. Ti minek neveztek majd, amikor a kilencedik száj is harap?”",
             ]),
-            [MonsterIds.VörösSárkány] = new("IV. fejezet — Azrakar parázstrónusa",
+            [MonsterIds.GyíkemberKirály] = new("5. kulcs — A pikkelytrón zsarnoka",
             [
-                "Azrakar vagyok, az Első Parázs örököse. Láttam királyokat megöregedni, birodalmakat hamuvá válni, és Hroldot elfutni a saját megperzselt szakállával. Ezt a részt különösen szívesen láttam.",
-                "Tudom, hogy a kulcs pecsétet tör. Zephyriel, a szél ősmágusa maga bízta az elődeimre. Azt mondta, tizenkét őrző közül egy se értse az egész tervet. Bölcs óvatosság — vagy gyáva bizalmatlanság.",
-                "A mocsárban Sziszara, a hidra őrzi a következő kulcsot. Kilenc feje van, és mind a kilenc más történetet mesél arról, hogyan győzött le engem. Egyik sem igaz. A tizedik történet viszont talán az lenne."
+                "A Királyi pikkelytrón lépcsőire levert koronákat szegecseltek. Sszar-Kor ezekből csinált rangjelzést a Pikkelylégiónak. A levéltáros listáján mindegyik korona mellett egy felégetett lápi település neve áll.",
+                "„Sszar-Kor vagyok. A lápban portyázóimat láttátok, itt a légiót. Pajzs tartja a csapást, vadász zárja az oldalt, sámán emeli fel az elesettet. A koronák urai vitatkoztak. Az én katonáim engedelmeskednek.”",
+                "A király az aranykulcsot a trón karfájából emeli ki. „Zephyriel őrzővé tett. Szeth-Issz az engedelmességemet akarja, a levéltáros a múltamat. Egyikük sem kapja meg. Ha a paphoz készültök, előbb bizonyítsátok, hogy át tudtok törni egy valódi hadrenden.”",
             ]),
-            [MonsterIds.Hidra] = new("V. fejezet — Sziszara kilenc hangja",
+            [MonsterIds.KígyóFőpap] = new("6. kulcs — A vedlő isten hamis hangja",
             [
-                "Sziszara vagyok. Én mondom ezt, nem a bal szélső fej. Az mindig hazudik. A jobb szélső szerint mindannyian Sziszara vagyunk, de ő egyszer egy követ is tojásnak nézett.",
-                "A kulcs a mocsár fenekéről került elő, egy szél nélküli vihar után. Ha közel tesszük a többi aranyhoz, énekel. Ha közel tesszük egy békához, a béka felrobban. Ezt fontosabb felfedezésnek tartom.",
-                "A palotában Sszar-Kor pajzsos serege, mögötte Szeth-Issz mérges körmenete vár. A kristálycsarnokban Xyrax figyel minden irányba. Ő látja a kulcsok közötti fonalakat. Mi nem szeretjük Xyraxot. Túl sok szeme van. Ezt kilenc fej teljes egyetértésben mondja."
+                "A főoltár körül emberi neveket véstek levetett kígyóbőrökbe. A szökevény felismerte köztük azokat, akiket a lápi fogadók elől hurcoltak el. Szeth-Issz minden áldozatot az isten új testének egy darabjává nyilvánított.",
+                "„Szeth-Issz vagyok, a Vedlő Isten hangja. Sszar-Kor pajzsot adott a katonának. Én értelmet adok a halálának. A szökevényetek azért fél tőlem, mert megmutattam neki, mennyire vékony a saját bőre.”",
+                "A főpap aranykulcsot merít az oltár mérgébe. „A szél őrzést kért. Vhar-Zul megváltást ígért. Ha elég név oldódik fel ebben a kehelyben, a pecsét engem választ új testének. Kezdődjék a körmenet!”",
             ]),
-            [MonsterIds.VénBeholder] = new("VIII. fejezet — Xyrax ezer látomása",
+            [MonsterIds.VénBeholder] = new("7. kulcs — A kristályok fogoly tekintete",
             [
-                "Xyrax vagyok, a Századik Tekintet. Egyik szemem a jelent látja, három a lehetséges jövőket, kettő a múlt hazugságait. A maradékot viszketésre használom.",
-                "Látom a tizenkét kulcs aranyfonalát. Nem ajtót nyitnak: helyet kényszerítenek a káoszra, hogy ajtóvá váljon. Mögötte a négy őserő egyetlen rubinban marja egymást, és huszonkét árnyék áll közte és a világotok között.",
-                "Ossyra, a csontsárkány még emlékszik Zephyriel hangjára. Fél saját ősétől, Nharaztól, a drakolichtól. Jogos félelem. Egy lehetséges jövőben Nharaz megeszi a lelkemet. Tizenhét másikban én eszem meg az övét."
+                "A Századik Tekintet szentélyében a kristályok emberi emlékeket vetítenek a falra. Xyrax a mérnök eltűnt társait használta szemnek: minden új járatot rajtuk át tanult meg, majd a testüket a gólemekre bízta.",
+                "„Xyrax vagyok. Száz szemmel születtem, de az kevés volt ehhez a világhoz. A mérnök vissza akarja kapni a barátait. Melyik emléküket? A bátrakét, akiket ő küldött ide, vagy a haldoklókét, akiket magukra hagyott?”",
+                "Az aranykulcs lebegő kristályba zárva forog. „Zephyriel fonalai mind ide vezetnek. Ossyra még emlékszik az esküre, Nharaz már eladta. Én mindkettőjüket láttam. Most a ti emlékeitekkel teszem teljessé a térképet.”",
             ]),
-            [MonsterIds.Csontsárkány] = new("IX. fejezet — Ossyra csontemlékezete",
+            [MonsterIds.Csontsárkány] = new("8. kulcs — A dermedt eskü feloldása",
             [
-                "Ossyra volt a nevem, amikor pikkely fedte e csontokat. Zephyriel akkor érkezett a dermedt mélységbe, amikor még az ég is fiatalabb volt. Nem parancsolt. Könyörgött, hogy őrizzem a kulcsot azoktól, akik a Rubint fegyverré tennék.",
-                "A halál nem oldotta fel az eskümet. Csak elvette belőle a meleget. Évszázadok óta hallom, ahogy a pecsétek egymást keresik a dimenzión át.",
-                "Nharaz, az első sárkányból lett drakolich azt hiszi, a Rubin visszaadhatja a húsát. Téved. A Rubin nem visszaad: átír. Ha eljuttok hozzá, ne higgyetek annak a hangnak, amelyen a halott anyátok szólít majd benneteket."
+                "A dermedt eskü sírkamrájában a fagyjáró kalauz őseinek nevei sorakoznak. Egykor Ossyra szárnya alatt kerestek menedéket. Zephyriel mindannyiukat a pecsét védelmére eskette, és az eskü túlélte a testüket.",
+                "„Ossyra volt a nevem, amikor pikkely fedett. A kalauzotok a saját vérét akarja felszabadítani. Megértem. De a halál nem mondta ki helyettünk, hogy vége az őrségnek.”",
+                "Az aranykulcs a sárkány bordái között csillan. „Nharaz visszaígérte a húsomat, ha átadom. Nem tettem. Ha ti a Rubint fegyverré teszitek, ugyanúgy hazudtatok a holtaknak, mint ő. Mutassátok meg, hogy az élőkben még lehet bízni.”",
             ]),
-            [MonsterIds.Ősvámpír] = new("X. fejezet — Velkhar örök éjszakája",
+            [MonsterIds.Ősvámpír] = new("9. kulcs — Az örökéj név szerint",
             [
-                "Velkhar gróf vagyok, és már akkor untam ezt az erődöt, amikor dédapáitok még udvariasan kopogtak a kripták ajtaján. Mostanában csak Aurelios kémei jönnek. Udvariatlanok, de legalább friss vérük van.",
-                "Igen, ismerem a Máguskirály tervét. Emberei fogadóról fogadóra építették ki az útvonalatokat. Azt hiszik, nem vettem észre őket. Hagytam, hogy továbbmenjenek; kíváncsi voltam, valóban megérkeznek-e a csillagok kiválasztottjai.",
-                "Vhar-Zul is küldött követeket. Azt ígérte, nappaltalan világot ad nekem. Ostoba ajánlat — már van egy. A Drakolich viszont elfogadta az övét. Nharaz tudja, hogyan nyílik a belső út, és kinek a vére kell hozzá."
+                "Az örökéj tróntermében minden teríték mellett egy család címere áll. Velkhar meghívói nemzedékek óta nem engedték haza a vendégeket. A halottlátó remete azért küldött ide, hogy a neveiket ismét valaki élő mondja ki.",
+                "„Velkhar gróf vagyok. Aurelios kémei kereskedőnek öltöztek, Vhar-Zul követei szövetséget kínáltak. Mind azt hitték, hogy a nappaltalan világért bármelyikük szolgája leszek. Pedig én csak jó társaságot kerestem.”",
+                "A gróf aranykulccsal kocogtatja a kristálypoharat. „Zephyriel pecsétje megőrizte a vendégeim emlékeit. A remetétek szabadon engedné őket. Ti is ezért jöttetek, vagy csak új gazdát hoztok ugyanannak a zárnak?”",
             ]),
-            [MonsterIds.Drakolich] = new("XI. fejezet — Nharaz fekete evangéliuma",
+            [MonsterIds.Drakolich] = new("10. kulcs — A holtak hamis feltámadása",
             [
-                "Nharaz vagyok, akit a sárkányok is ősüknek neveztek, mielőtt nevemet kivésték a csontjaikból. Ossyra figyelmeztetett rólam, igaz? Mindig szeretett történetekkel védekezni a valóság ellen.",
-                "A tizenkét kulcs a külső pecsét gyűrűjét bontja fel. Utána huszonkét szint következik, mindegyik Zephyriel egy-egy emlékéből és félelméből épült. Az út végén nem kincsesház áll, hanem a Káoszrubin börtöne.",
-                "Vhar-Zul megígérte, hogy a Rubin lángjával új testet ad nekem. Tudom, hogy hazudik. Én is hazudtam neki. A Balor, Ashkaroth azonban vakon szolgálja. Ha legyőzitek, a Sötét Úr végre személyesen is rátok figyel majd."
+                "A fekete evangélium kriptájában a holtak neveit nem kőbe, hanem friss bőrbe írták. Nharaz új testet ígért követőinek, miközben a sárkánykutató nyomai szerint a lelküket a saját bordái közé égette.",
+                "„Nharaz vagyok. Ossyra esküvel vigasztalja a holtakat, én lehetőséget adok nekik. A kutatótok bizonyítékot keres a csalásra. Nézzen rám: a halál után is beszélek. Kell ennél több bizonyíték a feltámadásra?”",
+                "Az aranykulcs csontból formált szív mellett függ. „Vhar-Zul a Rubin tüzét ígérte, ha elárulom Zephyriel zárját. Tudom, hogy hazudik. Ő is tudja, hogy én hazudom. Ashkaroth viszont még mindig hisz neki. Az ilyen hitből lesz a háború.”",
             ]),
-            [MonsterIds.BalorDémon] = new("XII. fejezet — Ashkaroth vértrónusa",
+            [MonsterIds.BalorDémon] = new("11. kulcs — A Vértrónus láncai",
             [
-                "Ashkaroth vagyok, Vhar-Zul ostora és a Vértrónus ura. Nem véletlenül jutottatok idáig. Hagytuk, hogy összegyűjtsétek a kulcsokat, mert a pecséteket sem démon, sem árnyék nem törheti fel — csak azok, akiket a csillagok megjelöltek.",
-                "Ti nem Aurelios hősei vagytok. Ti vagytok a kulcs, amelyet mindkét király ugyanabba a zárba próbál illeszteni. Amint az utolsó aranydarab a helyére kerül, uram seregei meglátják a Rubin Útját.",
-                "A Káoszsárkány nem szolgál minket. Kael-Zhur még Vhar-Zult is gyűlöli, mert ismeri a Rubin valódi árát. Menjetek csak hozzá. Ha megöltök, a halálom lesz a jelzőtűz, amely odavezeti hozzátok a Sötét Urat."
+                "A Vértrónus lábánál a démonvadász régi láncai hevernek. Ashkaroth a megszökött vadász helyére annak társait kötötte, majd minden új ostromhoz az ő kiáltásukkal adta meg a jelet.",
+                "„Ashkaroth vagyok, Vhar-Zul ostora. A lánctalan vadász szabadságról beszél. Én megmutattam neki az árát. Mindenki, akit itt felszabadítotok, újabb ok lesz arra, hogy uram a világotokat válassza következő célpontnak.”",
+                "A balor a Vértrónus karfájába vert aranykulcsra mutat. „A pecséteket csak a csillagok kiválasztottjai törhetik fel. Ezért kellett idáig eljutnotok. Kael-Zhur az utolsó lakat. Ha ő elesik, a ti utatok lesz Vhar-Zul útja is.”",
             ]),
-            [MonsterIds.Káoszsárkány] = new("XIII. fejezet — Kael-Zhur, az utolsó lakat",
+            [MonsterIds.Káoszsárkány] = new("12. kulcs — Zephyriel utolsó bűne",
             [
-                "Kael-Zhur vagyok, a Káosz első lélegzete és Zephyriel utolsó bűne. Nem születtem. A Rubin álmodott meg engem, hogy legyen valami, amitől még a négy alkotója is félhet.",
-                "Tudom, miért jöttetek. Aurelios azt mondta, meg kell előznötök Vhar-Zult. Vhar-Zul azt hiszi, ti nyitjátok ki neki az utat. Mindketten igazat mondanak, és mindketten hazudnak. A Káoszrubin nem engedelmeskedik annak, aki megtalálja — átformálja őt arra, amire a világ leginkább vágyik vagy amitől legjobban retteg.",
-                "Kulcsom az utolsó a tizenkettőből. Ha elveszitek, feltárul Zephyriel huszonkét szintből álló belső útja. Ott már nem őrzők várnak, hanem egy ősmágus emlékei, széthullott törvények és Vhar-Zul közeledő serege.",
-                "Évszázadok óta őrzöm ezt a lakatot, és bevallom: rettenetesen unatkozom. Mutassátok meg, Kulcshordozók, hogy a csillagok valóban benneteket láttak — vagy csak egy különösen kegyetlen tréfát játszottak velem."
+                "Az utolsó lakat termében nem kincshalom áll, hanem Zephyriel arcát viselő töredezett szobrok. A káoszzarándok itt értette meg, hogy a sárkány nem Vhar-Zul fegyvere: a Rubin alkotójának elhallgatott bűne.",
+                "„Kael-Zhur vagyok. Nem születtem. A Rubin álmodott meg, amikor Zephyriel a társai ellen fordult. Azért zárt ide, mert bennem ismerte fel azt, amivé a hatalom őt tette.”",
+                "Az utolsó aranykulcs a sárkány mellkasába nőtt. „Aurelios megmentést ígér, Vhar-Zul uralmat. Mindketten azt hiszik, a kő engedelmeskedni fog. Ha legyőztök, feltárul a Rubin rejtekhelye. A zarándoknak mondjátok meg: az őrző végül az élőkre bízta a döntést.”",
             ]),
             [MonsterIds.SirMalrec] = new("Roderic krónikája — A megtört eskü",
             [
-                "Roderic. Még mindig mások pajzsa mögé bújsz, hogy ne kelljen látnod a saját kudarcodat?",
-                "Az eskünk velünk halt. Én csak kimondtam azt, amit te azóta sem mersz: a holtaknak nem tartozunk hűséggel.",
-                "Gyertek hát. Hadd lássam, vajon az új bajtársaid tovább kitartanak-e melletted, mint a régiek."
-            ])
+                "A sírkápolnában Sir Malrec az Esküszegő a régi bajtársak pajzsait fordította a fal felé. Az Ezüst Eskü egykori parancsnoka most négy csontvázlovagot vezet. Roderic azért kérte a segítségeteket, hogy a rend emléke ne ezzel az őrséggel együtt tűnjön el.",
+                "„Roderic. Még mindig mások pajzsa mögé bújsz? Hallottuk a katakombákban rekedtek hangját, amikor lezártad a kaput. Te az élőket mentetted. Mi bent maradtunk. Azóta minden éjjel újra meghalljuk a zár kattanását.”",
+                "Malrec kardja a négy csontvázlovag felé int. „Az élőknek tett esküt én már feloldottam. A holtaknak új hűséget fogadtam. Ezek a régi bajtársaid. Gyertek: lássuk, az új barátaid tovább kitartanak-e melletted.”",
+            ]),
+            [MonsterIds.HollóKlánvezér] = new("A Hollók keresztútja — Varrik utolsó zsákmánya",
+            [
+                "Varrik Feketeszárny a Hollók kereszteződésénél nem ékszert halmozott fel, hanem az erdőn átkelő karavánok ellátmányát. A menekülők éhezése biztosította, hogy mindig legyen, aki megfizeti a klánt.",
+                "„Azt hittétek, a Hollók csak erszényt vágnak? Én utat adok. Kenyeret, vizet, nevet a hamis papírokra. A küldetéstek megbízója mindezt vissza akarja kérni, csak az árát nem akarja kifizetni.”",
+                "A klánvezér Varrik vésésű tőrét a raktárláda tetejére koppintja. A rejtekben orgyilkosok mozdulnak. „A készlet a miénk. Ha az útra kell nektek, bizonyítsátok, hogy élve ki is értek vele az erdőből.”",
+            ]),
+            [MonsterIds.OrkRaktárnok] = new("Az erdei raktár — Durgan számadása",
+            [
+                "Durgan Hordótörő az erdei őrség zsákmányából táplálta a haditábort. Minden ellopott zsák mellé ugyanazt írta: hadiadó. A visszaszerzésre váró ellátmány mögött falvak üres kamrái állnak.",
+                "„Durgan vagyok. Grond harcol, a sámán jósol, de én tudom, hány adag marad télre. A megbízótoknak könnyű visszakérni ezt a ládát. Az én katonáimnak akkor nem jut semmi.”",
+                "A raktárnok baltájával szétüti a bejárat mellé tett hordót, és őrei elé áll. „Aki a készlethez nyúl, az egész haditábort hívja ki. Kezdjük velem.”",
+            ]),
+            [MonsterIds.ZsilipŐrkapitány] = new("Az elsüllyedt út — Aldren utolsó őrsége",
+            [
+                "Sir Aldren a láp zsilipjénél maradt, amikor az udvar víz alá került. A mentéshez félretett ellátmányt azóta is őrzi, bár a parancsot adó király rég halott. A készletért érkezőket ugyanannak a fosztogató hadnak nézi.",
+                "„Sir Aldren vagyok, a zsilip őrkapitánya. A korona parancsa szerint ezek a ládák az evakuálásra kellenek. A megbízótok nem hozott új parancsot. Csak újabb éhes embereket.”",
+                "Rozsdás kardja mögött az őrség felsorakozik. „Ha a régi udvar már nem tér vissza, mutassátok meg, hogy van még valaki, akiért érdemes kinyitnom a zsilipet.”",
+            ]),
+            [MonsterIds.LápiUdvarmester] = new("A lápi udvar — Mirelda üres lakomája",
+            [
+                "Mirelda udvarmester egy elsüllyedt királyság utolsó lakomáját készíti elő. A tányérok üresek, de a kamrákban őrzött ellátmány valódi: a láp túlélői ebből juthatnának a következő menedékig.",
+                "„Mirelda vagyok. Az udvar addig él, amíg valaki megteríti az asztalt. A megbízótok szerint ezt a készletet szét kell osztani. Akkor ki marad, aki fogadja a hazatérő királyt?”",
+                "Az udvarmester intésére a kultista kíséret is feláll. „A koronák a vízben vannak, de a kötelesség itt maradt. Ha véget akartok vetni a lakomának, üljetek az utolsó vendégek helyére.”",
+            ]),
         };
 
     public static IReadOnlyList<string> CreateCampaignFinale(IEnumerable<LiveCharacter> livingParty, string leaderName)
@@ -116,7 +139,7 @@ public static class StoryNarratives
         var paragraphs = new List<string>
         {
             "A Káoszrubin a rejtekhely legutolsó termében lebeg. Belsejében tűz, víz, föld és szél kergeti egymást, mintha a négy ősi elementálmágus vitája még mindig nem ért volna véget. Amikor megérintitek, a kő egyetlen szívdobbanásnyi időre elnémul — aztán bíbor fénye elnyeli a labirintust.",
-            "Nem zuhantok, mégis világok suhannak el mellettetek. A káosz huszonkét megtört törvénye egyetlen villanásba roskad, majd márvány érinti a lábatokat. Saját világotokban álltok, Aurelios Máguskirály tróntermében, a Káoszrubinnal együtt.",
+            "Nem zuhantok, mégis világok suhannak el mellettetek. A káosz megtört törvényei egyetlen villanásba roskadnak, majd márvány érinti a lábatokat. Saját világotokban álltok, Aurelios Máguskirály tróntermében, a Káoszrubinnal együtt.",
             "A Csillagszeműek teljes köre vár benneteket az aranykupola alatt. Már órákkal korábban meggyújtották a tizenkét csillaglámpást: megérezték, hogy közeledik a kiválasztott. Vhar-Zul árnyéka visszahúzódik az ólomüveg ablakokról, Aurelios pedig leszáll trónjáról, és király létére fejet hajt előttetek.",
             "A királyi krónikás felnyitja az üresen hagyott aranylapokat. Nemcsak a Káoszrubin visszatérését jegyzi fel, hanem mindazok nevét is, akik élve járták végig az utat:"
         };

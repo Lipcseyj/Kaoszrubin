@@ -5,6 +5,12 @@ internal static partial class Program
         #region test cases
         var tests = new (string Name, Action Run)[]
         {
+    ("Kulcsőrzők: tizenkét egyedi boss, garantált terem és név szerinti történet", CampaignBossRoomsAlwaysGenerateOnce),
+    ("Kulcsőrzők: hadrend zárt bejárat előtt és hatfős partihely", CampaignBossFormationFacesClosedEntry),
+    ("Kulcsőrzők: korábban szerzett kulcs és egyszeri questjutalom", CampaignBossQuestRecognizesEarlierKeyOnly),
+    ("Kulcsőrzők: az átjáró a saját pálya aranykulcsát kéri", CampaignBossKeysGateTheirOwnExit),
+    ("Kulcsőrzők: régi mentés, ősi hidra és elhagyott pecsétek migrációja", CampaignBossMigrationRetainsKeysAndRemovesDuplicates),
+    ("Kulcsőrzők: élő boss és halott őrség expedíciós megőrzése", CampaignBossExpeditionsNeverRecreateGuardians),
     ("Játékidő: térképi kör, pihenés, napváltás és napszak", GameTimeRoundsRestAndDaylight),
     ("Játékidő: taktikai és gyorsharci körök egyszer számítanak", GameTimeBattleRoundsCountOnce),
     ("Játékidő: mentésmigráció és megkezdett térképi kör", GameTimeSaveMigrationAndRoundRemainder),

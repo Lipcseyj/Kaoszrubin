@@ -4,6 +4,8 @@ Az 1–7. szint encounter-egyensúlya a meglévő konfigurációt követi. A 6. 
 
 A Süllyedt koronák lápvidéke a 13. pálya. A 14. után elkészült a 15. Pikkelytrón és a 16. Vedlő isten temploma; a korábbi 15–23. pályák 17–25-re kerültek. A kampányhatár 25. A részleteket a [lápvidék](SunkenCrownsForest.md) és a [hüllődungeonök](ScaledKingdomDungeons.md) dokumentuma írja le.
 
+A tizenkét név szerinti kulcsőrző garantált különleges termet, fix kíséretet és saját megbízást kapott. Az első Grond Vasagyar, az ork törzsfő a 9. pályán. A részletes kiosztást, kulcsellenőrzést és mentésmigrációt a [CampaignBosses.md](CampaignBosses.md) írja le.
+
 ## Találkozások és pályakarakter
 
 | Szint | Fő szerep | Csoportok és varázshasználók |
@@ -24,7 +26,7 @@ A Süllyedt koronák lápvidéke a 13. pálya. A 14. után elkészült a 15. Pik
 | 21 – Sárkánytemető | Ritka nagy lények, élőholt háttér | Drakolich, csontsárkányok, wyvernek, lich és nekromanták. A nagy lények között gyenge csontvázak és íjászok tömegei; kardmester és vén múmia tovább él az összeállításban. |
 | 22 – Parázspusztaság | Démoni tömeg | Nagy pokolfajzat–korcs hordák; kevés karmos démon, pokolőr és pokolkutya. Papok, tanítványok, káoszmágusok és vérmágusok a fedezet mögött. |
 | 23 – Vértrónus | Támogatott hadrend | Vérmágus + korcsok + pokolőr; káoszfőpap + démonlovagok + gyenge fedezet. Egy Balor, ritka feketemágus és élő páncél a harmadik képernyőn. |
-| 24 – Káosz szíve | Minőségi csúcspont | Feketemágusok, főpapok, lich és vérmágus; elit őrök mellett olcsóbb kultista és démoni rajok. A meglévő káoszsárkány–drakolich találkozás megmarad. |
+| 24 – Káosz szíve | Minőségi csúcspont | Feketemágusok, főpapok, lich és vérmágus; elit őrök mellett olcsóbb kultista és démoni rajok. Kael-Zhur külön boss-teremben, káoszlovagokkal, élő páncélokkal és káoszfőpappal vár. |
 | 25 – Káosz trónja | Vegyes végső őrség | Mágusok és páncélok, lich és múmiák, démonlovagok és gyenge démonok. Tematikus elit termek: ősi minotaurusz, fekete sárkány, vámpír kardmester. |
 
 A többképernyős pályákon a célzott termek mellett a többi csoport automatikusan eloszlik. A folyosók nagy hordák és kisebb járőrök keverékét kapják; az ork haditáborban a tömeg dominál. A nagyobb hadrendekhez a teremméret és a szobaszám is nőtt. A kisebb, erős csoportok számára nem kell ugyanannyi tömeget hozzáadni, mint a táborban vagy a démoni síkokon.
@@ -37,7 +39,7 @@ A többképernyős pályákon a célzott termek mellett a többi csoport automat
 - **Vámpírok:** a 19. szinten egy ritka példány, a 20. szinten több raj és kardmester, a 21. és 25. szinten kisebb elit jelenlét. Az alfa vérfarkas fő tömeges használata a tervezett éjszakai erdőre marad.
 - **Szárnyas és mágikus őrök:** wyvern, hárpia és gargoyle a 12. szinten kezd összeállni; a 17–18. és 21–25. szinten más kíséretekkel folytatódik. Az élő páncél először egyetlen veszélyes teremvédő a 18. szinten, majd később több elit összeállításban szerepel.
 - **Démonok:** a 12. szint kevés pokolfajzata után a 22–23. szinten a gyenge démonok adják a tömeget. Pokolkutya, karmos démon és parázsdémon támogatja őket; a 24–25. szinten is marad gyengébb fedezet.
-- **Hüllőnépek:** a 6., 13. és 14. szint előőrsei után a fő tömeg és az új változatok az elkészült 15–16. dungeonben kapnak helyet. Az óriáskígyó a 13–17. pályán fokozatosan jelenik meg, az ősi hidra a templom belső mellékszentélyének egyszeri őrzője.
+- **Hüllőnépek:** a 6., 13. és 14. szint előőrsei után a fő tömeg és az új változatok az elkészült 15–16. dungeonben kapnak helyet. Az óriáskígyó a 13–17. pályán fokozatosan jelenik meg, Sziszara a 14. pálya ősi hidra kulcsőrzője; a templom mellékszentélyében külön, névtelen ősi hidra őr vár.
 
 A varázshasználók CSV-ből betöltött repertoárját használjuk; az új gyíksámán támogató, a méregmágus irányító, a kígyó főpap pedig erős csoportos támogató. A kisebb tanítványok és vajákosok nem tűnnek el automatikusan a magas szinteken: fedező vagy irányító szerepük van. Vérpap, káoszpap és főpap támogató; boszorkány és tanítvány irányító; káoszmágus, vérmágus és feketemágus tüzér; nekromanta, lich és drakolich az élőholt csoportok magja.
 

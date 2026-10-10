@@ -35,7 +35,8 @@ public sealed class DungeonExpeditionCoordinator
         templates.AddRange(maze.Corpses.OfType<MonsterCorpse>()
             .Where(corpse => gameData.GetEnemy(corpse.EnemyDefinitionId).Rank < EnemyRank.MiniBoss &&
                              corpse.EnemyDefinitionId != MonsterIds.ÉlőholtPátriárka &&
-                             corpse.GuaranteedLootIds.Count == 0)
+                             corpse.GuaranteedLootIds.Count == 0 &&
+                             maze.Rooms.All(room => room.AllowsRandomContent || !room.Contains(corpse.Position)))
             .Select(corpse => new ExpeditionEnemyTemplate(corpse.EnemyDefinitionId, corpse.Position,
                 EnemyMovementProfile.Wander, Direction.Right, null, EnemyGroupRole.Member, areaId)));
     }
@@ -80,6 +81,7 @@ public sealed class DungeonExpeditionCoordinator
         return positions.Where(position => maze.IsInside(position) && maze.IsWalkable(position) &&
                 position != maze.Entrance && position != maze.Exit && maze.GetObjectAt(position) is null &&
                 maze.GetDoorAt(position) is null && maze.GetTrapAt(position) is null &&
+                maze.Rooms.All(room => room.AllowsRandomContent || !room.Contains(position)) &&
                 !innInteriors.Any(room => room.Contains(position)))
             .Select(position => (Position?)position).FirstOrDefault();
     }

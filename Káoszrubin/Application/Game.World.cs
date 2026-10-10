@@ -48,7 +48,8 @@ public sealed partial class Game
             _questNpcInstanceRegistry,
         hasDiscoveredLocation: location => location == QuestLocation.Exit && IsLevelExitDiscovered(),
         getMazes: () => _dungeonLevel is null ? [_maze] :
-            _dungeonLevel.Areas.Select(area => area.Maze));
+            _dungeonLevel.Areas.Select(area => area.Maze),
+        hasDefeatedBoss: enemyId => _collectedBossKeyIds.Contains(enemyId));
 
         return ret;
     }
@@ -1627,7 +1628,7 @@ public sealed partial class Game
                 ? remembered : definition.Unique ? 4 : RollNpcFriendliness(definition);
             if (definition.PersistentRelationship) _npcRelationships[definition.Id] = friendliness;
             var completionDialogueIds = _gameData.Quests.All
-                .Select(quest => quest.CompletionDialogue?.Id)
+                .SelectMany(quest => new[] { quest.CompletionDialogue?.Id, quest.HighRelationshipDialogue?.Id })
                 .Where(id => id is not null)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
             var greetings = _gameData.GetNpcDialogues(definition.Id)

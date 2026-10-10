@@ -937,14 +937,6 @@ public sealed partial class Game
         foreach (var boss in discovered)
         {
             _seenBossIds.Add(boss.Definition.Id);
-            if (string.Equals(boss.Definition.Id, MonsterIds.SirMalrec, StringComparison.OrdinalIgnoreCase) &&
-                FindRodericFollower() is { } roderic &&
-                string.Equals(roderic.StoryStateId, "MALREC_APPROACH", StringComparison.OrdinalIgnoreCase))
-            {
-                StageRodericForMalrecEncounter(boss, roderic);
-                RunStoryConversation(roderic);
-                continue;
-            }
             var narrative = StoryNarratives.BossNarratives.GetValueOrDefault(boss.Definition.Id)
                 ?? new BossNarrative("Ismeretlen fejezet",
                     [$"Én vagyok {boss.Name}. E folyosók titkait nem osztom meg veletek."]);
@@ -955,6 +947,13 @@ public sealed partial class Game
                 new BossPresentationSnapshot(boss.Name, boss.Definition.Appearance,
                     boss.Definition.StrengthTier, isMiniBoss ? "⚔ Nincs aranykulcs" : "🔑 Aranykulcs",
                     boss.BossTier));
+            if (string.Equals(boss.Definition.Id, MonsterIds.SirMalrec, StringComparison.OrdinalIgnoreCase) &&
+                FindRodericFollower() is { } roderic &&
+                string.Equals(roderic.StoryStateId, "MALREC_APPROACH", StringComparison.OrdinalIgnoreCase))
+            {
+                StageRodericForMalrecEncounter(boss, roderic);
+                RunStoryConversation(roderic);
+            }
         }
     }
 

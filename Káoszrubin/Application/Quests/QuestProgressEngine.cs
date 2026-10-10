@@ -91,6 +91,16 @@ public sealed class QuestProgressEngine
     internal void SynchronizeWorldObjective(QuestRuntimeState state)
     {
         if (state.State == QuestState.Active &&
+            _catalog.Get(state.QuestId).Objective is QuestObjective.KillEnemy
+                { Enemy.IsBoss: true, Count: 1, RequiredFollower: null } boss &&
+            _world.HasDefeatedBoss(boss.Enemy.Id))
+        {
+            var before = state.Progress;
+            state.AddProgress(1, 1);
+            ProgressChanged?.Invoke(CreateChange(state, before, QuestState.Active));
+            return;
+        }
+        if (state.State == QuestState.Active &&
             _catalog.Get(state.QuestId).Objective is QuestObjective.OpenQuestChest chest &&
             _world.HasOpenedQuestChest(chest.ChestId))
         {

@@ -119,7 +119,7 @@ public sealed class GameSaveService
 public static class GameSaveFormat
 {
     public const int OldestSupportedVersion = 1;
-    public const int CurrentVersion = 43;
+    public const int CurrentVersion = 44;
 
     public static GameSaveData MigrateToCurrent(GameSaveData state)
     {
@@ -174,6 +174,7 @@ public static class GameSaveFormat
                 40 => MigrateVersion40To41(state),
                 41 => MigrateVersion41To42(state),
                 42 => MigrateVersion42To43(state),
+                43 => MigrateVersion43To44(state),
                 _ => throw new InvalidOperationException($"Hiányzó mentésmigráció a(z) {state.Version}. verzióhoz.")
             };
         }
@@ -184,8 +185,71 @@ public static class GameSaveFormat
             state.PartyCampaignProgression = PartyCampaignProgressionSnapshot.Merge(
                 state.PartyCampaignProgression, suspended.PartyCampaignProgression);
             suspended.PartyCampaignProgression = state.PartyCampaignProgression;
+            state.CollectedBossKeyIds = state.CollectedBossKeyIds.Concat(suspended.CollectedBossKeyIds)
+                .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            suspended.CollectedBossKeyIds = state.CollectedBossKeyIds.ToList();
         }
         return state;
+    }
+
+    private static GameSaveData MigrateVersion43To44(GameSaveData state)
+    {
+        state.CollectedBossKeyIds = state.CollectedBossKeyIds.Select(id => id.ToUpperInvariant() switch
+        {
+            "E035" => Domain.Combat.MonsterIds.OrkTörzsfő,
+            "E043" => Domain.Combat.MonsterIds.ŐsiHidra,
+            _ => id
+        }).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        state.SeenBossIds.RemoveAll(id => id.Equals("E035", StringComparison.OrdinalIgnoreCase) ||
+                                         id.Equals("E043", StringComparison.OrdinalIgnoreCase));
+        var mazes = state.Areas.Select(area => area.Maze).Append(state.Maze).Distinct().ToArray();
+        foreach (var maze in mazes)
+        {
+            maze.Enemies = maze.Enemies.Select(enemy =>
+            {
+                var id = MigrateEnemyId(enemy.DefinitionId);
+                var promote = id is "E063" or "E064" && enemy.BossHitPointBonusPercent == 0;
+                var demote = enemy.DefinitionId == "E035" ||
+                             enemy.DefinitionId == "E043" && id != "E064" ||
+                             id is "E128" or "E129" or "E130" or "E131" or "E132";
+                var hitPoints = demote
+                    ? (int)Math.Ceiling(enemy.CurrentHitPoints * 100d / (100 + enemy.BossHitPointBonusPercent))
+                    : enemy.DefinitionId == "E043" && id == "E064"
+                        ? (int)Math.Ceiling(enemy.CurrentHitPoints * 1600d / 1450)
+                        : enemy.CurrentHitPoints;
+                if (enemy.DefinitionId == "E063") hitPoints = (int)Math.Ceiling(hitPoints * 900d / 360);
+                if (promote) hitPoints = (int)Math.Ceiling(hitPoints * 1.2);
+                return enemy with { DefinitionId = id, CurrentHitPoints = hitPoints,
+                    BossHitPointBonusPercent = demote ? 0 : promote ? 20 : enemy.BossHitPointBonusPercent };
+            }).ToList();
+            maze.Corpses = maze.Corpses.Select(corpse => corpse.EnemyDefinitionId is { } id
+                ? corpse with { EnemyDefinitionId = MigrateEnemyId(id) } : corpse).ToList();
+        }
+        if (state.LocationKind == AdventureLocationKind.Campaign)
+        {
+            // A régi rendszerben átjárható volt egy boss nélküli pálya, visszafelé viszont nincs út.
+            // A már elhagyott szintek pecsétjeit ezért megtartjuk; az aktuális régi pálya csak akkor
+            // kap kulcsot, ha az őrző eleve hiányzik. Élő boss továbbra is legyőzendő.
+            foreach (var boss in CampaignBosses.All.Where(boss => boss.Level < state.MazeLevel ||
+                         boss.Level <= state.PartyCampaignProgression.HighestCompletedCampaignLevel ||
+                         boss.Level == state.MazeLevel && !mazes.Any(maze =>
+                             maze.Enemies.Any(enemy => enemy.DefinitionId == boss.EnemyId))))
+                if (!state.CollectedBossKeyIds.Contains(boss.EnemyId, StringComparer.OrdinalIgnoreCase))
+                    state.CollectedBossKeyIds.Add(boss.EnemyId);
+        }
+        state.Version = 44;
+        return state;
+
+        string MigrateEnemyId(string id) => id switch
+        {
+            "E043" when state.LocationKind == AdventureLocationKind.Campaign && state.MazeLevel == 14 => "E064",
+            "E041" when state.MazeLevel != 11 => "E128",
+            "E044" when state.MazeLevel != 19 => "E129",
+            "E048" when state.MazeLevel != 18 => "E130",
+            "E049" when state.MazeLevel != 21 => "E131",
+            "E064" when state.MazeLevel != 14 => "E132",
+            _ => id
+        };
     }
 
     private static GameSaveData MigrateVersion42To43(GameSaveData state)

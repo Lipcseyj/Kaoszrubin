@@ -31,6 +31,8 @@ public interface IQuestWorldContext
     /// <summary>Az aktuális helyszín felfedezett helyei; pályaváltáskor a világ határozza meg újra.</summary>
     bool HasDiscoveredLocation(QuestLocation location);
     bool HasOpenedQuestChest(QuestChestId chestId) => false;
+    /// <summary>Az egyedi kulcsőrző korábbi legyőzése is teljesíti a később felvett megbízást.</summary>
+    bool HasDefeatedBoss(string enemyId) => false;
 
     /// <summary>
     /// Visszaadja az adott NPC aktuális, quest-rendszer számára

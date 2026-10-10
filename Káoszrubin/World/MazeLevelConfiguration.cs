@@ -358,7 +358,8 @@ public sealed class MazeLevelConfiguration
             .ToDictionary(pair => pair.Key, pair => pair.Value),
         SpecialRoomMinimumFreeCells = QuestRoomIds.Concat(BossRoomIds).ToDictionary(id => id,
             id => QuestRoomEnemyEncounters.Where(encounter => encounter.RoomId == id).Sum(encounter => encounter.Count)
-                + (QuestChestPlacements.ContainsKey(id) ? 1 : 0))
+                + (QuestChestPlacements.ContainsKey(id) ? 1 : 0)
+                + (CampaignBosses.IsBossRoom(id) ? 6 : 0))
             .Concat(ForestInns.Select(inn => new KeyValuePair<string, int>(inn.RoomId, 9)))
             .ToDictionary(pair => pair.Key, pair => pair.Value),
         InnRoomIds = ForestInns.Select(inn => inn.RoomId).ToArray(),
@@ -833,6 +834,19 @@ public static class MazeLevelConfigurations
                 TreasureChestCount = new(14, 20),
                 TreasureGold = new(500, 1050),
                 ItemCurseChancePercent = 8,
+                BossRoomIds = ["ORC_WAR_COUNCIL"],
+                SpecialRoomPlacements = new Dictionary<string, SpecialRoomPlacement>
+                {
+                    ["ORC_WAR_COUNCIL"] = SpecialRoomPlacement.SideBranch
+                },
+                QuestRoomEnemyEncounters =
+                [
+                    new("ORC_WAR_COUNCIL", MonsterIds.OrkTörzsfő, 1, Role: EnemyGroupRole.Leader),
+                    new("ORC_WAR_COUNCIL", MonsterIds.OrkTestőr, 4),
+                    new("ORC_WAR_COUNCIL", MonsterIds.OrkÍjász, 2),
+                    new("ORC_WAR_COUNCIL", MonsterIds.OrkSámán, 1),
+                    new("ORC_WAR_COUNCIL", MonsterIds.OrkVérpap, 1),
+                ],
                 // Hatfős parti: hadrendek és nagy menetoszlopok; a törzsfő a második képernyőn.
                 RoomEncounters =
                 [
@@ -848,9 +862,6 @@ public static class MazeLevelConfigurations
                     new(GroupCount: new(2, 2),
                         Members: [new(MonsterIds.Ogre, new(1, 2), EnemyGroupRole.Leader), new(MonsterIds.Ork, new(8, 12)), new(MonsterIds.OrkÍjász, new(2, 4))],
                         MovementProfile: EnemyMovementProfile.Stationary),
-                    new(GroupCount: new(1, 1),
-                        Members: [new(MonsterIds.OrkTörzsfő, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.OrkTestőr, new(4, 6)), new(MonsterIds.OrkVérpap, new(1, 1)), new(MonsterIds.OrkSámán, new(1, 1))],
-                        MovementProfile: EnemyMovementProfile.Stationary, ScreenNumber: 2)
                 ],
                 CorridorEncounters =
                 [
@@ -933,6 +944,18 @@ public static class MazeLevelConfigurations
                 TreasureChestCount = new(12, 17),
                 TreasureGold = new(700, 1400),
                 ItemCurseChancePercent = 8,
+                BossRoomIds = ["HROLD_FROZEN_HALL"],
+                SpecialRoomPlacements = new Dictionary<string, SpecialRoomPlacement>
+                {
+                    ["HROLD_FROZEN_HALL"] = SpecialRoomPlacement.SideBranch
+                },
+                QuestRoomEnemyEncounters =
+                [
+                    new("HROLD_FROZEN_HALL", MonsterIds.Fagyóriás, 1, Role: EnemyGroupRole.Leader),
+                    new("HROLD_FROZEN_HALL", MonsterIds.Ogre, 4),
+                    new("HROLD_FROZEN_HALL", MonsterIds.OrkÍjász, 2),
+                    new("HROLD_FROZEN_HALL", MonsterIds.OrkVérpap, 1),
+                ],
                 // Ork segédcsapatok és ogre rajok után ritka nagy óriások; nem minden őr elit.
                 RoomEncounters =
                 [
@@ -945,9 +968,6 @@ public static class MazeLevelConfigurations
                     new(GroupCount: new(2, 2),
                         Members: [new(MonsterIds.Ettin, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.Troll, new(1, 1)), new(MonsterIds.Gnoll, new(4, 6))],
                         MovementProfile: EnemyMovementProfile.Stationary),
-                    new(GroupCount: new(1, 1),
-                        Members: [new(MonsterIds.Fagyóriás, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.Ogre, new(4, 6))],
-                        MovementProfile: EnemyMovementProfile.Stationary, ScreenNumber: 2),
                     new(GroupCount: new(1, 1),
                         Members: [new(MonsterIds.Küklopsz, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.Goblin, new(6, 9)), new(MonsterIds.GoblinÍjász, new(3, 4))],
                         MovementProfile: EnemyMovementProfile.Stationary, ScreenNumber: 2),
@@ -989,6 +1009,18 @@ public static class MazeLevelConfigurations
                 TreasureChestCount = new(14, 19),
                 TreasureGold = new(900, 1800),
                 ItemCurseChancePercent = 12,
+                BossRoomIds = ["AZRAKAR_EMBER_SANCTUM"],
+                SpecialRoomPlacements = new Dictionary<string, SpecialRoomPlacement>
+                {
+                    ["AZRAKAR_EMBER_SANCTUM"] = SpecialRoomPlacement.SideBranch
+                },
+                QuestRoomEnemyEncounters =
+                [
+                    new("AZRAKAR_EMBER_SANCTUM", MonsterIds.VörösSárkány, 1, Role: EnemyGroupRole.Leader),
+                    new("AZRAKAR_EMBER_SANCTUM", MonsterIds.Orgyilkos, 4),
+                    new("AZRAKAR_EMBER_SANCTUM", MonsterIds.Káoszpap, 1),
+                    new("AZRAKAR_EMBER_SANCTUM", MonsterIds.KáoszmágusTanítvány, 1),
+                ],
                 // A külső kultistákból fokozatos átmenet a szentély mágusai és szárnyas őrei felé.
                 RoomEncounters =
                 [
@@ -1001,9 +1033,6 @@ public static class MazeLevelConfigurations
                     new(GroupCount: new(2, 3),
                         Members: [new(MonsterIds.Wyvern, new(1, 2)), new(MonsterIds.Hárpia, new(4, 6))],
                         MovementProfile: EnemyMovementProfile.Stationary),
-                    new(GroupCount: new(1, 1),
-                        Members: [new(MonsterIds.VörösSárkány, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.Orgyilkos, new(6, 9)), new(MonsterIds.Káoszpap, new(1, 1))],
-                        MovementProfile: EnemyMovementProfile.Stationary, ScreenNumber: 2),
                     new(GroupCount: new(1, 1),
                         Members: [new(MonsterIds.Káoszmágus, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.Martalóc, new(4, 6)), new(MonsterIds.Gargoyle, new(1, 1))],
                         MovementProfile: EnemyMovementProfile.Stationary, ScreenNumber: 2),
@@ -1220,6 +1249,17 @@ public static class MazeLevelConfigurations
                 TreasureChestCount = new(10, 15),
                 TreasureGold = new(900, 1900),
                 ItemCurseChancePercent = 16,
+                BossRoomIds = ["SSIZARA_DROWNED_DEN"],
+                SpecialRoomPlacements = new Dictionary<string, SpecialRoomPlacement>
+                {
+                    ["SSIZARA_DROWNED_DEN"] = SpecialRoomPlacement.SideBranch
+                },
+                QuestRoomEnemyEncounters =
+                [
+                    new("SSIZARA_DROWNED_DEN", MonsterIds.ŐsiHidra, 1, Role: EnemyGroupRole.Leader),
+                    new("SSIZARA_DROWNED_DEN", MonsterIds.BarlangiGyík, 2),
+                    new("SSIZARA_DROWNED_DEN", MonsterIds.MocsáriVipera, 4),
+                ],
                 // Fertőzött tömegek és mocsári állatok; a hüllők itt csak a későbbi birodalom előőrsei.
                 RoomEncounters =
                 [
@@ -1235,9 +1275,6 @@ public static class MazeLevelConfigurations
                     new(GroupCount: new(2, 2),
                         Members: [new(MonsterIds.Savanyálka, new(4, 6)), new(MonsterIds.MérgesVarangy, new(5, 8))],
                         MovementProfile: EnemyMovementProfile.Stationary),
-                    new(GroupCount: new(1, 1),
-                        Members: [new(MonsterIds.Hidra, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.BarlangiGyík, new(4, 6)), new(MonsterIds.MocsáriVipera, new(6, 10))],
-                        MovementProfile: EnemyMovementProfile.Stationary, ScreenNumber: 2),
                     new(GroupCount: new(1, 1),
                         Members: [new(MonsterIds.Kígyópap, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.Kígyóember, new(1, 2)), new(MonsterIds.Kígyóíjász, new(1, 2)), new(MonsterIds.GyíkemberPortyázó, new(5, 8))],
                         MovementProfile: EnemyMovementProfile.Stationary, ScreenNumber: 2),
@@ -1367,7 +1404,7 @@ public static class MazeLevelConfigurations
                     new("SHEDDING_HIGH_ALTAR", MonsterIds.KígyóTemplomőr, 5),
                     new("SHEDDING_HIGH_ALTAR", MonsterIds.Kígyópap, 2),
                     new("SHEDDING_HIGH_ALTAR", MonsterIds.Kígyóíjász, 3),
-                    new("SHEDDING_HYDRA_SANCTUM", MonsterIds.ŐsiHidra, 1, Role: EnemyGroupRole.Leader),
+                    new("SHEDDING_HYDRA_SANCTUM", MonsterIds.ŐsiHidraŐr, 1, Role: EnemyGroupRole.Leader),
                     new("SHEDDING_HYDRA_SANCTUM", MonsterIds.Óriáskígyó, 3)
                 ],
                 RoomEncounters =
@@ -1475,6 +1512,17 @@ public static class MazeLevelConfigurations
                 TreasureChestCount = new(12, 16),
                 TreasureGold = new(1400, 2800),
                 ItemCurseChancePercent = 10,
+                BossRoomIds = ["XYRAX_CRYSTAL_EYE"],
+                SpecialRoomPlacements = new Dictionary<string, SpecialRoomPlacement>
+                {
+                    ["XYRAX_CRYSTAL_EYE"] = SpecialRoomPlacement.SideBranch
+                },
+                QuestRoomEnemyEncounters =
+                [
+                    new("XYRAX_CRYSTAL_EYE", MonsterIds.VénBeholder, 1, Role: EnemyGroupRole.Leader),
+                    new("XYRAX_CRYSTAL_EYE", MonsterIds.Beholder, 1),
+                    new("XYRAX_CRYSTAL_EYE", MonsterIds.Kőgólem, 2),
+                ],
                 // Mágikus őrség, kőlények és egy-egy nagy erejű teremvédő.
                 RoomEncounters =
                 [
@@ -1489,9 +1537,6 @@ public static class MazeLevelConfigurations
                         MovementProfile: EnemyMovementProfile.Stationary),
                     new(GroupCount: new(2, 2),
                         Members: [new(MonsterIds.Kiméra, new(1, 1)), new(MonsterIds.Minotaurusz, new(1, 1)), new(MonsterIds.Kobold, new(4, 6))],
-                        MovementProfile: EnemyMovementProfile.Stationary),
-                    new(GroupCount: new(1, 1),
-                        Members: [new(MonsterIds.VénBeholder, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.Beholder, new(1, 2))],
                         MovementProfile: EnemyMovementProfile.Stationary),
                     new(GroupCount: new(1, 1),
                         Members: [new(MonsterIds.ÉlőPáncél, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.OrkTestőr, new(3, 4))],
@@ -1531,11 +1576,23 @@ public static class MazeLevelConfigurations
                 TreasureChestCount = new(10, 14),
                 TreasureGold = new(1500, 3000),
                 ItemCurseChancePercent = 8,
+                BossRoomIds = ["OSSYRA_FROZEN_OATH"],
+                SpecialRoomPlacements = new Dictionary<string, SpecialRoomPlacement>
+                {
+                    ["OSSYRA_FROZEN_OATH"] = SpecialRoomPlacement.SideBranch
+                },
+                QuestRoomEnemyEncounters =
+                [
+                    new("OSSYRA_FROZEN_OATH", MonsterIds.Csontsárkány, 1, Role: EnemyGroupRole.Leader),
+                    new("OSSYRA_FROZEN_OATH", MonsterIds.Wight, 3),
+                    new("OSSYRA_FROZEN_OATH", MonsterIds.CsontvázÍjász, 3),
+                    new("OSSYRA_FROZEN_OATH", MonsterIds.Nekromanta, 1),
+                ],
                 // Kevés nagy óriás, sok kísérő; az élőholt és farkasrajok előkészítik az örökéjt.
                 RoomEncounters =
                 [
                     new(GroupCount: new(2, 2),
-                        Members: [new(MonsterIds.Fagyóriás, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.Ogre, new(2, 3)), new(MonsterIds.OrkÍjász, new(3, 5)), new(MonsterIds.Káoszmágus, new(1, 1))],
+                        Members: [new(MonsterIds.FagyóriásHarcos, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.Ogre, new(2, 3)), new(MonsterIds.OrkÍjász, new(3, 5)), new(MonsterIds.Káoszmágus, new(1, 1))],
                         MovementProfile: EnemyMovementProfile.Stationary),
                     new(GroupCount: new(2, 3),
                         Members: [new(MonsterIds.CsontvázLovag, new(2, 2)), new(MonsterIds.Csontváz, new(8, 12)), new(MonsterIds.CsontvázÍjász, new(3, 5))],
@@ -1545,9 +1602,6 @@ public static class MazeLevelConfigurations
                         MovementProfile: EnemyMovementProfile.Stationary),
                     new(GroupCount: new(2, 2),
                         Members: [new(MonsterIds.Lidércfarkas, new(3, 5)), new(MonsterIds.Farkas, new(6, 9))],
-                        MovementProfile: EnemyMovementProfile.Stationary),
-                    new(GroupCount: new(1, 1),
-                        Members: [new(MonsterIds.Csontsárkány, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.Wight, new(3, 5))],
                         MovementProfile: EnemyMovementProfile.Stationary),
                     new(GroupCount: new(2, 2),
                         Members: [new(MonsterIds.Ettin, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.Ogre, new(2, 2)), new(MonsterIds.Hobgoblin, new(4, 6))],
@@ -1562,7 +1616,7 @@ public static class MazeLevelConfigurations
                         Members: [new(MonsterIds.Lidércfarkas, new(3, 5)), new(MonsterIds.Farkas, new(8, 12))],
                         MovementProfile: EnemyMovementProfile.Wander, Behavior: EnemyEncounterBehavior.Horde),
                     new(GroupCount: new(1, 2),
-                        Members: [new(MonsterIds.Fagyóriás, new(1, 1))],
+                        Members: [new(MonsterIds.FagyóriásHarcos, new(1, 1))],
                         MovementProfile: EnemyMovementProfile.Patrol),
                     new(GroupCount: new(2, 2),
                         Members: [new(MonsterIds.Csontváz, new(10, 16)), new(MonsterIds.PáncélozottZombi, new(4, 6))],
@@ -1587,6 +1641,18 @@ public static class MazeLevelConfigurations
                 TreasureChestCount = new(18, 24),
                 TreasureGold = new(1600, 3300),
                 ItemCurseChancePercent = 20,
+                BossRoomIds = ["VELKHAR_NIGHT_THRONE"],
+                SpecialRoomPlacements = new Dictionary<string, SpecialRoomPlacement>
+                {
+                    ["VELKHAR_NIGHT_THRONE"] = SpecialRoomPlacement.SideBranch
+                },
+                QuestRoomEnemyEncounters =
+                [
+                    new("VELKHAR_NIGHT_THRONE", MonsterIds.Ősvámpír, 1, Role: EnemyGroupRole.Leader),
+                    new("VELKHAR_NIGHT_THRONE", MonsterIds.Vámpír, 3),
+                    new("VELKHAR_NIGHT_THRONE", MonsterIds.VámpírKardmester, 1),
+                    new("VELKHAR_NIGHT_THRONE", MonsterIds.Nekromanta, 1),
+                ],
                 // Három képernyő: szolgák és farkasok, kardmesterek, majd a vérmágikus belső udvar.
                 RoomEncounters =
                 [
@@ -1602,9 +1668,6 @@ public static class MazeLevelConfigurations
                     new(GroupCount: new(1, 1),
                         Members: [new(MonsterIds.AlfaVérfarkas, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.Vérfarkas, new(2, 3)), new(MonsterIds.Lidércfarkas, new(4, 6))],
                         MovementProfile: EnemyMovementProfile.Stationary, ScreenNumber: 1),
-                    new(GroupCount: new(1, 1),
-                        Members: [new(MonsterIds.Ősvámpír, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.Vámpír, new(3, 5)), new(MonsterIds.Nekromanta, new(1, 1))],
-                        MovementProfile: EnemyMovementProfile.Stationary, ScreenNumber: 3),
                     new(GroupCount: new(2, 2),
                         Members: [new(MonsterIds.Halállovag, new(1, 2), EnemyGroupRole.Leader), new(MonsterIds.CsontvázLovag, new(4, 6)), new(MonsterIds.CsontvázÍjász, new(3, 5))],
                         MovementProfile: EnemyMovementProfile.Stationary),
@@ -1649,14 +1712,23 @@ public static class MazeLevelConfigurations
                 TreasureChestCount = new(10, 14),
                 TreasureGold = new(2200, 4200),
                 ItemCurseChancePercent = 16,
+                BossRoomIds = ["NHARAZ_BLACK_GOSPEL"],
+                SpecialRoomPlacements = new Dictionary<string, SpecialRoomPlacement>
+                {
+                    ["NHARAZ_BLACK_GOSPEL"] = SpecialRoomPlacement.SideBranch
+                },
+                QuestRoomEnemyEncounters =
+                [
+                    new("NHARAZ_BLACK_GOSPEL", MonsterIds.Drakolich, 1, Role: EnemyGroupRole.Leader),
+                    new("NHARAZ_BLACK_GOSPEL", MonsterIds.Halállovag, 2),
+                    new("NHARAZ_BLACK_GOSPEL", MonsterIds.Nekromanta, 1),
+                    new("NHARAZ_BLACK_GOSPEL", MonsterIds.CsontvázÍjász, 3),
+                ],
                 // Nagy szárnyas veszélyek között csontváz-tömegek és a nekromanták teljes lánca.
                 RoomEncounters =
                 [
-                    new(GroupCount: new(1, 1),
-                        Members: [new(MonsterIds.Drakolich, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.Halállovag, new(2, 3)), new(MonsterIds.Nekromanta, new(1, 1))],
-                        MovementProfile: EnemyMovementProfile.Stationary),
                     new(GroupCount: new(1, 2),
-                        Members: [new(MonsterIds.Csontsárkány, new(1, 1)), new(MonsterIds.Wyvern, new(1, 1))],
+                        Members: [new(MonsterIds.CsontsárkányŐr, new(1, 1)), new(MonsterIds.Wyvern, new(1, 1))],
                         MovementProfile: EnemyMovementProfile.Stationary),
                     new(GroupCount: new(2, 2),
                         Members: [new(MonsterIds.Lich, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.Csontváz, new(12, 18)), new(MonsterIds.CsontvázÍjász, new(3, 5))],
@@ -1760,6 +1832,18 @@ public static class MazeLevelConfigurations
                 TreasureChestCount = new(20, 26),
                 TreasureGold = new(2600, 5200),
                 ItemCurseChancePercent = 25,
+                BossRoomIds = ["ASHKAROTH_BLOOD_THRONE"],
+                SpecialRoomPlacements = new Dictionary<string, SpecialRoomPlacement>
+                {
+                    ["ASHKAROTH_BLOOD_THRONE"] = SpecialRoomPlacement.SideBranch
+                },
+                QuestRoomEnemyEncounters =
+                [
+                    new("ASHKAROTH_BLOOD_THRONE", MonsterIds.BalorDémon, 1, Role: EnemyGroupRole.Leader),
+                    new("ASHKAROTH_BLOOD_THRONE", MonsterIds.Démonlovag, 3),
+                    new("ASHKAROTH_BLOOD_THRONE", MonsterIds.Vérmágus, 1),
+                    new("ASHKAROTH_BLOOD_THRONE", MonsterIds.Pokolfajzat, 4),
+                ],
                 // Vérmágikus hadrendek: gyógyítók, tüzérmágusok és tömeges démoni fedezet.
                 RoomEncounters =
                 [
@@ -1778,9 +1862,6 @@ public static class MazeLevelConfigurations
                     new(GroupCount: new(1, 2),
                         Members: [new(MonsterIds.Pokolfejedelem, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.DémoniKorcs, new(8, 12))],
                         MovementProfile: EnemyMovementProfile.Stationary),
-                    new(GroupCount: new(1, 1),
-                        Members: [new(MonsterIds.BalorDémon, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.Démonlovag, new(3, 5)), new(MonsterIds.Vérmágus, new(1, 1))],
-                        MovementProfile: EnemyMovementProfile.Stationary, ScreenNumber: 3),
                     new(GroupCount: new(2, 2),
                         Members: [new(MonsterIds.Démonpók, new(1, 1)), new(MonsterIds.Pokolkutya, new(2, 3)), new(MonsterIds.Pokolfajzat, new(8, 12))],
                         MovementProfile: EnemyMovementProfile.Stationary),
@@ -1822,14 +1903,23 @@ public static class MazeLevelConfigurations
                 TreasureChestCount = new(12, 16),
                 TreasureGold = new(3200, 6200),
                 ItemCurseChancePercent = 18,
+                BossRoomIds = ["KAEL_ZHUR_LAST_SEAL"],
+                SpecialRoomPlacements = new Dictionary<string, SpecialRoomPlacement>
+                {
+                    ["KAEL_ZHUR_LAST_SEAL"] = SpecialRoomPlacement.SideBranch
+                },
+                QuestRoomEnemyEncounters =
+                [
+                    new("KAEL_ZHUR_LAST_SEAL", MonsterIds.Káoszsárkány, 1, Role: EnemyGroupRole.Leader),
+                    new("KAEL_ZHUR_LAST_SEAL", MonsterIds.Káoszlovag, 3),
+                    new("KAEL_ZHUR_LAST_SEAL", MonsterIds.KáoszFőpap, 1),
+                    new("KAEL_ZHUR_LAST_SEAL", MonsterIds.ÉlőPáncél, 2),
+                ],
                 // Minőségi csúcspont: veszélyes mágusok és nagy őrök, köztük gyenge fedezőrajok.
                 RoomEncounters =
                 [
                     new(GroupCount: new(1, 1),
-                        Members: [new(MonsterIds.Káoszsárkány, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.Drakolich, new(1, 1))],
-                        MovementProfile: EnemyMovementProfile.Stationary),
-                    new(GroupCount: new(1, 1),
-                        Members: [new(MonsterIds.VénBeholder, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.Kőgólem, new(1, 1)), new(MonsterIds.Káoszmágus, new(1, 1))],
+                        Members: [new(MonsterIds.VénBeholderŐr, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.Kőgólem, new(1, 1)), new(MonsterIds.Káoszmágus, new(1, 1))],
                         MovementProfile: EnemyMovementProfile.Stationary),
                     new(GroupCount: new(2, 2),
                         Members: [new(MonsterIds.Feketemágus, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.Káoszlovag, new(4, 6)), new(MonsterIds.Káoszpap, new(1, 1))],
@@ -1847,7 +1937,7 @@ public static class MazeLevelConfigurations
                         Members: [new(MonsterIds.ÉlőPáncél, new(1, 1)), new(MonsterIds.Gargoyle, new(2, 3)), new(MonsterIds.KáoszmágusTanítvány, new(2, 2))],
                         MovementProfile: EnemyMovementProfile.Stationary),
                     new(GroupCount: new(1, 1),
-                        Members: [new(MonsterIds.Vérmágus, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.Vérdémon, new(1, 1)), new(MonsterIds.Démonpók, new(1, 1))],
+                        Members: [new(MonsterIds.Vérmágus, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.Vérdémon, new(1, 1)), new(MonsterIds.Démonpók, new(2, 2))],
                         MovementProfile: EnemyMovementProfile.Stationary)
                 ],
                 CorridorEncounters =
@@ -1862,7 +1952,7 @@ public static class MazeLevelConfigurations
                         Members: [new(MonsterIds.Gargoyle, new(2, 3)), new(MonsterIds.Óriásdenevér, new(6, 9))],
                         MovementProfile: EnemyMovementProfile.Wander, Behavior: EnemyEncounterBehavior.Horde),
                     new(GroupCount: new(1, 2),
-                        Members: [new(MonsterIds.Vérmágus, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.Démonpók, new(1, 1)), new(MonsterIds.DémoniKorcs, new(3, 5))],
+                        Members: [new(MonsterIds.Vérmágus, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.Démonpók, new(2, 2)), new(MonsterIds.DémoniKorcs, new(3, 5))],
                         MovementProfile: EnemyMovementProfile.Patrol),
                     new(GroupCount: new(2, 2),
                         Members: [new(MonsterIds.Káoszpap, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.Káoszlovag, new(3, 5)), new(MonsterIds.Martalóc, new(6, 9))],
@@ -1897,6 +1987,9 @@ public static class MazeLevelConfigurations
                         MovementProfile: EnemyMovementProfile.Stationary),
                     new(GroupCount: new(1, 2),
                         Members: [new(MonsterIds.ŐsiMinotaurusz, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.Kőgólem, new(1, 1)), new(MonsterIds.Medúza, new(1, 1))],
+                        MovementProfile: EnemyMovementProfile.Stationary),
+                    new(GroupCount: new(1, 1),
+                        Members: [new(MonsterIds.DrakolichŐr, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.CsontvázLovag, new(2, 2)), new(MonsterIds.CsontvázÍjász, new(3, 3))],
                         MovementProfile: EnemyMovementProfile.Stationary),
                     new(GroupCount: new(1, 1),
                         Members: [new(MonsterIds.FeketeSárkány, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.Kiméra, new(1, 2))],
@@ -1947,7 +2040,7 @@ public static class MazeLevelConfigurations
         var (leader, follower, peer) = tier switch
         {
             4 => (MonsterIds.Beholder, MonsterIds.Ogre, MonsterIds.Kiméra),
-            _ => (MonsterIds.Pokolfejedelem, MonsterIds.Démonlovag, MonsterIds.Ősvámpír)
+            _ => (MonsterIds.Pokolfejedelem, MonsterIds.Démonlovag, MonsterIds.VámpírKardmester)
         };
         return ConfigureVisionAndTraps(new MazeLevelConfiguration
         {
@@ -2049,7 +2142,7 @@ public static class QuestLocationConfigurations
             },
             QuestRoomEnemyEncounters =
             [
-                new("MALREC_CHAMBER", MonsterIds.SirMalrec, 1),
+                new("MALREC_CHAMBER", MonsterIds.SirMalrec, 1, Role: EnemyGroupRole.Leader),
                 new("MALREC_CHAMBER", MonsterIds.CsontvázLovag, 4)
             ],
             RoomEncounters =

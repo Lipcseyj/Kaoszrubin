@@ -126,9 +126,16 @@ public static class MonsterIds
     public const string Méregmágus = "E126";
     public const string KígyóFőpap = "E127";
 
+    // A kulcsőrzők névtelen rokonai; több pályán is szerepelhetnek aranykulcs nélkül.
+    public const string FagyóriásHarcos = "E128";
+    public const string CsontsárkányŐr = "E129";
+    public const string VénBeholderŐr = "E130";
+    public const string DrakolichŐr = "E131";
+    public const string ŐsiHidraŐr = "E132";
+
     public static IReadOnlySet<string> Bosses { get; } = new HashSet<string>(
     [
-        GyíkemberKirály, KígyóFőpap, OrkSámán, Fagyóriás, VörösSárkány, Hidra,
+        GyíkemberKirály, KígyóFőpap, OrkTörzsfő, Fagyóriás, VörösSárkány, ŐsiHidra,
         VénBeholder, Csontsárkány, Ősvámpír, Drakolich, BalorDémon, Káoszsárkány
     ], StringComparer.OrdinalIgnoreCase);
 

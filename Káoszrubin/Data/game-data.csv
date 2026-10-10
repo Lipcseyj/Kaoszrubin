@@ -669,7 +669,7 @@ E038;Wyvern;Y;14;620;6;8;1850;3;MA002;Flying;7;;;igen;WN011|WN010;nem;3;2;1;0;2;
 E039;Kőgólem;K;12;450;10;2;1800;3;MA005;;3;;;nem;WN020;nem;5;5;-5;3;4;5;3;2;;45
 E040;Éji banya;ñ;13;320;1;8;1900;3;MA003|MA006;;6;2;1;igen;WN002|WN031;nem;0;0;0;0;1;3;2;7;;25
 E061;Élőholt pátriárka;Ɨ;8;180;6;4;700;3;;Undead;5;;;nem;W006|W007|W008;igen;2;3;-2;0;0;3;1;7;W028;
-E063;Ork törzsfő;Ø;11;360;8;5;1350;3;MA005;;6;;;igen;W009|W017;igen;0;0;0;0;0;0;0;3;;0
+E063;Grond Vasagyar, ork törzsfő;Ø;13;900;8;5;3000;3;MA005;;6;;;igen;W009|W017;igen;0;0;0;0;0;0;0;3;;0
 E068;Barlangi troll;Ť;16;550;8;5;2000;3;MA021|MA007;;6;;;igen;WN012|WN011;nem;2;2;1;-9;1;0;0;4;;10
 E073;Sötételf orgyilkos;æ;11;220;5;9;1250;3;MA006|MA017|MA018;;7;3;1;igen;W022|W043;nem;0;0;0;0;0;0;0;6;;
 E074;Nekromanta;Ɲ;6;130;1;6;2100;3;MA013|MA023;;7;2;1;nem;W022;nem;0;0;0;0;0;5;2;5;;35
@@ -684,13 +684,16 @@ E017;Kiméra;C;12;300;5;7;1000;3;;;6;;;igen;WN012|WN009|WN006;nem;0;-3;0;3;0;0;0
 E018;Beholder;B;17;400;6;4;2500;4;MA012;;7;;;igen;WN032;nem;0;-7;0;1;1;2;2;6;;25
 E019;Vámpír;Ѵ;15;450;7;8;2500;4;MA022;Undead;7;2;1;nem;WN019|WN002;nem;1;1;0;-3;0;4;1;7;;
 E020;Vérfarkas;L;16;450;6;9;3200;4;MA004|MA008|MA020;;7;;;igen;WN012|WN007;nem;0;0;0;0;0;-7;0;8;;
-E041;Fagyóriás;F;18;1300;2;5;3800;4;MA005|MA007;;6;;;igen;W037|W013;igen;0;0;0;-2;0;-4;0;4;;
+E041;Hrold Jégszakáll, fagyóriás;F;18;1300;2;5;3800;4;MA005|MA007;;6;;;igen;W037|W013;igen;0;0;0;-2;0;-4;0;4;;
+E128;Fagyóriás harcos;F;18;1300;2;5;3800;4;MA005|MA007;;6;;;igen;W037|W013;igen;0;0;0;-2;0;-4;0;4;;
 E042;Halállovag;†;15;400;11;6;2400;4;;Undead;6;;;nem;W009|W013|W004|W008;igen;3;3;-2;1;-7;4;2;7;W016;
 E043;Hidra;Ξ;18;1450;8;7;4300;4;MA002|MA008;;6;;;igen;WN014;nem;0;0;1;-7;3;-3;0;5;;
-E044;Csontsárkány;δ;17;1200;5;6;4000;4;;Undead|Flying;7;;;nem;WN004|WN005|WN016;nem;4;5;-4;2;-4;6;2;8;;
+E044;Ossyra, a dermedt eskü őrzője;δ;17;1200;5;6;4000;4;;Undead|Flying;7;;;nem;WN004|WN005|WN016;nem;4;5;-4;2;-4;6;2;8;;
+E129;Csontsárkány őr;δ;17;1200;5;6;4000;4;;Undead|Flying;7;;;nem;WN004|WN005|WN016;nem;4;5;-4;2;-4;6;2;8;;
 E045;Démonpók;§;17;1050;8;10;4200;4;MA002|MA004;Demonic;6;3;1;nem;WN024;nem;2;-1;1;5;4;-5;3;7;;10
 E053;Sir Malrec az Esküszegő;‡;11;420;9;5;1800;4;MA005;Undead;6;1;3;nem;W009;nem;2;3;-2;1;1;4;2;8;;
-E064;Ősi hidra;Ŵ;18;1600;8;6;5000;4;MA002|MA007|MA008;;6;;;nem;WN014;igen;0;0;1;-6;4;-3;0;5;;
+E064;Sziszara, a koronafaló ősi hidra;Ŵ;18;1600;8;6;5000;4;MA002|MA007|MA008;;6;;;nem;WN014;igen;0;0;1;-6;4;-3;0;5;;
+E132;Ősi hidra őr;Ŵ;18;1600;8;6;5000;4;MA002|MA007|MA008;;6;;;nem;WN014;igen;0;0;1;-6;4;-3;0;5;;
 E065;Vámpír kardmester;џ;15;450;8;8;2500;4;MA022;Undead;7;2;1;nem;W009|W003;igen;1;1;1;-3;1;4;1;7;;
 E069;Vén múmia;ϻ;10;350;7;3;2400;4;MA003|MA013|MA025;Undead;5;;;nem;WN001|WN003;nem;-2;2;0;-4;0;5;1;6;;30
 E070;Alfa vérfarkas;Ŀ;17;600;8;10;4500;4;MA004|MA006|MA008|MA018|MA020;;8;2;2;igen;WN012|WN007;nem;2;0;1;0;0;0;1;8;;
@@ -703,16 +706,18 @@ E089;Vérdémon;Ѫ;17;1100;6;8;4000;4;MA004|MA013;Demonic;7;1;2;nem;W037|W038;ig
 E096;Káoszmágus;Ҩ;11;200;3;7;1800;4;;;8;2;1;nem;W021|W018;nem;0;0;0;2;1;2;5;5;;30
 E097;Sötét druida;ð;11;200;3;6;1800;4;MA008;;8;3;1;igen;W022|WN035;nem;1;1;0;1;2;3;3;7;;30
 E098;Vérmágus;Ѿ;10;200;2;8;1800;4;MA004|MA008|MA022;;8;2;1;nem;W021|W022;nem;0;0;0;2;1;4;4;6;;30
-E021;Vörös sárkány;D;18;1500;9;7;5000;5;MA007|MA005;Flying;7;;;igen;WN004|WN005|WN006;nem;4;1;2;8;2;-2;2;6;;
+E021;Azrakar, a Parázstrón ura;D;18;1500;9;7;5000;5;MA007|MA005;Flying;7;;;igen;WN004|WN005|WN006;nem;4;1;2;8;2;-2;2;6;;
 E022;Lich;l;13;400;5;5;2500;5;MA013|MA023;Undead;7;;;nem;W021;nem;0;0;-1;-1;-2;7;3;8;;30
 E023;Démonlovag;Ŧ;15;500;10-15;6;2600;5;MA004|MA018;Demonic;6;;;nem;W009|W013|W017|W008|W010;igen;2;1;1;5;-2;-5;4;6;W035;15
-E024;Balor démon;Ψ;19;2500;4;8;7500;5;MA005|MA013;Demonic;7;;;nem;W009|W020;nem;0;0;0;8;3;4;5;8;;15
+E024;Ashkaroth, Vhar-Zul ostora;Ψ;19;2500;4;8;7500;5;MA005|MA013;Demonic;7;;;nem;W009|W020;nem;0;0;0;8;3;4;5;8;;15
 E025;Fekete sárkány;Ð;20;2000;10;8;10000;5;MA007|MA002;Flying;7;;;igen;WN004|WN005|WN015;nem;5;4;2;2;8;-2;2;6;;50
-E046;Ősvámpír;Ѷ;20;1900;9;10;8500;5;MA018|MA022;Undead;8;3;1;nem;WN019|WN012;nem;2;2;1;-1;1;6;3;8;;
+E046;Velkhar gróf, az Örökéj ura;Ѷ;20;1900;9;10;8500;5;MA018|MA022;Undead;8;3;1;nem;WN019|WN012;nem;2;2;1;-1;1;6;3;8;;
 E047;Pokolfejedelem;Φ;22;2800;13;7;11000;5;MA005;Demonic;7;;;nem;W013|W017|W009;igen;4;4;3;9;4;1;6;8;;15
-E048;Vén beholder;Θ;21;2400;12;8;10500;5;MA006|MA005|MA012|MA013;;8;;;igen;WN033;nem;1;1;0;2;2;4;4;8;;35
-E049;Drakolich;Ł;23;3200;14;7;14000;5;MA007|MA013;Undead|Flying;8;;;nem;WN004|WN005|WN016;nem;6;6;-4;3;3;8;4;8;;25
-E050;Káoszsárkány;Ж;24;3600;13;10;16000;5;MA002|MA003;Flying;8;;;igen;WN004|WN005|WN017;nem;6;5;3;4;4;5;9;8;;
+E048;Xyrax, a Századik Tekintet;Θ;21;2400;12;8;10500;5;MA006|MA005|MA012|MA013;;8;;;igen;WN033;nem;1;1;0;2;2;4;4;8;;35
+E130;Vén beholder őr;Θ;21;2400;12;8;10500;5;MA006|MA005|MA012|MA013;;8;;;igen;WN033;nem;1;1;0;2;2;4;4;8;;35
+E049;Nharaz, a Fekete Evangélium;Ł;23;3200;14;7;14000;5;MA007|MA013;Undead|Flying;8;;;nem;WN004|WN005|WN016;nem;6;6;-4;3;3;8;4;8;;25
+E131;Drakolich őr;Ł;23;3200;14;7;14000;5;MA007|MA013;Undead|Flying;8;;;nem;WN004|WN005|WN016;nem;6;6;-4;3;3;8;4;8;;25
+E050;Kael-Zhur, az utolsó lakat;Ж;24;3600;13;10;16000;5;MA002|MA003;Flying;8;;;igen;WN004|WN005|WN017;nem;6;5;3;4;4;5;9;8;;
 E081;Élő páncél;₳;21;2100;13;3;7200;5;MA005|MA007;;5;;;nem;W004|W006;igen;6;6;-3;3;3;4;3;2;W034;75
 E099;Káosz főpap;҂;14;400;10;6;5000;5;MA013;;8;1;2;nem;W021|W013;nem;2;2;0;3;2;4;6;7;;20
 E100;Feketemágus;Ӻ;13;1000;11;8;10000;5;MA013;;8;3;0;nem;W021|W020;nem;-2;2;-2;4;3;6;7;8;;20
@@ -727,21 +732,21 @@ E111;Lápi lidérc;ʑ;10;260;4;7;950;2;MA024;Undead;7;4;0;nem;WN002;nem;2;2;-2;0
 E112;Óriáskrokodil;Ͼ;14;620;8;5;1900;3;MA005|MA007;;6;2;3;igen;WN011|WN012;nem;3;2;1;0;3;0;0;6;;0
 E113;Mocsári ogre;Ǫ;13;420;4;3;1300;3;MA005|MA007;;5;1;4;igen;W019|W017;igen;1;1;1;0;1;0;0;5;;0
 
-E114;Holló klánvezér;Ƈ;9;260;5;8;1300;3;MA004|MA002|MA006|MA017;;6;3;;igen;W001|W042;nem;0;0;0;0;0;0;2;3;;
-E115;Ork raktárnok;Ǭ;10;340;7;5;1500;3;MA005;;5;;;igen;W007|W008|W009|W012;igen;0;0;0;0;0;0;0;3;W027;0
-E116;A zsilip őrkapitánya;Ƶ;12;480;8;5;2400;4;;Undead;4;;;nem;W004|W006|W007|W008|W009|W010|W011|W012|W013;igen;2;4;-3;0;0;1;0;6;W029;10
-E117;Lápi udvarmester;Ʊ;11;300;4;6;2600;4;MA003;;6;1;2;igen;W018|W006|W007;nem;0;0;0;0;0;1;3;4;W025;20
+E114;Varrik Feketeszárny, a Holló klánvezér;Ƈ;9;260;5;8;1300;3;MA004|MA002|MA006|MA017;;6;3;;igen;W001|W042;nem;0;0;0;0;0;0;2;3;;
+E115;Durgan Hordótörő, ork raktárnok;Ǭ;10;340;7;5;1500;3;MA005;;5;;;igen;W007|W008|W009|W012;igen;0;0;0;0;0;0;0;3;W027;0
+E116;Sir Aldren, a zsilip őrkapitánya;Ƶ;12;480;8;5;2400;4;;Undead;4;;;nem;W004|W006|W007|W008|W009|W010|W011|W012|W013;igen;2;4;-3;0;0;1;0;6;W029;10
+E117;Mirelda, a lápi udvarmester;Ʊ;11;300;4;6;2600;4;MA003;;6;1;2;igen;W018|W006|W007;nem;0;0;0;0;0;1;3;4;W025;20
 
 E118;Óriáskígyó;Ͽ;12;340;4;5;1200;3;MA007|MA027;;5;2;1;igen;WN011|WN036;nem;1;2;0;0;3;0;0;5;;0
 E119;Gyíkember vadász;Ɂ;9;170;3;8;700;2;MA006;;7;3;1;igen;W040|W002;nem;1;1;0;0;2;0;0;6;;0
 E120;Pajzsos gyíkőr;ɂ;11;310;8;4;1150;3;MA007;;6;0;3;igen;W006|W010;igen;2;3;-1;0;2;0;0;5;W027;10;100
 E121;Gyíkember sámán;Ƀ;8;230;4;5;2200;3;;;7;1;2;igen;W018;nem;1;1;0;0;3;1;1;6;;20
 E122;Krokodilidomár;Ʉ;11;250;5;6;1500;3;MA005;;6;2;2;igen;W011|W010;igen;1;2;0;0;3;0;0;7;;0
-E123;Gyíkember király;Ɇ;17;1550;10;6;6500;4;MA005|MA007|MA018;;8;0;4;nem;W010|W008;igen;3;3;0;1;4;1;1;8;W029;25;100
+E123;Sszar-Kor, a Pikkelylégió királya;Ɇ;17;1550;10;6;6500;4;MA005|MA007|MA018;;8;0;4;nem;W010|W008;igen;3;3;0;1;4;1;1;8;W029;25;100
 E124;Kígyóíjász;ϡ;10;210;4;8;1300;3;MA017|MA006;;8;3;1;igen;W041|W002;nem;1;2;0;0;4;0;0;7;;10
 E125;Kígyó templomőr;Ϣ;13;380;8;7;1800;3;MA018;;7;1;2;igen;W004|W011;igen;2;3;0;0;4;1;1;6;W028;15
 E126;Méregmágus;ϣ;9;300;4;7;3000;3;MA026;;8;2;1;igen;WN018|W018;nem;1;2;0;0;5;1;2;7;;30
-E127;Kígyó főpap;Ϥ;15;1450;8;7;7000;4;MA026|MA018;;8;1;2;nem;W021|W002;nem;2;3;0;1;5;3;3;8;W028;35
+E127;Szeth-Issz, a Vedlő Isten főpapja;Ϥ;15;1450;8;7;7000;4;MA026|MA018;;8;1;2;nem;W021|W002;nem;2;3;0;1;5;3;3;8;W028;35
 
 #Ellenséges varázshasználók
 EllenségId;VarázslatIds;MaxManna;Intelligencia;Mannatartalék%;VarázslásiEsély%;Profil;VarázslatLehűlés
@@ -759,6 +764,7 @@ E099;D017|D013|P011|D015|P018;105;18;15;85;Support;1
 E074;D009|S014|S025|D010;90;17;10;80;Necromancer;1
 E022;D002|S014|S025|D010;120;19;10;85;Necromancer;1
 E049;D011|S014|S025|D010;150;21;10;80;Necromancer;2
+E131;D011|S014|S025|D010;150;21;10;80;Necromancer;2
 E100;D011|D012|S018|D016|S025;180;23;5;90;Artillery;1
 
 E117;D017|D013|D014|P009;44;8;25;88;Support;1
@@ -879,12 +885,16 @@ E036;45;igen;igen;nem;Sima;Varázs;2;1500
 E037;50;igen;igen;igen;Varázs;Varázs;5;6000
 E040;65;igen;nem;igen;Varázs;Legendás;7;12000
 E041;65;igen;igen;nem;Varázs;Legendás;7;12000
+E128;65;igen;igen;nem;Varázs;Legendás;7;12000
 E042;85;igen;igen;igen;Varázs;Legendás;9;22000
 E044;80;igen;igen;igen;Varázs;Legendás;9;22000
+E129;80;igen;igen;igen;Varázs;Legendás;9;22000
 E046;95;igen;igen;igen;Varázs;Legendás;10;30000
 E047;100;igen;igen;igen;Varázs;Legendás;12;40000
 E048;95;nem;nem;igen;Varázs;Legendás;12;40000
+E130;95;nem;nem;igen;Varázs;Legendás;12;40000
 E049;100;igen;igen;igen;Varázs;Legendás;12;40000
+E131;100;igen;igen;igen;Varázs;Legendás;12;40000
 E050;100;igen;igen;igen;Varázs;Legendás;12;40000
 E051;65;igen;igen;igen;Sima;Varázs;2;900
 E052;70;igen;igen;igen;Sima;Legendás;6;9000
@@ -1568,20 +1578,20 @@ NPCE009;NPC007;4;8;18
 NPCE010;NPC008;5;8;18
 NPCE011;NPC009;7;9;20
 NPCE012;NPC010;8;8;19
-NPCE013;NPC009;9;9;20
+NPCE013;NPC009;9;9;20;;AREA_1
 NPCE014;NPC011;9;8;18
 NPCE015;NPC012;10;8;19
-NPCE016;NPC019;11;9;21
-NPCE017;NPC013;12;9;21
-NPCE018;NPC014;14;8;20
+NPCE016;NPC019;11;9;21;;AREA_1
+NPCE017;NPC013;12;9;21;;AREA_1
+NPCE018;NPC014;14;8;20;;AREA_1
 NPCE019;NPC015;17;9;21
-NPCE020;NPC015;18;9;21
+NPCE020;NPC015;18;9;21;;AREA_1
 NPCE021;NPC016;19;9;21
 NPCE022;NPC016;20;9;21
-NPCE023;NPC013;21;9;22
+NPCE023;NPC013;21;9;22;;AREA_1
 NPCE024;NPC017;22;10;22
-NPCE025;NPC017;23;10;22
-NPCE026;NPC018;24;10;23
+NPCE025;NPC017;23;10;22;;AREA_1
+NPCE026;NPC018;24;10;23;;AREA_1
 NPCE027;NPC018;25;10;23
 NPCE028;NPC020;2;8;18
 NPCE029;NPC021;5;1;50;RODERIC_MEETING
@@ -1610,8 +1620,8 @@ NPCE050;NPC024;17;12;29;;
 NPCE051;NPC003;18;7;24;;
 NPCE052;NPC031;18;11;27;;
 NPCE053;NPC001;19;7;24;;
-NPCE054;NPC029;19;11;27;;
-NPCE055;NPC008;20;8;25;;
+NPCE054;NPC029;19;11;27;;AREA_1
+NPCE055;NPC008;20;8;25;;AREA_1
 NPCE056;NPC028;21;7;25;;
 NPCE057;NPC030;22;8;25;;
 NPCE058;NPC031;23;7;25;;
@@ -1770,10 +1780,10 @@ NPCQ051;NPC025;Kill;E033;2;2600;Tisztítótűz;Az inkvizítor megbízásából g
 NPCQ052;NPC014;Kill;E112;1;2900;Biztonságos ösvény;Öld meg az óriáskrokodilt, ami terrorizálja a mocsárvidéket;T033;2;;;NPCD140;;;;NPCE037;;;
 NPCQ053;NPC025;Kill;E092;2;2800;A káosz szolgái;Az inkvizítor megbízásából győzd le a káoszpapokat;M011;1;;;NPCD142;PS007;3;;NPCE036;5;;
 
-NPCQ054;NPC024;OpenQuestChest;RAVENS_LOOT;1;1800;A Hollók elrabolt készlete;Győzzétek le a Holló klánvezért és orgyilkosait a Hollók kereszteződésének egyik épületében, majd nyissátok ki a zsákmányládát. Az élelmet és italokat megtarthatjátok.;;;0;;NPCD144;;;;NPCE032;0;10;nem
-NPCQ055;NPC007;OpenQuestChest;ORC_TRIBE_SUPPLIES;1;2200;Az ork törzs tartalékai;Az Elveszett kúriákban egy ork raktárnok őrzi a törzs készleteit. Győzzétek le a testőreivel együtt, és nyissátok ki az ellátmányládát.;;;0;;NPCD145;;;;NPCE008;0;10;nem
-NPCQ056;NPC014;OpenQuestChest;SLUICE_SUPPLIES;1;3400;A királyi zsilip tartalékai;A királyi zsilip romjai között az élőholt őrkapitány még mindig védi a régi tartalékokat. Győzzétek le, és nyissátok ki a ládát a romépületben.;;;0;;NPCD146;;;;NPCE038;0;10;nem
-NPCQ057;NPC014;OpenQuestChest;SUNKEN_COURT_SUPPLIES;1;3800;Ellátmány a lápi udvarból;Az Elsüllyedt udvarházakban a lápi udvarmester és kultistái halmozták fel a készleteket. Törjétek meg az őrséget, és nyissátok ki a ládát.;;;0;;NPCD147;;;;NPCE038;0;10;nem
+NPCQ054;NPC024;OpenQuestChest;RAVENS_LOOT;1;1800;A Hollók elrabolt készlete;Győzzétek le Varrik Feketeszárny klánvezért és orgyilkosait a Hollók kereszteződésének egyik épületében, majd nyissátok ki a zsákmányládát. Az élelmet és italokat megtarthatjátok.;;;0;;NPCD144;;;;NPCE032;0;10;nem
+NPCQ055;NPC007;OpenQuestChest;ORC_TRIBE_SUPPLIES;1;2200;Az ork törzs tartalékai;Az Elveszett kúriákban Durgan Hordótörő raktárnok őrzi a törzs készleteit. Győzzétek le a testőreivel együtt, és nyissátok ki az ellátmányládát.;;;0;;NPCD145;;;;NPCE008;0;10;nem
+NPCQ056;NPC014;OpenQuestChest;SLUICE_SUPPLIES;1;3400;A királyi zsilip tartalékai;A királyi zsilip romjai között Sir Aldren, az élőholt őrkapitány még mindig védi a régi tartalékokat. Győzzétek le, és nyissátok ki a ládát a romépületben.;;;0;;NPCD146;;;;NPCE038;0;10;nem
+NPCQ057;NPC014;OpenQuestChest;SUNKEN_COURT_SUPPLIES;1;3800;Ellátmány a lápi udvarból;Az Elsüllyedt udvarházakban Mirelda udvarmester és kultistái halmozták fel a készleteket. Törjétek meg az őrséget, és nyissátok ki a ládát.;;;0;;NPCD147;;;;NPCE038;0;10;nem
 
 NPCQ058;NPC002;Kill;E012;2;1900;A csarnokok faltörői;Győzz le két ogrét, amelyek az ork csapatokat vezetik. A vadász a kisebb portyák helyett most a nagyvadakra figyel.;T012;2;0;;NPCD149;T028;1;NPCD150;NPCE034;0;10;nem
 NPCQ059;NPC026;Disarm;TR105;2;1700;A vakító őrjelek;Hatástalaníts két Vakítórúnát a csarnokokban. A kisütött csapda nem számít hatástalanítottnak.;MS004;2;0;;NPCD151;PS007;1;NPCD152;NPCE039;0;10;nem
@@ -1878,15 +1888,25 @@ NPCQ153;NPC025;Kill;E015;2;2100;A megszentségtelenített gyolcs;Győzz le két 
 NPCQ154;NPC014;Kill;E122;2;3000;Az idomárok füttyjele;Győzz le két krokodilidomárt. A révész a lápi átkelők után a palota medencéihez vezető utat tisztíttatja meg.;T017;3;0;;NPCD435;T013;2;NPCD436;NPCE083;0;10;nem
 NPCQ155;NPC014;Collect;T002;6;2200;Tiszta víz a palotában;Vigyél hat adag vizet a révésznek. A palota sós medencéiből a sebesült menekülők nem ihatnak.;T001;6;0;;NPCD437;;0;;NPCE083;0;10;nem
 NPCQ156;NPC014;Kill;E119;6;2700;Nyilak az átkelők fölött;Győzz le hat gyíkember vadászt. A gyors íjászok a visszavonulókat és az átkelők őrizetlen oldalát lövik.;T029;36;0;;NPCD438;;0;;NPCE083;0;10;nem
-NPCQ157;NPC028;Kill;E123;1;7000;A pikkelytrón zsarnoka;Győzd le a gyíkemberek királyát a palota utolsó képernyőjének tróntermében. A levéltáros a lápi udvartól elrabolt koronák nyomára talált.;M028;1;0;;NPCD439;PS010;1;NPCD440;NPCE084;0;10;nem
+NPCQ157;NPC028;Kill;E123;1;7000;A pikkelytrón zsarnoka;Győzd le Sszar-Kort, a Pikkelylégió királyát a Királyi pikkelytrón termében. A levéltáros szerint az elrabolt lápi koronákból kovácsoltatott katonai jelvényeket. Aranykulcsa Zephyriel egyik pecsétjét nyitja.;M028;1;0;;NPCD439;PS010;1;NPCD440;NPCE084;0;10;nem
 NPCQ158;NPC028;OpenChest;ANY;3;3000;Az elhurcolt koronák jegyzéke;Nyiss ki három kincsesládát. A levéltáros a lápvidék udvari pecsétjeit keresi a palota zsákmányraktáraiban.;T033;3;0;;NPCD441;;0;;NPCE084;0;10;nem
 NPCQ159;NPC028;Kill;E120;6;3400;A pikkelylégió bilincsei;Győzz le hat pajzsos gyíkőrt. A kaszárnyák foglyait az udvari őrség őrzi.;T016;2;0;;NPCD442;;0;;NPCE084;0;10;nem
 NPCQ160;NPC010;Kill;E126;2;3600;A méregkeverők esküje;Győzz le két méregmágust. Az alkimista a mocsári mérgek forrását a templom rituális méregigézetében találta meg.;T017;4;0;;NPCD443;M028;1;NPCD444;NPCE085;0;10;nem
 NPCQ161;NPC010;Collect;T017;3;2600;Ellenméreg a zarándokoknak;Vigyél három ellenmérget az alkimistának. A templom foglyai között is terjed a rituális méreg.;T015;3;0;;NPCD445;;0;;NPCE085;0;10;nem
 NPCQ162;NPC026;Disarm;TR109;2;4000;A vedlés álompecsétjei;Hatástalaníts két Rémképrúnát a templom második és harmadik képernyőjén. Az adeptus a mocsári őrjelek eredeti litániáját fejtette meg.;MS007;2;0;;NPCD446;PS007;1;NPCD447;NPCE086;0;10;nem
 NPCQ163;NPC026;Explore;EXIT;1;2600;A templom mögötti út;Fedezd fel a templom kijáratát. A rúnatörő a főoltár mögött a mélyjáratba vezető szabad utat keresi.;T016;2;0;;NPCD448;;0;;NPCE086;0;10;nem
-NPCQ164;NPC030;Kill;E127;1;7500;A vedlő isten hamis hangja;Győzd le a kígyóemberek főpapját az utolsó képernyő főoltáránál. A szökevény szerint a pap a káoszkultusz számára gyűjti a lápi áldozatokat.;PS010;2;0;;NPCD449;PS008;1;NPCD450;NPCE087;0;10;nem
+NPCQ164;NPC030;Kill;E127;1;7500;A vedlő isten hamis hangja;Győzd le Szeth-Isszt, a Vedlő Isten főpapját a főoltárnál. A kultusz szökevénye szerint a főpap a lápi áldozatokkal akarja Zephyriel aranykulcsát Vhar-Zulnak ajánlani.;PS010;2;0;;NPCD449;PS008;1;NPCD450;NPCE087;0;10;nem
 NPCQ165;NPC030;Kill;E095;3;3200;A körmenet elnémítása;Győzz le három kígyópapot. A főpap segítői vezetik a zarándokokat a méreggel szentelt termekbe.;T013;3;0;;NPCD451;;0;;NPCE087;0;10;nem
+NPCQ166;NPC009;Kill;E063;1;4200;Vasagyar megtört zászlaja;Grond Vasagyar a Harci tanácsteremben tartja fogva a szökni készülő ork családokat. A dezertőr szerint a törzsfő Zephyriel aranykulcsával vásárolta meg Vhar-Zul szövetségét. Győzd le, és törd meg a Vasagyar törzs vadászatát.;T028;3;0;;NPCD500;M017;1;NPCD501;NPCE013;0;10;nem
+NPCQ167;NPC019;Kill;E041;1;5200;Jégszakáll utolsó vámja;Hrold Jégszakáll a róla elnevezett csarnokból követel vámot az erőd menekülőitől. Az óriásvadász egy elveszett expedíció adósságát szeretné lezárni. Győzd le Hroldot, és szerezd meg a nála őrzött aranykulcsot.;T017;4;0;;NPCD502;;0;;NPCE016;0;10;nem
+NPCQ168;NPC013;Kill;E021;1;6000;A Parázstrón hamis hívei;Azrakar a Parázsszentélyben az Első Parázs örökösének mondja magát. Hívei a sárkánykutató társait is áldozatnak szánták. Győzd le a Parázstrón urát, és vedd el aranykulcsát.;MS008;2;0;;NPCD504;M025;1;NPCD505;NPCE017;0;10;nem
+NPCQ169;NPC014;Kill;E064;1;6200;A koronafaló kilenc hangja;Sziszara, a koronafaló ősi hidra az Elárasztott méregcsarnokban őrzi a régi vízi út aranykulcsát. A révész hajósai a koronák csengését követve tűntek el. Győzd le Sziszarát, hogy ismét járható legyen az átkelés.;T015;4;0;;NPCD506;M026;1;NPCD507;NPCE018;0;10;nem
+NPCQ170;NPC015;Kill;E048;1;8200;A kristályok fogoly tekintete;Xyrax a Századik Tekintet szentélyében fogva tartja a kristálymérnök eltűnt társainak emlékeit. Győzd le a vén beholdert, és szerezd meg a kristályhálózat aranykulcsát.;MS009;2;0;;NPCD508;M015;1;NPCD509;NPCE020;0;10;nem
+NPCQ171;NPC029;Kill;E044;1;7800;A dermedt eskü feloldása;Ossyra a dermedt eskü sírkamrájában az egykori menedéket sírrá változtatta. A fagyjáró kalauz ősei ott esküdtek Zephyrielnek. Győzd le az eskühöz láncolt csontsárkányt, és hozd el aranykulcsát.;T028;4;0;;NPCD510;;0;;NPCE054;0;10;nem
+NPCQ172;NPC008;Kill;E046;1;9000;Az örökéj név szerint;Győzd le Velkhar grófot az örökéj tróntermében. A halottlátó remete az erődbe csalt családok neveit keresi, hogy felszabadítsa lelküket. A gróf aranykulcsa a foglyok emlékeit is a pecséthez köti.;PS010;2;0;;NPCD512;M030;1;NPCD513;NPCE055;0;10;nem
+NPCQ173;NPC013;Kill;E049;1;10500;A holtak hamis feltámadása;Nharaz a fekete evangélium kriptájából hamis feltámadást ígér a holtaknak. A sárkánykutató szerint élő lelket éget új testéhez. Győzd le a drakolichot, és vedd el Zephyriel elárult aranykulcsát.;PS010;3;0;;NPCD514;M030;1;NPCD515;NPCE023;0;10;nem
+NPCQ174;NPC017;Kill;E024;1;11500;A Vértrónus láncai;Ashkaroth, Vhar-Zul ostora a Vértrónus láncaira kötötte a démonvadász egykori társait. Győzd le a balort, törd szét a láncokat, és szerezd meg a tizenegyedik aranykulcsot.;PS010;3;0;;NPCD516;M026;1;NPCD517;NPCE025;0;10;nem
+NPCQ175;NPC018;Kill;E050;1;13000;Zephyriel utolsó bűne;Kael-Zhur az utolsó lakat termében Zephyriel bűnének emlékét őrzi. A káoszzarándok szerint a sárkány nélkül a Rubin útja sem Aurelios, sem Vhar-Zul előtt nem nyílhat meg. Győzd le, és szerezd meg az utolsó aranykulcsot.;PS008;3;0;;NPCD518;M026;1;NPCD519;NPCE026;0;10;nem
 
 #NPC párbeszédek
 Id;NpcId;MinimumBarátságosság;MaximumBarátságosság;Szöveg;TalálkozásId
@@ -2212,32 +2232,32 @@ NPCD292;NPC009;0;7;A dezertőr a csarnokokba húzódott ork csapatokat figyeli. 
 NPCD293;NPC009;8;10;Megbízom bennetek, ezért ezt is elmondom: A sámánok és a káoszpapok a tömeg mögött dolgoznak. Ha velük kezditek, a gyalogosok kevésbé veszélyesek. A dezertőr a csarnokokba húzódott ork csapatokat figyeli. Nyolc orkot és öt hobgoblin előőrsöt akar elintéztetni, mielőtt a törzs újabb portyát indít.;NPCE011
 NPCD294;NPC010;0;7;Az alkimista hat óriáspók mintáira és két ellenméregre vár. A vizsgálatokért gyógyitalt és kipróbált ellenszert ad.;NPCE012
 NPCD295;NPC010;8;10;Megbízom bennetek, ezért ezt is elmondom: A savanyálkák savas veszélyt jelentenek. A mérget gyógyító főzet önmagában nem helyettesíti a sav elleni védelmet. Az alkimista hat óriáspók mintáira és két ellenméregre vár. A vizsgálatokért gyógyitalt és kipróbált ellenszert ad.;NPCE012
-NPCD296;NPC009;0;7;A dezertőr a törzs haditáborát kémleli. A vérpapok tartják félelemben a katonákat, az íjászok pedig a szökevényeket lövik.;NPCE013
-NPCD297;NPC009;8;10;Megbízom bennetek, ezért ezt is elmondom: A haditábor két nagy részre oszlik. A vérpapokat és a sámánokat keressétek először, mielőtt a sűrű orktömeggel küzdötök. A dezertőr a törzs haditáborát kémleli. A vérpapok tartják félelemben a katonákat, az íjászok pedig a szökevényeket lövik.;NPCE013
+NPCD296;NPC009;0;7;A dezertőr a törzs haditáborát kémleli. A vérpapok tartják félelemben a katonákat, az íjászok pedig a szökevényeket lövik. Grond Vasagyar a Harci tanácsteremben tartja fogva a szökni készülő ork családokat. A dezertőr szerint a törzsfő Zephyriel aranykulcsával vásárolta meg Vhar-Zul szövetségét. Győzd le, és törd meg a Vasagyar törzs vadászatát.;NPCE013
+NPCD297;NPC009;8;10;Megbízom bennetek, ezért ezt is elmondom: A haditábor két nagy részre oszlik. A vérpapokat és a sámánokat keressétek először, mielőtt a sűrű orktömeggel küzdötök. A dezertőr a törzs haditáborát kémleli. A vérpapok tartják félelemben a katonákat, az íjászok pedig a szökevényeket lövik. Grond Vasagyar a Harci tanácsteremben tartja fogva a szökni készülő ork családokat. A dezertőr szerint a törzsfő Zephyriel aranykulcsával vásárolta meg Vhar-Zul szövetségét. Győzd le, és törd meg a Vasagyar törzs vadászatát. Grond előtt négy testőr áll, két íjász védi az oldalakat. A sámán és a vérpap hátul támogatja őket: előbb a varázshasználókat némítsátok el.;NPCE013
 NPCD298;NPC011;0;7;A fogoly felderítő három ork testőr őrhelyét jelöli meg. Az őrség megtörése mellett a kijáratot is fel kell deríteni a foglyok számára.;NPCE014
 NPCD299;NPC011;8;10;Megbízom bennetek, ezért ezt is elmondom: A tömeg erejét a távolsági támogatás adja. Az ork íjászokat és a varázshasználókat ne hagyjátok zavartalanul dolgozni. A fogoly felderítő három ork testőr őrhelyét jelöli meg. Az őrség megtörése mellett a kijáratot is fel kell deríteni a foglyok számára.;NPCE014
 NPCD300;NPC012;0;10;A sírok őrzője két nekromanta nyomát mutatja. A sírkamrák Dermesztő átokrúnáit is meg kell tisztítani.;NPCE015
-NPCD301;NPC019;0;10;Az óriásvadász hat ogre és két ettin nyomát számolta össze. A karavánok ezek miatt nem jutnak át az erődön.;NPCE016
-NPCD302;NPC013;0;7;A sárkánykutató a kultusz ládajeleit és wyvernjeit vizsgálja. Két láda és két legyőzött wyvern adhat új adatot a kutatáshoz.;NPCE017
-NPCD303;NPC013;8;10;Megbízom bennetek, ezért ezt is elmondom: A wyvernek és a sárkányok ellen más veszélyekre kell készülni. Az ellenméreg mellé a kultusz szentélyében tűz elleni védelem is jól jön. A sárkánykutató a kultusz ládajeleit és wyvernjeit vizsgálja. Két láda és két legyőzött wyvern adhat új adatot a kutatáshoz.;NPCE017
-NPCD304;NPC014;0;7;A révész most a föld alatti mocsár járatait kutatja. Négy krokodil és egy kígyópap veszélyezteti az új útvonalat.;NPCE018
-NPCD305;NPC014;8;10;Megbízom bennetek, ezért ezt is elmondom: A lápvidék nyílt területe után itt falak közé szorulnak a csapatok. A krokodilok mögött kígyópapok és más varázshasználók is lehetnek. A révész most a föld alatti mocsár járatait kutatja. Négy krokodil és egy kígyópap veszélyezteti az új útvonalat.;NPCE018
+NPCD301;NPC019;0;10;Az óriásvadász hat ogre és két ettin nyomát számolta össze. A karavánok ezek miatt nem jutnak át az erődön. Hrold Jégszakáll a róla elnevezett csarnokból követel vámot az erőd menekülőitől. Az óriásvadász egy elveszett expedíció adósságát szeretné lezárni. Győzd le Hroldot, és szerezd meg a nála őrzött aranykulcsot.;NPCE016
+NPCD302;NPC013;0;7;A sárkánykutató a kultusz ládajeleit és wyvernjeit vizsgálja. Két láda és két legyőzött wyvern adhat új adatot a kutatáshoz. Azrakar a Parázsszentélyben az Első Parázs örökösének mondja magát. Hívei a sárkánykutató társait is áldozatnak szánták. Győzd le a Parázstrón urát, és vedd el aranykulcsát.;NPCE017
+NPCD303;NPC013;8;10;Megbízom bennetek, ezért ezt is elmondom: A wyvernek és a sárkányok ellen más veszélyekre kell készülni. Az ellenméreg mellé a kultusz szentélyében tűz elleni védelem is jól jön. A sárkánykutató a kultusz ládajeleit és wyvernjeit vizsgálja. Két láda és két legyőzött wyvern adhat új adatot a kutatáshoz. Azrakar a Parázsszentélyben az Első Parázs örökösének mondja magát. Hívei a sárkánykutató társait is áldozatnak szánták. Győzd le a Parázstrón urát, és vedd el aranykulcsát. Azrakar tüzére készüljetek védelemmel. Az orgyilkosok mögött káoszpap és mágustanítvány dolgozik: ne hagyjátok, hogy a sárkány mellett szabadon varázsoljanak.;NPCE017
+NPCD304;NPC014;0;7;A révész most a föld alatti mocsár járatait kutatja. Négy krokodil és egy kígyópap veszélyezteti az új útvonalat. Sziszara, a koronafaló ősi hidra az Elárasztott méregcsarnokban őrzi a régi vízi út aranykulcsát. A révész hajósai a koronák csengését követve tűntek el. Győzd le Sziszarát, hogy ismét járható legyen az átkelés.;NPCE018
+NPCD305;NPC014;8;10;Megbízom bennetek, ezért ezt is elmondom: A lápvidék nyílt területe után itt falak közé szorulnak a csapatok. A krokodilok mögött kígyópapok és más varázshasználók is lehetnek. A révész most a föld alatti mocsár járatait kutatja. Négy krokodil és egy kígyópap veszélyezteti az új útvonalat. Sziszara, a koronafaló ősi hidra az Elárasztott méregcsarnokban őrzi a régi vízi út aranykulcsát. A révész hajósai a koronák csengését követve tűntek el. Győzd le Sziszarát, hogy ismét járható legyen az átkelés. Sziszara regenerálódik, bőre vastag és harapása mérgez. Ellenszerrel és tartós sebzéssel készüljetek. Csak két barlangi gyík és négy vipera védi: ne pazaroljátok rájuk az összes erőt.;NPCE018
 NPCD306;NPC015;0;7;A kristálymérnök a mélyjárat régi zárainak és hibás vezetékrúnáinak kapcsolatát kutatja. Két láda és két Hasadóvillám-rúna adhat választ.;NPCE019
 NPCD307;NPC015;8;10;Megbízom bennetek, ezért ezt is elmondom: A szűk folyosón a hasadóvillám könnyen több társra átugorhat. A mérnöki munkához itt is tér kell, nem egybegyűlt tömeg. A kristálymérnök a mélyjárat régi zárainak és hibás vezetékrúnáinak kapcsolatát kutatja. Két láda és két Hasadóvillám-rúna adhat választ.;NPCE019
-NPCD308;NPC015;0;7;A mérnök megérkezett a kristálycsarnokba. Három kőgólem és két Villámvihar-rúna választja el a meghibásodott kristályágyaktól.;NPCE020
-NPCD309;NPC015;8;10;Megbízom bennetek, ezért ezt is elmondom: A villámvihar tartós területet veszélyeztet. Ha egy rúna kisül, a csapat ne maradjon a hatásában. A mérnök megérkezett a kristálycsarnokba. Három kőgólem és két Villámvihar-rúna választja el a meghibásodott kristályágyaktól.;NPCE020
+NPCD308;NPC015;0;7;A mérnök megérkezett a kristálycsarnokba. Három kőgólem és két Villámvihar-rúna választja el a meghibásodott kristályágyaktól. Xyrax a Századik Tekintet szentélyében fogva tartja a kristálymérnök eltűnt társainak emlékeit. Győzd le a vén beholdert, és szerezd meg a kristályhálózat aranykulcsát.;NPCE020
+NPCD309;NPC015;8;10;Megbízom bennetek, ezért ezt is elmondom: A villámvihar tartós területet veszélyeztet. Ha egy rúna kisül, a csapat ne maradjon a hatásában. A mérnök megérkezett a kristálycsarnokba. Három kőgólem és két Villámvihar-rúna választja el a meghibásodott kristályágyaktól. Xyrax a Századik Tekintet szentélyében fogva tartja a kristálymérnök eltűnt társainak emlékeit. Győzd le a vén beholdert, és szerezd meg a kristályhálózat aranykulcsát. Xyrax mellett csak egy beholder és két kőgólem áll, de minden szabad varázskör veszélyes. A gólemek feltartóztatnak, a szemek távolról támadnak: használjátok a terem szélességét.;NPCE020
 NPCD310;NPC016;0;7;Az éji menekült a jég alatt rekedt. A kijáratot keresi, és három wightot ismer fel az őt üldöző őrségből.;NPCE021
 NPCD311;NPC016;8;10;Megbízom bennetek, ezért ezt is elmondom: A dermedt mélység után a vámpírerőd következik. Betegségre való orvosságot és a gonosz elleni védelmet is tartogassatok. Az éji menekült a jég alatt rekedt. A kijáratot keresi, és három wightot ismer fel az őt üldöző őrségből.;NPCE021
 NPCD312;NPC016;0;7;A menekült visszatért egykori fogságának helyére. Három vámpír üldözőt és két elkobzott készletládát keres.;NPCE022
 NPCD313;NPC016;8;10;Megbízom bennetek, ezért ezt is elmondom: A vámpírerődben a vérmágusok és nekromanták is támogatják az őrséget. A vámpírok mellől őket is bontsátok ki. A menekült visszatért egykori fogságának helyére. Három vámpír üldözőt és két elkobzott készletládát keres.;NPCE022
-NPCD314;NPC013;0;7;A kutató a szentély wyvernjei után az élő és holt sárkányok közös temetőjét vizsgálja. Három wyvern és egy Meteorrúna mintázata érdekli.;NPCE023
-NPCD315;NPC013;8;10;Megbízom bennetek, ezért ezt is elmondom: A meteorzápor nem egyetlen célpontot veszélyeztet. A rúna környékén a csapat tagjai között legyen hely a széthúzódásra. A kutató a szentély wyvernjei után az élő és holt sárkányok közös temetőjét vizsgálja. Három wyvern és egy Meteorrúna mintázata érdekli.;NPCE023
+NPCD314;NPC013;0;7;A kutató a szentély wyvernjei után az élő és holt sárkányok közös temetőjét vizsgálja. Három wyvern és egy Meteorrúna mintázata érdekli. Nharaz a fekete evangélium kriptájából hamis feltámadást ígér a holtaknak. A sárkánykutató szerint élő lelket éget új testéhez. Győzd le a drakolichot, és vedd el Zephyriel elárult aranykulcsát.;NPCE023
+NPCD315;NPC013;8;10;Megbízom bennetek, ezért ezt is elmondom: A meteorzápor nem egyetlen célpontot veszélyeztet. A rúna környékén a csapat tagjai között legyen hely a széthúzódásra. A kutató a szentély wyvernjei után az élő és holt sárkányok közös temetőjét vizsgálja. Három wyvern és egy Meteorrúna mintázata érdekli. Nharaz a fekete evangélium kriptájából hamis feltámadást ígér a holtaknak. A sárkánykutató szerint élő lelket éget új testéhez. Győzd le a drakolichot, és vedd el Zephyriel elárult aranykulcsát. Nharaz varázslóként is veszélyes. Két halállovag tartja az első sort, három csontvázíjász és egy nekromanta támogatja. A hosszú, felőrlő harc neki kedvez.;NPCE023
 NPCD316;NPC017;0;7;A démonvadász egykori őreit követi a Parázspusztaságban. Négy karmos démont és három pokolőrt jelölt meg célpontként.;NPCE024
 NPCD317;NPC017;8;10;Megbízom bennetek, ezért ezt is elmondom: A Parázspusztaság tűzre épít, de a papok és vérmágusok más módon is támadnak. Egyetlen ellenállásra ne építsétek az egész védelmet. A démonvadász egykori őreit követi a Parázspusztaságban. Négy karmos démont és három pokolőrt jelölt meg célpontként.;NPCE024
-NPCD318;NPC017;0;7;A vadász a Parázspusztaság őrsége után a Vértrónus láncőreit keresi. Két démonpók és három démonlovag ismerős neki a fogságból.;NPCE025
-NPCD319;NPC017;8;10;Megbízom bennetek, ezért ezt is elmondom: A lovagok támogatását vérmágusok és káoszfőpapok adják. Az erős őröket és a varázshasználóikat külön célpontként kezeljétek. A vadász a Parázspusztaság őrsége után a Vértrónus láncőreit keresi. Két démonpók és három démonlovag ismerős neki a fogságból.;NPCE025
-NPCD320;NPC018;0;7;A zarándok elérte a káosz szívét. A kijárat vonalát és három ereklyés láda visszhangját akarja összevetni.;NPCE026
-NPCD321;NPC018;8;10;Megbízom bennetek, ezért ezt is elmondom: A káosz szívében a régi ellenfelek új csoportokban térnek vissza. A korábban gyengének tűnő kísérők mögött most nagy hatalmú mágus is állhat. A zarándok elérte a káosz szívét. A kijárat vonalát és három ereklyés láda visszhangját akarja összevetni.;NPCE026
+NPCD318;NPC017;0;7;A vadász a Parázspusztaság őrsége után a Vértrónus láncőreit keresi. Két démonpók és három démonlovag ismerős neki a fogságból. Ashkaroth, Vhar-Zul ostora a Vértrónus láncaira kötötte a démonvadász egykori társait. Győzd le a balort, törd szét a láncokat, és szerezd meg a tizenegyedik aranykulcsot.;NPCE025
+NPCD319;NPC017;8;10;Megbízom bennetek, ezért ezt is elmondom: A lovagok támogatását vérmágusok és káoszfőpapok adják. Az erős őröket és a varázshasználóikat külön célpontként kezeljétek. A vadász a Parázspusztaság őrsége után a Vértrónus láncőreit keresi. Két démonpók és három démonlovag ismerős neki a fogságból. Ashkaroth, Vhar-Zul ostora a Vértrónus láncaira kötötte a démonvadász egykori társait. Győzd le a balort, törd szét a láncokat, és szerezd meg a tizenegyedik aranykulcsot. Három démonlovag és négy pokolfajzat zárja a frontot, egy vérmágus áll mögöttük. Ashkaroth mellett a vérmágus szabad keze különösen veszélyes.;NPCE025
+NPCD320;NPC018;0;7;A zarándok elérte a káosz szívét. A kijárat vonalát és három ereklyés láda visszhangját akarja összevetni. Kael-Zhur az utolsó lakat termében Zephyriel bűnének emlékét őrzi. A káoszzarándok szerint a sárkány nélkül a Rubin útja sem Aurelios, sem Vhar-Zul előtt nem nyílhat meg. Győzd le, és szerezd meg az utolsó aranykulcsot.;NPCE026
+NPCD321;NPC018;8;10;Megbízom bennetek, ezért ezt is elmondom: A káosz szívében a régi ellenfelek új csoportokban térnek vissza. A korábban gyengének tűnő kísérők mögött most nagy hatalmú mágus is állhat. A zarándok elérte a káosz szívét. A kijárat vonalát és három ereklyés láda visszhangját akarja összevetni. Kael-Zhur az utolsó lakat termében Zephyriel bűnének emlékét őrzi. A káoszzarándok szerint a sárkány nélkül a Rubin útja sem Aurelios, sem Vhar-Zul előtt nem nyílhat meg. Győzd le, és szerezd meg az utolsó aranykulcsot. Három káoszlovag és két élő páncél tartja a frontot, hátul káoszfőpap erősíti őket. A sárkány mellett a főpapot se hagyjátok zavartalanul dolgozni.;NPCE026
 NPCD322;NPC018;0;7;A zarándok a végső kijáratot keresi a trónon túl. Előtte egy feketemágus hangját akarja elnémítani.;NPCE027
 NPCD323;NPC018;8;10;Megbízom bennetek, ezért ezt is elmondom: A végső csarnokban a legerősebb varázshasználók mellé élő páncélok és lovagok sorakoznak. A tartalékokat a támogatás kiiktatására is őrizzétek. A zarándok a végső kijáratot keresi a trónon túl. Előtte egy feketemágus hangját akarja elnémítani.;NPCE027
 NPCD324;NPC002;0;7;A szörnyvadász ezúttal ogrelábnyomokat és gnollnyomokat mutat. A csarnokok nagyvadjai vezetik a kisebb csapatokat.;NPCE034
@@ -2275,9 +2295,9 @@ NPCD354;NPC031;0;7;A lánctörő kovács az erőd szállítási jeleit követve 
 NPCD355;NPC031;8;10;Megbízom bennetek, ezért ezt is elmondom: A kristálycsarnok tárgyai között átok is előfordulhat. Az ismeretlen zsákmányt vizsgáljátok meg, mielőtt felszerelitek. A lánctörő kovács az erőd szállítási jeleit követve jutott ide. Egy élő páncélt vizsgálna, mielőtt továbbkeresi a bilincsek műhelyét.;NPCE052
 NPCD356;NPC001;0;7;A füvesasszony a jégjárók sérültjeit látja el. Három kötést kér, és nagy gyógyitalokkal segíti a továbbhaladó expedíciót.;NPCE053
 NPCD357;NPC001;8;10;Megbízom bennetek, ezért ezt is elmondom: A hideg folyosókon élőholtak és varázshasználók is járnak. Ne csak az óriások nagy ütéseire készüljetek. A füvesasszony a jégjárók sérültjeit látja el. Három kötést kér, és nagy gyógyitalokkal segíti a továbbhaladó expedíciót.;NPCE053
-NPCD358;NPC029;0;10;A fagyjáró az óriások hat ogre teherhordóját figyeli. A pihenőhelyeket két Jégvihar-rúna teszi használhatatlanná.;NPCE054
-NPCD359;NPC008;0;7;A remete az örökéjben fogva tartott lelkek hangját hallja. Tizenhat élőholt és két Rémkép-rúna elcsendesítése kell a munkájához.;NPCE055
-NPCD360;NPC008;8;10;Megbízom bennetek, ezért ezt is elmondom: A vérmágusok és a rémképek mellett az erőd betegséget okozó lényei is veszélyesek. A hosszú ostromhoz a gyógyfüves orvosság külön tartalékot érdemel. A remete az örökéjben fogva tartott lelkek hangját hallja. Tizenhat élőholt és két Rémkép-rúna elcsendesítése kell a munkájához.;NPCE055
+NPCD358;NPC029;0;10;A fagyjáró az óriások hat ogre teherhordóját figyeli. A pihenőhelyeket két Jégvihar-rúna teszi használhatatlanná. Ossyra a dermedt eskü sírkamrájában az egykori menedéket sírrá változtatta. A fagyjáró kalauz ősei ott esküdtek Zephyrielnek. Győzd le az eskühöz láncolt csontsárkányt, és hozd el aranykulcsát.;NPCE054
+NPCD359;NPC008;0;7;A remete az örökéjben fogva tartott lelkek hangját hallja. Tizenhat élőholt és két Rémkép-rúna elcsendesítése kell a munkájához. Győzd le Velkhar grófot az örökéj tróntermében. A halottlátó remete az erődbe csalt családok neveit keresi, hogy felszabadítsa lelküket. A gróf aranykulcsa a foglyok emlékeit is a pecséthez köti.;NPCE055
+NPCD360;NPC008;8;10;Megbízom bennetek, ezért ezt is elmondom: A vérmágusok és a rémképek mellett az erőd betegséget okozó lényei is veszélyesek. A hosszú ostromhoz a gyógyfüves orvosság külön tartalékot érdemel. A remete az örökéjben fogva tartott lelkek hangját hallja. Tizenhat élőholt és két Rémkép-rúna elcsendesítése kell a munkájához. Győzd le Velkhar grófot az örökéj tróntermében. A halottlátó remete az erődbe csalt családok neveit keresi, hogy felszabadítsa lelküket. A gróf aranykulcsa a foglyok emlékeit is a pecséthez köti. Három vámpír, egy vámpírkardmester és egy nekromanta védi a grófot. Ne hagyjátok a nekromantát a hátatok mögött, és készüljetek az élőholtak ellen.;NPCE055
 NPCD361;NPC028;0;7;"A levéltáros a lápvidék és az erőd feljegyzéseit követve ért a temetőbe. Két nekromanta hamisítja a régi emlékeket; az utolsó útvonal végét is keresi.";NPCE056
 NPCD362;NPC028;8;10;"Megbízom bennetek, ezért ezt is elmondom: A temető mögött már démoni területek következnek. A lápi készletek helyett erősebb gyógy- és varázsitalokkal készüljetek a következő útra. A levéltáros a lápvidék és az erőd feljegyzéseit követve ért a temetőbe. Két nekromanta hamisítja a régi emlékeket; az utolsó útvonal végét is keresi.";NPCE056
 NPCD363;NPC030;0;7;A kultuszszökevény itt találta meg a sárkánykultusz démoni szövetségeseit. Három káoszpap nevét ismeri, és menekülőútvonalat keres más szökevényeknek.;NPCE057
@@ -2360,7 +2380,7 @@ NPCD435;NPC014;0;10;Az idomárok füttyjele — elvégeztétek a feladatot. Az �
 NPCD436;NPC014;8;10;A gyíkőrség a pajzsosokat küldi előre. A sámánok gyógyítanak és erősítenek, az idomárok krokodilokat vezetnek. Az állatok mögötti támogatást törjétek meg.;NPCE083
 NPCD437;NPC014;0;10;Tiszta víz a palotában — elvégeztétek a feladatot. Az ígért készletet megkapjátok.;
 NPCD438;NPC014;0;10;Nyilak az átkelők fölött — elvégeztétek a feladatot. Az ígért készletet megkapjátok.;
-NPCD439;NPC028;0;10;A pikkelytrón zsarnoka — elvégeztétek a feladatot. Az ígért készletet megkapjátok.;
+NPCD439;NPC028;0;10;Sszar-Kor jelvényei mögül előkerültek a koronák feliratai. A láp népei visszakapják a saját történetüket.;
 NPCD440;NPC028;8;10;A király két sámánnal és pajzsos testőrökkel őrzi az aranykulcsot. A királygyilkosság önmagában nem némítja el a gyógyítókat. A palota mögött a vedlő isten papjai állnak.;NPCE084
 NPCD441;NPC028;0;10;Az elhurcolt koronák jegyzéke — elvégeztétek a feladatot. Az ígért készletet megkapjátok.;
 NPCD442;NPC028;0;10;A pikkelylégió bilincsei — elvégeztétek a feladatot. Az ígért készletet megkapjátok.;
@@ -2370,19 +2390,37 @@ NPCD445;NPC010;0;10;Ellenméreg a zarándokoknak — elvégeztétek a feladatot.
 NPCD446;NPC026;0;10;A vedlés álompecsétjei — elvégeztétek a feladatot. Az ígért készletet megkapjátok.;
 NPCD447;NPC026;8;10;A Rémképrúna és a méregcsapda eltérő őrjel. Ehhez a feladathoz a két Rémképrúna kell. A főpap őrségét gyógyítás és védelmi litánia tartja életben.;NPCE086
 NPCD448;NPC026;0;10;A templom mögötti út — elvégeztétek a feladatot. Az ígért készletet megkapjátok.;
-NPCD449;NPC030;0;10;A vedlő isten hamis hangja — elvégeztétek a feladatot. Az ígért készletet megkapjátok.;
+NPCD449;NPC030;0;10;A főoltár elnémult. Azok, akik még élnek, most már kiléphetnek a körmenetből.;
 NPCD450;NPC030;8;10;A főpap az egész őrséget gyógyíthatja és erősítheti. Templomőrök, íjászok és két kígyópap védi. A belső mellékszentély ősi hidrája külön őrző, nem aranykulcsos boss.;NPCE087
 NPCD451;NPC030;0;10;A körmenet elnémítása — elvégeztétek a feladatot. Az ígért készletet megkapjátok.;
 NPCD452;NPC014;0;7;Az idomárok füttyjele: Győzz le két krokodilidomárt. A révész a lápi átkelők után a palota medencéihez vezető utat tisztíttatja meg. Tiszta víz a palotában: Vigyél hat adag vizet a révésznek. A palota sós medencéiből a sebesült menekülők nem ihatnak. Nyilak az átkelők fölött: Győzz le hat gyíkember vadászt. A gyors íjászok a visszavonulókat és az átkelők őrizetlen oldalát lövik.;NPCE083
 NPCD453;NPC014;8;10;Megbízom bennetek. A gyíkőrség a pajzsosokat küldi előre. A sámánok gyógyítanak és erősítenek, az idomárok krokodilokat vezetnek. Az állatok mögötti támogatást törjétek meg. Az idomárok füttyjele: Győzz le két krokodilidomárt. A révész a lápi átkelők után a palota medencéihez vezető utat tisztíttatja meg. Tiszta víz a palotában: Vigyél hat adag vizet a révésznek. A palota sós medencéiből a sebesült menekülők nem ihatnak. Nyilak az átkelők fölött: Győzz le hat gyíkember vadászt. A gyors íjászok a visszavonulókat és az átkelők őrizetlen oldalát lövik.;NPCE083
-NPCD454;NPC028;0;7;A pikkelytrón zsarnoka: Győzd le a gyíkemberek királyát a palota utolsó képernyőjének tróntermében. A levéltáros a lápi udvartól elrabolt koronák nyomára talált. Az elhurcolt koronák jegyzéke: Nyiss ki három kincsesládát. A levéltáros a lápvidék udvari pecsétjeit keresi a palota zsákmányraktáraiban. A pikkelylégió bilincsei: Győzz le hat pajzsos gyíkőrt. A kaszárnyák foglyait az udvari őrség őrzi.;NPCE084
-NPCD455;NPC028;8;10;Megbízom bennetek. A király két sámánnal és pajzsos testőrökkel őrzi az aranykulcsot. A királygyilkosság önmagában nem némítja el a gyógyítókat. A palota mögött a vedlő isten papjai állnak. A pikkelytrón zsarnoka: Győzd le a gyíkemberek királyát a palota utolsó képernyőjének tróntermében. A levéltáros a lápi udvartól elrabolt koronák nyomára talált. Az elhurcolt koronák jegyzéke: Nyiss ki három kincsesládát. A levéltáros a lápvidék udvari pecsétjeit keresi a palota zsákmányraktáraiban. A pikkelylégió bilincsei: Győzz le hat pajzsos gyíkőrt. A kaszárnyák foglyait az udvari őrség őrzi.;NPCE084
+NPCD454;NPC028;0;7;A pikkelytrón zsarnoka: Győzd le a gyíkemberek királyát a palota utolsó képernyőjének tróntermében. A levéltáros a lápi udvartól elrabolt koronák nyomára talált. Az elhurcolt koronák jegyzéke: Nyiss ki három kincsesládát. A levéltáros a lápvidék udvari pecsétjeit keresi a palota zsákmányraktáraiban. A pikkelylégió bilincsei: Győzz le hat pajzsos gyíkőrt. A kaszárnyák foglyait az udvari őrség őrzi. Győzd le Sszar-Kort, a Pikkelylégió királyát a Királyi pikkelytrón termében. A levéltáros szerint az elrabolt lápi koronákból kovácsoltatott katonai jelvényeket. Aranykulcsa Zephyriel egyik pecsétjét nyitja.;NPCE084
+NPCD455;NPC028;8;10;Megbízom bennetek. A király két sámánnal és pajzsos testőrökkel őrzi az aranykulcsot. A királygyilkosság önmagában nem némítja el a gyógyítókat. A palota mögött a vedlő isten papjai állnak. A pikkelytrón zsarnoka: Győzd le a gyíkemberek királyát a palota utolsó képernyőjének tróntermében. A levéltáros a lápi udvartól elrabolt koronák nyomára talált. Az elhurcolt koronák jegyzéke: Nyiss ki három kincsesládát. A levéltáros a lápvidék udvari pecsétjeit keresi a palota zsákmányraktáraiban. A pikkelylégió bilincsei: Győzz le hat pajzsos gyíkőrt. A kaszárnyák foglyait az udvari őrség őrzi. Győzd le Sszar-Kort, a Pikkelylégió királyát a Királyi pikkelytrón termében. A levéltáros szerint az elrabolt lápi koronákból kovácsoltatott katonai jelvényeket. Aranykulcsa Zephyriel egyik pecsétjét nyitja. Sszar-Kor hadrendje összetart: hat pajzsos őr elöl, három vadász az oldalakon, két sámán hátul. A sámánok nélkül a pajzsfal jóval sérülékenyebb.;NPCE084
 NPCD456;NPC010;0;7;A méregkeverők esküje: Győzz le két méregmágust. Az alkimista a mocsári mérgek forrását a templom rituális méregigézetében találta meg. Ellenméreg a zarándokoknak: Vigyél három ellenmérget az alkimistának. A templom foglyai között is terjed a rituális méreg.;NPCE085
 NPCD457;NPC010;8;10;Megbízom bennetek. A méregigézet tartós mérgezést okozhat, a zöld vihar pedig savval sebez és lassít. Ellenméreg és savvédelem együtt kell. A kígyóíjászok célzott lövése külön is mérgez. A méregkeverők esküje: Győzz le két méregmágust. Az alkimista a mocsári mérgek forrását a templom rituális méregigézetében találta meg. Ellenméreg a zarándokoknak: Vigyél három ellenmérget az alkimistának. A templom foglyai között is terjed a rituális méreg.;NPCE085
 NPCD458;NPC026;0;7;A vedlés álompecsétjei: Hatástalaníts két Rémképrúnát a templom második és harmadik képernyőjén. Az adeptus a mocsári őrjelek eredeti litániáját fejtette meg. A templom mögötti út: Fedezd fel a templom kijáratát. A rúnatörő a főoltár mögött a mélyjáratba vezető szabad utat keresi.;NPCE086
 NPCD459;NPC026;8;10;Megbízom bennetek. A Rémképrúna és a méregcsapda eltérő őrjel. Ehhez a feladathoz a két Rémképrúna kell. A főpap őrségét gyógyítás és védelmi litánia tartja életben. A vedlés álompecsétjei: Hatástalaníts két Rémképrúnát a templom második és harmadik képernyőjén. Az adeptus a mocsári őrjelek eredeti litániáját fejtette meg. A templom mögötti út: Fedezd fel a templom kijáratát. A rúnatörő a főoltár mögött a mélyjáratba vezető szabad utat keresi.;NPCE086
-NPCD460;NPC030;0;7;A vedlő isten hamis hangja: Győzd le a kígyóemberek főpapját az utolsó képernyő főoltáránál. A szökevény szerint a pap a káoszkultusz számára gyűjti a lápi áldozatokat. A körmenet elnémítása: Győzz le három kígyópapot. A főpap segítői vezetik a zarándokokat a méreggel szentelt termekbe.;NPCE087
-NPCD461;NPC030;8;10;Megbízom bennetek. A főpap az egész őrséget gyógyíthatja és erősítheti. Templomőrök, íjászok és két kígyópap védi. A belső mellékszentély ősi hidrája külön őrző, nem aranykulcsos boss. A vedlő isten hamis hangja: Győzd le a kígyóemberek főpapját az utolsó képernyő főoltáránál. A szökevény szerint a pap a káoszkultusz számára gyűjti a lápi áldozatokat. A körmenet elnémítása: Győzz le három kígyópapot. A főpap segítői vezetik a zarándokokat a méreggel szentelt termekbe.;NPCE087
+NPCD460;NPC030;0;7;A vedlő isten hamis hangja: Győzd le a kígyóemberek főpapját az utolsó képernyő főoltáránál. A szökevény szerint a pap a káoszkultusz számára gyűjti a lápi áldozatokat. A körmenet elnémítása: Győzz le három kígyópapot. A főpap segítői vezetik a zarándokokat a méreggel szentelt termekbe. Győzd le Szeth-Isszt, a Vedlő Isten főpapját a főoltárnál. A kultusz szökevénye szerint a főpap a lápi áldozatokkal akarja Zephyriel aranykulcsát Vhar-Zulnak ajánlani.;NPCE087
+NPCD461;NPC030;8;10;Megbízom bennetek. A főpap az egész őrséget gyógyíthatja és erősítheti. Templomőrök, íjászok és két kígyópap védi. A belső mellékszentély ősi hidrája külön őrző, nem aranykulcsos boss. A vedlő isten hamis hangja: Győzd le a kígyóemberek főpapját az utolsó képernyő főoltáránál. A szökevény szerint a pap a káoszkultusz számára gyűjti a lápi áldozatokat. A körmenet elnémítása: Győzz le három kígyópapot. A főpap segítői vezetik a zarándokokat a méreggel szentelt termekbe. Győzd le Szeth-Isszt, a Vedlő Isten főpapját a főoltárnál. A kultusz szökevénye szerint a főpap a lápi áldozatokkal akarja Zephyriel aranykulcsát Vhar-Zulnak ajánlani. Szeth-Issz gyógyítja és erősíti az őrséget. Öt templomőr, három íjász és két kígyópap védi. A mellékszentély névtelen ősi hidrája külön ellenfél, aranykulcsot nem ad.;NPCE087
+NPCD500;NPC009;0;10;A zászlaját már elhagyták az őrök. Grond nélkül a családoknak lesz idejük megszökni. Ezt nem felejtem el.;NPCE013
+NPCD501;NPC009;8;10;Ismeritek már az utakat és megbízom bennetek. Ezt a készletet a következő őrzőre tartogattam, de most jobban kell nektek.;NPCE013
+NPCD502;NPC019;0;10;A csarnok végre nem szedi a maga vámját. Az eltűnt társaim nevét is kihoztátok a jég alól.;NPCE016
+NPCD504;NPC013;0;10;A Parázstrón kialudt. A kutatók feljegyzéseit megőrzöm: többé senki nem alapíthat istenséget erre a hazugságra.;NPCE017
+NPCD505;NPC013;8;10;Ismeritek már az utakat és megbízom bennetek. Ezt a készletet a következő őrzőre tartogattam, de most jobban kell nektek.;NPCE017
+NPCD506;NPC014;0;10;Megszűnt a kilenc hang az átkelőnél. A hajósok már nem követnek hamis harangszót a víz alá.;NPCE018
+NPCD507;NPC014;8;10;Ismeritek már az utakat és megbízom bennetek. Ezt a készletet a következő őrzőre tartogattam, de most jobban kell nektek.;NPCE018
+NPCD508;NPC015;0;10;A kristályok többé nem Xyrax szemével néznek. A társaim utolsó emlékeit visszaadhatom a családjaiknak.;NPCE020
+NPCD509;NPC015;8;10;Ismeritek már az utakat és megbízom bennetek. Ezt a készletet a következő őrzőre tartogattam, de most jobban kell nektek.;NPCE020
+NPCD510;NPC029;0;10;Az őseim esküje végre nem követel újabb halottakat. Ossyra neve őrzőként kerül a krónikába, nem szörnyetegként.;NPCE054
+NPCD512;NPC008;0;10;A neveket kimondtuk. Az erőd halottai most már nem a gróf vendégei.;NPCE055
+NPCD513;NPC008;8;10;Ismeritek már az utakat és megbízom bennetek. Ezt a készletet a következő őrzőre tartogattam, de most jobban kell nektek.;NPCE055
+NPCD514;NPC013;0;10;A fekete evangélium lapjai üresek. A halottakat nem támasztotta volna fel: csak magát építette volna újra belőlük.;NPCE023
+NPCD515;NPC013;8;10;Ismeritek már az utakat és megbízom bennetek. Ezt a készletet a következő őrzőre tartogattam, de most jobban kell nektek.;NPCE023
+NPCD516;NPC017;0;10;A láncok már csak vasat tartanak. A társaim szabadok, és Vhar-Zul elvesztette az ostorát.;NPCE025
+NPCD517;NPC017;8;10;Ismeritek már az utakat és megbízom bennetek. Ezt a készletet a következő őrzőre tartogattam, de most jobban kell nektek.;NPCE025
+NPCD518;NPC018;0;10;A tizenkét lakat engedett. Zephyriel emlékét ne a győztes király döntse el: vigyétek magatokkal a kételyeit is.;NPCE026
+NPCD519;NPC018;8;10;Ismeritek már az utakat és megbízom bennetek. Ezt a készletet a következő őrzőre tartogattam, de most jobban kell nektek.;NPCE026
 
 #NPC történeti választások
 Id;TörténetId;ÁllapotId;Mondat;Sorrend;Válasz;ViszonyVáltozás;KövetkezőÁllapotId;Reakció;Hatás;HatásParaméter;Folytatás;MinimumViszony;MaximumViszony

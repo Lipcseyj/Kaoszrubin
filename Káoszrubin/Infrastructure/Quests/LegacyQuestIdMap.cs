@@ -181,6 +181,16 @@ public static class LegacyQuestIdMap
             "NPCQ163" => QuestId.RuneBreakerTempleExit,
             "NPCQ164" => QuestId.FugitiveSnakeHighPriest,
             "NPCQ165" => QuestId.FugitiveTemplePriests,
+            "NPCQ166" => QuestId.OrcDeserterWarchief,
+            "NPCQ167" => QuestId.GiantHunterHrold,
+            "NPCQ168" => QuestId.DragonResearcherAzrakar,
+            "NPCQ169" => QuestId.FerrymanAncientHydra,
+            "NPCQ170" => QuestId.CrystalEngineerXyrax,
+            "NPCQ171" => QuestId.FrostGuideOssyra,
+            "NPCQ172" => QuestId.SpiritSeerVelkhar,
+            "NPCQ173" => QuestId.DragonResearcherNharaz,
+            "NPCQ174" => QuestId.DemonHunterAshkaroth,
+            "NPCQ175" => QuestId.ChaosPilgrimKaelZhur,
             _ => throw new InvalidDataException(
                 $"Ismeretlen legacy quest-azonosító: '{legacyId}'.")
         };
@@ -352,6 +362,16 @@ public static class LegacyQuestIdMap
         QuestId.RuneBreakerTempleExit => "NPCQ163",
         QuestId.FugitiveSnakeHighPriest => "NPCQ164",
         QuestId.FugitiveTemplePriests => "NPCQ165",
+        QuestId.OrcDeserterWarchief => "NPCQ166",
+        QuestId.GiantHunterHrold => "NPCQ167",
+        QuestId.DragonResearcherAzrakar => "NPCQ168",
+        QuestId.FerrymanAncientHydra => "NPCQ169",
+        QuestId.CrystalEngineerXyrax => "NPCQ170",
+        QuestId.FrostGuideOssyra => "NPCQ171",
+        QuestId.SpiritSeerVelkhar => "NPCQ172",
+        QuestId.DragonResearcherNharaz => "NPCQ173",
+        QuestId.DemonHunterAshkaroth => "NPCQ174",
+        QuestId.ChaosPilgrimKaelZhur => "NPCQ175",
         _ => throw new InvalidDataException("Ismeretlen típusos questazonosító.")
     };
 }
