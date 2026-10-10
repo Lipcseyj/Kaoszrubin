@@ -35,6 +35,7 @@
 - [erdei generálás](forest-generation-readme.md)
 - [térkép szerkesztő](../Tools/MapEditor/map-editor-readme.md)
 - [küldetésrendszer](quest-readme.md)
+- [a 7–23. pálya küldetései és visszatérő szereplői](kampany-kuldetesek-7-23.md)
 - [küldetésszobák célképernyője és AreaId-ja](quest-room-placement-readme.md)
 
 ## Ténylegesen működő fejlesztői funkciók

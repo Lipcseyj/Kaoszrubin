@@ -37,7 +37,13 @@ RELIC_TEST;T011;3
 
     public static void CsvResolvesChestAndObjective()
     {
-        var text = Original.Replace("NPCQ019;NPC012;Explore;EXIT", "NPCQ019;NPC012;OpenQuestChest;RELIC_TEST") + Rows;
+        var original = Original;
+        var row = original.Split('\n').Single(value => value.StartsWith("NPCQ019;", StringComparison.Ordinal));
+        var cells = row.TrimEnd('\r').Split(';');
+        cells[2] = "OpenQuestChest";
+        cells[3] = "RELIC_TEST";
+        cells[4] = "1";
+        var text = original.Replace(row, string.Join(';', cells)) + Rows;
         var data = Load(text);
         var chest = data.GetQuestChest(new("relic_test"));
         Check(chest.Id == ChestId && chest.Gold == 17 && chest.Items.Sum(item => item.Quantity) == 5 &&

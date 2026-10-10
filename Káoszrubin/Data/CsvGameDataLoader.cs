@@ -1137,9 +1137,10 @@ public static class CsvGameDataLoader
         {
             if (quest.MinimumFriendliness > quest.MaximumFriendliness)
                 throw new InvalidDataException($"A(z) '{quest.Id}' quest viszonytartománya érvénytelen.");
-            if (quest.EncounterId is { } questEncounter && !encounters.Any(encounter =>
-                    string.Equals(encounter.Id, questEncounter, StringComparison.OrdinalIgnoreCase) &&
-                    string.Equals(encounter.NpcId, quest.NpcId, StringComparison.OrdinalIgnoreCase)))
+            if (quest.EncounterId is { } questEncounter && questEncounter.Split('|', StringSplitOptions.TrimEntries)
+                    .Any(encounterId => !encounters.Any(encounter =>
+                        string.Equals(encounter.Id, encounterId, StringComparison.OrdinalIgnoreCase) &&
+                        string.Equals(encounter.NpcId, quest.NpcId, StringComparison.OrdinalIgnoreCase))))
                 throw new InvalidDataException($"A(z) '{quest.Id}' quest ismeretlen vagy más NPC-hez tartozó találkozásra hivatkozik: '{questEncounter}'.");
             var targetIsValid = quest.Type switch
             {

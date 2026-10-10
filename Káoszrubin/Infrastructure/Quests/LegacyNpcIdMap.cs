@@ -43,6 +43,12 @@ public static class LegacyNpcIdMap
 
             "NPC024" => QuestNpcId.Npc024,
             "NPC025" => QuestNpcId.Npc025,
+            "NPC026" => QuestNpcId.RuneBreaker,
+            "NPC027" => QuestNpcId.DeepSurveyor,
+            "NPC028" => QuestNpcId.SunkenCourtArchivist,
+            "NPC029" => QuestNpcId.FrostGuide,
+            "NPC030" => QuestNpcId.CultFugitive,
+            "NPC031" => QuestNpcId.ChainbreakerSmith,
             _ => throw new InvalidDataException(
                 $"Ismeretlen legacy quest NPC-azonosító: '{legacyId}'.")
         };
@@ -74,6 +80,12 @@ public static class LegacyNpcIdMap
         QuestNpcId.Vildar => "NPC023",
         QuestNpcId.Npc024 => "NPC024",
         QuestNpcId.Npc025 => "NPC025",
+        QuestNpcId.RuneBreaker => "NPC026",
+        QuestNpcId.DeepSurveyor => "NPC027",
+        QuestNpcId.SunkenCourtArchivist => "NPC028",
+        QuestNpcId.FrostGuide => "NPC029",
+        QuestNpcId.CultFugitive => "NPC030",
+        QuestNpcId.ChainbreakerSmith => "NPC031",
         _ => throw new InvalidDataException("Ismeretlen típusos questadó-azonosító.")
     };
 }

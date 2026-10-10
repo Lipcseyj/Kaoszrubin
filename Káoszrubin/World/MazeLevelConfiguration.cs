@@ -721,6 +721,7 @@ public static class MazeLevelConfigurations
             {
                 Level = 7,
                 Name = "A nagy csarnokok szintje",
+                GuaranteedTraps = [new("TR105"), new("TR105")],
                 Layout = new WideMazeLayoutConfiguration(new IntRange(2, 2), NarrowingChance: 0.12),
                 WallRune = new('▦'),
                 WallColor = ConsoleColor.DarkYellow,
@@ -849,6 +850,7 @@ public static class MazeLevelConfigurations
             {
                 Level = 10,
                 Name = "Az elátkozott sírkamrák",
+                GuaranteedTraps = [new("TR102"), new("TR102")],
                 DoubleWidthCorridorChance = 0.92,
                 WallRune = new('▦'),
                 WallColor = ConsoleColor.DarkMagenta,
@@ -902,6 +904,7 @@ public static class MazeLevelConfigurations
             {
                 Level = 11,
                 Name = "Az óriások erődje",
+                GuaranteedTraps = [new("TR108"), new("TR108")],
                 Layout = new WideMazeLayoutConfiguration(new(2, 2), NarrowingChance: 0.10),
                 WallRune = new('▩'),
                 WallColor = ConsoleColor.Gray,
@@ -958,6 +961,7 @@ public static class MazeLevelConfigurations
             {
                 Level = 12,
                 Name = "A sárkánykultusz szentélye",
+                GuaranteedTraps = [new("TR106"), new("TR106")],
                 Layout = new WideMazeLayoutConfiguration(new(2, 2), NarrowingChance: 0.16),
                 WallRune = new('▥'),
                 WallColor = ConsoleColor.Red,
@@ -1186,6 +1190,7 @@ public static class MazeLevelConfigurations
             {
                 Level = 14,
                 Name = "A rothadó mocsár",
+                GuaranteedTraps = [new("TR109"), new("TR109")],
                 Layout = new WideMazeLayoutConfiguration(new(2, 2), NarrowingChance: 0.18),
                 WallRune = new('▒'),
                 WallColor = ConsoleColor.DarkGreen,
@@ -1248,6 +1253,7 @@ public static class MazeLevelConfigurations
             {
                 Level = 15,
                 Name = "A fojtogató mélyjárat",
+                GuaranteedTraps = [new("TR108"), new("TR108")],
                 DoubleWidthCorridorChance = 0,
                 WallRune = new('█'),
                 WallColor = ConsoleColor.DarkGray,
@@ -1304,6 +1310,7 @@ public static class MazeLevelConfigurations
             {
                 Level = 16,
                 Name = "A megtört kristálycsarnok",
+                GuaranteedTraps = [new("TR110"), new("TR110")],
                 DoubleWidthCorridorChance = 0.72,
                 WallRune = new('◆'),
                 WallColor = ConsoleColor.Cyan,
@@ -1360,6 +1367,7 @@ public static class MazeLevelConfigurations
             {
                 Level = 17,
                 Name = "A dermedt mélység",
+                GuaranteedTraps = [new("TR107"), new("TR107"), new("TR104"), new("TR104")],
                 DoubleWidthCorridorChance = 0.62,
                 WallRune = new('▒'),
                 WallColor = ConsoleColor.White,
@@ -1416,6 +1424,7 @@ public static class MazeLevelConfigurations
             {
                 Level = 18,
                 Name = "Az örökéj vámpírerődje",
+                GuaranteedTraps = [new("TR109"), new("TR109")],
                 Layout = new WideMazeLayoutConfiguration(new(3, 3), NarrowingChance: 0.13),
                 WallRune = new('⣿'),
                 WallColor = ConsoleColor.DarkMagenta,
@@ -1478,6 +1487,7 @@ public static class MazeLevelConfigurations
             {
                 Level = 19,
                 Name = "A sárkányok temetője",
+                GuaranteedTraps = [new("TR111")],
                 DoubleWidthCorridorChance = 0.84,
                 WallRune = new('█'),
                 WallColor = ConsoleColor.Gray,
@@ -1590,6 +1600,7 @@ public static class MazeLevelConfigurations
             {
                 Level = 21,
                 Name = "A démoni sík: Vértrónus",
+                GuaranteedTraps = [new("TR111"), new("TR111")],
                 Layout = new WideMazeLayoutConfiguration(new(3, 3), NarrowingChance: 0.11),
                 WallRune = new('▓'),
                 WallColor = ConsoleColor.Red,
@@ -1652,6 +1663,7 @@ public static class MazeLevelConfigurations
             {
                 Level = 22,
                 Name = "A káosz szíve",
+                GuaranteedTraps = [new("TR112"), new("TR112"), new("TR110"), new("TR110")],
                 DoubleWidthCorridorChance = 0.80,
                 WallRune = new('▒'),
                 WallColor = ConsoleColor.Magenta,

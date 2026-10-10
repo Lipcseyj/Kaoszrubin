@@ -37,4 +37,11 @@ public enum QuestNpcId
     VillagerHerbalist,
     Npc024,
     Npc025,
+
+    RuneBreaker,
+    DeepSurveyor,
+    SunkenCourtArchivist,
+    FrostGuide,
+    CultFugitive,
+    ChainbreakerSmith,
 }

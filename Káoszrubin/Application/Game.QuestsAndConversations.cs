@@ -60,11 +60,11 @@ public sealed partial class Game
     {
         var definition = _gameData.Quests.Get(questId);
         var encounterMatches = definition.EncounterId is null ||
-            string.Equals(definition.EncounterId, npc.EncounterId, StringComparison.OrdinalIgnoreCase) ||
+            definition.MatchesEncounter(npc.EncounterId) ||
             npc.EncounterId is null && _gameData.NpcEncounters.Any(encounter =>
                 encounter.MazeLevel == _mazeLevel &&
                 string.Equals(encounter.NpcId, npc.DefinitionId, StringComparison.OrdinalIgnoreCase) &&
-                string.Equals(encounter.Id, definition.EncounterId, StringComparison.OrdinalIgnoreCase));
+                definition.MatchesEncounter(encounter.Id));
         return encounterMatches &&
                npc.Friendliness >= definition.MinimumFriendliness &&
                npc.Friendliness <= definition.MaximumFriendliness;

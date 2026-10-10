@@ -47,6 +47,9 @@ internal static class QuestCatalogImportTests
                 quest.RandomRewardCount == (Cell(10) == "" ? 1 : int.Parse(Cell(10))) &&
                 quest.CompletionDialogue?.Id == (Cell(12) == "" ? null : Cell(12)) &&
                 quest.CompletionDialogue?.NpcId == row[1] &&
+                quest.EncounterId == (Cell(16) == "" ? null : Cell(16)) &&
+                quest.MinimumFriendliness == (Cell(17) == "" ? 0 : int.Parse(Cell(17))) &&
+                quest.MaximumFriendliness == (Cell(18) == "" ? 10 : int.Parse(Cell(18))) &&
                 quest.GiverLeavesAfterCompletion ==
                     (Cell(19).Equals("igen", StringComparison.OrdinalIgnoreCase)),
                 $"Eltérő jutalom: {row[0]}.");
@@ -66,7 +69,9 @@ internal static class QuestCatalogImportTests
                 ("Explore", QuestObjective.ExploreLocation location) => row[3] == "EXIT" && location.Location == QuestLocation.Exit,
                 ("Escort", QuestObjective.EscortNpc escort) =>
                     row[3] == "EXIT" && escort.Destination == QuestLocation.Exit && escort.Npc == quest.Giver,
-                ("Disarm", QuestObjective.DisarmTraps) => row[3] == "ANY",
+                ("Disarm", QuestObjective.DisarmTraps traps) => row[3] == "ANY"
+                    ? traps.RequiredTrap is null
+                    : ReferenceEquals(traps.RequiredTrap, data.GetTrap(row[3])),
                 ("OpenChest", QuestObjective.OpenChests) => row[3] == "ANY",
                 _ => false
             };

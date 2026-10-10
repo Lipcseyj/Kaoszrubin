@@ -27,7 +27,14 @@ public sealed record QuestDefinition(
     string? EncounterId = null,
     int MinimumFriendliness = 0,
     int MaximumFriendliness = 10,
-    bool GiverLeavesAfterCompletion = false);
+    bool GiverLeavesAfterCompletion = false)
+{
+    /// <summary>Üres hatókör minden találkozásra érvényes; több találkozást | választ el.</summary>
+    public bool MatchesEncounter(string? encounterId) =>
+        EncounterId is null ||
+        encounterId is not null && EncounterId.Split('|', StringSplitOptions.TrimEntries)
+            .Contains(encounterId, StringComparer.OrdinalIgnoreCase);
+}
 
 public enum QuestActivationKind
 {
