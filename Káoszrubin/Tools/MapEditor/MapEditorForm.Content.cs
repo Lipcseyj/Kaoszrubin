@@ -13,6 +13,12 @@ internal sealed partial class MapEditorForm
     private readonly TabControl _mainTabs = new() { Dock = DockStyle.Fill };
     private readonly TabControl _npcTabs = new() { Dock = DockStyle.Fill };
     private readonly Dictionary<string, TextBox> _levelFields = [];
+    private readonly ComboBox _wallStyleSelector = new() { Width = 348, DropDownWidth = 510, MaxDropDownItems = 18,
+        DropDownStyle = ComboBoxStyle.DropDownList, AutoCompleteMode = AutoCompleteMode.SuggestAppend,
+        AutoCompleteSource = AutoCompleteSource.ListItems };
+    private readonly Label _wallStyleDescription = new() { Width = 348, Height = 38, ForeColor = Color.DimGray };
+    private readonly Label _wallStylePreview = new() { Width = 348, Height = 58, BackColor = Color.Black,
+        Font = new Font(FontFamily.GenericMonospace, 10), Padding = new Padding(4) };
     private readonly Dictionary<string, DataGridView> _levelDictionaryFields = [];
     private readonly ToolTip _mazeToolTip = new() { AutoPopDelay = 18000, InitialDelay = 350, ReshowDelay = 150, ShowAlways = true };
     private readonly ListBox _roomEncounterList = new() { Dock = DockStyle.Fill };
@@ -52,8 +58,9 @@ internal sealed partial class MapEditorForm
             ("RoomSize", "Teremméret", "A generált termek oldalhosszának tartománya.", "Példa: new(4, 7) azt jelenti, hogy a terem mérete 4 és 7 mező közé eshet."),
             ("TreasureChestCount", "Kincsesládák száma", "Az egész pályán elhelyezett ládák száma.", "Zárt darabszámtartomány, például new(3, 6) vagy Amount.Several.Range()."),
             ("TreasureGold", "Arany ládánként", "Egy véletlen kincs aranymennyiségének tartománya.", "Példa: new(240, 480). A két határérték is lehetséges eredmény."),
-            ("WallRune", "Fal karaktere", "A labirintus falainak megjelenő jele.", "C# Rune kifejezés, például new('▓'). Erdőben a helyi terepsablonok is befolyásolják a megjelenést."),
-            ("WallColor", "Fal színe", "A fal alapértelmezett konzolszíne.", "ConsoleColor érték, például ConsoleColor.DarkGray."),
+            ("WallStyle", "Közös falstílus", "Név szerint választható falblokk, közös jellel és színnel.", "A DungeonWallStyles katalógus egy helyen tárolja a falakat."),
+            ("WallRune", "Egyedi fal karaktere", "Az Egyedi fal / erdei terep választásnál érvényes.", "C# Rune kifejezés, például new('▓'). Közös falstílusnál annak jele érvényes. Erdőben a helyi terepsablonok is befolyásolják a megjelenést."),
+            ("WallColor", "Egyedi fal színe", "Az Egyedi fal / erdei terep választásnál érvényes.", "ConsoleColor érték, például ConsoleColor.DarkGray. Közös falstílusnál annak színe érvényes."),
             ("DoubleWidthCorridorChance", "Dupla széles folyosó esélye", "0 és 1 közötti arány; klasszikus layoutnál hat.", "Példa: 0.82 = 82%. WideMazeLayout esetén a NarrowingChance szabályozza a szűkületeket."),
             ("QuestRoomIds", "Küldetésszobák azonosítói", "Garantáltan létrejövő különleges szobák.", "Azonosítók listája, például [\"KING_CHEST_ROOM\"]. A többi quest-szobamező ezekre hivatkozhat."),
             ("QuestRoomPlacements", "Küldetésszobák célterülete", "Szobánként képernyőszám vagy AreaId; üresen a kijárati terület.", "A képernyőszám 1-től indul. AreaId esetén a stabil területazonosítót add meg. Ha mindkettő ki van töltve, ugyanazt a területet kell jelölniük. A szoba a QuestRoomIds listában is szerepeljen."),
@@ -65,6 +72,11 @@ internal sealed partial class MapEditorForm
             ("QuestRoomEnemyEncounters", "Garantált szobaellenfelek", "Adott quest- vagy boss-szobába kerülő ellenfelek.", "Példa: [new(\"MALREC_CHAMBER\", MonsterIds.SirMalrec, 1)]."),
         })
         {
+            if (name == "WallStyle")
+            {
+                flow.Controls.Add(BuildWallStylePicker());
+                continue;
+            }
             if (name is "SpecialRoomPlacements" or "QuestChestPlacements" or "QuestDoorRequirements" or "QuestRoomPlacements")
             {
                 var grid = BuildLevelDictionaryGrid(name);
@@ -107,6 +119,41 @@ internal sealed partial class MapEditorForm
         flow.Controls.Add(Button("Pályaadatok mentése", (_, _) => SaveLevelFields()));
         outer.Controls.Add(flow);
         return outer;
+    }
+
+    private Control BuildWallStylePicker()
+    {
+        var group = new FlowLayoutPanel { Width = 370, Height = 174,
+            FlowDirection = FlowDirection.TopDown, WrapContents = false };
+        group.Controls.Add(new Label { Text = "Közös falstílus", Width = 348, Height = 20,
+            Font = new Font(SystemFonts.DefaultFont, FontStyle.Bold) });
+        _wallStyleSelector.Items.AddRange(WallStyleChoice.Choices.Cast<object>().ToArray());
+        _wallStyleSelector.SelectedIndexChanged += (_, _) => UpdateWallStylePreview();
+        group.Controls.Add(_wallStyleSelector);
+        group.Controls.Add(_wallStyleDescription);
+        group.Controls.Add(_wallStylePreview);
+        _mazeToolTip.SetToolTip(_wallStyleSelector,
+            "A DungeonWallStyles katalógus közös jelét és színét használja. Az Egyedi fal / erdei terep engedi az alábbi egyedi mezőket.");
+        return group;
+    }
+
+    private void UpdateWallStylePreview()
+    {
+        var choice = _wallStyleSelector.SelectedItem as WallStyleChoice;
+        var style = choice?.Style;
+        foreach (var name in new[] { "WallRune", "WallColor" })
+            if (_levelFields.TryGetValue(name, out var field))
+                field.Enabled = choice?.Expression == "null";
+        _wallStyleDescription.Text = style?.Description ??
+            "Az egyedi fal karakterét és színét az alábbi mezők adják. Erdőben a terepsablonok is érvényesek.";
+        _wallStylePreview.Text = style is null ? "" :
+            string.Concat(Enumerable.Repeat(style.Rune.ToString(), 16)) + "\n" +
+            $"{style.Rune}{style.Rune}            {style.Rune}{style.Rune}\n" +
+            string.Concat(Enumerable.Repeat(style.Rune.ToString(), 16));
+        Color[] colors = [Color.Black, Color.DarkBlue, Color.DarkGreen, Color.DarkCyan,
+            Color.DarkRed, Color.DarkMagenta, Color.Olive, Color.Silver, Color.Gray,
+            Color.Blue, Color.Lime, Color.Cyan, Color.Red, Color.Magenta, Color.Yellow, Color.White];
+        _wallStylePreview.ForeColor = style is null ? Color.Gray : colors[(int)style.Color];
     }
 
     internal static DataGridView BuildLevelDictionaryGrid(string propertyName)
@@ -249,6 +296,11 @@ internal sealed partial class MapEditorForm
             var block = EditorSources.ReadLevel(level);
             foreach (var (name, field) in _levelFields)
                 field.Text = EditorSources.Property(block, name) ?? "";
+            var wallChoice = WallStyleChoice.FromExpression(EditorSources.Property(block, "WallStyle"));
+            _wallStyleSelector.Items.Clear();
+            _wallStyleSelector.Items.AddRange(WallStyleChoice.Choices.Cast<object>().ToArray());
+            if (!_wallStyleSelector.Items.Contains(wallChoice)) _wallStyleSelector.Items.Add(wallChoice);
+            _wallStyleSelector.SelectedItem = wallChoice;
             foreach (var (name, grid) in _levelDictionaryFields)
             {
                 grid.Rows.Clear();
@@ -504,6 +556,8 @@ internal sealed partial class MapEditorForm
         {
             var values = _levelFields.Where(entry => !string.IsNullOrWhiteSpace(entry.Value.Text))
                 .ToDictionary(entry => entry.Key, entry => entry.Value.Text.Trim());
+            if (_wallStyleSelector.SelectedItem is WallStyleChoice wallChoice)
+                values["WallStyle"] = wallChoice.Expression;
             foreach (var (name, grid) in _levelDictionaryFields)
             {
                 grid.EndEdit();

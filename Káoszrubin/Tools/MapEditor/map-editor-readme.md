@@ -27,6 +27,15 @@ képernyő között hozható létre vagy törölhető él.
    A **Mentés másként** másik JSON-fájlt választ.
 6. A **Megnyitás** a szerkesztővel korábban mentett JSON-fájlt tölti vissza.
 
+## Dungeonfalak kiválasztása
+
+A **Labirintus pálya → Közös falstílus** név szerint rendezett, gépeléssel kereshető
+listából a fal jelét és színét együtt választja ki; a színes falminta közvetlenül
+alatta látható. A **Pályaadatok mentése** közös katalógushivatkozást ír ki.
+Az **Egyedi fal / erdei terep** választás mellett a régi jel- és színmező használható.
+A pályák közös falstílusai egy helyen módosíthatók:
+[katalógus és használat](../../doc/dungeon-wall-styles.md).
+
 ## Találkozások szerkesztése
 
 A **Labirintus pálya** fülön a **Küldetésszobák célterülete** táblázat szobánkénti

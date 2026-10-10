@@ -15,6 +15,7 @@ internal static class Program
         Application.SetCompatibleTextRenderingDefault(false);
         var tests = new (string Name, Action Test)[]
         {
+            ("A falstílusok legördülője és kampányhivatkozásai veszteség nélkül körbefordulnak", WallStylesRoundTrip),
             ("A questroom célterülete biztonságosan szerkeszthető és körbefordul", QuestRoomPlacementsRoundTrip),
             ("Minden gyári típus és az egyedi csoport oda-vissza alakítható", FactoriesRoundTrip),
             ("Minden kampánytalálkozás veszteség nélkül szerkeszthető", CampaignRoundTrip),
@@ -51,6 +52,39 @@ internal static class Program
 
     private static readonly IReadOnlyDictionary<string, string> Monsters = EncounterDraft.Monsters
         .GroupBy(entry => entry.Value).ToDictionary(group => group.Key, group => group.First().Key);
+    private static void WallStylesRoundTrip()
+    {
+        Assert(WallStyleChoice.Choices.Count == DungeonWallStyles.All.Count + 1 &&
+               WallStyleChoice.FromExpression(null).Expression == "null",
+            "A falstílus-listából hiányzik egy stílus vagy az egyedi fal választása.");
+        foreach (var choice in WallStyleChoice.Choices)
+        {
+            var source = "[1] = new() {\n Name = \"Teszt\",\n}";
+            var updated = EditorSources.UpdateLevelSource(source, 1,
+                new Dictionary<string, string> { ["WallStyle"] = choice.Expression });
+            var expression = EditorSources.Property(EditorSources.LevelBlock(updated, 1), "WallStyle");
+            Assert(WallStyleChoice.FromExpression(expression) == choice,
+                "A falstílus nem fordult körbe: " + choice.Expression);
+            if (choice.Style is { } style)
+                Assert(ReferenceEquals(typeof(DungeonWallStyles).GetProperty(style.Id)?.GetValue(null), style),
+                    "A legördülő érvénytelen C# falstílusra hivatkozik: " + style.Id);
+        }
+        const string custom = "new DungeonWallStyle(\"custom\", \"Egyedi\", \"\", new('■'), ConsoleColor.White)";
+        Assert(WallStyleChoice.FromExpression(custom).Expression == custom &&
+               WallStyleChoice.FromExpression(custom).Style is null,
+            "A szerkesztő megváltoztatta vagy futtatta az egyedi falstílus-kifejezést.");
+        for (var level = 1; level <= MazeLevelConfigurations.FinalLevel; level++)
+        {
+            var original = EditorSources.ReadLevel(level);
+            var expression = EditorSources.Property(original, "WallStyle");
+            if (expression is null) continue;
+            var choice = WallStyleChoice.FromExpression(expression);
+            Assert(choice.Style is not null && EditorSources.UpdateLevelSource(original, level,
+                       new Dictionary<string, string> { ["WallStyle"] = choice.Expression }) == original,
+                "A kampány falstílusának puszta betöltése/mentése változást okozott: " + level);
+        }
+    }
+
     private static void QuestRoomPlacementsRoundTrip()
     {
         foreach (var expression in new[] { "new()", "new(ScreenNumber: 2)", "new(AreaId: \"MIDDLE\")",

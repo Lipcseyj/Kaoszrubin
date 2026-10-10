@@ -11,8 +11,8 @@ public sealed class MazeGenerationSettings
     public int MaximumRoomSize { get; init; } = 6;
     public int TreasureChestCount { get; init; } = 5;
     public IntRange TreasureGoldRange { get; init; } = new(0, 0);
-    public System.Text.Rune WallRune { get; init; } = new('█');
-    public ConsoleColor WallColor { get; init; } = ConsoleColor.DarkGray;
+    public System.Text.Rune WallRune { get; init; } = DungeonWallStyles.SolidStone.Rune;
+    public ConsoleColor WallColor { get; init; } = DungeonWallStyles.SolidStone.Color;
     public string LevelName { get; init; } = "Labirintus";
     public IReadOnlyList<string> QuestRoomIds { get; init; } = [];
     public IReadOnlyDictionary<string, QuestRoomPlacementConfiguration> QuestRoomPlacements { get; init; }

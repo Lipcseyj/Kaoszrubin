@@ -11,6 +11,7 @@ namespace KaoszRubin.World;
 // 2. Egy pályához általában az alapadatokat, a termeket/kincseket és a két encounter-listát kell megadni.
 // 3. Többképernyős pályához WideMazeLayoutConfiguration, erdőhöz ForestMazeLayoutConfiguration használható.
 //    A képernyőszámok 1-től indulnak.
+//    Dungeonfalhoz WallStyle = DungeonWallStyles.Catacombs; a teljes készlet a DungeonWallStyles.cs-ben van.
 // 4. A TrapCount, TrapIds és VisionModifier kampánypályákon központi balanszszabályból érkezik a fájl végén.
 // 5. A küldetésszobák és a futásidejű feloldás haladó/belső régióban találhatók.
 // =================================================================================================
@@ -243,11 +244,25 @@ public sealed class MazeLevelConfiguration
     /// <summary>Dupla széles folyosó esélye 0 és 1 között. Csak klasszikus elrendezésnél hat.</summary>
     public double DoubleWidthCorridorChance { get; init; } = 0.80;
 
-    /// <summary>A pályafalak megjelenítéséhez használt karakter.</summary>
-    public System.Text.Rune WallRune { get; init; } = new('█');
+    /// <summary>Közös dungeon-falstílus. A jel és a szín a DungeonWallStyles katalógusból érkezik.</summary>
+    public DungeonWallStyle? WallStyle { get; init; }
 
-    /// <summary>A pályafalak konzolszíne.</summary>
-    public ConsoleColor WallColor { get; init; } = ConsoleColor.DarkGray;
+    private System.Text.Rune _wallRune = DungeonWallStyles.SolidStone.Rune;
+    private ConsoleColor _wallColor = DungeonWallStyles.SolidStone.Color;
+
+    /// <summary>A pályafalak jele; név szerinti WallStyle esetén a katalógus értéke érvényes.</summary>
+    public System.Text.Rune WallRune
+    {
+        get => WallStyle?.Rune ?? _wallRune;
+        init => _wallRune = value;
+    }
+
+    /// <summary>A pályafalak színe; név szerinti WallStyle esetén a katalógus értéke érvényes.</summary>
+    public ConsoleColor WallColor
+    {
+        get => WallStyle?.Color ?? _wallColor;
+        init => _wallColor = value;
+    }
 
     /// <summary>
     /// Ha true, a pálya erdőgráfja futás közben JSON-ból felülírható.
@@ -370,6 +385,7 @@ public static class MazeLevelConfigurations
     // {
     //     Level = 23,
     //     Name = "Pályanév",
+    //     WallStyle = DungeonWallStyles.Catacombs,
     //     RoomCount = new(10, 14), RoomSize = new(4, 8),
     //     TreasureChestCount = new(6, 10), TreasureGold = new(1000, 2000),
     //     RoomEncounters = [Encounters.Same(MonsterIds.Goblin, Amount.Few, Amount.Several)],
@@ -381,8 +397,7 @@ public static class MazeLevelConfigurations
             [1] = new()
             {
                 Name = "Patkányjáratok",
-                //WallRune = new('♠'),
-                //WallColor = ConsoleColor.DarkGreen,
+                WallStyle = DungeonWallStyles.RatTunnels,
                 DoubleWidthCorridorChance = 0.95,
                 Level = 1,
                 RoomCount = Amount.Several.Range(),
@@ -425,6 +440,7 @@ public static class MazeLevelConfigurations
             [2] = new()
             {
                 Name = "Patkányvezér",
+                WallStyle = DungeonWallStyles.OldSewers,
                 DoubleWidthCorridorChance = 0.40,
                 Level = 2,
                 RoomCount = Amount.Several.Range(),
@@ -449,8 +465,7 @@ public static class MazeLevelConfigurations
             [3] = new()
             {
                 Name = "Goblinüregek",
-                WallRune = new('▓'),
-                WallColor = ConsoleColor.DarkGreen,
+                WallStyle = DungeonWallStyles.GoblinBurrows,
                 Level = 3,
                 DoubleWidthCorridorChance = 0.75,
                 RoomCount = new(8, 10),
@@ -495,8 +510,7 @@ public static class MazeLevelConfigurations
             [4] = new()
             {
                 Name = "Vadállatok odúi",
-                WallRune = new('▒'),
-                WallColor = ConsoleColor.DarkYellow,
+                WallStyle = DungeonWallStyles.BeastDens,
                 Level = 4,
                 DoubleWidthCorridorChance = 0.70,
                 RoomCount = Amount.Pack.Range(),
@@ -527,8 +541,7 @@ public static class MazeLevelConfigurations
                 Level = 5,
                 Name = "A holtak katakombái",
                 DoubleWidthCorridorChance = 0.82,
-                WallRune = new('▓'),
-                WallColor = ConsoleColor.DarkGray,
+                WallStyle = DungeonWallStyles.Catacombs,
                 RoomCount = Amount.Pack.Range(),
                 RoomSize = new(4, 7),
                 TreasureChestCount = Amount.Several.Range(),
@@ -723,8 +736,7 @@ public static class MazeLevelConfigurations
                 Name = "A nagy csarnokok szintje",
                 GuaranteedTraps = [new("TR105"), new("TR105")],
                 Layout = new WideMazeLayoutConfiguration(new IntRange(2, 2), NarrowingChance: 0.12),
-                WallRune = new('▦'),
-                WallColor = ConsoleColor.DarkYellow,
+                WallStyle = DungeonWallStyles.GreatHalls,
                 RoomCount = Amount.Lots.Range(),
                 RoomSize = new(7, 11),
                 TreasureChestCount = Amount.Pack.Range(),
@@ -751,8 +763,7 @@ public static class MazeLevelConfigurations
                 Level = 8,
                 Name = "A mérgező barlang",
                 DoubleWidthCorridorChance = 0.88,
-                WallRune = new('▒'),
-                WallColor = ConsoleColor.DarkCyan,
+                WallStyle = DungeonWallStyles.PoisonCaves,
                 RoomCount = new(14, 18),
                 RoomSize = new(6, 9),
                 TreasureChestCount = new(8, 11),
@@ -804,8 +815,7 @@ public static class MazeLevelConfigurations
                 Level = 9,
                 Name = "Az ork haditábor",
                 Layout = new WideMazeLayoutConfiguration(new(2, 2), NarrowingChance: 0.14),
-                WallRune = new('▦'),
-                WallColor = ConsoleColor.DarkRed,
+                WallStyle = DungeonWallStyles.OrcPalisade,
                 RoomCount = new(24, 30),
                 RoomSize = new(7, 10),
                 TreasureChestCount = new(14, 20),
@@ -852,8 +862,7 @@ public static class MazeLevelConfigurations
                 Name = "Az elátkozott sírkamrák",
                 GuaranteedTraps = [new("TR102"), new("TR102")],
                 DoubleWidthCorridorChance = 0.92,
-                WallRune = new('▦'),
-                WallColor = ConsoleColor.DarkMagenta,
+                WallStyle = DungeonWallStyles.CursedTombs,
                 RoomCount = new(18, 22),
                 RoomSize = new(6, 9),
                 TreasureChestCount = new(10, 14),
@@ -906,8 +915,7 @@ public static class MazeLevelConfigurations
                 Name = "Az óriások erődje",
                 GuaranteedTraps = [new("TR108"), new("TR108")],
                 Layout = new WideMazeLayoutConfiguration(new(2, 2), NarrowingChance: 0.10),
-                WallRune = new('▩'),
-                WallColor = ConsoleColor.Gray,
+                WallStyle = DungeonWallStyles.GiantFortress,
                 RoomCount = new(22, 28),
                 RoomSize = new(8, 11),
                 TreasureChestCount = new(12, 17),
@@ -963,8 +971,7 @@ public static class MazeLevelConfigurations
                 Name = "A sárkánykultusz szentélye",
                 GuaranteedTraps = [new("TR106"), new("TR106")],
                 Layout = new WideMazeLayoutConfiguration(new(2, 2), NarrowingChance: 0.16),
-                WallRune = new('▥'),
-                WallColor = ConsoleColor.Red,
+                WallStyle = DungeonWallStyles.DragonCult,
                 RoomCount = new(22, 28),
                 RoomSize = new(7, 10),
                 TreasureChestCount = new(14, 19),
@@ -1195,8 +1202,7 @@ public static class MazeLevelConfigurations
                 Name = "A rothadó mocsár",
                 GuaranteedTraps = [new("TR109"), new("TR109")],
                 Layout = new WideMazeLayoutConfiguration(new(2, 2), NarrowingChance: 0.18),
-                WallRune = new('▒'),
-                WallColor = ConsoleColor.DarkGreen,
+                WallStyle = DungeonWallStyles.RottingMarsh,
                 RoomCount = new(22, 28),
                 RoomSize = new(7, 10),
                 TreasureChestCount = new(10, 15),
@@ -1263,8 +1269,7 @@ public static class MazeLevelConfigurations
                 Level = 15,
                 Name = "A pikkelytrón elsüllyedt palotája",
                 Layout = new WideMazeLayoutConfiguration(new(3, 4), NarrowingChance: 0.08),
-                WallRune = new('▓'),
-                WallColor = ConsoleColor.DarkCyan,
+                WallStyle = DungeonWallStyles.SunkenPalace,
                 RoomCount = new(36, 44),
                 RoomSize = new(8, 12),
                 TreasureChestCount = new(16, 22),
@@ -1327,8 +1332,7 @@ public static class MazeLevelConfigurations
                 Level = 16,
                 Name = "A vedlő isten temploma",
                 Layout = new WideMazeLayoutConfiguration(new(4, 5), NarrowingChance: 0.16),
-                WallRune = new('▒'),
-                WallColor = ConsoleColor.DarkYellow,
+                WallStyle = DungeonWallStyles.SerpentTemple,
                 RoomCount = new(42, 52),
                 RoomSize = new(8, 12),
                 TreasureChestCount = new(18, 24),
@@ -1397,8 +1401,7 @@ public static class MazeLevelConfigurations
                 Name = "A fojtogató mélyjárat",
                 GuaranteedTraps = [new("TR108"), new("TR108")],
                 DoubleWidthCorridorChance = 0,
-                WallRune = new('█'),
-                WallColor = ConsoleColor.DarkGray,
+                WallStyle = DungeonWallStyles.DeepPassages,
                 RoomCount = new(18, 22),
                 RoomSize = new(4, 6),
                 TreasureChestCount = new(6, 9),
@@ -1454,8 +1457,7 @@ public static class MazeLevelConfigurations
                 Name = "A megtört kristálycsarnok",
                 GuaranteedTraps = [new("TR110"), new("TR110")],
                 DoubleWidthCorridorChance = 0.72,
-                WallRune = new('◆'),
-                WallColor = ConsoleColor.Cyan,
+                WallStyle = DungeonWallStyles.CrystalHalls,
                 RoomCount = new(18, 22),
                 RoomSize = new(7, 10),
                 TreasureChestCount = new(12, 16),
@@ -1511,8 +1513,7 @@ public static class MazeLevelConfigurations
                 Name = "A dermedt mélység",
                 GuaranteedTraps = [new("TR107"), new("TR107"), new("TR104"), new("TR104")],
                 DoubleWidthCorridorChance = 0.62,
-                WallRune = new('▒'),
-                WallColor = ConsoleColor.White,
+                WallStyle = DungeonWallStyles.FrozenDepths,
                 RoomCount = new(18, 22),
                 RoomSize = new(7, 10),
                 TreasureChestCount = new(10, 14),
@@ -1568,8 +1569,7 @@ public static class MazeLevelConfigurations
                 Name = "Az örökéj vámpírerődje",
                 GuaranteedTraps = [new("TR109"), new("TR109")],
                 Layout = new WideMazeLayoutConfiguration(new(3, 3), NarrowingChance: 0.13),
-                WallRune = new('⣿'),
-                WallColor = ConsoleColor.DarkMagenta,
+                WallStyle = DungeonWallStyles.VampireFortress,
                 RoomCount = new(30, 36),
                 RoomSize = new(7, 10),
                 TreasureChestCount = new(18, 24),
@@ -1631,8 +1631,7 @@ public static class MazeLevelConfigurations
                 Name = "A sárkányok temetője",
                 GuaranteedTraps = [new("TR111")],
                 DoubleWidthCorridorChance = 0.84,
-                WallRune = new('█'),
-                WallColor = ConsoleColor.Gray,
+                WallStyle = DungeonWallStyles.DragonGraveyard,
                 RoomCount = new(16, 20),
                 RoomSize = new(8, 11),
                 TreasureChestCount = new(10, 14),
@@ -1687,8 +1686,7 @@ public static class MazeLevelConfigurations
                 Level = 22,
                 Name = "A démoni sík: Parázspusztaság",
                 Layout = new WideMazeLayoutConfiguration(new(3, 3), NarrowingChance: 0.08),
-                WallRune = new('█'),
-                WallColor = ConsoleColor.DarkRed,
+                WallStyle = DungeonWallStyles.EmberWastes,
                 RoomCount = new(30, 36),
                 RoomSize = new(8, 11),
                 TreasureChestCount = new(18, 24),
@@ -1744,8 +1742,7 @@ public static class MazeLevelConfigurations
                 Name = "A démoni sík: Vértrónus",
                 GuaranteedTraps = [new("TR111"), new("TR111")],
                 Layout = new WideMazeLayoutConfiguration(new(3, 3), NarrowingChance: 0.11),
-                WallRune = new('▓'),
-                WallColor = ConsoleColor.Red,
+                WallStyle = DungeonWallStyles.BloodThrone,
                 RoomCount = new(32, 38),
                 RoomSize = new(8, 11),
                 TreasureChestCount = new(20, 26),
@@ -1807,8 +1804,7 @@ public static class MazeLevelConfigurations
                 Name = "A káosz szíve",
                 GuaranteedTraps = [new("TR112"), new("TR112"), new("TR110"), new("TR110")],
                 DoubleWidthCorridorChance = 0.80,
-                WallRune = new('▒'),
-                WallColor = ConsoleColor.Magenta,
+                WallStyle = DungeonWallStyles.ChaosHeart,
                 RoomCount = new(20, 24),
                 RoomSize = new(8, 12),
                 TreasureChestCount = new(12, 16),
@@ -1866,8 +1862,7 @@ public static class MazeLevelConfigurations
                 Level = 25,
                 Name = "A káosz trónja",
                 DoubleWidthCorridorChance = 0.86,
-                WallRune = new('▓'),
-                WallColor = ConsoleColor.Magenta,
+                WallStyle = DungeonWallStyles.ChaosThrone,
                 RoomCount = new(22, 26),
                 RoomSize = new(8, 12),
                 TreasureChestCount = new(16, 20),
@@ -1946,8 +1941,7 @@ public static class MazeLevelConfigurations
         {
             Level = level,
             Name = $"A mélység {level}. szintje",
-            WallRune = level % 2 == 0 ? new('▓') : new('█'),
-            WallColor = level % 2 == 0 ? ConsoleColor.DarkMagenta : ConsoleColor.DarkGray,
+            WallStyle = level % 2 == 0 ? DungeonWallStyles.CursedTombs : DungeonWallStyles.DeepPassages,
             DoubleWidthCorridorChance = Math.Max(0.60, 0.80 - increase * 0.02),
             RoomCount = new(8 + increase / 2, 11 + increase / 2),
             RoomSize = new(5, Math.Min(10, 8 + increase / 3)),
@@ -2027,8 +2021,7 @@ public static class QuestLocationConfigurations
             Level = 5,
             Name = "Sir Malrec sírkápolnája",
             DoubleWidthCorridorChance = 0.55,
-            WallRune = new('▓'),
-            WallColor = ConsoleColor.DarkMagenta,
+            WallStyle = DungeonWallStyles.MalrecChapel,
             RoomCount = new(6, 8),
             RoomSize = new(4, 7),
             TreasureChestCount = Amount.Several.Range(),

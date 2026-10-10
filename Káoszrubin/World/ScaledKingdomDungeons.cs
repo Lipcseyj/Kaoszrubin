@@ -27,7 +27,9 @@ public static class ScaledKingdomDungeons
     public static void ApplyTerrain(Maze maze)
     {
         if (maze.GetRoomByContentId(CrocodilePool) is not { } room) return;
-        var water = new MazeTerrainStyle("scaled-palace-pool", new Rune('≈'),
+        // A választható hullámfal és a járható medence nem használhatja ugyanazt a térképrúnát.
+        var waterRune = maze.WallRune.Value == '≈' ? new Rune('∿') : new Rune('≈');
+        var water = new MazeTerrainStyle("scaled-palace-pool", waterRune,
             ConsoleColor.Cyan, ConsoleColor.DarkBlue, Walkable: true, BlocksSight: false);
         maze.RegisterTerrainGameplayProfile(water.Id,
             new TerrainGameplayProfile(TerrainTag.Marsh, MovementDelayPercent: 25, ExertionCost: 1));

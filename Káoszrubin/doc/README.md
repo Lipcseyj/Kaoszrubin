@@ -34,6 +34,7 @@
 - [coop](coop-design-readme.md)
 - [erdei generálás](forest-generation-readme.md)
 - [térkép szerkesztő](../Tools/MapEditor/map-editor-readme.md)
+- [közös dungeon-falstílusok és teljes jelkészlet](dungeon-wall-styles.md)
 - [küldetésrendszer](quest-readme.md)
 - [a 7–25. pálya küldetései és visszatérő szereplői](kampany-kuldetesek-7-23.md)
 - [a Pikkelytrón és a Vedlő isten dungeonjei](ScaledKingdomDungeons.md)
