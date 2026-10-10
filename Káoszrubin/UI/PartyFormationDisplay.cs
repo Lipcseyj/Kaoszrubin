@@ -12,7 +12,7 @@ public static class PartyFormationDisplay
 
     public static string EmptySlotText(int index, int capacity) => index < capacity
         ? "○ Üres partihely"
-        : index == 4 ? "○ Az 5. pálya teljesítése után" : "○ A 8. pálya teljesítése után";
+        : "○ Üres partihely (zárt)";
 
     public static string Text(PartyFormationSnapshot formation) =>
         string.Concat(Segments(formation).Select(segment => segment.Text));

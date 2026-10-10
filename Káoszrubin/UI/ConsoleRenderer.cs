@@ -87,16 +87,15 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
     private const int GameOverMinimumTop = 2;
     internal const int LevelCompletionFrameWidth = 112;
     internal const int InnMenuFrameWidth = 90;
-    private const int InnMenuFirstOptionLabelLine = 5;
-    private const int InnMenuFirstOptionDescriptionLine = 6;
-    private const int InnMenuOptionLineStride = 2;
-    private const int InnMenuFrameBaseLineCount = 7;
+    private const int InnMenuArtisanNoticeLineCount = 2;
+    private const int InnMenuFirstOptionLabelLine = 4 + InnMenuArtisanNoticeLineCount;
     private const int InnConfirmationFrameWidth = 90;
     private const int InnRestUnavailableFrameWidth = 90;
     internal const int InnMarketFrameWidth = 110;
     private const int InnRecruitmentFrameWidth = 100;
     private const int InnMarketPageSize = 22;
     private const int InnMarketTextWidth = 104;
+    private const int InnMarketFirstOfferLine = 5;
     private const int InnMarketSelectedItemDetailLine = 28;
     private const int InnMarketFrameLineCount = 31;
     private const int InnRecruitmentFirstCandidateLine = 4;
@@ -1079,10 +1078,12 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         {
             ($"🏰🍺  {innName} fogadója, {mazeLevel}. szint  🍺🏰", ConsoleColor.Yellow),
             (string.Empty, ConsoleColor.Gray),
-            ($"Parti: {partyCount}/{partyCapacity} fő     {MoneyIcon} Arany: {partyGold}", ConsoleColor.Cyan),
-            (ClipMarketText(artisanNotice, InnMenuFrameWidth - 6), ConsoleColor.DarkYellow),
-            (string.Empty, ConsoleColor.Gray)
+            ($"Parti: {partyCount}/{partyCapacity} fő     {MoneyIcon} Arany: {partyGold}", ConsoleColor.Cyan)
         };
+        var noticeLines = WrapText(artisanNotice, InnMenuFrameWidth - 6).ToArray();
+        for (var row = 0; row < InnMenuArtisanNoticeLineCount; row++)
+            lines.Add((noticeLines.ElementAtOrDefault(row) ?? string.Empty, ConsoleColor.DarkYellow));
+        lines.Add((string.Empty, ConsoleColor.Gray));
         for (var index = 0; index < options.Count; index++)
         {
             var selected = index == selectedIndex;
@@ -1682,12 +1683,12 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
                 : InnSellLine(sellOffers[index], selected);
             var color = selected ? ConsoleColor.White : ItemRarityColor(mode == InnMarketMode.Buy
                 ? stock[index].Item.Rarity : sellOffers[index].Item.Rarity);
-            updates.Add((InnMenuFirstOptionLabelLine + index - pageStart, text, color));
+            updates.Add((InnMarketFirstOfferLine + index - pageStart, text, color));
         }
         if (previousPageStart != pageStart)
         {
             for (var row = entries - pageStart; row < InnMarketPageSize; row++)
-                updates.Add((InnMenuFirstOptionLabelLine + row, string.Empty, ConsoleColor.Gray));
+                updates.Add((InnMarketFirstOfferLine + row, string.Empty, ConsoleColor.Gray));
         }
         var description = mode == InnMarketMode.Buy
             ? stock[selectedIndex].Item.Description
@@ -1709,13 +1710,13 @@ public sealed partial class ConsoleRenderer : IDoorInteractionRenderer, IPlayfie
         foreach (var index in visibleIndices)
         {
             var selected = index == selectedIndex;
-            updates.Add((InnMenuFirstOptionLabelLine + index - pageStart, InnStockLine(stock[index], selected),
+            updates.Add((InnMarketFirstOfferLine + index - pageStart, InnStockLine(stock[index], selected),
                 selected ? ConsoleColor.White : ItemRarityColor(stock[index].Item.Rarity)));
         }
         if (previousPageStart != pageStart)
         {
             for (var row = stock.Count - pageStart; row < InnMarketPageSize; row++)
-                updates.Add((InnMenuFirstOptionLabelLine + row, string.Empty, ConsoleColor.Gray));
+                updates.Add((InnMarketFirstOfferLine + row, string.Empty, ConsoleColor.Gray));
         }
         updates.Add((InnMarketSelectedItemDetailLine, ClipMarketText($"ℹ️ {stock[selectedIndex].Item.Description}", InnMarketTextWidth), ConsoleColor.DarkCyan));
         UpdateCenteredFrameLines(InnMarketFrameWidth, InnMarketFrameLineCount, updates, FramedWindow.Inn);
