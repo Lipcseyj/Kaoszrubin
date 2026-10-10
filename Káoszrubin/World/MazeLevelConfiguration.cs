@@ -361,7 +361,7 @@ public sealed class MazeLevelConfiguration
 public static class MazeLevelConfigurations
 {
     /// <summary>Az utolsó, kézzel definiált kampánypálya sorszáma.</summary>
-    public const int FinalLevel = 23;
+    public const int FinalLevel = 25;
 
     #region Kampánypályák – új pályát és pályatartalmat elsősorban itt szerkessz
 
@@ -1146,11 +1146,14 @@ public static class MazeLevelConfigurations
                         Members: [new(MonsterIds.Nekromanta, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.PáncélozottZombi, new(4, 6)), new(MonsterIds.CsontvázLovag, new(2, 3))],
                         MovementProfile: EnemyMovementProfile.Stationary, AreaId: "OLD_SLUICE", TargetRoomKind: RoomKind.Manor),
                     new(GroupCount: new(1, 1),
-                        Members: [new(MonsterIds.Kígyópap, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.Kígyóember, new(1, 2)), new(MonsterIds.GyíkemberPortyázó, new(4, 6))],
+                        Members: [new(MonsterIds.Kígyópap, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.Kígyóember, new(1, 2)), new(MonsterIds.GyíkemberPortyázó, new(4, 6)), new(MonsterIds.PajzsosGyíkőr, new(1, 1))],
                         MovementProfile: EnemyMovementProfile.Stationary, AreaId: "DROWNED_THRONE", TargetRoomKind: RoomKind.Manor),
                     new(GroupCount: new(1, 1),
                         Members: [new(MonsterIds.Káoszpap, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.Orgyilkos, new(3, 5)), new(MonsterIds.Martalóc, new(5, 7))],
                         MovementProfile: EnemyMovementProfile.Stationary, AreaId: "DROWNED_THRONE", TargetRoomKind: RoomKind.Manor),
+                    new(GroupCount: new(1, 1),
+                        Members: [new(MonsterIds.Krokodilidomár, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.Óriáskígyó, new(1, 2)), new(MonsterIds.MocsáriKrokodil, new(2, 3))],
+                        MovementProfile: EnemyMovementProfile.Stationary, AreaId: "CROCODILE_LAKES", TargetRoomKind: RoomKind.Clearing),
                     new(GroupCount: new(1, 1),
                         Members: [new(MonsterIds.Óriáskrokodil, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.MocsáriKrokodil, new(3, 5))],
                         MovementProfile: EnemyMovementProfile.Stationary, AreaId: "CROCODILE_LAKES", TargetRoomKind: RoomKind.Clearing)
@@ -1176,7 +1179,7 @@ public static class MazeLevelConfigurations
                         Members: [new(MonsterIds.MocsáriOgre, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.Goblin, new(8, 12))],
                         MovementProfile: EnemyMovementProfile.Wander, Behavior: EnemyEncounterBehavior.Horde, AreaId: "LEECH_MIRE"),
                     new(GroupCount: new(2, 2),
-                        Members: [new(MonsterIds.GyíkemberPortyázó, new(4, 6)), new(MonsterIds.MocsáriVipera, new(4, 6))],
+                        Members: [new(MonsterIds.GyíkemberPortyázó, new(4, 6)), new(MonsterIds.GyíkemberVadász, new(1, 2)), new(MonsterIds.MocsáriVipera, new(4, 6))],
                         MovementProfile: EnemyMovementProfile.Patrol, AreaId: "REED_LABYRINTH", TargetTerrainTags: TerrainTag.Marsh, Posture: EnemyEncounterPosture.Ambush, TriggerDistance: 4),
                     new(GroupCount: new(2, 2),
                         Members: [new(MonsterIds.Orgyilkos, new(3, 5)), new(MonsterIds.Martalóc, new(5, 8)), new(MonsterIds.KáoszmágusTanítvány, new(1, 1))],
@@ -1202,6 +1205,12 @@ public static class MazeLevelConfigurations
                 // Fertőzött tömegek és mocsári állatok; a hüllők itt csak a későbbi birodalom előőrsei.
                 RoomEncounters =
                 [
+                    new(GroupCount: new(1, 1),
+                        Members: [new(MonsterIds.GyíkemberSámán, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.PajzsosGyíkőr, new(2, 3)), new(MonsterIds.GyíkemberPortyázó, new(4, 6))],
+                        MovementProfile: EnemyMovementProfile.Stationary, ScreenNumber: 1),
+                    new(GroupCount: new(1, 2),
+                        Members: [new(MonsterIds.Óriáskígyó, new(2, 3)), new(MonsterIds.MocsáriVipera, new(5, 8))],
+                        MovementProfile: EnemyMovementProfile.Stationary),
                     new(GroupCount: new(2, 3),
                         Members: [new(MonsterIds.PestishordozóPatkány, new(12, 18)), new(MonsterIds.Óriáspók, new(3, 5))],
                         MovementProfile: EnemyMovementProfile.Stationary),
@@ -1212,7 +1221,7 @@ public static class MazeLevelConfigurations
                         Members: [new(MonsterIds.Hidra, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.BarlangiGyík, new(4, 6)), new(MonsterIds.MocsáriVipera, new(6, 10))],
                         MovementProfile: EnemyMovementProfile.Stationary, ScreenNumber: 2),
                     new(GroupCount: new(1, 1),
-                        Members: [new(MonsterIds.Kígyópap, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.Kígyóember, new(1, 2)), new(MonsterIds.GyíkemberPortyázó, new(5, 8))],
+                        Members: [new(MonsterIds.Kígyópap, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.Kígyóember, new(1, 2)), new(MonsterIds.Kígyóíjász, new(1, 2)), new(MonsterIds.GyíkemberPortyázó, new(5, 8))],
                         MovementProfile: EnemyMovementProfile.Stationary, ScreenNumber: 2),
                     new(GroupCount: new(2, 2),
                         Members: [new(MonsterIds.MocsáriOgre, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.Goblin, new(8, 12)), new(MonsterIds.GoblinVajákos, new(1, 1))],
@@ -1236,7 +1245,7 @@ public static class MazeLevelConfigurations
                         Members: [new(MonsterIds.Óriáspióca, new(10, 16)), new(MonsterIds.MocsáriVipera, new(8, 12))],
                         MovementProfile: EnemyMovementProfile.Wander, Behavior: EnemyEncounterBehavior.Horde),
                     new(GroupCount: new(2, 2),
-                        Members: [new(MonsterIds.MocsáriKrokodil, new(2, 3)), new(MonsterIds.GyíkemberPortyázó, new(4, 6))],
+                        Members: [new(MonsterIds.Krokodilidomár, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.MocsáriKrokodil, new(2, 3)), new(MonsterIds.GyíkemberPortyázó, new(4, 6)), new(MonsterIds.GyíkemberVadász, new(1, 2))],
                         MovementProfile: EnemyMovementProfile.Wander, Behavior: EnemyEncounterBehavior.Horde),
                     new(GroupCount: new(2, 2),
                         Members: [new(MonsterIds.ÉjiBanya, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.Savanyálka, new(5, 8)), new(MonsterIds.PestishordozóPatkány, new(6, 9))],
@@ -1252,6 +1261,139 @@ public static class MazeLevelConfigurations
             [15] = new()
             {
                 Level = 15,
+                Name = "A pikkelytrón elsüllyedt palotája",
+                Layout = new WideMazeLayoutConfiguration(new(3, 4), NarrowingChance: 0.08),
+                WallRune = new('▓'),
+                WallColor = ConsoleColor.DarkCyan,
+                RoomCount = new(36, 44),
+                RoomSize = new(8, 12),
+                TreasureChestCount = new(16, 22),
+                TreasureGold = new(1000, 2000),
+                ItemCurseChancePercent = 14,
+                QuestRoomIds = ["SCALED_KING_THRONE", "SCALED_CROCODILE_POOL"],
+                QuestRoomPlacements = new Dictionary<string, QuestRoomPlacementConfiguration>
+                {
+                    ["SCALED_CROCODILE_POOL"] = new(ScreenNumber: 2)
+                },
+                SpecialRoomPlacements = new Dictionary<string, SpecialRoomPlacement>
+                {
+                    ["SCALED_KING_THRONE"] = SpecialRoomPlacement.MiddleRoute,
+                    ["SCALED_CROCODILE_POOL"] = SpecialRoomPlacement.SideBranch
+                },
+                QuestRoomEnemyEncounters =
+                [
+                    new("SCALED_KING_THRONE", MonsterIds.GyíkemberKirály, 1, Role: EnemyGroupRole.Leader),
+                    new("SCALED_KING_THRONE", MonsterIds.PajzsosGyíkőr, 6),
+                    new("SCALED_KING_THRONE", MonsterIds.GyíkemberSámán, 2),
+                    new("SCALED_KING_THRONE", MonsterIds.GyíkemberVadász, 3),
+                    new("SCALED_CROCODILE_POOL", MonsterIds.Krokodilidomár, 2, Role: EnemyGroupRole.Leader),
+                    new("SCALED_CROCODILE_POOL", MonsterIds.MocsáriKrokodil, 6),
+                    new("SCALED_CROCODILE_POOL", MonsterIds.Óriáskrokodil, 1)
+                ],
+                RoomEncounters =
+                [
+                    new(GroupCount: new(3, 4), Members: [new(MonsterIds.PajzsosGyíkőr, new(3, 4)), new(MonsterIds.GyíkemberPortyázó, new(8, 12))],
+                        MovementProfile: EnemyMovementProfile.Stationary, ScreenNumber: 1),
+                    new(GroupCount: new(2, 3), Members: [new(MonsterIds.GyíkemberSámán, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.PajzsosGyíkőr, new(4, 6)),
+                        new(MonsterIds.GyíkemberVadász, new(3, 5))],
+                        MovementProfile: EnemyMovementProfile.Stationary),
+                    new(GroupCount: new(2, 3), Members: [new(MonsterIds.Krokodilidomár, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.MocsáriKrokodil, new(3, 4)),
+                        new(MonsterIds.GyíkemberVadász, new(2, 3))],
+                        MovementProfile: EnemyMovementProfile.Stationary, ScreenNumber: 2),
+                    new(GroupCount: new(3, 4), Members: [new(MonsterIds.GyíkemberVadász, new(4, 6)), new(MonsterIds.GyíkemberPortyázó, new(6, 9))],
+                        MovementProfile: EnemyMovementProfile.Stationary),
+                    new(GroupCount: new(2, 2), Members: [new(MonsterIds.GyíkemberSámán, new(2, 2), EnemyGroupRole.Leader), new(MonsterIds.PajzsosGyíkőr, new(5, 7))],
+                        MovementProfile: EnemyMovementProfile.Stationary, ScreenNumber: 3),
+                    new(GroupCount: new(1, 1), Members: [new(MonsterIds.Kígyópap, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.Kígyóember, new(2, 3)),
+                        new(MonsterIds.Kígyóíjász, new(2, 2))],
+                        MovementProfile: EnemyMovementProfile.Stationary, ScreenNumber: 3),
+                    new(GroupCount: new(2, 2), Members: [new(MonsterIds.Óriáskígyó, new(2, 3)), new(MonsterIds.BarlangiGyík, new(4, 6))],
+                        MovementProfile: EnemyMovementProfile.Stationary)
+                ],
+                CorridorEncounters =
+                [
+                    new(GroupCount: new(4, 5), Members: [new(MonsterIds.GyíkemberPortyázó, new(8, 12)), new(MonsterIds.GyíkemberVadász, new(2, 3))],
+                        MovementProfile: EnemyMovementProfile.Patrol, Behavior: EnemyEncounterBehavior.Horde),
+                    new(GroupCount: new(2, 3), Members: [new(MonsterIds.PajzsosGyíkőr, new(2, 3)), new(MonsterIds.GyíkemberVadász, new(3, 4))],
+                        MovementProfile: EnemyMovementProfile.Patrol),
+                    new(GroupCount: new(2, 2), Members: [new(MonsterIds.GyíkemberSámán, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.GyíkemberPortyázó, new(6, 8))],
+                        MovementProfile: EnemyMovementProfile.Patrol, Behavior: EnemyEncounterBehavior.Horde),
+                    new(GroupCount: new(2, 2), Members: [new(MonsterIds.Óriáskígyó, new(2, 3)), new(MonsterIds.MocsáriVipera, new(5, 8))],
+                        MovementProfile: EnemyMovementProfile.Patrol, Behavior: EnemyEncounterBehavior.Horde)
+                ]
+            },
+            [16] = new()
+            {
+                Level = 16,
+                Name = "A vedlő isten temploma",
+                Layout = new WideMazeLayoutConfiguration(new(4, 5), NarrowingChance: 0.16),
+                WallRune = new('▒'),
+                WallColor = ConsoleColor.DarkYellow,
+                RoomCount = new(42, 52),
+                RoomSize = new(8, 12),
+                TreasureChestCount = new(18, 24),
+                TreasureGold = new(1100, 2200),
+                ItemCurseChancePercent = 20,
+                GuaranteedTraps = [new("TR109", 2), new("TR109", 3)],
+                QuestRoomIds = ["SHEDDING_HIGH_ALTAR", "SHEDDING_HYDRA_SANCTUM"],
+                QuestRoomPlacements = new Dictionary<string, QuestRoomPlacementConfiguration>
+                {
+                    ["SHEDDING_HYDRA_SANCTUM"] = new(ScreenNumber: 4)
+                },
+                SpecialRoomPlacements = new Dictionary<string, SpecialRoomPlacement>
+                {
+                    ["SHEDDING_HIGH_ALTAR"] = SpecialRoomPlacement.MiddleRoute,
+                    ["SHEDDING_HYDRA_SANCTUM"] = SpecialRoomPlacement.SideBranch
+                },
+                QuestRoomEnemyEncounters =
+                [
+                    new("SHEDDING_HIGH_ALTAR", MonsterIds.KígyóFőpap, 1, Role: EnemyGroupRole.Leader),
+                    new("SHEDDING_HIGH_ALTAR", MonsterIds.KígyóTemplomőr, 5),
+                    new("SHEDDING_HIGH_ALTAR", MonsterIds.Kígyópap, 2),
+                    new("SHEDDING_HIGH_ALTAR", MonsterIds.Kígyóíjász, 3),
+                    new("SHEDDING_HYDRA_SANCTUM", MonsterIds.ŐsiHidra, 1, Role: EnemyGroupRole.Leader),
+                    new("SHEDDING_HYDRA_SANCTUM", MonsterIds.Óriáskígyó, 3)
+                ],
+                RoomEncounters =
+                [
+                    new(GroupCount: new(3, 4), Members: [new(MonsterIds.KígyóTemplomőr, new(3, 5)), new(MonsterIds.Kígyóember, new(5, 7))],
+                        MovementProfile: EnemyMovementProfile.Stationary, ScreenNumber: 1),
+                    new(GroupCount: new(3, 4), Members: [new(MonsterIds.Kígyóíjász, new(4, 6)), new(MonsterIds.Kígyóember, new(3, 5))],
+                        MovementProfile: EnemyMovementProfile.Stationary),
+                    new(GroupCount: new(3, 3), Members: [new(MonsterIds.Kígyópap, new(1, 2), EnemyGroupRole.Leader), new(MonsterIds.KígyóTemplomőr, new(3, 4)),
+                        new(MonsterIds.Kígyóíjász, new(2, 3))],
+                        MovementProfile: EnemyMovementProfile.Stationary),
+                    new(GroupCount: new(2, 3), Members: [new(MonsterIds.Méregmágus, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.Kígyóíjász, new(3, 4)),
+                        new(MonsterIds.KígyóTemplomőr, new(2, 3))],
+                        MovementProfile: EnemyMovementProfile.Stationary, ScreenNumber: 3),
+                    new(GroupCount: new(2, 2), Members: [new(MonsterIds.Kígyópap, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.GyíkemberPortyázó, new(4, 6)),
+                        new(MonsterIds.PajzsosGyíkőr, new(2, 2))],
+                        MovementProfile: EnemyMovementProfile.Stationary),
+                    new(GroupCount: new(2, 3), Members: [new(MonsterIds.Óriáskígyó, new(3, 4)), new(MonsterIds.MocsáriVipera, new(8, 12))],
+                        MovementProfile: EnemyMovementProfile.Stationary),
+                    new(GroupCount: new(1, 1), Members: [new(MonsterIds.Medúza, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.KígyóTemplomőr, new(2, 3))],
+                        MovementProfile: EnemyMovementProfile.Stationary, ScreenNumber: 4),
+                    new(GroupCount: new(1, 1), Members: [new(MonsterIds.ÓriásBaziliszkusz, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.Óriáskígyó, new(2, 3))],
+                        MovementProfile: EnemyMovementProfile.Stationary, ScreenNumber: 4)
+                ],
+                CorridorEncounters =
+                [
+                    new(GroupCount: new(3, 4), Members: [new(MonsterIds.Kígyóember, new(5, 7)), new(MonsterIds.Kígyóíjász, new(2, 3))],
+                        MovementProfile: EnemyMovementProfile.Patrol, Behavior: EnemyEncounterBehavior.Horde),
+                    new(GroupCount: new(2, 3), Members: [new(MonsterIds.KígyóTemplomőr, new(3, 4)), new(MonsterIds.Kígyópap, new(1, 1), EnemyGroupRole.Leader)],
+                        MovementProfile: EnemyMovementProfile.Patrol),
+                    new(GroupCount: new(2, 2), Members: [new(MonsterIds.Méregmágus, new(1, 1), EnemyGroupRole.Leader), new(MonsterIds.Óriáspók, new(4, 6)),
+                        new(MonsterIds.MocsáriVipera, new(6, 9))],
+                        MovementProfile: EnemyMovementProfile.Patrol, Behavior: EnemyEncounterBehavior.Horde),
+                    new(GroupCount: new(3, 4), Members: [new(MonsterIds.MocsáriVipera, new(10, 14)), new(MonsterIds.Óriáskígyó, new(2, 3))],
+                        MovementProfile: EnemyMovementProfile.Patrol, Behavior: EnemyEncounterBehavior.Horde),
+                    new(GroupCount: new(2, 2), Members: [new(MonsterIds.GyíkemberVadász, new(2, 3)), new(MonsterIds.GyíkemberPortyázó, new(3, 4))],
+                        MovementProfile: EnemyMovementProfile.Patrol)
+                ]
+            },
+            [17] = new()
+            {
+                Level = 17,
                 Name = "A fojtogató mélyjárat",
                 GuaranteedTraps = [new("TR108"), new("TR108")],
                 DoubleWidthCorridorChance = 0,
@@ -1302,13 +1444,13 @@ public static class MazeLevelConfigurations
                         Members: [new(MonsterIds.KáoszmágusTanítvány, new(1, 1)), new(MonsterIds.Orgyilkos, new(1, 1)), new(MonsterIds.Martalóc, new(3, 5))],
                         MovementProfile: EnemyMovementProfile.Patrol),
                     new(GroupCount: new(2, 2),
-                        Members: [new(MonsterIds.BarlangiGyík, new(4, 6)), new(MonsterIds.Óriáspók, new(2, 3))],
+                        Members: [new(MonsterIds.BarlangiGyík, new(4, 6)), new(MonsterIds.Óriáskígyó, new(1, 2)), new(MonsterIds.Óriáspók, new(2, 3))],
                         MovementProfile: EnemyMovementProfile.Wander, Behavior: EnemyEncounterBehavior.Horde)
                 ]
             },
-            [16] = new()
+            [18] = new()
             {
-                Level = 16,
+                Level = 18,
                 Name = "A megtört kristálycsarnok",
                 GuaranteedTraps = [new("TR110"), new("TR110")],
                 DoubleWidthCorridorChance = 0.72,
@@ -1363,9 +1505,9 @@ public static class MazeLevelConfigurations
                         MovementProfile: EnemyMovementProfile.Wander, Behavior: EnemyEncounterBehavior.Horde)
                 ]
             },
-            [17] = new()
+            [19] = new()
             {
-                Level = 17,
+                Level = 19,
                 Name = "A dermedt mélység",
                 GuaranteedTraps = [new("TR107"), new("TR107"), new("TR104"), new("TR104")],
                 DoubleWidthCorridorChance = 0.62,
@@ -1420,9 +1562,9 @@ public static class MazeLevelConfigurations
                         MovementProfile: EnemyMovementProfile.Patrol)
                 ]
             },
-            [18] = new()
+            [20] = new()
             {
-                Level = 18,
+                Level = 20,
                 Name = "Az örökéj vámpírerődje",
                 GuaranteedTraps = [new("TR109"), new("TR109")],
                 Layout = new WideMazeLayoutConfiguration(new(3, 3), NarrowingChance: 0.13),
@@ -1483,9 +1625,9 @@ public static class MazeLevelConfigurations
                         MovementProfile: EnemyMovementProfile.Wander, Behavior: EnemyEncounterBehavior.Horde)
                 ]
             },
-            [19] = new()
+            [21] = new()
             {
-                Level = 19,
+                Level = 21,
                 Name = "A sárkányok temetője",
                 GuaranteedTraps = [new("TR111")],
                 DoubleWidthCorridorChance = 0.84,
@@ -1540,9 +1682,9 @@ public static class MazeLevelConfigurations
                         MovementProfile: EnemyMovementProfile.Wander, Behavior: EnemyEncounterBehavior.Horde)
                 ]
             },
-            [20] = new()
+            [22] = new()
             {
-                Level = 20,
+                Level = 22,
                 Name = "A démoni sík: Parázspusztaság",
                 Layout = new WideMazeLayoutConfiguration(new(3, 3), NarrowingChance: 0.08),
                 WallRune = new('█'),
@@ -1596,9 +1738,9 @@ public static class MazeLevelConfigurations
                         MovementProfile: EnemyMovementProfile.Patrol)
                 ]
             },
-            [21] = new()
+            [23] = new()
             {
-                Level = 21,
+                Level = 23,
                 Name = "A démoni sík: Vértrónus",
                 GuaranteedTraps = [new("TR111"), new("TR111")],
                 Layout = new WideMazeLayoutConfiguration(new(3, 3), NarrowingChance: 0.11),
@@ -1659,9 +1801,9 @@ public static class MazeLevelConfigurations
                         MovementProfile: EnemyMovementProfile.Wander, Behavior: EnemyEncounterBehavior.Horde)
                 ]
             },
-            [22] = new()
+            [24] = new()
             {
-                Level = 22,
+                Level = 24,
                 Name = "A káosz szíve",
                 GuaranteedTraps = [new("TR112"), new("TR112"), new("TR110"), new("TR110")],
                 DoubleWidthCorridorChance = 0.80,
@@ -1719,9 +1861,9 @@ public static class MazeLevelConfigurations
                         MovementProfile: EnemyMovementProfile.Wander, Behavior: EnemyEncounterBehavior.Horde)
                 ]
             },
-            [23] = new()
+            [25] = new()
             {
-                Level = 23,
+                Level = 25,
                 Name = "A káosz trónja",
                 DoubleWidthCorridorChance = 0.86,
                 WallRune = new('▓'),
@@ -1843,8 +1985,8 @@ public static class MazeLevelConfigurations
     {
         configuration.VisionModifier = configuration.Level switch
         {
-            5 or 6 or 13 or 14 => -1,
-            10 or 15 or 19 or 22 => -2,
+            5 or 6 or 13 or 14 or 15 => -1,
+            10 or 16 or 17 or 21 or 24 => -2,
             _ => 0
         };
         (configuration.TrapCount, configuration.TrapIds) = configuration.Level switch
@@ -1853,8 +1995,10 @@ public static class MazeLevelConfigurations
             2 => (new IntRange(4, 8), LevelTwoTraps),
             <= 7 => (new IntRange(5, 9), EarlyTraps),
             <= 10 => (new IntRange(6, 11), MidTraps),
-            <= 15 => (new IntRange(6, 11), AdvancedTraps),
-            <= 19 => (new IntRange(6, 13), DeadlyTraps),
+            15 => (new IntRange(12, 18), AdvancedTraps),
+            16 => (new IntRange(16, 22), AdvancedTraps),
+            <= 17 => (new IntRange(6, 11), AdvancedTraps),
+            <= 21 => (new IntRange(6, 13), DeadlyTraps),
             _ => (new IntRange(7, 14), ChaosTraps)
         };
         return configuration;

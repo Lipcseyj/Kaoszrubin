@@ -531,7 +531,7 @@ internal static partial class Program
         }
 
         var campaignForest = MazeLevelConfigurations.Get(6);
-        Assert(MazeLevelConfigurations.FinalLevel == 23 && campaignForest.Name == "Tiltott Erdő" &&
+        Assert(MazeLevelConfigurations.FinalLevel == 25 && campaignForest.Name == "Tiltott Erdő" &&
                campaignForest.Layout is ForestMazeLayoutConfiguration
                {
                    Graph.AreaCount: { Minimum: 6, Maximum: 8 },
@@ -642,9 +642,9 @@ internal static partial class Program
             [11] = MonsterIds.Ork,
             [12] = MonsterIds.Orgyilkos,
             [14] = MonsterIds.PestishordozóPatkány,
-            [18] = MonsterIds.Csontváz,
-            [20] = MonsterIds.Pokolfajzat,
-            [21] = MonsterIds.Pokolfajzat
+            [20] = MonsterIds.Csontváz,
+            [22] = MonsterIds.Pokolfajzat,
+            [23] = MonsterIds.Pokolfajzat
         };
         foreach (var (levelNumber, weakerEnemyId) in expectedWeakerEnemy)
         {
@@ -694,7 +694,7 @@ internal static partial class Program
                 $"A(z) {levelNumber}. szint egy képernyőnyi profilja nem generálható bejárható, hordás pályává.");
         }
 
-        var demonLevels = new[] { MazeLevelConfigurations.Get(20), MazeLevelConfigurations.Get(21) };
+        var demonLevels = new[] { MazeLevelConfigurations.Get(22), MazeLevelConfigurations.Get(23) };
         var configuredDemonIds = demonLevels
             .SelectMany(level => level.RoomEncounters.Concat(level.CorridorEncounters))
             .SelectMany(encounter => encounter.Members)
@@ -825,9 +825,9 @@ internal static partial class Program
         Assert(MazeLevelConfigurations.Get(8).ItemCurseChancePercent == 12 &&
                MazeLevelConfigurations.Get(13).ItemCurseChancePercent == 18 &&
                MazeLevelConfigurations.Get(14).ItemCurseChancePercent == 16 &&
-               MazeLevelConfigurations.Get(18).ItemCurseChancePercent == 20 &&
-               MazeLevelConfigurations.Get(20).ItemCurseChancePercent == 22 &&
-               MazeLevelConfigurations.Get(21).ItemCurseChancePercent == 25,
+               MazeLevelConfigurations.Get(20).ItemCurseChancePercent == 20 &&
+               MazeLevelConfigurations.Get(22).ItemCurseChancePercent == 22 &&
+               MazeLevelConfigurations.Get(23).ItemCurseChancePercent == 25,
             "A kiemelten veszélyes pályák tárgyátok-esélyei nem a konfigurációból érkeznek.");
         Assert(QuestLocationConfigurations.Get(QuestLocationConfigurations.RodericMalrec)
                    .ItemCurseChancePercent == 8,

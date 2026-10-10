@@ -1213,7 +1213,7 @@ internal static partial class Program
     {
         var catalog = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory,
             CsvGameDataLoader.GameDataFileName));
-        var definition = catalog.GetEnemy(MonsterIds.Patkányember);
+        var definition = catalog.GetEnemy(MonsterIds.GyíkemberKirály);
         var boss = new ConfiguredEnemy(new Position(3, 3), definition, new Random(71));
         Assert(boss.BossHitPointBonusPercent is >= 10 and <= 50 &&
                boss.BossTier == BossTierRules.TierForBonus(boss.BossHitPointBonusPercent) &&

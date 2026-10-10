@@ -959,12 +959,14 @@ public sealed partial class Game
                     magicWeaponContext)
             };
             var maze = _generator.Create(MazeWidth, MazeHeight);
+            ScaledKingdomDungeons.ApplyTerrain(maze);
             areas.Add(new DungeonArea(node.Id, maze,
                 new FogOfWar(maze.Width, maze.Height, CharacterClassRules.BaseVisionRange),
                 layout is ForestMazeLayoutConfiguration forestLayout
                     ? forestLayout.ExplicitGraph?.Areas.FirstOrDefault(area => area.Id == node.Id)?.Name ??
                       ForestAreaDisplayName(node, index, areaCount)
-                    : areaCount == 1 ? configuration.Name : $"{index + 1}. terület",
+                    : ScaledKingdomDungeons.AreaName(configuration, index, areaCount) ??
+                      (areaCount == 1 ? configuration.Name : $"{index + 1}. terület"),
                 node.Coordinate, node.Role));
         }
 

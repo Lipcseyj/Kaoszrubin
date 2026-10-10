@@ -119,7 +119,7 @@ public sealed class GameSaveService
 public static class GameSaveFormat
 {
     public const int OldestSupportedVersion = 1;
-    public const int CurrentVersion = 42;
+    public const int CurrentVersion = 43;
 
     public static GameSaveData MigrateToCurrent(GameSaveData state)
     {
@@ -173,6 +173,7 @@ public static class GameSaveFormat
                 39 => MigrateVersion39To40(state),
                 40 => MigrateVersion40To41(state),
                 41 => MigrateVersion41To42(state),
+                42 => MigrateVersion42To43(state),
                 _ => throw new InvalidOperationException($"Hiányzó mentésmigráció a(z) {state.Version}. verzióhoz.")
             };
         }
@@ -184,6 +185,47 @@ public static class GameSaveFormat
                 state.PartyCampaignProgression, suspended.PartyCampaignProgression);
             suspended.PartyCampaignProgression = state.PartyCampaignProgression;
         }
+        return state;
+    }
+
+    private static GameSaveData MigrateVersion42To43(GameSaveData state)
+    {
+        const int insertedLevel = 15;
+        if (state.MazeLevel >= insertedLevel) state.MazeLevel += 2;
+        if (state.LocationKind == AdventureLocationKind.Campaign)
+        {
+            if (state.DifficultyLevel >= insertedLevel) state.DifficultyLevel += 2;
+            if (string.IsNullOrWhiteSpace(state.LocationId) ||
+                state.LocationId.StartsWith("CAMPAIGN_", StringComparison.OrdinalIgnoreCase))
+                state.LocationId = $"CAMPAIGN_{state.MazeLevel:00}";
+        }
+        if (state.AdHocConversationMazeLevel >= insertedLevel) state.AdHocConversationMazeLevel += 2;
+        // Kétszeri, ugyanott végzett beszúrás ugyanazokat a régi szinteket tolja el két hellyel.
+        state.RosterJson = ShiftNpcJoinLevels(state.RosterJson, insertedLevel, shiftCampaignBindings: true);
+        state.RosterJson = ShiftNpcJoinLevels(state.RosterJson, insertedLevel, shiftCampaignBindings: true);
+        if (state.PartyCampaignProgression.HighestCompletedCampaignLevel >= insertedLevel)
+            state.PartyCampaignProgression = state.PartyCampaignProgression with
+            { HighestCompletedCampaignLevel = state.PartyCampaignProgression.HighestCompletedCampaignLevel + 2 };
+        // A régi bosstól már megszerzett kulcs megmarad, a késői mentések sem vesztik el a kapunyitást.
+        state.CollectedBossKeyIds = state.CollectedBossKeyIds.Select(id => id switch
+        {
+            "E051" => Domain.Combat.MonsterIds.GyíkemberKirály,
+            "E033" => Domain.Combat.MonsterIds.KígyóFőpap,
+            _ => id
+        }).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        // Az új őrzők bemutatkozása akkor is megtörténik, ha a régi őrző kulcsa már megvolt.
+        state.SeenBossIds.RemoveAll(id => id is "E051" or "E033");
+        foreach (var maze in state.Areas.Select(area => area.Maze).Append(state.Maze).Distinct())
+            maze.Enemies = maze.Enemies.Select(enemy => enemy.DefinitionId is "E051" or "E033"
+                ? enemy with
+                {
+                    CurrentHitPoints = (int)Math.Ceiling(enemy.CurrentHitPoints * 100d /
+                        (100 + enemy.BossHitPointBonusPercent)),
+                    BossHitPointBonusPercent = 0
+                }
+                : enemy).ToList();
+
+        state.Version = 43;
         return state;
     }
 
@@ -256,9 +298,14 @@ public static class GameSaveFormat
             : state.SuspendedCampaign?.PartyCampaignProgression.HighestCompletedCampaignLevel ?? 0;
         // A felfüggesztett mentés ekkor már új számozású lehet; itt még a 36. formátum készül.
         var suspendedProgression = state.SuspendedCampaign?.PartyCampaignProgression;
-        if (suspendedProgression is { HighestCompletedCampaignLevel: >= 14 })
-            suspendedProgression = suspendedProgression with
-            { HighestCompletedCampaignLevel = suspendedProgression.HighestCompletedCampaignLevel - 1 };
+        if (suspendedProgression is { } migratedProgression)
+        {
+            var completed = migratedProgression.HighestCompletedCampaignLevel;
+            // A felfüggesztett kampány már mai számozású; a szülő még a 35. verzióban jár.
+            if (completed >= 17) completed -= 2;
+            if (completed >= 14) completed--;
+            suspendedProgression = migratedProgression with { HighestCompletedCampaignLevel = completed };
+        }
         if (state.LocationKind == AdventureLocationKind.Quest)
             highestCompletedLevel = suspendedProgression?.HighestCompletedCampaignLevel ?? 0;
         state.PartyCampaignProgression = PartyCampaignProgressionSnapshot.Merge(

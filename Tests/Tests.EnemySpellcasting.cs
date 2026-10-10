@@ -8,7 +8,8 @@ internal static partial class Program
             MonsterIds.GoblinVajákos, MonsterIds.KáoszmágusTanítvány, MonsterIds.Káoszpap,
             MonsterIds.OrkSámán, MonsterIds.Boszorkány, MonsterIds.OrkVérpap, MonsterIds.Kígyópap,
             MonsterIds.Káoszmágus, MonsterIds.SötétDruida, MonsterIds.Vérmágus, MonsterIds.KáoszFőpap,
-            MonsterIds.Nekromanta, MonsterIds.Lich, MonsterIds.Drakolich, MonsterIds.Feketemágus, MonsterIds.LápiUdvarmester
+            MonsterIds.Nekromanta, MonsterIds.Lich, MonsterIds.Drakolich, MonsterIds.Feketemágus, MonsterIds.LápiUdvarmester,
+            MonsterIds.GyíkemberSámán, MonsterIds.Méregmágus, MonsterIds.KígyóFőpap
         };
         Assert(data.EnemySpellcasters.Select(profile => profile.EnemyId).SequenceEqual(expected),
             "Az ellenséges varázshasználók erősorrendje vagy készlete eltér a tervezettől.");

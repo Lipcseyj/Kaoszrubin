@@ -143,13 +143,15 @@ internal static class Program
         var count = 0;
         for (var level = 1; level <= MazeLevelConfigurations.FinalLevel; level++)
         {
-            string block;
-            try { block = EditorSources.ReadLevel(level); }
-            catch (InvalidOperationException) { continue; } // Generált kampányszintnek nincs saját forrásblokkja.
+            // A kézzel definiált kampány összes pályája, az új 15–16. dungeon is szerkeszthető.
+            var block = EditorSources.ReadLevel(level);
             foreach (var property in new[] { "RoomEncounters", "CorridorEncounters" })
             foreach (var expression in EditorSources.CollectionItems(EditorSources.Property(block, property)))
             {
-                var draft = EncounterDraft.Parse(expression);
+                EncounterDraft draft;
+                try { draft = EncounterDraft.Parse(expression); }
+                catch (FormatException exception)
+                { throw new FormatException($"{level}/{property}: {expression}", exception); }
                 var roundTrip = EncounterDraft.Parse(draft.Expression());
                 Assert(Canonical(draft.Configuration()) == Canonical(roundTrip.Configuration()), $"{level}: {expression}");
                 count++;
@@ -337,19 +339,22 @@ internal static class Program
     private static void SaveAndReload()
     {
         var source = File.ReadAllText(EditorSources.PathFor("World/MazeLevelConfiguration.cs"));
-        var before = EditorSources.LevelBlock(source, 6);
-        var items = EditorSources.CollectionItems(EditorSources.Property(before, "RoomEncounters")).ToList();
-        items.RemoveAt(0);
-        var edited = EncounterDraft.Parse(items[0]);
-        edited.Overrides["AreaId"] = "A";
-        items[0] = edited.Expression();
-        items.Add(new EncounterDraft("MixedHorde").Expression());
-        var updated = EditorSources.UpdateLevelSource(source, 6,
-            new Dictionary<string, string> { ["RoomEncounters"] = "[" + string.Join(",\n", items) + "]" });
-        var after = EditorSources.LevelBlock(updated, 6);
-        Assert(EditorSources.CollectionItems(EditorSources.Property(after, "RoomEncounters")).SequenceEqual(items),
-            "A hozzáadás/szerkesztés/törlés nem maradt meg a forrásban.");
-        Assert(EditorSources.Property(before, "CorridorEncounters") == EditorSources.Property(after, "CorridorEncounters") &&
-            source.Replace(before, "<level>") == updated.Replace(after, "<level>"), "Másik lista vagy pálya megváltozott.");
+        foreach (var level in new[] { 6, 15, 16 })
+        {
+            var before = EditorSources.LevelBlock(source, level);
+            var items = EditorSources.CollectionItems(EditorSources.Property(before, "RoomEncounters")).ToList();
+            items.RemoveAt(0);
+            var edited = EncounterDraft.Parse(items[0]);
+            edited.Overrides["AreaId"] = "A";
+            items[0] = edited.Expression();
+            items.Add(new EncounterDraft("MixedHorde").Expression());
+            var updated = EditorSources.UpdateLevelSource(source, level,
+                new Dictionary<string, string> { ["RoomEncounters"] = "[" + string.Join(",\n", items) + "]" });
+            var after = EditorSources.LevelBlock(updated, level);
+            Assert(EditorSources.CollectionItems(EditorSources.Property(after, "RoomEncounters")).SequenceEqual(items),
+                "A hozzáadás/szerkesztés/törlés nem maradt meg a forrásban.");
+            Assert(EditorSources.Property(before, "CorridorEncounters") == EditorSources.Property(after, "CorridorEncounters") &&
+                source.Replace(before, "<level>") == updated.Replace(after, "<level>"), "Másik lista vagy pálya megváltozott.");
+        }
     }
 }

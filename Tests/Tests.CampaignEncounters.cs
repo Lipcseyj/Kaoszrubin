@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using KaoszRubin.Infrastructure.Quests;
 
 internal static partial class Program
 {
@@ -16,13 +17,18 @@ internal static partial class Program
             var configuration = MazeLevelConfigurations.Get(number);
             var encounters = configuration.RoomEncounters.Concat(configuration.CorridorEncounters).ToArray();
             var expectedIds = encounters.SelectMany(encounter => encounter.Members)
-                .Select(member => member.EnemyId).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                .Select(member => member.EnemyId)
+                .Concat(configuration.QuestRoomEnemyEncounters.Select(encounter => encounter.EnemyId))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
             foreach (var id in expectedIds) _ = data.GetEnemy(id);
             var minimumEnemies = encounters.Sum(encounter =>
-                encounter.GroupCount.Minimum * encounter.Members.Sum(member => member.Count.Minimum));
+                encounter.GroupCount.Minimum * encounter.Members.Sum(member => member.Count.Minimum)) +
+                configuration.QuestRoomEnemyEncounters.Sum(encounter => encounter.Count);
             var minimumCasters = encounters.Sum(encounter => encounter.GroupCount.Minimum *
                 encounter.Members.Where(member => data.GetEnemy(member.EnemyId).SpellcasterProfile is not null)
-                    .Sum(member => member.Count.Minimum));
+                    .Sum(member => member.Count.Minimum)) + configuration.QuestRoomEnemyEncounters
+                .Where(encounter => data.GetEnemy(encounter.EnemyId).SpellcasterProfile is not null)
+                .Sum(encounter => encounter.Count);
             var samples = new List<(int Enemies, int Casters, int Types, int Chests)>();
             foreach (var seed in Enumerable.Range(1, 5))
             {
@@ -38,6 +44,9 @@ internal static partial class Program
                 }
                 catch (TargetInvocationException exception) when (exception.InnerException is not null)
                 { throw exception.InnerException; }
+                QuestRoomEnemyPlacement.Place(level, data, configuration.QuestRoomEnemyEncounters,
+                    new Random(number * 1000 + seed),
+                    new EnemyMagicWeaponContext(number, data.EnemyMagicWeaponRules, data.Weapons));
                 var enemies = level.Areas.SelectMany(area => area.Maze.Enemies).ToArray();
                 var casters = enemies.Count(enemy => enemy.Definition.SpellcasterProfile is not null);
                 var chests = level.Areas.Sum(area => area.Maze.TreasureChests.Count);

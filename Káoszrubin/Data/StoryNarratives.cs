@@ -30,41 +30,41 @@ public static class StoryNarratives
     public static readonly IReadOnlyDictionary<string, BossNarrative> BossNarratives =
         new Dictionary<string, BossNarrative>(StringComparer.OrdinalIgnoreCase)
         {
-            [MonsterIds.Patkányember] = new("II. fejezet — A csatornák koronája",
+            [MonsterIds.GyíkemberKirály] = new("VI. fejezet — A pikkelytrón koronája",
             [
-                "Rikkancs vagyok, a Patkányjáratok királya! Ne nevess a koronámon — tizenkét kanálból hajlítottam, és mindet becsületesen loptam.",
-                "Ezt a fényes kulcsot egy kék köpenyes, szélből szőtt ember dobta a fészkembe. Azt mondta, őrizzem, amíg a falak énekelni nem kezdenek. A falak sosem énekelnek. Csak a patkányok. Főleg éjjel.",
-                "Ha a csontzabáló Morghult keresitek, vigyetek neki sót. Utálja a sót. Én meg Morghult utálom, mert megette három unokatestvéremet — bár az egyik talán csak elköltözött."
+                "Sszar-Kor vagyok, a Pikkelylégió királya. A lápban csak portyázóimat láttátok. Itt pajzs viseli a csapást, vadász fogja az oldalt, sámán tartja életben a sort. Egy katona eshet el. A légió nem.",
+                "A koronák elsüllyedtek, a trón megmaradt. Az aranykulcsot a mocsár mélyéről hozták fel krokodiljaim. Zephyriel pecsétjének őrzője vagyok, és nem hajtok térdet a vedlő papoknak.",
+                "A templom főpapja isteni rendnek nevezi a mérget. Én tudom, mit jelent: a katonák engedelmességét akarja, a koronámmal együtt. Ha legyőztök, ő már várni fog benneteket."
             ]),
-            [MonsterIds.Ghoul] = new("III. fejezet — Morghul lakomája",
+            [MonsterIds.KígyóFőpap] = new("VII. fejezet — A vedlő isten hamis hangja",
             [
-                "Morghulnak hívtak, amikor még emlékeztem a saját arcomra. Most a katakombák neveznek el minden éjjel újra, amikor a koporsófedelek alatt megfordulnak a holtak.",
-                "A kulcs nem étel. Megpróbáltam. Nem hús, nem csont, még csak nem is sikolt. De amikor a markomban tartom, tizenkét dobbanást hallok a föld mélyéről. A tizenkettedik után mindig hideg szél fúj végig a sírokon.",
-                "Grashka, az ork sámán azt állítja, tudja, milyen ajtót nyit. Hazudik. Grashka mindig hazudik. Egyszer azt mondta, a koponya nem levesestál. Ostoba ork."
+                "Szeth-Issz vagyok, a Vedlő Isten főpapja. A gyíkkirály pajzsokat gyűjtött. Én türelmet, mérget és hívőket. Amikor a körmenet elkezdődik, az erős kar is remegni kezd.",
+                "Ez az aranykulcs a régi bőr utolsó darabja. Tizenkét pecsét tartja vissza azt, amit ti Káoszrubinnak neveztek. A szél ura őrzést kért tőlem. Én megváltást készítettem belőle.",
+                "Az íjászok kifárasztanak, a méregmágusok megbénítanak, papjaim újra felemelik az őrséget. A belső szentély hidrája az előző korból maradt. Ne higgyétek, hogy ugyanazt az istent szolgálja."
             ]),
-            [MonsterIds.OrkSámán] = new("IV. fejezet — Grashka füstjóslata",
+            [MonsterIds.OrkSámán] = new("II. fejezet — Grashka füstjóslata",
             [
                 "Én vagyok Grashka, a Vasagyar törzs füstlátója. A többiek azt hiszik, a szellemek beszélnek hozzám. Valójában többnyire a füst beszél, és annak is rettenetes a memóriája.",
                 "Az aranykulcsot álmomban kaptam egy négyarcú vihartól. Négy hang veszekedett benne: láng, hullám, kő és szél. A szél győzött, de úgy remegett, mint aki tudja, hogy egyszer visszajönnek érte.",
                 "Északon Hrold, a fagyóriás vár. Fél a vörös szárnyaktól, bár ezt sosem vallaná be. Ha találkoztok vele, mondjátok meg, hogy Grashka szerint a szakálla csak ráfagyott kecskeszőr."
             ]),
-            [MonsterIds.Fagyóriás] = new("V. fejezet — Hrold dermedt esküje",
+            [MonsterIds.Fagyóriás] = new("III. fejezet — Hrold dermedt esküje",
             [
                 "Hrold Jégszakáll vagyok. Százhetven telet számoltam, aztán meguntam. Azóta a jégcsapokat számolom. Ez itt a négyszáznyolcvankétezredik. Vagy ugyanaz, mint tegnap.",
                 "A kulcsot egy vörös sárkány karmaiból téptem ki, amikor még fiatal és ostoba volt. Azóta nagyobb lett, én pedig bölcsebb: ma már tudom, hogy Azrakar nem felejt. A tüze néha még álmomban is megolvasztja a csarnok falát.",
                 "A kulcs belsejében kaput látok, a kapu mögött pedig egy vörös követ. Nem tudom, miért kell tizenkét kulcs egyetlen kapuhoz. Talán a kicsi népek ennyire félnek a huzattól."
             ]),
-            [MonsterIds.VörösSárkány] = new("VI. fejezet — Azrakar parázstrónusa",
+            [MonsterIds.VörösSárkány] = new("IV. fejezet — Azrakar parázstrónusa",
             [
                 "Azrakar vagyok, az Első Parázs örököse. Láttam királyokat megöregedni, birodalmakat hamuvá válni, és Hroldot elfutni a saját megperzselt szakállával. Ezt a részt különösen szívesen láttam.",
                 "Tudom, hogy a kulcs pecsétet tör. Zephyriel, a szél ősmágusa maga bízta az elődeimre. Azt mondta, tizenkét őrző közül egy se értse az egész tervet. Bölcs óvatosság — vagy gyáva bizalmatlanság.",
                 "A mocsárban Sziszara, a hidra őrzi a következő kulcsot. Kilenc feje van, és mind a kilenc más történetet mesél arról, hogyan győzött le engem. Egyik sem igaz. A tizedik történet viszont talán az lenne."
             ]),
-            [MonsterIds.Hidra] = new("VII. fejezet — Sziszara kilenc hangja",
+            [MonsterIds.Hidra] = new("V. fejezet — Sziszara kilenc hangja",
             [
                 "Sziszara vagyok. Én mondom ezt, nem a bal szélső fej. Az mindig hazudik. A jobb szélső szerint mindannyian Sziszara vagyunk, de ő egyszer egy követ is tojásnak nézett.",
                 "A kulcs a mocsár fenekéről került elő, egy szél nélküli vihar után. Ha közel tesszük a többi aranyhoz, énekel. Ha közel tesszük egy békához, a béka felrobban. Ezt fontosabb felfedezésnek tartom.",
-                "A kristálycsarnokban Xyrax figyel minden irányba. Ő látja a kulcsok közötti fonalakat. Mi nem szeretjük Xyraxot. Túl sok szeme van. Ezt kilenc fej teljes egyetértésben mondja."
+                "A palotában Sszar-Kor pajzsos serege, mögötte Szeth-Issz mérges körmenete vár. A kristálycsarnokban Xyrax figyel minden irányba. Ő látja a kulcsok közötti fonalakat. Mi nem szeretjük Xyraxot. Túl sok szeme van. Ezt kilenc fej teljes egyetértésben mondja."
             ]),
             [MonsterIds.VénBeholder] = new("VIII. fejezet — Xyrax ezer látomása",
             [

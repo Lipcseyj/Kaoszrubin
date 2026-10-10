@@ -224,4 +224,18 @@ public enum QuestId
     MonsterHunterFrozenWolves, // NPCQ151
     MonsterHunterFrozenCyclops, // NPCQ152
     InquisitorTombMummies, // NPCQ153
+
+    // A hüllőbirodalom két új dungeonjának egyszeri, találkozáshoz kötött feladatai.
+    FerrymanPalaceBeastmasters, // NPCQ154
+    FerrymanPalaceWater, // NPCQ155
+    FerrymanPalaceHunters, // NPCQ156
+    ArchivistScaledKing, // NPCQ157
+    ArchivistPalaceTreasures, // NPCQ158
+    ArchivistPalaceShields, // NPCQ159
+    AlchemistTempleVenomMages, // NPCQ160
+    AlchemistTempleAntidotes, // NPCQ161
+    RuneBreakerTempleNightmares, // NPCQ162
+    RuneBreakerTempleExit, // NPCQ163
+    FugitiveSnakeHighPriest, // NPCQ164
+    FugitiveTemplePriests, // NPCQ165
 }

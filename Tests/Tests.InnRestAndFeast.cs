@@ -18,7 +18,7 @@ internal static partial class Program
 
     static void InnServicesRoomPricesScaleAndRemainStable()
     {
-        foreach (var level in Enumerable.Range(1, 23))
+        foreach (var level in Enumerable.Range(1, MazeLevelConfigurations.FinalLevel))
         {
             var normalBase = Math.Max(1, (level * level + 3) / 4);
             var forestBase = Math.Max(12, normalBase * 3);

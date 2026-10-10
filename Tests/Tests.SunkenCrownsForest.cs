@@ -38,7 +38,7 @@ internal static partial class Program
         var data = CsvGameDataLoader.Load(Path.Combine(AppContext.BaseDirectory, CsvGameDataLoader.GameDataFileName));
         Assert(data.NpcEncounters.Single(encounter => encounter.Id == "NPCE018").MazeLevel == 14 &&
                data.NpcEncounters.Single(encounter => encounter.Id == "NPCE038").AreaId == "FERRY_ISLAND" &&
-               MazeLevelConfigurations.FinalLevel == 23 &&
+               MazeLevelConfigurations.FinalLevel == 25 &&
                MazeLevelConfigurations.Get(14).Layout is WideMazeLayoutConfiguration,
             "A korábbi mocsár vagy a révésze nem követte a beszúrást.");
     }
@@ -59,7 +59,7 @@ internal static partial class Program
                ReferenceEquals(state.Maze, oldMaze),
             "A beszúrás módosította a korábbi térképet vagy rossz kampánypályára vitt.");
         using var roster = JsonDocument.Parse(state.RosterJson);
-        Assert(roster.RootElement.GetProperty("Campaigns")[0].GetProperty("LastKnownLevel").GetInt32() == 23,
+        Assert(roster.RootElement.GetProperty("Campaigns")[0].GetProperty("LastKnownLevel").GetInt32() == 25,
             "A karakterek kampányhivatkozása a régi számozásban maradt.");
         Assert(roster.RootElement.GetProperty("Characters").EnumerateArray()
                    .Select(character => character.GetProperty("NpcJoinedMazeLevel").GetInt32()).SequenceEqual([14, 12]),
@@ -73,13 +73,13 @@ internal static partial class Program
                 LocationId = "CAMPAIGN_18", PartyCampaignProgression = new(17) }
         };
         GameSaveFormat.MigrateToCurrent(quest);
-        Assert(quest.MazeLevel == 19 && quest.DifficultyLevel == 27 && quest.LocationId == "CUSTOM_QUEST" &&
-               quest.PartyCampaignProgression.HighestCompletedCampaignLevel == 18 &&
-               quest.SuspendedCampaign is { MazeLevel: 19, DifficultyLevel: 19, LocationId: "CAMPAIGN_19" } &&
-               quest.SuspendedCampaign.PartyCampaignProgression.HighestCompletedCampaignLevel == 18,
+        Assert(quest.MazeLevel == 21 && quest.DifficultyLevel == 27 && quest.LocationId == "CUSTOM_QUEST" &&
+               quest.PartyCampaignProgression.HighestCompletedCampaignLevel == 20 &&
+               quest.SuspendedCampaign is { MazeLevel: 21, DifficultyLevel: 21, LocationId: "CAMPAIGN_21" } &&
+               quest.SuspendedCampaign.PartyCampaignProgression.HighestCompletedCampaignLevel == 20,
             "A felfüggesztett kampány vagy a külön questhelyszín hibásan migrált.");
         GameSaveFormat.MigrateToCurrent(quest);
-        Assert(quest.MazeLevel == 19 && quest.PartyCampaignProgression.HighestCompletedCampaignLevel == 18,
+        Assert(quest.MazeLevel == 21 && quest.PartyCampaignProgression.HighestCompletedCampaignLevel == 20,
             "Az új mentés ismételt migrációja újra eltolta a számozást.");
         var legacyQuest = new GameSaveData
         {
@@ -87,8 +87,8 @@ internal static partial class Program
             SuspendedCampaign = new() { Version = 35, MazeLevel = 18 }
         };
         GameSaveFormat.MigrateToCurrent(legacyQuest);
-        Assert(legacyQuest.PartyCampaignProgression.HighestCompletedCampaignLevel == 18 &&
-               legacyQuest.SuspendedCampaign!.PartyCampaignProgression.HighestCompletedCampaignLevel == 18,
+        Assert(legacyQuest.PartyCampaignProgression.HighestCompletedCampaignLevel == 20 &&
+               legacyQuest.SuspendedCampaign!.PartyCampaignProgression.HighestCompletedCampaignLevel == 20,
             "A régebbi questmentés kétszer tolta el a teljesített pályák számát.");
         var earlier = GameSaveFormat.MigrateToCurrent(new() { Version = 37, MazeLevel = 12, DifficultyLevel = 12 });
         Assert(earlier.MazeLevel == 12 && earlier.DifficultyLevel == 12,

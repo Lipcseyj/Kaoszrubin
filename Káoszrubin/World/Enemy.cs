@@ -624,7 +624,6 @@ public abstract class Enemy(Position position) : WorldObject(position)
 /// <summary>CSV-definícióból létrehozott, saját megjelenésű ellenfél.</summary>
 public sealed class ConfiguredEnemy : Enemy
 {
-    private const int ShieldChancePercent = 50;
 
     public ConfiguredEnemy(
         Position position,
@@ -680,7 +679,7 @@ public sealed class ConfiguredEnemy : Enemy
 
         var usesShield = equipment is not null
             ? equipment.ShieldId is not null
-            : canUseShield && rng.Next(100) < ShieldChancePercent;
+            : canUseShield && rng.Next(100) < definition.ShieldChancePercent;
 
         if (equipment?.ShieldId is { } restoredShieldId &&
             !string.Equals(restoredShieldId, definition.ShieldOption?.Id, StringComparison.OrdinalIgnoreCase))

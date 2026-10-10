@@ -528,7 +528,8 @@ public static class CsvGameDataLoader
                     Traits: ParseEnemyTraits(Cell(cells, 10)),
                     TrackingSense: Integer(cells, 24) ?? 0,
                     ShieldId: EmptyAsNull(Cell(cells, 25)),
-                    MagicResistance: Math.Clamp(Integer(cells, 26) ?? 0, 0, 100)));
+                    MagicResistance: Math.Clamp(Integer(cells, 26) ?? 0, 0, 100),
+                    ShieldChancePercent: Math.Clamp(Integer(cells, 27) ?? 50, 0, 100)));
                 break;
             case DataSection.MonsterAbilities:
                 monsterAbilities.Add(new MonsterAbilityDefinition(id, name, Cell(cells, 2),

@@ -472,6 +472,8 @@ LW020;Koronatörő;WT001;16-30;11;igen;nem;nem;nem;Királyok bukását megélt p
 LW021;Viharszúró;WT002;10-19;3;nem;igen;nem;nem;Villámjárta rövid kard amely kékes szikrával találja meg a páncél réseit.;7900;Legendás;W002;5;2;szúrás;1;nem;SWORD;210
 LW022;Alkonyhasító;WT002;11-21;4;nem;igen;nem;nem;Bíbor alkonyfénybe burkolózó rövid kard amely hangtalan ívet húz a sötétben.;9400;Legendás;W002;6;2;vágás;1;nem;SWORD;230
 
+WN036;szorítás;WT001;6-14;1;nem;nem;nem;nem;Izmos kígyótesttel végrehajtott fojtó ölelés.;0;;;;2;zúzás;1;nem;NATURAL
+
 #Páncélok
 Id;Név;Védelem;Barbár;Tolvaj;Pap;Mágus;Jellemzés;Ár;Kategória;AlapId;MágikusErő;Súly;VágásVédelem;SzúrásVédelem;ZúzásVédelem;TűzVédelem;SavVédelem;NekrotikusVédelem;KáoszVédelem;MaxTartósság
 A001;kámzsa;0-1;igen;igen;igen;igen;Vastag szövetből készült csuklyás ruházat a kisebb sérülések ellen.;20;;;;1;0;0;0;0;0;0;0
@@ -617,7 +619,7 @@ PLUS2;8;20
 PLUS3;14;30
 
 #Ellenségek
-Id;Név;Kinézet;Erő;HP;Páncél;Gyorsaság;XP érték;Erősség;KépességIds;Jellemzők;Látótáv;Lopakodás;Zaj;Alhat;FegyverIds;FegyvertVálaszt;VágásVédelem;SzúrásVédelem;ZúzásVédelem;TűzVédelem;SavVédelem;NekrotikusVédelem;KáoszVédelem;Nyomérzék;PajzsId;Varázsvédelem%
+Id;Név;Kinézet;Erő;HP;Páncél;Gyorsaság;XP érték;Erősség;KépességIds;Jellemzők;Látótáv;Lopakodás;Zaj;Alhat;FegyverIds;FegyvertVálaszt;VágásVédelem;SzúrásVédelem;ZúzásVédelem;TűzVédelem;SavVédelem;NekrotikusVédelem;KáoszVédelem;Nyomérzék;PajzsId;Varázsvédelem%;PajzsEsély%
 E001;Óriáspatkány;r;2;20;0;5;100;1;MA003|MA020;;3;1;2;igen;WN001;nem;0;0;0;0;0;0;0;6;;0
 E002;Kobold;k;3;30;1;6;150;1;MA006;;4;1;2;igen;W001|W005;igen;0;0;0;0;0;0;0;2;;0
 E003;Goblin;g;4;45;2;6;200;1;;;4;;;igen;W001|W002|W005|W006;igen;0;0;0;0;0;0;0;1;W024;0
@@ -730,6 +732,17 @@ E115;Ork raktárnok;Ǭ;10;340;7;5;1500;3;MA005;;5;;;igen;W007|W008|W009|W012;ige
 E116;A zsilip őrkapitánya;Ƶ;12;480;8;5;2400;4;;Undead;4;;;nem;W004|W006|W007|W008|W009|W010|W011|W012|W013;igen;2;4;-3;0;0;1;0;6;W029;10
 E117;Lápi udvarmester;Ʊ;11;300;4;6;2600;4;MA003;;6;1;2;igen;W018|W006|W007;nem;0;0;0;0;0;1;3;4;W025;20
 
+E118;Óriáskígyó;Ͽ;12;340;4;5;1200;3;MA007|MA027;;5;2;1;igen;WN011|WN036;nem;1;2;0;0;3;0;0;5;;0
+E119;Gyíkember vadász;Ɂ;9;170;3;8;700;2;MA006;;7;3;1;igen;W040|W002;nem;1;1;0;0;2;0;0;6;;0
+E120;Pajzsos gyíkőr;ɂ;11;310;8;4;1150;3;MA007;;6;0;3;igen;W006|W010;igen;2;3;-1;0;2;0;0;5;W027;10;100
+E121;Gyíkember sámán;Ƀ;8;230;4;5;2200;3;;;7;1;2;igen;W018;nem;1;1;0;0;3;1;1;6;;20
+E122;Krokodilidomár;Ʉ;11;250;5;6;1500;3;MA005;;6;2;2;igen;W011|W010;igen;1;2;0;0;3;0;0;7;;0
+E123;Gyíkember király;Ɇ;17;1550;10;6;6500;4;MA005|MA007|MA018;;8;0;4;nem;W010|W008;igen;3;3;0;1;4;1;1;8;W029;25;100
+E124;Kígyóíjász;ϡ;10;210;4;8;1300;3;MA017|MA006;;8;3;1;igen;W041|W002;nem;1;2;0;0;4;0;0;7;;10
+E125;Kígyó templomőr;Ϣ;13;380;8;7;1800;3;MA018;;7;1;2;igen;W004|W011;igen;2;3;0;0;4;1;1;6;W028;15
+E126;Méregmágus;ϣ;9;300;4;7;3000;3;MA026;;8;2;1;igen;WN018|W018;nem;1;2;0;0;5;1;2;7;;30
+E127;Kígyó főpap;Ϥ;15;1450;8;7;7000;4;MA026|MA018;;8;1;2;nem;W021|W002;nem;2;3;0;1;5;3;3;8;W028;35
+
 #Ellenséges varázshasználók
 EllenségId;VarázslatIds;MaxManna;Intelligencia;Mannatartalék%;VarázslásiEsély%;Profil;VarázslatLehűlés
 E090;D001|D003|D005|P001;26;6;0;90;BattleMage;1
@@ -749,6 +762,10 @@ E049;D011|S014|S025|D010;150;21;10;80;Necromancer;2
 E100;D011|D012|S018|D016|S025;180;23;5;90;Artillery;1
 
 E117;D017|D013|D014|P009;44;8;25;88;Support;1
+
+E121;D017|D013|D014|S017|S022;70;12;15;85;Support;1
+E126;D009|S031|S014|D007|S027;90;15;10;90;Controller;1
+E127;D015|D013|D014|D009|D010|D012;150;18;10;90;Support;1
 
 #Szörnyképességek
 Id;Név;Leírás;Aktiválás;Végrehajtás;Célzás;SikerEsély;Lehűlés;Hatótáv;MaxCélpont;AI súly;FegyverIds;HasználatCsatánként;Látóvonal;Előkészítés;Támadásszám;Képességcsoport;HátrálásHasználatUtán;Területsugár
@@ -774,6 +791,9 @@ MA022;Életszívás;A sebző találat által ténylegesen elvett HP felét vissz
 MA023;Holtélesztés;A holtidéző csontvázakat vagy zombikat kelt életre maga körül.;Active;Automatic;Self;100;10;8;1;65;;1;nem;1;1;;0
 MA024;Sír átka;A múmia síri átka sebezhetőbbé és bizonytalanabbá teszi egy áldozatát.;Active;SavingThrow;SingleEnemy;100;4;3;1;55;;2;igen;0;1;Múmiaátok;0;0
 MA025;Ősi sírátok;A vén múmia ősi átka egyszerre több áldozat harci erejét és kezdeményezését sorvasztja.;Active;SavingThrow;MultipleEnemies;100;5;4;2;65;;2;igen;0;1;Múmiaátok;0;0
+
+MA026;Méregigézet;A méregmágus két közeli áldozat vérébe idéz mérget. Egészség-próba véd a tartós mérgezéstől.;Active;SavingThrow;MultipleEnemies;100;4;6;2;65;;2;igen;0;1;;0;0
+MA027;Fojtó ölelés;Az óriáskígyó testével megszorítja áldozatát és egy körre megakasztja a mozgását.;Active;WeaponAttack;SingleEnemy;100;3;1;1;60;WN036;0;igen;0;1;;0;0
 
 #Szörnyképesség-hatások
 KépességId;Sorrend;Hatás;Érték;Dobás;ÁllapotId;Sebzéstípus;Esély;Ellenállás;Nehézség;Időtartam;PáncélAzEllenálláshoz
@@ -806,6 +826,11 @@ MA022;1;LifeDrain;50;;;;100;None;0;0
 MA023;1;Trait;0;;;;100;None;0;0
 MA024;1;Curse;-2;;HitDefense;;100;Health;18;3;nem
 MA025;1;Curse;-2;;HitDefenseInitiative;;100;Health;21;4;nem
+
+MA026;1;ExtraDamage;0;1-6;;sav;100;None;0;0;nem
+MA026;2;Poison;0;;;;100;Health;20;0;nem
+MA027;1;ExtraDamage;6;;;zúzás;100;None;0;0;nem
+MA027;2;Stagger;1;;;;100;None;0;0;nem
 
 #Szörnyidézések
 Id;KépességId;EllenségIds;Minimum;Maximum;Sugár;MaxÉlőIdézett;JutalomÉsZsákmány;Előkészített
@@ -903,6 +928,17 @@ E110;55;igen;igen;igen;Sima;Sima;0;300
 E111;60;nem;nem;igen;Varázs;Varázs;2;2000
 E112;35;nem;igen;igen;Sima;Varázs;2;2500
 E113;50;igen;igen;igen;Sima;Sima;0;500
+
+E118;20;nem;nem;igen;Sima;Sima;0;250
+E119;55;igen;igen;nem;Sima;Sima;0;650
+E120;65;igen;igen;igen;Sima;Varázs;1;1300
+E121;70;igen;nem;igen;Varázs;Varázs;3;2200
+E122;55;igen;igen;igen;Sima;Varázs;1;1500
+E123;100;igen;igen;igen;Varázs;Varázs;5;6500
+E124;60;igen;igen;igen;Sima;Varázs;2;1400
+E125;65;igen;igen;igen;Sima;Varázs;2;2000
+E126;75;nem;nem;igen;Varázs;Varázs;4;3000
+E127;100;igen;igen;igen;Varázs;Varázs;5;7000
 
 #Csapdák
 Id;Név;Jel;Hatás;MinimumSzint;ÉszlelésiNehézség;HatástalanításiNehézség;MinimumSebzés;MaximumSebzés;Állapotesély;ÉszlelésiXP;HatástalanításiXP;Leírás;VarázslatId
@@ -1538,15 +1574,15 @@ NPCE015;NPC012;10;8;19
 NPCE016;NPC019;11;9;21
 NPCE017;NPC013;12;9;21
 NPCE018;NPC014;14;8;20
-NPCE019;NPC015;15;9;21
-NPCE020;NPC015;16;9;21
-NPCE021;NPC016;17;9;21
-NPCE022;NPC016;18;9;21
-NPCE023;NPC013;19;9;22
-NPCE024;NPC017;20;10;22
-NPCE025;NPC017;21;10;22
-NPCE026;NPC018;22;10;23
-NPCE027;NPC018;23;10;23
+NPCE019;NPC015;17;9;21
+NPCE020;NPC015;18;9;21
+NPCE021;NPC016;19;9;21
+NPCE022;NPC016;20;9;21
+NPCE023;NPC013;21;9;22
+NPCE024;NPC017;22;10;22
+NPCE025;NPC017;23;10;22
+NPCE026;NPC018;24;10;23
+NPCE027;NPC018;25;10;23
 NPCE028;NPC020;2;8;18
 NPCE029;NPC021;5;1;50;RODERIC_MEETING
 NPCE030;NPC022;1;5;13
@@ -1569,42 +1605,48 @@ NPCE045;NPC007;13;7;26;;REED_GATE
 NPCE046;NPC028;13;8;28;;CROWN_CAUSEWAY
 NPCE047;NPC026;14;7;24;;
 NPCE048;NPC010;14;11;27;;
-NPCE049;NPC027;15;7;24;;
-NPCE050;NPC024;15;12;29;;
-NPCE051;NPC003;16;7;24;;
-NPCE052;NPC031;16;11;27;;
-NPCE053;NPC001;17;7;24;;
-NPCE054;NPC029;17;11;27;;
-NPCE055;NPC008;18;8;25;;
-NPCE056;NPC028;19;7;25;;
-NPCE057;NPC030;20;8;25;;
-NPCE058;NPC031;21;7;25;;
-NPCE059;NPC026;22;7;24;;
-NPCE060;NPC025;22;11;27;;
-NPCE061;NPC003;23;7;24;;
-NPCE062;NPC031;23;11;27;;
+NPCE049;NPC027;17;7;24;;
+NPCE050;NPC024;17;12;29;;
+NPCE051;NPC003;18;7;24;;
+NPCE052;NPC031;18;11;27;;
+NPCE053;NPC001;19;7;24;;
+NPCE054;NPC029;19;11;27;;
+NPCE055;NPC008;20;8;25;;
+NPCE056;NPC028;21;7;25;;
+NPCE057;NPC030;22;8;25;;
+NPCE058;NPC031;23;7;25;;
+NPCE059;NPC026;24;7;24;;
+NPCE060;NPC025;24;11;27;;
+NPCE061;NPC003;25;7;24;;
+NPCE062;NPC031;25;11;27;;
 NPCE063;NPC009;11;12;29;;
-NPCE064;NPC010;15;8;25;;
-NPCE065;NPC011;18;12;29;;
-NPCE066;NPC013;23;12;29;;
-NPCE067;NPC015;22;8;25;;
-NPCE068;NPC016;21;12;29;;
-NPCE069;NPC017;22;12;29;;
-NPCE070;NPC018;20;12;29;;
+NPCE064;NPC010;17;8;25;;
+NPCE065;NPC011;20;12;29;;
+NPCE066;NPC013;25;12;29;;
+NPCE067;NPC015;24;8;25;;
+NPCE068;NPC016;23;12;29;;
+NPCE069;NPC017;24;12;29;;
+NPCE070;NPC018;22;12;29;;
 NPCE071;NPC024;9;12;29;;
-NPCE072;NPC027;17;12;29;;
-NPCE073;NPC028;18;8;25;;
-NPCE074;NPC030;21;8;25;;
+NPCE072;NPC027;19;12;29;;
+NPCE073;NPC028;20;8;25;;
+NPCE074;NPC030;23;8;25;;
 NPCE075;NPC031;11;8;25;;
 
 NPCE076;NPC002;11;12;29;;
 NPCE077;NPC009;13;8;28;;FERRY_ISLAND
-NPCE078;NPC017;23;12;29;;
-NPCE079;NPC024;18;12;29;;
-NPCE080;NPC008;19;12;29;;
-NPCE081;NPC025;20;12;29;;
+NPCE078;NPC017;25;12;29;;
+NPCE079;NPC024;20;12;29;;
+NPCE080;NPC008;21;12;29;;
+NPCE081;NPC025;22;12;29;;
 
-NPCE082;NPC002;17;12;29;;
+NPCE082;NPC002;19;12;29;;
+
+NPCE083;NPC014;15;6;24;;AREA_1
+NPCE084;NPC028;15;12;30;;AREA_1
+NPCE085;NPC010;16;6;24;;AREA_1
+NPCE086;NPC026;16;6;26;;AREA_2
+NPCE087;NPC030;16;12;30;;AREA_1
 
 #Quest ládák
 Id;Név;Arany;Térképjel;Előtérszín;Háttérszín;ŐrzőEnemyId
@@ -1832,6 +1874,19 @@ NPCQ150;NPC025;Kill;E098;1;3200;A kultusz vérrel írt szerződése;Győzz le eg
 NPCQ151;NPC002;Kill;E011;2;2200;A jég alatti vadászat;Győzz le két lidércfarkast a dermedt mélységben. A szörnyvadász az erőd után a jégjárókra vadászó falkákat követi.;T018;3;0;;NPCD428;;0;;NPCE082;0;10;nem
 NPCQ152;NPC002;Kill;E079;1;3000;Az ötödik vadászat nagyvadja;Győzz le egy küklopszot a dermedt mélységben. A szörnyvadász a goblinportyáktól idáig vezető utat ezzel a nagyvaddal zárná le.;T028;2;0;;NPCD429;T013;2;NPCD430;NPCE082;0;10;nem
 NPCQ153;NPC025;Kill;E015;2;2100;A megszentségtelenített gyolcs;Győzz le két múmiát a sírkamrákban. Az inkvizítor a káoszpapok rituáléihoz felhasznált régi sírok őrségét vizsgálja.;PS005;1;0;;NPCD431;;0;;NPCE040;0;10;nem
+
+NPCQ154;NPC014;Kill;E122;2;3000;Az idomárok füttyjele;Győzz le két krokodilidomárt. A révész a lápi átkelők után a palota medencéihez vezető utat tisztíttatja meg.;T017;3;0;;NPCD435;T013;2;NPCD436;NPCE083;0;10;nem
+NPCQ155;NPC014;Collect;T002;6;2200;Tiszta víz a palotában;Vigyél hat adag vizet a révésznek. A palota sós medencéiből a sebesült menekülők nem ihatnak.;T001;6;0;;NPCD437;;0;;NPCE083;0;10;nem
+NPCQ156;NPC014;Kill;E119;6;2700;Nyilak az átkelők fölött;Győzz le hat gyíkember vadászt. A gyors íjászok a visszavonulókat és az átkelők őrizetlen oldalát lövik.;T029;36;0;;NPCD438;;0;;NPCE083;0;10;nem
+NPCQ157;NPC028;Kill;E123;1;7000;A pikkelytrón zsarnoka;Győzd le a gyíkemberek királyát a palota utolsó képernyőjének tróntermében. A levéltáros a lápi udvartól elrabolt koronák nyomára talált.;M028;1;0;;NPCD439;PS010;1;NPCD440;NPCE084;0;10;nem
+NPCQ158;NPC028;OpenChest;ANY;3;3000;Az elhurcolt koronák jegyzéke;Nyiss ki három kincsesládát. A levéltáros a lápvidék udvari pecsétjeit keresi a palota zsákmányraktáraiban.;T033;3;0;;NPCD441;;0;;NPCE084;0;10;nem
+NPCQ159;NPC028;Kill;E120;6;3400;A pikkelylégió bilincsei;Győzz le hat pajzsos gyíkőrt. A kaszárnyák foglyait az udvari őrség őrzi.;T016;2;0;;NPCD442;;0;;NPCE084;0;10;nem
+NPCQ160;NPC010;Kill;E126;2;3600;A méregkeverők esküje;Győzz le két méregmágust. Az alkimista a mocsári mérgek forrását a templom rituális méregigézetében találta meg.;T017;4;0;;NPCD443;M028;1;NPCD444;NPCE085;0;10;nem
+NPCQ161;NPC010;Collect;T017;3;2600;Ellenméreg a zarándokoknak;Vigyél három ellenmérget az alkimistának. A templom foglyai között is terjed a rituális méreg.;T015;3;0;;NPCD445;;0;;NPCE085;0;10;nem
+NPCQ162;NPC026;Disarm;TR109;2;4000;A vedlés álompecsétjei;Hatástalaníts két Rémképrúnát a templom második és harmadik képernyőjén. Az adeptus a mocsári őrjelek eredeti litániáját fejtette meg.;MS007;2;0;;NPCD446;PS007;1;NPCD447;NPCE086;0;10;nem
+NPCQ163;NPC026;Explore;EXIT;1;2600;A templom mögötti út;Fedezd fel a templom kijáratát. A rúnatörő a főoltár mögött a mélyjáratba vezető szabad utat keresi.;T016;2;0;;NPCD448;;0;;NPCE086;0;10;nem
+NPCQ164;NPC030;Kill;E127;1;7500;A vedlő isten hamis hangja;Győzd le a kígyóemberek főpapját az utolsó képernyő főoltáránál. A szökevény szerint a pap a káoszkultusz számára gyűjti a lápi áldozatokat.;PS010;2;0;;NPCD449;PS008;1;NPCD450;NPCE087;0;10;nem
+NPCQ165;NPC030;Kill;E095;3;3200;A körmenet elnémítása;Győzz le három kígyópapot. A főpap segítői vezetik a zarándokokat a méreggel szentelt termekbe.;T013;3;0;;NPCD451;;0;;NPCE087;0;10;nem
 
 #NPC párbeszédek
 Id;NpcId;MinimumBarátságosság;MaximumBarátságosság;Szöveg;TalálkozásId
@@ -2300,6 +2355,34 @@ NPCD432;NPC002;0;7;A szörnyvadász az erőd után a jég alatti falkákat köve
 NPCD433;NPC002;8;10;Megbízom bennetek. Az óriások kíséretében kisebb íjászok és varázshasználók is maradtak. A nagyvadra fordulás előtt a támogatást is fogjátok meg. Két lidércfarkas és egy küklopsz maradt a vadászat végére.;NPCE082
 
 NPCD434;NPC030;8;10;A vérmágusok és a főpapok ugyanazt az őrséget támogatják. A kultusz alkuját mindkét varázshasználó csoport kiiktatása gyengíti.;NPCE074
+
+NPCD435;NPC014;0;10;Az idomárok füttyjele — elvégeztétek a feladatot. Az ígért készletet megkapjátok.;
+NPCD436;NPC014;8;10;A gyíkőrség a pajzsosokat küldi előre. A sámánok gyógyítanak és erősítenek, az idomárok krokodilokat vezetnek. Az állatok mögötti támogatást törjétek meg.;NPCE083
+NPCD437;NPC014;0;10;Tiszta víz a palotában — elvégeztétek a feladatot. Az ígért készletet megkapjátok.;
+NPCD438;NPC014;0;10;Nyilak az átkelők fölött — elvégeztétek a feladatot. Az ígért készletet megkapjátok.;
+NPCD439;NPC028;0;10;A pikkelytrón zsarnoka — elvégeztétek a feladatot. Az ígért készletet megkapjátok.;
+NPCD440;NPC028;8;10;A király két sámánnal és pajzsos testőrökkel őrzi az aranykulcsot. A királygyilkosság önmagában nem némítja el a gyógyítókat. A palota mögött a vedlő isten papjai állnak.;NPCE084
+NPCD441;NPC028;0;10;Az elhurcolt koronák jegyzéke — elvégeztétek a feladatot. Az ígért készletet megkapjátok.;
+NPCD442;NPC028;0;10;A pikkelylégió bilincsei — elvégeztétek a feladatot. Az ígért készletet megkapjátok.;
+NPCD443;NPC010;0;10;A méregkeverők esküje — elvégeztétek a feladatot. Az ígért készletet megkapjátok.;
+NPCD444;NPC010;8;10;A méregigézet tartós mérgezést okozhat, a zöld vihar pedig savval sebez és lassít. Ellenméreg és savvédelem együtt kell. A kígyóíjászok célzott lövése külön is mérgez.;NPCE085
+NPCD445;NPC010;0;10;Ellenméreg a zarándokoknak — elvégeztétek a feladatot. Az ígért készletet megkapjátok.;
+NPCD446;NPC026;0;10;A vedlés álompecsétjei — elvégeztétek a feladatot. Az ígért készletet megkapjátok.;
+NPCD447;NPC026;8;10;A Rémképrúna és a méregcsapda eltérő őrjel. Ehhez a feladathoz a két Rémképrúna kell. A főpap őrségét gyógyítás és védelmi litánia tartja életben.;NPCE086
+NPCD448;NPC026;0;10;A templom mögötti út — elvégeztétek a feladatot. Az ígért készletet megkapjátok.;
+NPCD449;NPC030;0;10;A vedlő isten hamis hangja — elvégeztétek a feladatot. Az ígért készletet megkapjátok.;
+NPCD450;NPC030;8;10;A főpap az egész őrséget gyógyíthatja és erősítheti. Templomőrök, íjászok és két kígyópap védi. A belső mellékszentély ősi hidrája külön őrző, nem aranykulcsos boss.;NPCE087
+NPCD451;NPC030;0;10;A körmenet elnémítása — elvégeztétek a feladatot. Az ígért készletet megkapjátok.;
+NPCD452;NPC014;0;7;Az idomárok füttyjele: Győzz le két krokodilidomárt. A révész a lápi átkelők után a palota medencéihez vezető utat tisztíttatja meg. Tiszta víz a palotában: Vigyél hat adag vizet a révésznek. A palota sós medencéiből a sebesült menekülők nem ihatnak. Nyilak az átkelők fölött: Győzz le hat gyíkember vadászt. A gyors íjászok a visszavonulókat és az átkelők őrizetlen oldalát lövik.;NPCE083
+NPCD453;NPC014;8;10;Megbízom bennetek. A gyíkőrség a pajzsosokat küldi előre. A sámánok gyógyítanak és erősítenek, az idomárok krokodilokat vezetnek. Az állatok mögötti támogatást törjétek meg. Az idomárok füttyjele: Győzz le két krokodilidomárt. A révész a lápi átkelők után a palota medencéihez vezető utat tisztíttatja meg. Tiszta víz a palotában: Vigyél hat adag vizet a révésznek. A palota sós medencéiből a sebesült menekülők nem ihatnak. Nyilak az átkelők fölött: Győzz le hat gyíkember vadászt. A gyors íjászok a visszavonulókat és az átkelők őrizetlen oldalát lövik.;NPCE083
+NPCD454;NPC028;0;7;A pikkelytrón zsarnoka: Győzd le a gyíkemberek királyát a palota utolsó képernyőjének tróntermében. A levéltáros a lápi udvartól elrabolt koronák nyomára talált. Az elhurcolt koronák jegyzéke: Nyiss ki három kincsesládát. A levéltáros a lápvidék udvari pecsétjeit keresi a palota zsákmányraktáraiban. A pikkelylégió bilincsei: Győzz le hat pajzsos gyíkőrt. A kaszárnyák foglyait az udvari őrség őrzi.;NPCE084
+NPCD455;NPC028;8;10;Megbízom bennetek. A király két sámánnal és pajzsos testőrökkel őrzi az aranykulcsot. A királygyilkosság önmagában nem némítja el a gyógyítókat. A palota mögött a vedlő isten papjai állnak. A pikkelytrón zsarnoka: Győzd le a gyíkemberek királyát a palota utolsó képernyőjének tróntermében. A levéltáros a lápi udvartól elrabolt koronák nyomára talált. Az elhurcolt koronák jegyzéke: Nyiss ki három kincsesládát. A levéltáros a lápvidék udvari pecsétjeit keresi a palota zsákmányraktáraiban. A pikkelylégió bilincsei: Győzz le hat pajzsos gyíkőrt. A kaszárnyák foglyait az udvari őrség őrzi.;NPCE084
+NPCD456;NPC010;0;7;A méregkeverők esküje: Győzz le két méregmágust. Az alkimista a mocsári mérgek forrását a templom rituális méregigézetében találta meg. Ellenméreg a zarándokoknak: Vigyél három ellenmérget az alkimistának. A templom foglyai között is terjed a rituális méreg.;NPCE085
+NPCD457;NPC010;8;10;Megbízom bennetek. A méregigézet tartós mérgezést okozhat, a zöld vihar pedig savval sebez és lassít. Ellenméreg és savvédelem együtt kell. A kígyóíjászok célzott lövése külön is mérgez. A méregkeverők esküje: Győzz le két méregmágust. Az alkimista a mocsári mérgek forrását a templom rituális méregigézetében találta meg. Ellenméreg a zarándokoknak: Vigyél három ellenmérget az alkimistának. A templom foglyai között is terjed a rituális méreg.;NPCE085
+NPCD458;NPC026;0;7;A vedlés álompecsétjei: Hatástalaníts két Rémképrúnát a templom második és harmadik képernyőjén. Az adeptus a mocsári őrjelek eredeti litániáját fejtette meg. A templom mögötti út: Fedezd fel a templom kijáratát. A rúnatörő a főoltár mögött a mélyjáratba vezető szabad utat keresi.;NPCE086
+NPCD459;NPC026;8;10;Megbízom bennetek. A Rémképrúna és a méregcsapda eltérő őrjel. Ehhez a feladathoz a két Rémképrúna kell. A főpap őrségét gyógyítás és védelmi litánia tartja életben. A vedlés álompecsétjei: Hatástalaníts két Rémképrúnát a templom második és harmadik képernyőjén. Az adeptus a mocsári őrjelek eredeti litániáját fejtette meg. A templom mögötti út: Fedezd fel a templom kijáratát. A rúnatörő a főoltár mögött a mélyjáratba vezető szabad utat keresi.;NPCE086
+NPCD460;NPC030;0;7;A vedlő isten hamis hangja: Győzd le a kígyóemberek főpapját az utolsó képernyő főoltáránál. A szökevény szerint a pap a káoszkultusz számára gyűjti a lápi áldozatokat. A körmenet elnémítása: Győzz le három kígyópapot. A főpap segítői vezetik a zarándokokat a méreggel szentelt termekbe.;NPCE087
+NPCD461;NPC030;8;10;Megbízom bennetek. A főpap az egész őrséget gyógyíthatja és erősítheti. Templomőrök, íjászok és két kígyópap védi. A belső mellékszentély ősi hidrája külön őrző, nem aranykulcsos boss. A vedlő isten hamis hangja: Győzd le a kígyóemberek főpapját az utolsó képernyő főoltáránál. A szökevény szerint a pap a káoszkultusz számára gyűjti a lápi áldozatokat. A körmenet elnémítása: Győzz le három kígyópapot. A főpap segítői vezetik a zarándokokat a méreggel szentelt termekbe.;NPCE087
 
 #NPC történeti választások
 Id;TörténetId;ÁllapotId;Mondat;Sorrend;Válasz;ViszonyVáltozás;KövetkezőÁllapotId;Reakció;Hatás;HatásParaméter;Folytatás;MinimumViszony;MaximumViszony

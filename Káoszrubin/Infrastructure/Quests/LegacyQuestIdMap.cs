@@ -169,6 +169,18 @@ public static class LegacyQuestIdMap
             "NPCQ151" => QuestId.MonsterHunterFrozenWolves,
             "NPCQ152" => QuestId.MonsterHunterFrozenCyclops,
             "NPCQ153" => QuestId.InquisitorTombMummies,
+            "NPCQ154" => QuestId.FerrymanPalaceBeastmasters,
+            "NPCQ155" => QuestId.FerrymanPalaceWater,
+            "NPCQ156" => QuestId.FerrymanPalaceHunters,
+            "NPCQ157" => QuestId.ArchivistScaledKing,
+            "NPCQ158" => QuestId.ArchivistPalaceTreasures,
+            "NPCQ159" => QuestId.ArchivistPalaceShields,
+            "NPCQ160" => QuestId.AlchemistTempleVenomMages,
+            "NPCQ161" => QuestId.AlchemistTempleAntidotes,
+            "NPCQ162" => QuestId.RuneBreakerTempleNightmares,
+            "NPCQ163" => QuestId.RuneBreakerTempleExit,
+            "NPCQ164" => QuestId.FugitiveSnakeHighPriest,
+            "NPCQ165" => QuestId.FugitiveTemplePriests,
             _ => throw new InvalidDataException(
                 $"Ismeretlen legacy quest-azonosító: '{legacyId}'.")
         };
@@ -328,6 +340,18 @@ public static class LegacyQuestIdMap
         QuestId.MonsterHunterFrozenWolves => "NPCQ151",
         QuestId.MonsterHunterFrozenCyclops => "NPCQ152",
         QuestId.InquisitorTombMummies => "NPCQ153",
+        QuestId.FerrymanPalaceBeastmasters => "NPCQ154",
+        QuestId.FerrymanPalaceWater => "NPCQ155",
+        QuestId.FerrymanPalaceHunters => "NPCQ156",
+        QuestId.ArchivistScaledKing => "NPCQ157",
+        QuestId.ArchivistPalaceTreasures => "NPCQ158",
+        QuestId.ArchivistPalaceShields => "NPCQ159",
+        QuestId.AlchemistTempleVenomMages => "NPCQ160",
+        QuestId.AlchemistTempleAntidotes => "NPCQ161",
+        QuestId.RuneBreakerTempleNightmares => "NPCQ162",
+        QuestId.RuneBreakerTempleExit => "NPCQ163",
+        QuestId.FugitiveSnakeHighPriest => "NPCQ164",
+        QuestId.FugitiveTemplePriests => "NPCQ165",
         _ => throw new InvalidDataException("Ismeretlen típusos questazonosító.")
     };
 }

@@ -2240,6 +2240,91 @@ public static class AsciiPortraits
                """),
        };
 
+    private static readonly IReadOnlyDictionary<string, AsciiPortrait> ScaledEnemies =
+        new Dictionary<string, AsciiPortrait>(StringComparer.OrdinalIgnoreCase)
+        {
+            [MonsterIds.Óriáskígyó] = Portrait(
+                """
+                    ___/\
+                 __/ •  •>
+                /  \___/
+                \___  /\
+                    \_/  \___
+                """),
+            [MonsterIds.GyíkemberVadász] = Portrait(
+                """
+                   /^___/^   /
+                  < •   • > /
+                   \__Y__/ )=>
+                    /|~~|\ /
+                   /_|  |_\
+                """),
+            [MonsterIds.PajzsosGyíkőr] = Portrait(
+                """
+                   /^___/^
+                  < •   • >  ║
+                 [▓\__Y__/▓] ╪
+                 [▣] |▓▓|---╯
+                    /_|  |_\
+                """),
+            [MonsterIds.GyíkemberSámán] = Portrait(
+                """
+                   /^___/^   *
+                  < •   • > ( )
+                   \__Y__/--╂
+                    /|~~|   │
+                   /_|__|\
+                """),
+            [MonsterIds.Krokodilidomár] = Portrait(
+                """
+                   /^___/^  __
+                  < •   • >   )
+                   \__Y__/---/
+                    /|==|\
+                  ~~/___\~~~~
+                """),
+            [MonsterIds.GyíkemberKirály] = Portrait(
+                """
+                    \^v^/   ║
+                   < • • >  ║
+                  [▓\_Y_/▓]-╪
+                  [▣]▓▓▓|   ║
+                    /___\~~~~
+                """),
+            [MonsterIds.Kígyóíjász] = Portrait(
+                """
+                    .-S-.    /
+                   < • • >  /
+                    \_Y_/  )=>
+                    /|~~|\  \
+                   ~~/  \~~
+                """),
+            [MonsterIds.KígyóTemplomőr] = Portrait(
+                """
+                    /^^^\   │
+                   < • • >  ╪
+                  [▣\_Y_/]--│
+                    /|==|\  │
+                   ~~/  \~~
+                """),
+            [MonsterIds.Méregmágus] = Portrait(
+                """
+                    .-S-.   *
+                   < • • > ( )
+                    \_Y_/---╂
+                    /|~~|   │
+                   ~~/___\~~
+                """),
+            [MonsterIds.KígyóFőpap] = Portrait(
+                """
+                    \^v^/   *
+                   < • • > ( )
+                    \_Y_/---╂
+                    /|ΩΩ|   │
+                   ~~/___\~~
+                """),
+        };
+
     private static readonly AsciiPortrait Unknown = Portrait(
         """
               ???
@@ -2259,7 +2344,7 @@ public static class AsciiPortraits
 
     public static AsciiPortrait ForEnemy(string enemyId, AsciiPortraitSet? set = null) =>
         ((set ?? _settings?.PortraitSet) == AsciiPortraitSet.Second ? EnemiesSet2 : Enemies)
-            .GetValueOrDefault(enemyId, Unknown);
+            .GetValueOrDefault(enemyId, ScaledEnemies.GetValueOrDefault(enemyId, Unknown));
 
     private static AsciiPortrait Portrait(string portrait) =>
         new(portrait.ReplaceLineEndings("\n").Split('\n'), CanvasWidth);

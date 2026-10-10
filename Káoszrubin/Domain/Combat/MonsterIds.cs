@@ -115,9 +115,20 @@ public static class MonsterIds
     public const string ZsilipŐrkapitány = "E116";
     public const string LápiUdvarmester = "E117";
 
+    public const string Óriáskígyó = "E118";
+    public const string GyíkemberVadász = "E119";
+    public const string PajzsosGyíkőr = "E120";
+    public const string GyíkemberSámán = "E121";
+    public const string Krokodilidomár = "E122";
+    public const string GyíkemberKirály = "E123";
+    public const string Kígyóíjász = "E124";
+    public const string KígyóTemplomőr = "E125";
+    public const string Méregmágus = "E126";
+    public const string KígyóFőpap = "E127";
+
     public static IReadOnlySet<string> Bosses { get; } = new HashSet<string>(
     [
-        Patkányember, Ghoul, OrkSámán, Fagyóriás, VörösSárkány, Hidra,
+        GyíkemberKirály, KígyóFőpap, OrkSámán, Fagyóriás, VörösSárkány, Hidra,
         VénBeholder, Csontsárkány, Ősvámpír, Drakolich, BalorDémon, Káoszsárkány
     ], StringComparer.OrdinalIgnoreCase);
 

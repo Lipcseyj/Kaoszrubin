@@ -575,6 +575,7 @@ internal sealed partial class MapEditorForm : Form
                     ? new WideMazeGenerator(settings, [], [], new Random(seed))
                     : new MazeGenerator(settings, [], [], new Random(seed));
                 maze = generator.Create(170, 44);
+                ScaledKingdomDungeons.ApplyTerrain(maze);
             }
             else
             {

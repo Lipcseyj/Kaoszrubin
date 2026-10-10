@@ -3,7 +3,7 @@
 > A dokumentum a jelenlegi kód működését írja le. A hangolható értékek elsődleges forrása
 > a [game-data.csv](../Data/game-data.csv), a pályáké a
 > [MazeLevelConfiguration.cs](../World/MazeLevelConfiguration.cs).
-> Mentésformátum: **35**; session-protokoll: **102**. Ezek egymástól független verziók.
+> Mentésformátum: **43**; session-protokoll: **109**. Ezek egymástól független verziók.
 
 ## Tartalom
 
@@ -35,7 +35,8 @@
 - [erdei generálás](forest-generation-readme.md)
 - [térkép szerkesztő](../Tools/MapEditor/map-editor-readme.md)
 - [küldetésrendszer](quest-readme.md)
-- [a 7–23. pálya küldetései és visszatérő szereplői](kampany-kuldetesek-7-23.md)
+- [a 7–25. pálya küldetései és visszatérő szereplői](kampany-kuldetesek-7-23.md)
+- [a Pikkelytrón és a Vedlő isten dungeonjei](ScaledKingdomDungeons.md)
 - [küldetésszobák célképernyője és AreaId-ja](quest-room-placement-readme.md)
 
 ## Ténylegesen működő fejlesztői funkciók
@@ -100,7 +101,7 @@ Az `MA001` Élőholt tulajdonságú ellenfelek ellen a Pap és a Lovag az első 
 
 ### Bossok és aranykulcsok
 
-Az `EnemyDefinition.IsBoss` jelöli a tizenkét bossfajt. Ezek: Patkányember, Ghoul, Ork sámán, Fagyóriás, Vörös sárkány, Hidra, Vén beholder, Csontsárkány, Ősvámpír, Drakolich, Balor démon és végül a Káoszsárkány. A kampány első célja mind a 12 aranykulcs összegyűjtése.
+Az `EnemyDefinition.IsBoss` jelöli a tizenkét bossfajt. Ezek: Gyíkember király, Kígyó főpap, Ork sámán, Fagyóriás, Vörös sárkány, Hidra, Vén beholder, Csontsárkány, Ősvámpír, Drakolich, Balor démon és végül a Káoszsárkány. A kampány első célja mind a 12 aranykulcs összegyűjtése.
 
 Egy bossfaj legyőzése pontosan egyszer ad aranykulcsot, ezért ismételt példány vagy mentés-visszatöltés nem sokszorozhatja a jutalmat. A kulcsok nem inventorytárgyak: a játékállás az összegyűjtött bossazonosítókat tárolja, a karakterlap pedig a labirintusszint mellett `🔑 n/12` formában mutatja az előrehaladást. A tizenkettedik kulcs megszerzése külön cél-teljesítési üzenetet ad.
 
@@ -109,7 +110,7 @@ Amikor egy boss mezője először ténylegesen láthatóvá válik, modális bos
 Új játék indításakor ugyanezzel a térképoverlay-mechanizmussal jelenik meg a Káoszrubin eredetét,
 Aurelios Máguskirály megbízását, Vhar-Zul fenyegetését és a Kulcshordozók küldetését elmesélő
 nyitófejezet. A tizenkettedik kulcs megszerzése a XIV. fejezet mérföldköve, nem játékbefejezés.
-A kampány összesen **22 szintből** áll; nem nyílik további huszonkét pálya a kulcsok után.
+A kampány összesen **25 szintből** áll; nem nyílik további huszonkét pálya a kulcsok után.
 
 A megoldás fő felelősségi területei:
 

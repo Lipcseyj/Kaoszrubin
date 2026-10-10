@@ -10,11 +10,19 @@ internal static class DeveloperBossTeleport
     /// <summary>A kulcsbossokat az első, vezetőként konfigurált pályájuk szerint rendezi.</summary>
     public static IReadOnlyList<DeveloperBossTarget> Targets() =>
         Enumerable.Range(1, MazeLevelConfigurations.FinalLevel)
-            .SelectMany(level => MazeLevelConfigurations.Get(level).RoomEncounters
-                .SelectMany(encounter => encounter.Members)
-                .Where(member => member.Role == EnemyGroupRole.Leader &&
-                                 MonsterIds.Bosses.Contains(member.EnemyId))
-                .Select(member => new DeveloperBossTarget(member.EnemyId, level)))
+            .SelectMany(level =>
+            {
+                var configuration = MazeLevelConfigurations.Get(level);
+                return configuration.RoomEncounters.SelectMany(encounter => encounter.Members)
+                    .Where(member => member.Role == EnemyGroupRole.Leader &&
+                                     MonsterIds.Bosses.Contains(member.EnemyId))
+                    .Select(member => member.EnemyId)
+                    .Concat(configuration.QuestRoomEnemyEncounters
+                        .Where(encounter => encounter.Role == EnemyGroupRole.Leader &&
+                                            MonsterIds.Bosses.Contains(encounter.EnemyId))
+                        .Select(encounter => encounter.EnemyId))
+                    .Select(id => new DeveloperBossTarget(id, level));
+            })
             .GroupBy(target => target.EnemyId, StringComparer.OrdinalIgnoreCase)
             .Select(group => group.OrderBy(target => target.MazeLevel).First())
             .OrderBy(target => target.MazeLevel)
