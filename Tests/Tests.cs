@@ -344,6 +344,7 @@ internal static partial class Program
     ("A fogadó snapshotja közös pletykákat továbbít", InnSnapshotCarriesSharedRumors),
     ("A fogadónevek és hangulatpletykák CSV-ből töltődnek", InnNamesAndRumorsLoadFromCsv),
     ("A snapshot csak az aktív harci promptot fogadja el", SnapshotRequiresCurrentBattlePrompt),
+    ("A harc közbeni coop frissítés a stabil promptig vagy csatavégig vár", BattleCoopUpdatesWaitForStableState),
     ("A world snapshot nem szivárogtat rejtett entitást", WorldSnapshotOnlyContainsRevealedState),
     ("A közös látótér elrejti és rövid ideig megjegyzi az eltűnt szörnyet", PartyVisionTracksLastKnownEnemy),
     ("A látótéren kívüli szörnymozgás nem írja újra a térképet", HiddenEnemyMovementDoesNotRedrawMapCells),

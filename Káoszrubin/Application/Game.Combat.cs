@@ -285,7 +285,10 @@ public sealed partial class Game
             UpdateBattleFocus(battle, current);
 
             if (DelayAutomaticTurns(battle))
+            {
+                SetBattlePrompt(battle);
                 return;
+            }
 
             if (_preparedBattleTurnId != battle.Turns.TurnId)
             {

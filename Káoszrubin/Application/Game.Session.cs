@@ -40,7 +40,10 @@ public sealed partial class Game
     {
         SynchronizeInventoryQuests();
         MarkCoopSnapshotDirty();
-        if (!_processingSessionCommands && !_synchronizingQuestInventory)
+        // Harc közben a questfrissítés egy akció közepén is érkezhet, amikor
+        // a session promptja még az előző köré. A játékhurok a ContinueBattle
+        // után, stabil prompttal (vagy lezárt csatával) küldi a piszkos állapotot.
+        if (!_battleStarted && !_processingSessionCommands && !_synchronizingQuestInventory)
             TryPublishScheduledCoopSnapshot(DateTime.UtcNow);
     }
 
